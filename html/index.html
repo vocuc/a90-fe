@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AI90 - Tạo hình ảnh chuyên nghiệp bằng AI</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-primary": "#ffffff",
+            "on-tertiary-fixed-variant": "#004395",
+            "on-error": "#ffffff",
+            "surface-container-low": "#f2f3ff",
+            "primary": "#004ac6",
+            "on-surface": "#131b2e",
+            "surface-dim": "#d2d9f4",
+            "tertiary-container": "#0f69dc",
+            "tertiary-fixed": "#d8e2ff",
+            "primary-fixed-dim": "#b4c5ff",
+            "surface-container-high": "#e2e7ff",
+            "secondary": "#3755c3",
+            "primary-container": "#2563eb",
+            "inverse-surface": "#283044",
+            "secondary-fixed-dim": "#b8c4ff",
+            "outline-variant": "#c3c6d7",
+            "on-error-container": "#93000a",
+            "on-secondary-container": "#00217a",
+            "surface-container": "#eaedff",
+            "surface-bright": "#faf8ff",
+            "secondary-fixed": "#dde1ff",
+            "surface-container-highest": "#dae2fd",
+            "on-tertiary-container": "#edf0ff",
+            "surface-tint": "#0053db",
+            "surface-container-lowest": "#ffffff",
+            "outline": "#737686",
+            "background": "#faf8ff",
+            "on-primary-fixed-variant": "#003ea8",
+            "inverse-primary": "#b4c5ff",
+            "on-primary-fixed": "#00174b",
+            "error-container": "#ffdad6",
+            "on-tertiary-fixed": "#001a42",
+            "on-tertiary": "#ffffff",
+            "on-background": "#131b2e",
+            "error": "#ba1a1a",
+            "on-secondary-fixed": "#001453",
+            "on-surface-variant": "#434655",
+            "tertiary-fixed-dim": "#adc6ff",
+            "secondary-container": "#708cfd",
+            "on-primary-container": "#eeefff",
+            "surface-variant": "#dae2fd",
+            "tertiary": "#0051b1",
+            "surface": "#faf8ff",
+            "primary-fixed": "#dbe1ff",
+            "inverse-on-surface": "#eef0ff",
+            "on-secondary": "#ffffff",
+            "on-secondary-fixed-variant": "#173bab"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "fontFamily": {
+            "body-md": ["Plus Jakarta Sans"],
+            "body-sm": ["Plus Jakarta Sans"],
+            "title-md": ["Plus Jakarta Sans"],
+            "headline-md": ["Plus Jakarta Sans"],
+            "label-md": ["Plus Jakarta Sans"],
+            "headline-lg": ["Plus Jakarta Sans"],
+            "headline-sm": ["Plus Jakarta Sans"]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface antialiased font-['Plus_Jakarta_Sans',sans-serif]">
+<div class="relative flex min-h-screen w-full flex-col max-w-md mx-auto bg-surface-container-lowest shadow-2xl overflow-x-hidden pb-24">
+<!-- Top Bar -->
+<header class="sticky top-0 z-40 flex items-center justify-between bg-surface-container-lowest/90 backdrop-blur-md px-4 py-3 border-b border-surface-container">
+<div class="flex items-center gap-3">
+<div class="bg-cover bg-center rounded-full size-9 ring-2 ring-primary/20" data-alt="Close up minimalist profile portrait of a confident young digital creative creator with neutral lighting and subtle cobalt blue accent background studio aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDo0QIMljZPOrahqGRobp6JkhfvR01JOvT3YQQ8UX3FiMTYoRvfZCLAbBwbp_9FmOex3vj8rE58pzJPTpVkkz7dYljtZzTvyQnRl1SKqiby2wiTnj5reM07ykSYdfKRhPZS1qbXdleXEi_6FNYeewVLwZLBL83TmuQSccGirXfEuKfv6lsPhel8yGsLPvjuygz8bi0cARgHD9V17okX2D8NucoAuwQPIlkcDWkPOKk');"></div>
+<div>
+<span class="text-xs text-on-surface-variant font-medium block leading-none">Xin chào,</span>
+<span class="text-base font-bold text-on-surface leading-snug">Minh Khang</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="flex items-center gap-1.5 px-3 py-1 bg-surface-container rounded-full border border-outline-variant/30">
+<span class="material-symbols-outlined text-primary text-base" style="font-variation-settings: 'FILL' 1;">token</span>
+<span class="text-xs font-bold text-primary">120 Credits</span>
+</div>
+<button aria-label="Thông báo" class="flex size-9 items-center justify-center rounded-full bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+</div>
+</header>
+<!-- Hero Section -->
+<section class="px-4 pt-6 pb-4">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary text-xs font-semibold mb-3 border border-primary/10">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+        AI Studio Thế Hệ Mới
+      </div>
+<h1 class="text-on-surface tracking-tight text-[28px] font-extrabold leading-[34px] text-left">
+        Tạo hình ảnh chuyên nghiệp bằng AI
+      </h1>
+<p class="text-on-surface-variant text-[15px] font-normal leading-relaxed pt-2">
+        Khám phá hàng nghìn AI Creative và biến sản phẩm của bạn thành những hình ảnh chuyên nghiệp chỉ với vài thao tác.
+      </p>
+<!-- Search Input -->
+<div class="pt-4 pb-2">
+<label class="flex flex-col w-full">
+<div class="flex w-full items-center rounded-xl bg-surface-container-low border border-outline-variant/40 px-3.5 py-1.5 focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20 transition-all">
+<span class="material-symbols-outlined text-outline text-[22px] mr-2">search</span>
+<input class="w-full bg-transparent border-none p-0 text-sm font-medium text-on-surface placeholder:text-outline focus:outline-none focus:ring-0" placeholder="Tìm kiếm AI Creative..." value=""/>
+<button class="p-1 rounded-lg hover:bg-surface-container transition-colors text-outline-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-lg">tune</span>
+</button>
+</div>
+</label>
+</div>
+<!-- Action Buttons CTA -->
+<div class="flex items-center gap-2.5 pt-3">
+<button class="flex-1 flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-primary-container text-on-primary font-semibold text-sm shadow-md shadow-primary-container/25 hover:bg-primary transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined text-lg">explore</span>
+          Khám phá AI Creative
+        </button>
+<button class="flex-1 flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-surface-container-lowest border border-primary-container text-primary-container font-semibold text-sm hover:bg-surface-container-low transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined text-lg">add_box</span>
+          Tạo AI Creative
+        </button>
+</div>
+</section>
+<!-- Categories Section -->
+<section class="pt-4 pb-2">
+<div class="flex items-center justify-between px-4 mb-3">
+<h2 class="text-base font-bold text-on-surface">Khám phá theo danh mục</h2>
+<span class="text-xs text-primary font-semibold">Tất cả (9)</span>
+</div>
+<div class="flex gap-2.5 overflow-x-auto no-scrollbar px-4 pb-2 snap-x">
+<!-- Cat 1 -->
+<button class="flex flex-col items-center justify-center min-w-[76px] py-2.5 px-2 rounded-xl bg-surface-container-low border border-outline-variant/30 hover:border-primary-container group transition-all snap-start">
+<div class="size-10 rounded-full bg-surface-container flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-colors mb-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">styler</span>
+</div>
+<span class="text-xs font-semibold text-on-surface">Thời trang</span>
+</button>
+<!-- Cat 2 -->
+<button class="flex flex-col items-center justify-center min-w-[76px] py-2.5 px-2 rounded-xl bg-surface-container-low border border-outline-variant/30 hover:border-primary-container group transition-all snap-start">
+<div class="size-10 rounded-full bg-surface-container flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-colors mb-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">steps</span>
+</div>
+<span class="text-xs font-semibold text-on-surface">Giày</span>
+</button>
+<!-- Cat 3 -->
+<button class="flex flex-col items-center justify-center min-w-[76px] py-2.5 px-2 rounded-xl bg-surface-container-low border border-outline-variant/30 hover:border-primary-container group transition-all snap-start">
+<div class="size-10 rounded-full bg-surface-container flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-colors mb-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+</div>
+<span class="text-xs font-semibold text-on-surface">Túi xách</span>
+</button>
+<!-- Cat 4 -->
+<button class="flex flex-col items-center justify-center min-w-[76px] py-2.5 px-2 rounded-xl bg-surface-container-low border border-outline-variant/30 hover:border-primary-container group transition-all snap-start">
+<div class="size-10 rounded-full bg-surface-container flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-colors mb-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">spa</span>
+</div>
+<span class="text-xs font-semibold text-on-surface">Mỹ phẩm</span>
+</button>
+<!-- Cat 5 -->
+<button class="flex flex-col items-center justify-center min-w-[76px] py-2.5 px-2 rounded-xl bg-surface-container-low border border-outline-variant/30 hover:border-primary-container group transition-all snap-start">
+<div class="size-10 rounded-full bg-surface-container flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-colors mb-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">diamond</span>
+</div>
+<span class="text-xs font-semibold text-on-surface">Trang sức</span>
+</button>
+<!-- Cat 6 -->
+<button class="flex flex-col items-center justify-center min-w-[76px] py-2.5 px-2 rounded-xl bg-surface-container-low border border-outline-variant/30 hover:border-primary-container group transition-all snap-start">
+<div class="size-10 rounded-full bg-surface-container flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-colors mb-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">chair</span>
+</div>
+<span class="text-xs font-semibold text-on-surface">Nội thất</span>
+</button>
+<!-- Cat 7 -->
+<button class="flex flex-col items-center justify-center min-w-[76px] py-2.5 px-2 rounded-xl bg-surface-container-low border border-outline-variant/30 hover:border-primary-container group transition-all snap-start">
+<div class="size-10 rounded-full bg-surface-container flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-colors mb-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">restaurant</span>
+</div>
+<span class="text-xs font-semibold text-on-surface">Đồ ăn</span>
+</button>
+<!-- Cat 8 -->
+<button class="flex flex-col items-center justify-center min-w-[76px] py-2.5 px-2 rounded-xl bg-surface-container-low border border-outline-variant/30 hover:border-primary-container group transition-all snap-start">
+<div class="size-10 rounded-full bg-surface-container flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-colors mb-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">devices</span>
+</div>
+<span class="text-xs font-semibold text-on-surface">Điện tử</span>
+</button>
+<!-- Cat 9 -->
+<button class="flex flex-col items-center justify-center min-w-[76px] py-2.5 px-2 rounded-xl bg-surface-container-low border border-outline-variant/30 hover:border-primary-container group transition-all snap-start">
+<div class="size-10 rounded-full bg-surface-container flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-colors mb-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">directions_car</span>
+</div>
+<span class="text-xs font-semibold text-on-surface">Ô tô</span>
+</button>
+</div>
+</section>
+<!-- Featured Creatives Section (Grid Cards) -->
+<section class="px-4 py-4">
+<div class="flex items-center justify-between mb-3.5">
+<div>
+<h2 class="text-lg font-bold text-on-surface">AI Creative nổi bật</h2>
+<p class="text-xs text-on-surface-variant font-normal">Được tinh chỉnh bởi các chuyên gia Prompt</p>
+</div>
+<button class="text-xs font-bold text-primary flex items-center hover:underline">
+          Xem thêm <span class="material-symbols-outlined text-sm ml-0.5">chevron_right</span>
+</button>
+</div>
+<div class="grid grid-cols-1 gap-4">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+<div class="relative w-full aspect-[16/10] bg-surface-container overflow-hidden">
+<div class="w-full h-full bg-cover bg-center transition-transform duration-500 hover:scale-105" data-alt="A futuristic athletic sneaker captured in high-end studio lighting with vibrant cobalt neon reflections and sharp edge highlights. The setting is a polished dark acrylic surface mirroring the shoe with subtle fog effects and cinematic contrast. The entire scene exemplifies professional e-commerce product photography with premium deep blue and crisp white tones." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuADHUXOZ62DJhITr3H3A2X2ASpRSXZdbm3-lievO3v-FeE0Am6hkeWZxyLQpeW9_Tsg9afFEeg6ydd_Qet0S6GTiryeqz2lBK-yh8fIvgxj_Qa2VWbFXK-JBeiWsW3-5RWyyMDi0cG2057XIDyagcW-3YoUs3pxM83_P_pKuqvpie-zZEKFOX8VdR0GCw4FwEhOhYMLQBeImiCdYWdjw4Qd7yLj_otJhaAR37RVp18');"></div>
+<div class="absolute top-3 left-3 bg-inverse-surface/80 backdrop-blur-md text-on-primary text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-xs text-amber-400" style="font-variation-settings: 'FILL' 1;">star</span>
+              4.9
+            </div>
+<div class="absolute top-3 right-3 bg-surface-container-lowest/90 backdrop-blur-md text-primary font-bold text-xs px-2.5 py-1 rounded-full shadow-sm">
+              5 Credit
+            </div>
+</div>
+<div class="p-3.5">
+<div class="flex items-center justify-between mb-1.5">
+<h3 class="font-bold text-sm text-on-surface">Chụp giày sneaker Studio Neon</h3>
+</div>
+<div class="flex items-center justify-between pb-3 border-b border-surface-container">
+<div class="flex items-center gap-2">
+<div class="size-6 rounded-full bg-cover bg-center" data-alt="Close up avatar shot of creative designer in minimalist studio wearing modern black attire with warm soft side light and gentle depth of field blur in light mode palette." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA_65ODRpU7kKnaUq6dqoAFxZlLvr0yRXCXuV0oGg79EXy1wiXp_oEtGNcfBr1Mh5NkozaDifKsoj0k6o5aSlW0AWCC_fPho8P_NkB0Vh3nRRjAAwcOJbygTwkF2XLiilwYUgZXb668Ex-D330zxiJW-3-lqmc_zaYlbHveyuTngpGIrGKZBk8XO-oSStHLBM932i5GzFQvGIRzyrfg_O1m2VhS4vz8JcWjpVf4SDk');"></div>
+<span class="text-xs text-on-surface-variant font-medium">Huy Studio AI</span>
+</div>
+<span class="text-[11px] text-outline flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">local_fire_department</span>
+                1.2k lượt dùng
+              </span>
+</div>
+<div class="pt-3 flex items-center justify-between">
+<div class="flex items-center gap-1 text-xs text-on-surface-variant font-medium">
+<span class="material-symbols-outlined text-sm text-secondary">verified</span> Phù hợp Giày dép, Streetwear
+              </div>
+<button class="h-8 px-4 rounded-lg bg-primary-container hover:bg-primary text-on-primary text-xs font-bold flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-sm">bolt</span>
+                Sử dụng
+              </button>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+<div class="relative w-full aspect-[16/10] bg-surface-container overflow-hidden">
+<div class="w-full h-full bg-cover bg-center transition-transform duration-500 hover:scale-105" data-alt="A luxury skincare glass serum bottle gently immersed in crystal clear rippling turquoise water with soft sun caustics and serene reflections. The atmosphere is refreshing, minimalist, and lavish, highlighting pristine white foam and subtle deep royal blue accents. High-key natural daylight illuminates the elegant cosmetics composition." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDIRyOH9vUouFJS1P7HoPybUUnR7RTVDqEGx0-xC1OvWzOWVYwePtOPMcTxLdLhCN18BqWpAT761-lUKJcmJvHz5ZxhFCgdryKqnUaSAwML6AYk1Q3fkKSyciDR1pmimkvuamthwgyZU9AcUilYCN3_7bYYFYIi7Rx5yY4p1qD_4gnc1PuoQBi4L4uuXe1tTNi3PwEF-0ZhTUax1a_XqAaKiTBLOIKUp-wiXC-ehcM');"></div>
+<div class="absolute top-3 left-3 bg-inverse-surface/80 backdrop-blur-md text-on-primary text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-xs text-amber-400" style="font-variation-settings: 'FILL' 1;">star</span>
+              4.9
+            </div>
+<div class="absolute top-3 right-3 bg-surface-container-lowest/90 backdrop-blur-md text-primary font-bold text-xs px-2.5 py-1 rounded-full shadow-sm">
+              5 Credit
+            </div>
+</div>
+<div class="p-3.5">
+<div class="flex items-center justify-between mb-1.5">
+<h3 class="font-bold text-sm text-on-surface">Mỹ phẩm luxury mặt nước</h3>
+</div>
+<div class="flex items-center justify-between pb-3 border-b border-surface-container">
+<div class="flex items-center gap-2">
+<div class="size-6 rounded-full bg-cover bg-center" data-alt="Close up headshot of a female digital artist smiling gently in an airy sunlit architectural design studio with neutral light tones and blue hints." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCS-vjYekiVY670CZEQWYScCwAma91aMT-3v45Fcwu9RAWhzrfQ71l-m394mP6bP4RiWWZYVf6P3uwwI6hPGS7Ewbc3zj-FD0HQEiRLdNQFDwPYnKadahRnU4v5jue2k8Antz1O0fjyGmMXpsQbTGzOtaw1IOehgrDDD_VcVaT3rUWzZKGnKWtMVloky7QDFtWkEkqkzldRnuD3u0dh5FVEwQmZZpiwBZGfmGdP8fQ');"></div>
+<span class="text-xs text-on-surface-variant font-medium">Linh Visuals</span>
+</div>
+<span class="text-[11px] text-outline flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">local_fire_department</span>
+                2.4k lượt dùng
+              </span>
+</div>
+<div class="pt-3 flex items-center justify-between">
+<div class="flex items-center gap-1 text-xs text-on-surface-variant font-medium">
+<span class="material-symbols-outlined text-sm text-secondary">verified</span> Mỹ phẩm, Skincare &amp; Spa
+              </div>
+<button class="h-8 px-4 rounded-lg bg-primary-container hover:bg-primary text-on-primary text-xs font-bold flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-sm">bolt</span>
+                Sử dụng
+              </button>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+<div class="relative w-full aspect-[16/10] bg-surface-container overflow-hidden">
+<div class="w-full h-full bg-cover bg-center transition-transform duration-500 hover:scale-105" data-alt="A tailored formal blazer on an elegant mannequin standing inside a contemporary brutalist architectural interior with sharp dramatic morning shadows. The composition features clean architectural lines, sophisticated neutral textures, and deep navy accents creating a cinematic editorial fashion atmosphere." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA_tMY65yrFi6IpICB0VJhOhvfXVx2C71Jek8ObfOQs3WqQEUS2wSx_ETy-7x-cE59s_vQLUxBaemow_VXSFJBKHJw5PE9gdviVNw26gssZyh28W2P8-PewxP6KtbObHAOE_cUTgjAwNhznMacTdO0VN4h1m6ZJl9mth79VfOBk7_ho9XUoDdCq4qPMGuRKObgkWZMP8BXOTPmYY_l1s1lm6xRd8WnnPg0EvR1-aZU');"></div>
+<div class="absolute top-3 left-3 bg-inverse-surface/80 backdrop-blur-md text-on-primary text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-xs text-amber-400" style="font-variation-settings: 'FILL' 1;">star</span>
+              4.8
+            </div>
+<div class="absolute top-3 right-3 bg-surface-container-lowest/90 backdrop-blur-md text-primary font-bold text-xs px-2.5 py-1 rounded-full shadow-sm">
+              5 Credit
+            </div>
+</div>
+<div class="p-3.5">
+<div class="flex items-center justify-between mb-1.5">
+<h3 class="font-bold text-sm text-on-surface">Áo vest công sở cinematic</h3>
+</div>
+<div class="flex items-center justify-between pb-3 border-b border-surface-container">
+<div class="flex items-center gap-2">
+<div class="size-6 rounded-full bg-cover bg-center" data-alt="Headshot of a male concept art director with glasses in a modern light-filled studio office with refined minimal interior." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBlLGYrrPPM1fReOYbPta8D64HlnM-hwSH4jKgxmpIhNBe3rXPuYGhHIXxj6kqgWmsGkNfZfekEGKCID-bN0Kay9S5Ume6yHcQ-twk0Mg23rHLDAzWuGjtyzuMY0o2fiJ1mPr_oCCiSId6Nv-vrqD4vSaNp6OoiQXVD0IavUBXmRuRm4YQjfWFePumQiDhv_pj7W-wbLjFydwHzvpMGkSnz-oF_xbJo7h2oYG7XyjQ');"></div>
+<span class="text-xs text-on-surface-variant font-medium">Bảo Prompter</span>
+</div>
+<span class="text-[11px] text-outline flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">local_fire_department</span>
+                950 lượt dùng
+              </span>
+</div>
+<div class="pt-3 flex items-center justify-between">
+<div class="flex items-center gap-1 text-xs text-on-surface-variant font-medium">
+<span class="material-symbols-outlined text-sm text-secondary">verified</span> Thời trang Nam &amp; Nữ
+              </div>
+<button class="h-8 px-4 rounded-lg bg-primary-container hover:bg-primary text-on-primary text-xs font-bold flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-sm">bolt</span>
+                Sử dụng
+              </button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Trending Section -->
+<section class="px-4 py-4">
+<div class="flex items-center justify-between mb-3">
+<div>
+<h2 class="text-lg font-bold text-on-surface">Đang được sử dụng nhiều</h2>
+<p class="text-xs text-on-surface-variant">Xu hướng sáng tạo trong 24 giờ qua</p>
+</div>
+<span class="text-xs font-semibold px-2 py-0.5 rounded bg-error-container text-error flex items-center gap-0.5">
+<span class="material-symbols-outlined text-xs">trending_up</span> Hot
+        </span>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<!-- Trending 1 -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 overflow-hidden flex flex-col">
+<div class="relative w-full aspect-square bg-surface-container">
+<div class="w-full h-full bg-cover bg-center" data-alt="Artisanal iced coffee glass surrounded by roasted coffee beans and silky condensed milk swirls in a warm boutique cafe ambiance with bright sunlit background and soft morning bokeh." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBHYnr9O32zJ7OWSULXN5wNKMLYtkX6da2MUzLtLd2OT8oV1naskS3BmIgGMpsRwI5Z3DoW_2WBnSyxI-NiHHg5vZWjdqv-5DrKZH_x60dgIp9Xq6W8GS-qpiBzvOTWs7SoSo68qETYOPnFrOul9rAb4CZqQIaXxPrqbCbPS8H9bvxyfZwztsOvV20dIZCjUM6mbeCpsVcBWILODTYmRwv2tphWu3GI3aJw5GFi_rk');"></div>
+<span class="absolute top-2 left-2 bg-surface-container-lowest/90 px-2 py-0.5 rounded-full text-[10px] font-bold text-primary">Đồ ăn &amp; Uống</span>
+</div>
+<div class="p-2.5 flex-1 flex flex-col justify-between">
+<div>
+<h4 class="text-xs font-bold text-on-surface line-clamp-1 mb-1">Cà phê sữa đá Retro Chill</h4>
+<p class="text-[11px] text-on-surface-variant">4.9 ★ • 3.1k lượt</p>
+</div>
+<div class="pt-2 flex items-center justify-between border-t border-surface-container mt-2">
+<span class="text-xs font-bold text-primary">3 Credit</span>
+<button class="text-xs font-semibold text-primary hover:text-primary-container">Chọn</button>
+</div>
+</div>
+</div>
+<!-- Trending 2 -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 overflow-hidden flex flex-col">
+<div class="relative w-full aspect-square bg-surface-container">
+<div class="w-full h-full bg-cover bg-center" data-alt="A luxurious diamond necklace placed gracefully on sculpted matte marble stone surrounded by soft volumetric shadows and soft cinematic diffused light in light blue palette." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAchlhhjJf6e_NUQWKrw8nJGlH4IsqfvmkLt5r3rmSjXoAKC6tWIOzFcy30jATkrL9UO94xlxHzC7fS5dmf_MRcAy4_mH4xoQOX_JyLyxkSi8O3x7dA1RziUagDbdibeBqceCt0ECN15b1jYTWNLN50ctVfhPdlCMfRovzACTEGuvYkCCJVzMLcwrUOhoVUB2eQBpqhrK0om9GNjMSdW2MuLhy4XueIlYtBEYe8vIY');"></div>
+<span class="absolute top-2 left-2 bg-surface-container-lowest/90 px-2 py-0.5 rounded-full text-[10px] font-bold text-primary">Trang sức</span>
+</div>
+<div class="p-2.5 flex-1 flex flex-col justify-between">
+<div>
+<h4 class="text-xs font-bold text-on-surface line-clamp-1 mb-1">Trang sức kim cương đá cẩm thạch</h4>
+<p class="text-[11px] text-on-surface-variant">5.0 ★ • 1.8k lượt</p>
+</div>
+<div class="pt-2 flex items-center justify-between border-t border-surface-container mt-2">
+<span class="text-xs font-bold text-primary">6 Credit</span>
+<button class="text-xs font-semibold text-primary hover:text-primary-container">Chọn</button>
+</div>
+</div>
+</div>
+<!-- Trending 3 -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 overflow-hidden flex flex-col">
+<div class="relative w-full aspect-square bg-surface-container">
+<div class="w-full h-full bg-cover bg-center" data-alt="Modern leather luxury handbag presented on warm textured architectural pedestal with soft architectural window shadows and elegant fashion studio lighting." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDGE1M7OX6Nh4SIU_HcvZUdNa4HSYk2bMR9l3PJneCLkXjEYD2Ea_w1wWN5x2hLMxU604bvRDwBbdyZID8zqW5ZUDaBLK2-b59S-1i-sZhtqpsrA3UGUVv_xd8Y8DTlNbGkMCEtkAabVoWqP91SmF0GvDePS3gBvezPIERSXUurWpHCtfy5B8oHrXitzFOMlffIML8GeWaLW9Lkp40TjIJ9eW75UP4SQIym7IagCj0');"></div>
+<span class="absolute top-2 left-2 bg-surface-container-lowest/90 px-2 py-0.5 rounded-full text-[10px] font-bold text-primary">Túi xách</span>
+</div>
+<div class="p-2.5 flex-1 flex flex-col justify-between">
+<div>
+<h4 class="text-xs font-bold text-on-surface line-clamp-1 mb-1">Túi xách da Podium Minimal</h4>
+<p class="text-[11px] text-on-surface-variant">4.8 ★ • 1.4k lượt</p>
+</div>
+<div class="pt-2 flex items-center justify-between border-t border-surface-container mt-2">
+<span class="text-xs font-bold text-primary">4 Credit</span>
+<button class="text-xs font-semibold text-primary hover:text-primary-container">Chọn</button>
+</div>
+</div>
+</div>
+<!-- Trending 4 -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 overflow-hidden flex flex-col">
+<div class="relative w-full aspect-square bg-surface-container">
+<div class="w-full h-full bg-cover bg-center" data-alt="Wireless audio headphones hover mid-air above metallic pedestal with subtle particle light effects and ultra clean tech studio lighting in soft cobalt blue accents." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBFgVf3fGf0BVFrjL2Jl-K8CuKVHVoDZGYLCdGRJUAKgraIiGDcbWKc_Vdn8-7ry6zsPwgdEsS8gLrV0GwX6whjgYKjeyzXmbo6-OwAoARvUoatPaqFBl1axFtnLguUmBHUfOK4wSg647ihSTNPCRIhHTQOpdFwwbHfAZ8U1Mlrrx0_haYfVLr8U53JAhK9VNkusTMCYP9LHACb3ypAhIUsO2sH2CnA6ZO3Kh-j4zY');"></div>
+<span class="absolute top-2 left-2 bg-surface-container-lowest/90 px-2 py-0.5 rounded-full text-[10px] font-bold text-primary">Điện tử</span>
+</div>
+<div class="p-2.5 flex-1 flex flex-col justify-between">
+<div>
+<h4 class="text-xs font-bold text-on-surface line-clamp-1 mb-1">Tai nghe công nghệ Cyber Float</h4>
+<p class="text-[11px] text-on-surface-variant">4.9 ★ • 2.7k lượt</p>
+</div>
+<div class="pt-2 flex items-center justify-between border-t border-surface-container mt-2">
+<span class="text-xs font-bold text-primary">5 Credit</span>
+<button class="text-xs font-semibold text-primary hover:text-primary-container">Chọn</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Creator CTA Banner -->
+<section class="px-4 py-4 mb-4">
+<div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-container via-primary to-secondary p-5 text-on-primary shadow-lg">
+<!-- Background decorative circles -->
+<div class="absolute -top-10 -right-10 size-40 rounded-full bg-surface-container-lowest/10 blur-xl pointer-events-none"></div>
+<div class="absolute -bottom-8 -left-8 size-32 rounded-full bg-surface-container-lowest/10 blur-lg pointer-events-none"></div>
+<div class="relative z-10">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-lowest/20 backdrop-blur-md text-xs font-semibold text-on-primary mb-3">
+<span class="material-symbols-outlined text-sm">monetization_on</span>
+            Dành cho Nhà Sáng Tạo
+          </div>
+<h3 class="text-xl font-extrabold tracking-tight leading-snug mb-2">
+            Tạo AI Creative của riêng bạn
+          </h3>
+<p class="text-on-primary/90 text-xs font-normal leading-relaxed mb-4">
+            Biến prompt và workflow AI của bạn thành một Creative và kiếm tiền từ mỗi lượt sử dụng.
+          </p>
+<button class="w-full flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-surface-container-lowest text-primary font-bold text-sm shadow hover:bg-surface-bright active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-lg">rocket_launch</span>
+            Bắt đầu tạo AI Creative
+          </button>
+</div>
+</div>
+</section>
+<!-- Shared BottomNavBar (Included exact component as this is the primary Destination Screen / Trang chủ) -->
+<div class="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto">
+<div class="flex gap-2 border-t border-[#e7ebf3] bg-[#f8f9fc] px-4 pb-3 pt-2">
+<a class="just flex flex-1 flex-col items-center justify-end gap-1 rounded-full text-[#0e121b]" href="#">
+<div class="text-[#0e121b] flex h-8 items-center justify-center" data-icon="House" data-size="24px" data-weight="fill">
+<svg fill="currentColor" height="24px" viewbox="0 0 256 256" width="24px" xmlns="http://www.w3.org/2000/svg">
+<path d="M224,115.55V208a16,16,0,0,1-16,16H168a16,16,0,0,1-16-16V168a8,8,0,0,0-8-8H112a8,8,0,0,0-8,8v40a16,16,0,0,1-16,16H48a16,16,0,0,1-16-16V115.55a16,16,0,0,1,5.17-11.78l80-75.48.11-.11a16,16,0,0,1,21.53,0,1.14,1.14,0,0,0,.11.11l80,75.48A16,16,0,0,1,224,115.55Z"></path>
+</svg>
+</div>
+<p class="text-[#0e121b] text-xs font-medium leading-normal tracking-[0.015em]">Trang chủ</p>
+</a>
+<a class="just flex flex-1 flex-col items-center justify-end gap-1 text-[#4d6599]" href="#">
+<div class="text-[#4d6599] flex h-8 items-center justify-center" data-icon="DownloadSimple" data-size="24px" data-weight="regular">
+<svg fill="currentColor" height="24px" viewbox="0 0 256 256" width="24px" xmlns="http://www.w3.org/2000/svg">
+<path d="M224,152v56a16,16,0,0,1-16,16H48a16,16,0,0,1-16-16V152a8,8,0,0,1,16,0v56H208V152a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,132.69V40a8,8,0,0,0-16,0v92.69L93.66,106.34a8,8,0,0,0-11.32,11.32Z"></path>
+</svg>
+</div>
+<p class="text-[#4d6599] text-xs font-medium leading-normal tracking-[0.015em]">Khám phá</p>
+</a>
+<a class="just flex flex-1 flex-col items-center justify-end gap-1 text-[#4d6599]" href="#">
+<div class="text-[#4d6599] flex h-8 items-center justify-center" data-icon="HandSwipeLeft" data-size="24px" data-weight="regular">
+<svg fill="currentColor" height="24px" viewbox="0 0 256 256" width="24px" xmlns="http://www.w3.org/2000/svg">
+<path d="M208,140v36c0,25.59-8.49,42.85-8.85,43.58A8,8,0,0,1,192,224a7.9,7.9,0,0,1-3.57-.85,8,8,0,0,1-3.58-10.73c.06-.12,7.16-14.81,7.16-36.42V140a12,12,0,0,0-24,0v4a8,8,0,0,1-16,0V124a12,12,0,0,0-24,0v12a8,8,0,0,1-16,0V68a12,12,0,0,0-24,0V176a8,8,0,0,1-14.79,4.23l-18.68-30-.14-.23A12,12,0,1,0,33.6,162L62.89,212A8,8,0,1,1,49.08,220l-29.32-50a28,28,0,0,1,48.41-28.17L72,148V68a28,28,0,0,1,56,0V98.7a28,28,0,0,1,38.65,16.69A28,28,0,0,1,208,140Zm32-92H187.31l18.34-18.34a8,8,0,0,0-11.31-11.32l-32,32a8,8,0,0,0,0,11.32l32,32a8,8,0,0,0,11.31-11.32L187.31,64H240a8,8,0,0,0,0-16Z"></path>
+</svg>
+</div>
+<p class="text-[#4d6599] text-xs font-medium leading-normal tracking-[0.015em]">Tạo mới</p>
+</a>
+<a class="just flex flex-1 flex-col items-center justify-end gap-1 text-[#4d6599]" href="#">
+<div class="text-[#4d6599] flex h-8 items-center justify-center" data-icon="SquaresFour" data-size="24px" data-weight="regular">
+<svg fill="currentColor" height="24px" viewbox="0 0 256 256" width="24px" xmlns="http://www.w3.org/2000/svg">
+<path d="M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48v48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48v48Z"></path>
+</svg>
+</div>
+<p class="text-[#4d6599] text-xs font-medium leading-normal tracking-[0.015em]">Bộ sưu tập</p>
+</a>
+<a class="just flex flex-1 flex-col items-center justify-end gap-1 text-[#4d6599]" href="#">
+<div class="text-[#4d6599] flex h-8 items-center justify-center" data-icon="NumberSquareFour" data-size="24px" data-weight="regular">
+<svg fill="currentColor" height="24px" viewbox="0 0 256 256" width="24px" xmlns="http://www.w3.org/2000/svg">
+<path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,176H48V48H208V208Zm-40-64a8,8,0,0,1-8,8h-8v24a8,8,0,0,1-16,0V152H96a8,8,0,0,1-7.59-10.53l24-72a8,8,0,0,1,15.18,5.06L107.1,136H136V112a8,8,0,0,1,16,0v24h8A8,8,0,0,1,168,144Z"></path>
+</svg>
+</div>
+<p class="text-[#4d6599] text-xs font-medium leading-normal tracking-[0.015em]">Cá nhân</p>
+</a>
+</div>
+</div>
+</div>
+</body></html>
