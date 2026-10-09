@@ -14,6 +14,20 @@ body {
   scrollbar-width: none;
 }
 
+/* Giữ icon vuông 1 ô khi font chưa tải: không lộ/xuống dòng tên icon (vd "auto_awesome") */
+@layer base {
+  .material-symbols-outlined {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    line-height: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+  }
+}
+
 .icon-fill {
   font-variation-settings: 'FILL' 1;
 }
