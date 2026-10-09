@@ -128,7 +128,7 @@ export default function SellerProductsPage() {
     <>
       <header className="sticky top-[60px] z-30 border-b border-surface-container bg-surface-container-lowest/90 backdrop-blur-md">
         <div className="flex items-center gap-2 px-2 py-2">
-          <Link to="/seller" aria-label="Quay lại" className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container">
+          <Link to="/account" aria-label="Quay lại" className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container">
             <Icon name="arrow_back" />
           </Link>
           <h1 className="flex-1 text-base font-bold text-on-surface">Quản lý sản phẩm</h1>

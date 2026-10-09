@@ -7,7 +7,6 @@ import ExplorePage from './pages/ExplorePage';
 import CreativeDetailPage from './pages/CreativeDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import StorePage from './pages/StorePage';
 import StoreSettingsPage from './pages/StoreSettingsPage';
 import SellerProductsPage from './pages/SellerProductsPage';
 import AccountPage from './pages/AccountPage';
@@ -27,14 +26,15 @@ export default function App() {
         <Route path="explore" element={<ExplorePage />} />
         <Route element={<RequireAuth />}>
           <Route path="create" element={<CreatePage />} />
-          <Route path="seller" element={<StorePage />} />
+          {/* Tab Người bán đã gộp vào trang Tài khoản */}
+          <Route path="seller" element={<Navigate to="/account" replace />} />
           <Route path="seller/settings" element={<StoreSettingsPage />} />
           <Route path="seller/products" element={<SellerProductsPage />} />
           <Route path="seller/products/new" element={<SellerProductFormPage />} />
           <Route path="seller/products/:id/edit" element={<SellerProductFormPage />} />
           <Route path="seller/prompts/new" element={<Navigate to="/seller/products/new" replace />} />
-          {/* Đường dẫn /store cũ đã đổi thành /seller */}
-          <Route path="store/*" element={<Navigate to="/seller" replace />} />
+          {/* Đường dẫn /store cũ: trang người bán đã gộp vào Tài khoản */}
+          <Route path="store/*" element={<Navigate to="/account" replace />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="account/history" element={<PurchaseHistoryPage />} />
           {/* Trang Cá nhân cũ đã đổi thành Tài khoản */}

@@ -23,7 +23,7 @@ export default function StoreSettingsPage() {
   return (
     <>
       <header className="sticky top-[60px] z-30 flex items-center gap-2 border-b border-surface-container bg-surface-container-lowest/90 px-2 py-2 backdrop-blur-md">
-        <Link to="/seller" aria-label="Quay lại" className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container">
+        <Link to="/account" aria-label="Quay lại" className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container">
           <Icon name="arrow_back" />
         </Link>
         <h1 className="text-base font-bold text-on-surface">{hasProfile ? 'Cấu hình cửa hàng' : 'Tạo cửa hàng'}</h1>

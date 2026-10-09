@@ -4,14 +4,24 @@ import CoverImage from '../common/CoverImage';
 import Icon from '../common/Icon';
 import { formatCount, formatVnd, formatRating } from '../../utils/format';
 
-// Thẻ nửa chiều rộng (2 thẻ một hàng), cao bằng thẻ cùng hàng
-export default function FeaturedCreativeCard({ creative }) {
+// Thẻ nửa chiều rộng (2 thẻ một hàng), cao bằng thẻ cùng hàng.
+// naturalCover: ảnh bìa giữ tỉ lệ gốc, không cắt (khung trống khi thiếu ảnh vẫn vuông)
+export default function FeaturedCreativeCard({ creative, naturalCover = false }) {
   const { id, title, imageUrl, rating, price, author, usageCount, category } = creative;
 
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-outline-variant/40 bg-surface-container-lowest shadow-sm transition-shadow hover:shadow-md">
-      <Link to={`/creatives/${id}`} className="relative block aspect-square w-full overflow-hidden bg-surface-container">
-        <CoverImage src={imageUrl} alt={title} className="h-full w-full transition-transform duration-500 hover:scale-105" />
+      <Link
+        to={`/creatives/${id}`}
+        className={`relative block w-full overflow-hidden bg-surface-container ${naturalCover ? '' : 'aspect-square'}`}
+      >
+        <CoverImage
+          src={imageUrl}
+          alt={title}
+          className={`w-full transition-transform duration-500 hover:scale-105 ${
+            naturalCover ? 'block h-auto [&:not(img)]:aspect-square' : 'h-full'
+          }`}
+        />
         <div className="absolute left-2 top-2 flex items-center gap-0.5 rounded-full bg-inverse-surface/80 px-2 py-0.5 text-[10px] font-bold text-on-primary backdrop-blur-md">
           <Icon name="star" fill className="text-[11px] text-amber-400" />
           {formatRating(rating)}

@@ -60,7 +60,7 @@ export default function HeroSection() {
           Khám phá Creative
         </Link>
         <Link
-          to="/seller"
+          to="/account"
           className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-primary-container bg-surface-container-lowest px-4 text-sm font-semibold text-primary-container transition-all hover:bg-surface-container-low active:scale-[0.98]"
         >
           <Icon name="add_box" className="text-lg" />

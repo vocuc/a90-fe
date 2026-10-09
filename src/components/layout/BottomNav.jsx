@@ -5,7 +5,6 @@ const items = [
   { to: '/', label: 'Trang chủ', icon: 'home', end: true },
   { to: '/categories', label: 'Danh mục', icon: 'grid_view' },
   { to: '/explore', label: 'Sản phẩm', icon: 'shopping_bag' },
-  { to: '/seller', label: 'Người bán', icon: 'storefront' },
   { to: '/account', label: 'Tài khoản', icon: 'person' },
 ];
 

@@ -29,7 +29,8 @@ body {
     display: inline-block;
     width: 1em;
     height: 1em;
-    line-height: 1;
+    /* !important: các class text-xl/2xl... của Tailwind đặt line-height lớn hơn 1em, đẩy icon lệch xuống */
+    line-height: 1 !important;
     overflow: hidden;
     white-space: nowrap;
     word-wrap: normal;

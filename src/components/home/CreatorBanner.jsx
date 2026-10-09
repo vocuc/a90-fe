@@ -17,7 +17,7 @@ export default function CreatorBanner() {
             Biến prompt và workflow AI của bạn thành một Creative và kiếm tiền từ mỗi lượt sử dụng.
           </p>
           <Link
-            to="/seller"
+            to="/account"
             className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-surface-container-lowest px-4 text-sm font-bold text-primary shadow transition-all hover:bg-surface-bright active:scale-[0.98]"
           >
             <Icon name="rocket_launch" className="text-lg" />

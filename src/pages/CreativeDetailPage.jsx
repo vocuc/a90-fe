@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Avatar from '../components/common/Avatar';
 import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
+import ImageViewer from '../components/common/ImageViewer';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { useAuth } from '../context/AuthContext';
 import { useCreative, useMe } from '../hooks/queries';
@@ -14,6 +16,7 @@ export default function CreativeDetailPage() {
   const { isAuthenticated } = useAuth();
   const { data: c, isLoading, error, refetch } = useCreative(slug);
   const { data: me } = useMe();
+  const [viewing, setViewing] = useState(null); // ảnh đang xem toàn màn hình
 
   const notEnoughCredits = me && c && me.credits < c.price;
   const images = c?.images?.length ? c.images : [c?.imageUrl];
@@ -51,16 +54,26 @@ export default function CreativeDetailPage() {
         </div>
       ) : (
         <>
-          <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto p-4">
+          {/* Ảnh giữ tỉ lệ gốc (cao tự động); khung trống khi thiếu/lỗi ảnh vẫn là hình vuông */}
+          <div className="no-scrollbar flex items-start snap-x snap-mandatory gap-3 overflow-x-auto p-4">
             {images.map((src, i) => (
-              <CoverImage
+              <button
                 key={src ?? i}
-                src={src}
-                alt={`${c.title} - ảnh ${i + 1}`}
-                className={`aspect-square shrink-0 snap-center rounded-2xl ${images.length > 1 ? 'w-[88%]' : 'w-full'}`}
-              />
+                type="button"
+                disabled={!src}
+                onClick={() => setViewing({ src, alt: `${c.title} - ảnh ${i + 1}` })}
+                aria-label={`Phóng to ảnh ${i + 1}`}
+                className={`shrink-0 snap-center ${images.length > 1 ? 'w-[88%]' : 'w-full'}`}
+              >
+                <CoverImage
+                  src={src}
+                  alt={`${c.title} - ảnh ${i + 1}`}
+                  className="block h-auto w-full rounded-2xl [&:not(img)]:aspect-square"
+                />
+              </button>
             ))}
           </div>
+          <ImageViewer src={viewing?.src} alt={viewing?.alt} onClose={() => setViewing(null)} />
           <div className="space-y-4 px-4 pb-32">
             <div>
               {c.category && <span className="text-xs font-semibold text-primary">{c.category.name}</span>}

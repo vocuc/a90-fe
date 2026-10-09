@@ -27,6 +27,13 @@ export default function AccountPage() {
   const { data: me, isLoading, error, refetch } = useMe();
   const [loggingOut, setLoggingOut] = useState(false);
 
+  // Backend chỉ cho quản lý sản phẩm khi đã có profile người bán (middleware "creator")
+  const menu = [
+    { to: '/account/history', icon: 'receipt_long', title: 'Lịch sử mua hàng' },
+    { to: '/seller/settings', icon: 'tune', title: 'Quản lý cửa hàng' },
+    { to: '/seller/products', icon: 'inventory_2', title: 'Quản lý sản phẩm', disabled: !me?.creatorProfile },
+  ];
+
   // Về trang chủ trước rồi mới xoá phiên, tránh RequireAuth chuyển sang trang đăng nhập
   const onLogout = async () => {
     setLoggingOut(true);
@@ -87,13 +94,26 @@ export default function AccountPage() {
           </>
         )}
 
-        <section className="overflow-hidden rounded-2xl border border-outline-variant/40">
-          <Link to="/account/history" className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-container-low">
-            <Icon name="receipt_long" className="text-xl text-outline" />
-            <span className="flex-1 text-sm font-semibold text-on-surface">Lịch sử mua hàng</span>
-            <Icon name="chevron_right" className="text-xl text-outline" />
-          </Link>
-        </section>
+        <nav className="divide-y divide-surface-container overflow-hidden rounded-2xl border border-outline-variant/40">
+          {menu.map(({ to, icon, title, disabled }) => {
+            const content = (
+              <>
+                <Icon name={icon} className="text-xl text-outline" />
+                <span className={`flex-1 text-sm font-semibold ${disabled ? 'text-outline' : 'text-on-surface'}`}>{title}</span>
+                <Icon name={disabled ? 'lock' : 'chevron_right'} className="text-xl text-outline" />
+              </>
+            );
+            return disabled ? (
+              <div key={to} aria-disabled="true" className="flex cursor-not-allowed items-center gap-3 px-4 py-3">
+                {content}
+              </div>
+            ) : (
+              <Link key={to} to={to} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-container-low">
+                {content}
+              </Link>
+            );
+          })}
+        </nav>
 
         <button
           type="button"

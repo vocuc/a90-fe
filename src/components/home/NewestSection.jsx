@@ -31,7 +31,7 @@ export default function NewestSection() {
         <div className="grid grid-cols-2 gap-3">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="aspect-[3/4]" />)
-            : data.items.map((c) => <CompactCreativeCard key={c.id} creative={c} />)}
+            : data.items.map((c) => <CompactCreativeCard key={c.id} creative={c} naturalCover />)}
         </div>
       )}
     </section>
