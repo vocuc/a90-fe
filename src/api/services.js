@@ -33,6 +33,8 @@ const mapCategory = (c) => ({ id: c.id, slug: c.slug, name: c.name, icon: c.icon
 const mapCreative = (c) => ({
   // URL trang chi tiết dùng slug
   id: c.slug,
+  // id số, dùng khi gọi API theo id (POST /generations)
+  creativeId: c.id,
   title: c.title,
   description: c.description ?? null,
   imageUrl: c.cover_url,
@@ -98,6 +100,16 @@ export const notificationApi = {
   getUnreadCount: () => (MOCK_AUTH ? mock.getUnreadCount() : Promise.resolve({ count: 0 })),
 };
 
+// GET /banners -> { data: [{ id, title, image_url, link_url }] }, link_url là đường dẫn trong app (/...) hoặc link ngoài
+export const bannerApi = {
+  getAll: () =>
+    MOCK_MARKETPLACE
+      ? mock.getBanners()
+      : client
+          .get('/banners')
+          .then(({ data }) => data.map((b) => ({ id: b.id, title: b.title, imageUrl: b.image_url, linkUrl: b.link_url }))),
+};
+
 export const categoryApi = {
   getAll: () =>
     MOCK_MARKETPLACE
@@ -123,7 +135,7 @@ export const categoryApi = {
  * DELETE /creator/api-keys/{id}        -> { message, paused_creatives }
  *
  * GET /creator/creatives?status=&page=&per_page=  (Creative của chính creator, mới sửa trước)
- *   -> { data: [{ id, slug, title, price_per_image, status: draft|published|paused|archived,
+ *   -> { data: [{ id, slug, title, price_per_image, status: draft|published|paused,
  *                 pause_reason: manual|no_valid_api_key|null, is_hidden, usage_count, rating_avg, cover_url,
  *                 published_at, created_at, updated_at }], meta: { current_page, last_page, per_page, total } }
  * POST /creator/creatives  { title, description?, category_id?, model_id, price_per_image, system_prompt?,
@@ -131,7 +143,7 @@ export const categoryApi = {
  *                            default_aspect_ratio?, extra_params?: { temperature, topP, topK, seed } }
  *   -> 201 { data: creative } (trạng thái draft)
  * GET  /creator/creatives/{id}  -> { data: creative + { images: [{ id, url, sort_order }], config: { creative_prompt, ... } } }
- * PUT  /creator/creatives/{id}  (các trường như POST, gửi trường nào sửa trường đó; Creative đã lưu trữ -> 409 INVALID_STATE)
+ * PUT  /creator/creatives/{id}  (các trường như POST, gửi trường nào sửa trường đó)
  * POST /creator/creatives/{id}/images  multipart image (jpg/png/webp, <= 10MB, tối đa 10 ảnh) -> 201 { data: { id, url, sort_order } }
  * DELETE /creator/creatives/{id}/images/{imageId}  (Creative đang bán phải còn ít nhất 1 ảnh -> 409 INVALID_STATE)
  * POST /creator/creatives/{id}/publish  (chỉ draft|paused) -> { data: creative }
@@ -203,4 +215,52 @@ export const creativeApi = {
     MOCK_MARKETPLACE
       ? mock.getCreative(slug)
       : client.get(`/creatives/${encodeURIComponent(slug)}`).then(({ data }) => mapCreative(data)),
+};
+
+/*
+ * ---- Tạo ảnh (cần đăng nhập) ----
+ *
+ * POST /generations  multipart { creative_id, input_image (jpg/png/webp <= 10MB), quantity (1..max_outputs),
+ *                                aspect_ratio (một trong options.aspect_ratios), idempotency_key }
+ *   -> 202 { data: generation }  (trừ tiền ngay, xử lý nền; chủ Creative tự dùng không bị trừ)
+ *   lỗi: 402 INSUFFICIENT_CREDIT (context: { required, balance }), 404 CREATIVE_NOT_AVAILABLE,
+ *        409 CREATIVE_TEMPORARILY_UNAVAILABLE, 409 IDEMPOTENCY_CONFLICT, 422 quantity/aspect_ratio
+ * GET  /generations?page=&per_page= (<= 50, mới nhất trước) -> { data: generation[] (kèm outputs), meta: { current_page, last_page, ... } }
+ * GET  /generations/{id}/status  -> { data: { id, status, success_count, failed_count,
+ *                                             outputs: [{ id, position, status, image_url, error_code }] } }
+ *   status (generation và output): queued | processing | completed | failed (generation có thêm cancelled)
+ * POST /generations/{id}/retry  { output_ids, idempotency_key } -> 202 { data: generation mới } (trừ tiền lại)
+ * GET  /generations/{id}/outputs/{outputId}/download -> { data: { url, filename, expires_in_minutes } }
+ *   url ký số có Content-Disposition: attachment -> mở là tải về
+ * generation: { id, status, creative: { id, slug, title }, quantity, aspect_ratio, price_per_image, total_charged,
+ *               success_count, failed_count, outputs?: [{ id, position, status, image_url, error_message }], created_at }
+ */
+const GENERATION_UPLOAD_TIMEOUT = 60_000;
+
+export const generationApi = {
+  create: requireRealBackend(({ creativeId, image, quantity, aspectRatio, idempotencyKey }) => {
+    const form = new FormData();
+    form.append('creative_id', creativeId);
+    form.append('input_image', image);
+    form.append('quantity', quantity);
+    form.append('aspect_ratio', aspectRatio);
+    form.append('idempotency_key', idempotencyKey);
+    return client.post('/generations', form, { timeout: GENERATION_UPLOAD_TIMEOUT }).then(({ data }) => data);
+  }),
+  list: requireRealBackend(({ page, limit } = {}) =>
+    client.get('/generations', { params: { page, per_page: limit } }).then(({ data, meta }) => ({
+      items: data,
+      page: meta.current_page,
+      lastPage: meta.last_page,
+    })),
+  ),
+  status: requireRealBackend((id) => client.get(`/generations/${id}/status`).then(({ data }) => data)),
+  retry: requireRealBackend(({ id, outputIds, idempotencyKey }) =>
+    client
+      .post(`/generations/${id}/retry`, { output_ids: outputIds, idempotency_key: idempotencyKey })
+      .then(({ data }) => data),
+  ),
+  download: requireRealBackend((id, outputId) =>
+    client.get(`/generations/${id}/outputs/${outputId}/download`).then(({ data }) => data),
+  ),
 };

@@ -92,6 +92,11 @@ export const mock = {
     const user = requireUser();
     return { count: user.id === db.me.id ? db.unreadNotifications : 0 };
   },
+  async getBanners() {
+    await delay();
+    return [];
+  },
+
   async getCategories() {
     await delay();
     return db.categories;

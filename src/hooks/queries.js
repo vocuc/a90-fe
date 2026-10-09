@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { categoryApi, creativeApi, notificationApi, userApi } from '../api/services';
+import { bannerApi, categoryApi, creativeApi, notificationApi, userApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 
 // Chỉ gọi các API cá nhân khi đã đăng nhập
@@ -17,6 +17,10 @@ export const useUnreadCount = () => {
     enabled: isAuthenticated,
   });
 };
+
+// Link ảnh ký số hết hạn sau 15 phút -> tải lại trước đó
+export const useBanners = () =>
+  useQuery({ queryKey: ['banners'], queryFn: bannerApi.getAll, staleTime: 10 * 60_000, refetchInterval: 10 * 60_000 });
 
 export const useCategories = () =>
   useQuery({ queryKey: ['categories'], queryFn: categoryApi.getAll, staleTime: 10 * 60_000 });

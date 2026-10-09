@@ -14,6 +14,11 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_API_PROXY_TARGET || 'http://a90.local',
           changeOrigin: true,
         },
+        // Ảnh trên disk local (link ký số tương đối) -> tải cùng origin để lưu file được
+        '/media': {
+          target: env.VITE_API_PROXY_TARGET || 'http://a90.local',
+          changeOrigin: true,
+        },
       },
     },
   };

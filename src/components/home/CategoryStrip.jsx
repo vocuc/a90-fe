@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Icon from '../common/Icon';
 import { ErrorState, Skeleton } from '../common/Feedback';
@@ -15,10 +16,33 @@ const GRID_COLS = 4;
 export default function CategoryStrip({ title, active, onSelect, rows }) {
   const { data: categories, isLoading, error, refetch } = useCategories();
   const scrollRef = useHorizontalScroll();
+  const stripRef = useRef(null);
+  const setStripRef = useCallback(
+    (node) => {
+      stripRef.current = node;
+      scrollRef(node);
+    },
+    [scrollRef],
+  );
+  // Lần đầu (vừa chuyển trang sang) nhảy ngay, các lần chọn sau thì cuộn mượt
+  const centeredOnce = useRef(false);
 
   // Chế độ lưới chừa 1 ô cuối cho nút "Xem thêm"
   const limit = rows ? rows * GRID_COLS - 1 : Infinity;
   const visible = categories?.slice(0, limit);
+
+  // Đưa danh mục đang chọn về giữa dải (chỉ cuộn ngang trong dải, không cuộn trang)
+  useEffect(() => {
+    const el = stripRef.current;
+    if (rows || !el || !active || !categories) return;
+    const item = el.querySelector(`[data-slug="${CSS.escape(active)}"]`);
+    if (!item) return;
+    el.scrollTo({
+      left: item.offsetLeft - (el.clientWidth - item.offsetWidth) / 2,
+      behavior: centeredOnce.current ? 'smooth' : 'auto',
+    });
+    centeredOnce.current = true;
+  }, [active, categories, rows]);
 
   return (
     <section className="pb-2 pt-4">
@@ -39,8 +63,8 @@ export default function CategoryStrip({ title, active, onSelect, rows }) {
         </div>
       ) : (
         <div
-          ref={rows ? undefined : scrollRef}
-          className={rows ? 'grid grid-cols-4 gap-2.5 px-4 pb-2' : 'no-scrollbar flex gap-2.5 overflow-x-auto px-4 pb-2'}
+          ref={rows ? undefined : setStripRef}
+          className={rows ? 'grid grid-cols-4 gap-2.5 px-4 pb-2' : 'no-scrollbar relative flex gap-2.5 overflow-x-auto px-4 pb-2'}
         >
           {isLoading
             ? Array.from({ length: rows ? limit + 1 : 5 }).map((_, i) => (
@@ -74,6 +98,7 @@ export default function CategoryStrip({ title, active, onSelect, rows }) {
                   <button
                     key={c.id}
                     type="button"
+                    data-slug={c.slug}
                     title={c.name}
                     aria-pressed={isActive}
                     className={cls}
@@ -82,7 +107,7 @@ export default function CategoryStrip({ title, active, onSelect, rows }) {
                     {content}
                   </button>
                 ) : (
-                  <Link key={c.id} to={`/explore?category=${c.slug}`} title={c.name} className={cls}>
+                  <Link key={c.id} to={`/explore?category=${c.slug}`} data-slug={c.slug} title={c.name} className={cls}>
                     {content}
                   </Link>
                 );

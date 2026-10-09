@@ -10,6 +10,9 @@ import RegisterPage from './pages/RegisterPage';
 import StorePage from './pages/StorePage';
 import StoreSettingsPage from './pages/StoreSettingsPage';
 import SellerProductsPage from './pages/SellerProductsPage';
+import AccountPage from './pages/AccountPage';
+import PurchaseHistoryPage from './pages/PurchaseHistoryPage';
+import CreatePage from './pages/CreatePage';
 import SellerProductFormPage from './pages/SellerProductFormPage';
 import PlaceholderPage from './pages/PlaceholderPage';
 
@@ -23,7 +26,7 @@ export default function App() {
         <Route path="collection" element={<Navigate to="/categories" replace />} />
         <Route path="explore" element={<ExplorePage />} />
         <Route element={<RequireAuth />}>
-          <Route path="create" element={<PlaceholderPage title="Tạo mới" icon="add_circle" />} />
+          <Route path="create" element={<CreatePage />} />
           <Route path="seller" element={<StorePage />} />
           <Route path="seller/settings" element={<StoreSettingsPage />} />
           <Route path="seller/products" element={<SellerProductsPage />} />
@@ -32,8 +35,10 @@ export default function App() {
           <Route path="seller/prompts/new" element={<Navigate to="/seller/products/new" replace />} />
           {/* Đường dẫn /store cũ đã đổi thành /seller */}
           <Route path="store/*" element={<Navigate to="/seller" replace />} />
-          {/* Trang Cá nhân cũ đã gộp vào Cửa hàng */}
-          <Route path="profile" element={<Navigate to="/seller" replace />} />
+          <Route path="account" element={<AccountPage />} />
+          <Route path="account/history" element={<PurchaseHistoryPage />} />
+          {/* Trang Cá nhân cũ đã đổi thành Tài khoản */}
+          <Route path="profile" element={<Navigate to="/account" replace />} />
         </Route>
         <Route path="*" element={<PlaceholderPage title="Không tìm thấy trang" icon="error" />} />
       </Route>

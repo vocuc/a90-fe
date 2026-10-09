@@ -4,7 +4,7 @@ import CoverImage from '../components/common/CoverImage';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { useCreatorCreatives, useCreatorProfile, usePublishCreative } from '../hooks/creatorQueries';
 import useHorizontalScroll from '../hooks/useHorizontalScroll';
-import { formatCount, formatCredit } from '../utils/format';
+import { formatCount, formatVnd } from '../utils/format';
 
 // Khớp tham số status của GET /creator/creatives ('' = tất cả)
 const TABS = [
@@ -12,7 +12,6 @@ const TABS = [
   { value: 'published', label: 'Đang bán' },
   { value: 'draft', label: 'Nháp' },
   { value: 'paused', label: 'Tạm dừng' },
-  { value: 'archived', label: 'Lưu trữ' },
 ];
 const TAB_VALUES = TABS.map((t) => t.value);
 
@@ -20,7 +19,6 @@ const STATUS_BADGE = {
   published: { label: 'Đang bán', cls: 'bg-primary-container text-on-primary' },
   draft: { label: 'Nháp', cls: 'bg-surface-container text-on-surface-variant' },
   paused: { label: 'Tạm dừng', cls: 'bg-error-container text-on-error-container' },
-  archived: { label: 'Lưu trữ', cls: 'bg-surface-container-high text-outline' },
 };
 
 const PAUSE_REASON = {
@@ -59,12 +57,12 @@ function ProductCard({ creative }) {
         </div>
         <div className="flex flex-1 flex-col p-2.5">
           <h3 className="mb-1 line-clamp-2 text-xs font-bold text-on-surface">{title}</h3>
-          <p className="text-[11px] text-on-surface-variant">{formatCount(usage_count)} lượt</p>
+          <p className="text-[11px] text-on-surface-variant">{formatCount(usage_count)} lượt tải về</p>
           {status === 'paused' && pause_reason && (
             <p className="mt-0.5 text-[11px] text-error">{PAUSE_REASON[pause_reason] ?? pause_reason}</p>
           )}
           <p className="mt-auto border-t border-surface-container pt-2 text-xs font-bold text-primary">
-            {formatCredit(price_per_image)} Credit
+            {formatVnd(price_per_image)}
           </p>
         </div>
       </Link>

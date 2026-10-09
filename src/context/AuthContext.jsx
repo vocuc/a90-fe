@@ -6,7 +6,7 @@ import { tokenStorage, UNAUTHORIZED_EVENT } from '../api/tokenStorage';
 const AuthContext = createContext(null);
 
 // Các query gắn với người dùng, phải xoá khi đăng xuất
-const USER_QUERY_KEYS = [['me'], ['notifications'], ['creator'], ['ai-models']];
+const USER_QUERY_KEYS = [['me'], ['notifications'], ['creator'], ['ai-models'], ['generations']];
 
 export function AuthProvider({ children }) {
   const queryClient = useQueryClient();

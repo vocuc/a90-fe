@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Icon from '../common/Icon';
+import HomeBanner from './HomeBanner';
 
 export default function HeroSection() {
   const [q, setQ] = useState('');
@@ -21,6 +22,8 @@ export default function HeroSection() {
       <h1 className="text-[28px] font-extrabold leading-[34px] tracking-tight text-on-surface">
         Tạo hình ảnh chuyên nghiệp bằng AI
       </h1>
+
+      <HomeBanner />
       <p className="pt-2 text-[15px] leading-relaxed text-on-surface-variant">
         Khám phá hàng nghìn AI Creative và biến sản phẩm của bạn thành những hình ảnh chuyên nghiệp chỉ với vài thao
         tác.
@@ -57,7 +60,7 @@ export default function HeroSection() {
           Khám phá AI Creative
         </Link>
         <Link
-          to="/create"
+          to="/seller"
           className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-primary-container bg-surface-container-lowest px-4 text-sm font-semibold text-primary-container transition-all hover:bg-surface-container-low active:scale-[0.98]"
         >
           <Icon name="add_box" className="text-lg" />

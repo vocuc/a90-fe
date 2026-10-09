@@ -1,25 +1,33 @@
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Avatar from '../components/common/Avatar';
 import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
+import { useAuth } from '../context/AuthContext';
 import { useCreative, useMe } from '../hooks/queries';
-import { formatCount, formatCredit, formatRating } from '../utils/format';
+import { formatCount, formatVnd, formatRating } from '../utils/format';
 
 export default function CreativeDetailPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const { data: c, isLoading, error, refetch } = useCreative(slug);
   const { data: me } = useMe();
 
   const notEnoughCredits = me && c && me.credits < c.price;
   const images = c?.images?.length ? c.images : [c?.imageUrl];
+  // Chưa đăng nhập: đăng nhập xong quay lại đúng trang chi tiết này (không phải /create)
+  const actionLink = isAuthenticated
+    ? `/create?creative=${encodeURIComponent(c?.id ?? slug)}`
+    : `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
 
   return (
     <>
       <header className="sticky top-[60px] z-30 flex items-center gap-2 border-b border-surface-container bg-surface-container-lowest/90 px-2 py-2 backdrop-blur-md">
         <button
-          onClick={() => navigate(-1)}
+          // Mở thẳng link (không có lịch sử trong app) thì về trang chủ thay vì thoát khỏi app
+          onClick={() => (location.key === 'default' ? navigate('/', { replace: true }) : navigate(-1))}
           aria-label="Quay lại"
           className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container"
         >
@@ -57,6 +65,9 @@ export default function CreativeDetailPage() {
             <div>
               {c.category && <span className="text-xs font-semibold text-primary">{c.category.name}</span>}
               <h2 className="text-xl font-extrabold text-on-surface">{c.title}</h2>
+              <p className="mt-1 text-lg font-bold text-primary">
+                {formatVnd(c.price)}<span className="text-sm font-medium text-on-surface-variant"> / ảnh</span>
+              </p>
               <div className="mt-1 flex items-center gap-3 text-xs text-on-surface-variant">
                 <span className="flex items-center gap-1">
                   <Icon name="star" fill className="text-sm text-amber-400" />
@@ -85,30 +96,24 @@ export default function CreativeDetailPage() {
             {c.description && (
               <p className="whitespace-pre-line text-sm leading-relaxed text-on-surface-variant">{c.description}</p>
             )}
-
-            {c.options?.max_outputs && (
-              <p className="flex items-center gap-1 text-xs font-medium text-on-surface-variant">
-                <Icon name="photo_library" className="text-sm text-secondary" />
-                Tạo tối đa {c.options.max_outputs} ảnh mỗi lần
-              </p>
-            )}
           </div>
 
           <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md border-t border-surface-container bg-surface-container-lowest p-4">
             {notEnoughCredits && (
               <p className="mb-2 text-center text-xs text-error">
-                Bạn cần {formatCredit(c.price)} credit cho mỗi ảnh, hiện còn {formatCredit(me.credits)}.
+                Bạn cần {formatVnd(c.price)} cho mỗi ảnh, số dư hiện còn {formatVnd(me.credits)}.
               </p>
             )}
             <Link
-              to={`/create?creative=${encodeURIComponent(c.id)}`}
+              to={actionLink}
+              state={isAuthenticated ? { fromDetail: true } : undefined}
               aria-disabled={notEnoughCredits}
               className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-on-primary transition-colors ${
                 notEnoughCredits ? 'pointer-events-none bg-outline' : 'bg-primary-container hover:bg-primary'
               }`}
             >
-              <Icon name="bolt" />
-              Sử dụng · {formatCredit(c.price)} Credit/ảnh
+              <Icon name={isAuthenticated ? 'bolt' : 'login'} />
+              {isAuthenticated ? 'Tạo ảnh sử dụng mẫu này' : 'Đăng nhập để sử dụng'}
             </Link>
           </div>
         </>

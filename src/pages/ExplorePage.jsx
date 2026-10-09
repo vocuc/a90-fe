@@ -57,7 +57,7 @@ export default function ExplorePage() {
   return (
     <>
       <header className="sticky top-[60px] z-30 border-b border-surface-container bg-surface-container-lowest/90 px-4 py-3 backdrop-blur-md">
-        <h1 className="mb-3 text-lg font-bold text-on-surface">Khám phá AI Creative</h1>
+        <h1 className="mb-3 text-lg font-bold text-on-surface">Sản phẩm</h1>
         <div className="flex w-full items-center rounded-xl border border-outline-variant/40 bg-surface-container-low px-3.5 py-1.5 focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20">
           <Icon name="search" className="mr-2 text-[22px] text-outline" />
           <input

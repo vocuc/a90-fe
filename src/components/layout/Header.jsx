@@ -4,7 +4,7 @@ import { useMe, useUnreadCount } from '../../hooks/queries';
 import Avatar from '../common/Avatar';
 import Icon from '../common/Icon';
 import { Skeleton } from '../common/Feedback';
-import { formatCredit } from '../../utils/format';
+import { formatVnd } from '../../utils/format';
 
 // Header chung của mọi trang (gắn trong AppLayout). Cao cố định 60px: thanh tiêu đề riêng
 // của từng trang dính ngay bên dưới bằng "sticky top-[60px] z-30".
@@ -51,7 +51,7 @@ function UserHeader() {
 
   return (
     <header className={headerCls}>
-      <Link to="/seller" className="flex items-center gap-3">
+      <Link to="/account" aria-label="Thông tin tài khoản" className="flex min-w-0 items-center gap-3">
         {isLoading ? (
           <Skeleton className="size-9 !rounded-full" />
         ) : (
@@ -68,8 +68,8 @@ function UserHeader() {
       </Link>
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 rounded-full border border-outline-variant/30 bg-surface-container px-3 py-1">
-          <Icon name="token" fill className="text-base text-primary" />
-          <span className="text-xs font-bold text-primary">{formatCredit(me?.credits)} Credits</span>
+          <Icon name="account_balance_wallet" fill className="text-base text-primary" />
+          <span className="text-xs font-bold text-primary">{formatVnd(me?.credits)}</span>
         </div>
         <button
           aria-label="Thông báo"

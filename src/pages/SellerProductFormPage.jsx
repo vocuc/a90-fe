@@ -196,8 +196,6 @@ function ProductForm({ models, creative }) {
   const create = useCreateCreative();
   const update = useUpdateCreative();
   const save = creative ? update : create;
-  // Backend không cho sửa Creative đã lưu trữ
-  const archived = creative?.status === 'archived';
 
   const [form, setForm] = useState(() => (creative ? toForm(creative) : EMPTY_FORM));
   const [images, setImages] = useState(() => creative?.images?.map(({ id, url }) => ({ id, url })) ?? []);
@@ -294,7 +292,6 @@ function ProductForm({ models, creative }) {
 
   const onSubmit = (e) => {
     e.preventDefault();
-    if (archived) return;
     setTouched(Object.fromEntries(Object.keys(EMPTY_FORM).map((k) => [k, true])));
     setChecked(true);
     if (created) {
@@ -311,16 +308,10 @@ function ProductForm({ models, creative }) {
   };
 
   const generalError = save.error && !save.error.errors ? save.error.message : null;
-  const locked = !!created || save.isPending || archived;
+  const locked = !!created || save.isPending;
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-4">
-      {archived && (
-        <div role="status" className="flex items-center gap-1.5 rounded-xl bg-surface-container px-3 py-2.5 text-xs text-on-surface-variant">
-          <Icon name="inventory" className="text-sm" />
-          Sản phẩm đã lưu trữ, không thể chỉnh sửa.
-        </div>
-      )}
       {created && (
         <div role="status" className="space-y-2 rounded-xl bg-surface-container px-3 py-2.5 text-xs text-on-surface">
           <p className="flex items-center gap-1.5 font-semibold text-primary">
@@ -350,7 +341,7 @@ function ProductForm({ models, creative }) {
           images={images}
           onChange={setImages}
           onRemove={(img) => img.id && setRemoved((list) => [...list, img.id])}
-          disabled={save.isPending || archived}
+          disabled={save.isPending}
           error={checked ? imageError : null}
         />
       </Section>
@@ -399,7 +390,7 @@ function ProductForm({ models, creative }) {
             ))}
           </SelectField>
           <TextField
-            label="Giá mỗi ảnh (Credit) *"
+            label="Giá mỗi ảnh (VND) *"
             icon="toll"
             type="number"
             inputMode="numeric"
@@ -418,16 +409,14 @@ function ProductForm({ models, creative }) {
       {generalError && <FormAlert>{generalError}</FormAlert>}
       {Object.keys(serverErrors).length > 0 && <FormAlert>Vui lòng kiểm tra lại các trường báo lỗi.</FormAlert>}
 
-      {!archived && (
-        <SubmitButton
-          loading={save.isPending}
-          loadingText={created ? 'Đang tải ảnh...' : creative ? 'Đang lưu...' : 'Đang tạo sản phẩm...'}
-          disabled={created && images.length === 0}
-        >
-          {created ? 'Tải lại ảnh' : creative ? 'Lưu thay đổi' : 'Tạo sản phẩm'}
-        </SubmitButton>
-      )}
-      {!created && !archived && (
+      <SubmitButton
+        loading={save.isPending}
+        loadingText={created ? 'Đang tải ảnh...' : creative ? 'Đang lưu...' : 'Đang tạo sản phẩm...'}
+        disabled={created && images.length === 0}
+      >
+        {created ? 'Tải lại ảnh' : creative ? 'Lưu thay đổi' : 'Tạo sản phẩm'}
+      </SubmitButton>
+      {!created && (
         <p className="text-center text-xs text-on-surface-variant">
           {!creative
             ? 'Sản phẩm được lưu dạng nháp. Đăng bán ở trang Quản lý sản phẩm.'
