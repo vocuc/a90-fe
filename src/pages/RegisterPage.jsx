@@ -1,3 +1,4 @@
+import useSeo from '../hooks/useSeo';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
@@ -43,6 +44,7 @@ const mapServerErrors = (errors = {}) => {
 };
 
 export default function RegisterPage() {
+  useSeo({ title: 'Tạo tài khoản', description: 'Tạo tài khoản A51 để bắt đầu biến ảnh sản phẩm thành ảnh chuyên nghiệp.', noindex: true });
   const { isAuthenticated, register } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();

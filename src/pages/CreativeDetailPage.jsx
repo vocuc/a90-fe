@@ -7,6 +7,7 @@ import ImageViewer from '../components/common/ImageViewer';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { useAuth } from '../context/AuthContext';
 import { useCreative, useMe } from '../hooks/queries';
+import useSeo, { SITE_NAME, seoAbsUrl } from '../hooks/useSeo';
 import { formatCount, formatVnd, formatRating } from '../utils/format';
 
 export default function CreativeDetailPage() {
@@ -24,6 +25,38 @@ export default function CreativeDetailPage() {
   const actionLink = isAuthenticated
     ? `/create?creative=${encodeURIComponent(c?.id ?? slug)}`
     : `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
+
+  useSeo({
+    title: c?.title ?? 'AI Creative',
+    description:
+      c?.description ||
+      (c && `Tạo ảnh "${c.title}" bằng AI trên ${SITE_NAME}${c.category ? ` - danh mục ${c.category.name}` : ''}. Chỉ ${formatVnd(c.price)} mỗi ảnh.`),
+    image: images[0],
+    type: 'product',
+    canonical: `/creatives/${encodeURIComponent(slug)}`,
+    noindex: Boolean(error),
+    // Dữ liệu có cấu trúc schema.org cho Google hiển thị giá / đánh giá
+    jsonLd: c && {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: c.title,
+      description: c.description || undefined,
+      image: images.filter(Boolean).map(seoAbsUrl),
+      category: c.category?.name,
+      brand: c.author ? { '@type': 'Brand', name: c.author.name } : undefined,
+      offers: {
+        '@type': 'Offer',
+        price: c.price,
+        priceCurrency: 'VND',
+        availability: 'https://schema.org/InStock',
+        url: seoAbsUrl(`/creatives/${encodeURIComponent(slug)}`),
+      },
+      aggregateRating:
+        c.rating != null && c.ratingCount > 0
+          ? { '@type': 'AggregateRating', ratingValue: c.rating, ratingCount: c.ratingCount }
+          : undefined,
+    },
+  });
 
   return (
     <>

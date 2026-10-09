@@ -1,3 +1,4 @@
+import useSeo from '../hooks/useSeo';
 import { Link, useSearchParams } from 'react-router-dom';
 import Icon from '../components/common/Icon';
 import CoverImage from '../components/common/CoverImage';
@@ -103,6 +104,7 @@ function ProductCard({ creative }) {
 }
 
 export default function SellerProductsPage() {
+  useSeo({ title: 'Sản phẩm của tôi', noindex: true });
   const [params, setParams] = useSearchParams();
   const status = TAB_VALUES.includes(params.get('status')) ? params.get('status') : '';
   const page = Math.max(1, Number(params.get('page')) || 1);

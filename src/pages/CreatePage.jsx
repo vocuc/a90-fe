@@ -1,3 +1,4 @@
+import useSeo from '../hooks/useSeo';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import CoverImage from '../components/common/CoverImage';
@@ -265,6 +266,7 @@ function GenerationResult({ run, price, onRetried }) {
 
 /** /create?creative=<slug>: tải ảnh sản phẩm lên, tạo ảnh theo mẫu, xem và tải kết quả. */
 export default function CreatePage() {
+  useSeo({ title: 'Tạo ảnh AI', noindex: true });
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();

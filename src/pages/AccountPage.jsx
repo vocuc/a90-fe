@@ -1,3 +1,4 @@
+import useSeo from '../hooks/useSeo';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Avatar from '../components/common/Avatar';
@@ -22,6 +23,7 @@ function InfoRow({ icon, label, children }) {
 
 /** /account: thông tin tài khoản đang đăng nhập và nút đăng xuất. */
 export default function AccountPage() {
+  useSeo({ title: 'Tài khoản', noindex: true });
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { data: me, isLoading, error, refetch } = useMe();

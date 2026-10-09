@@ -1,9 +1,11 @@
+import useSeo from '../hooks/useSeo';
 import HeroSection from '../components/home/HeroSection';
 import CategoryStrip from '../components/home/CategoryStrip';
 import FeaturedSection from '../components/home/FeaturedSection';
 import NewestSection from '../components/home/NewestSection';
 
 export default function HomePage() {
+  useSeo({ canonical: '/' });
   return (
     <>
       <HeroSection />

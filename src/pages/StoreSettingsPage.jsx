@@ -1,3 +1,4 @@
+import useSeo from '../hooks/useSeo';
 import { Link } from 'react-router-dom';
 import Icon from '../components/common/Icon';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
@@ -18,6 +19,7 @@ function Section({ title, subtitle, children }) {
 }
 
 export default function StoreSettingsPage() {
+  useSeo({ title: 'Cài đặt cửa hàng', noindex: true });
   const { data: profile, hasProfile, meLoaded, isLoading, error, refetch } = useCreatorProfile();
 
   return (

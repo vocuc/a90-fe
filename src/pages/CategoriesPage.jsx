@@ -1,9 +1,14 @@
+import useSeo from '../hooks/useSeo';
 import { Link } from 'react-router-dom';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { useCategories } from '../hooks/queries';
 
 export default function CategoriesPage() {
+  useSeo({
+    title: 'Danh mục AI Creative',
+    description: 'Duyệt toàn bộ danh mục AI Creative trên A51: thời trang, mỹ phẩm, đồ ăn, nội thất... Chọn mẫu phù hợp để tạo ảnh sản phẩm chuyên nghiệp bằng AI.',
+  });
   const { data: categories, isLoading, error, refetch } = useCategories();
 
   return (

@@ -4,7 +4,8 @@ import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import CategoryStrip from '../components/home/CategoryStrip';
 import CompactCreativeCard from '../components/creative/CompactCreativeCard';
-import { useCreatives } from '../hooks/queries';
+import { useCategories, useCreatives } from '../hooks/queries';
+import useSeo from '../hooks/useSeo';
 import useHorizontalScroll from '../hooks/useHorizontalScroll';
 
 // Khớp tham số sort của GET /creatives
@@ -52,6 +53,22 @@ export default function ExplorePage() {
     sort,
     page,
     limit: PAGE_SIZE,
+  });
+
+  // Mỗi danh mục là một trang riêng cho SEO; kết quả tìm kiếm thì không index
+  const { data: categories } = useCategories();
+  const categoryName = categories?.find((c) => c.slug === category)?.name;
+  useSeo({
+    title: q
+      ? `Tìm kiếm "${q}"`
+      : categoryName
+        ? `AI Creative ${categoryName}`
+        : 'Khám phá AI Creative',
+    description: categoryName
+      ? `Mẫu AI Creative danh mục ${categoryName} trên A51. Chọn mẫu và tạo ảnh sản phẩm chuyên nghiệp bằng AI chỉ trong vài giây.`
+      : 'Khám phá các mẫu AI Creative phổ biến và mới nhất trên A51. Tạo ảnh sản phẩm, ảnh quảng cáo chuyên nghiệp bằng AI chỉ trong vài giây.',
+    canonical: category ? `/explore?category=${encodeURIComponent(category)}` : '/explore',
+    noindex: Boolean(q),
   });
 
   return (

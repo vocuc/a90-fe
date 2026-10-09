@@ -1,8 +1,10 @@
+import useSeo from '../hooks/useSeo';
 import { Link } from 'react-router-dom';
 import Icon from '../components/common/Icon';
 
 // backTo: đường dẫn nút quay lại trên thanh tiêu đề (trang con)
 export default function PlaceholderPage({ title, icon = 'construction', backTo }) {
+  useSeo({ title, noindex: true });
   return (
     <>
       {backTo && (

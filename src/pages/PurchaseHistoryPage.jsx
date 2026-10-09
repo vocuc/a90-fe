@@ -1,3 +1,4 @@
+import useSeo from '../hooks/useSeo';
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import CoverImage from '../components/common/CoverImage';
@@ -109,6 +110,7 @@ function OrderCard({ order }) {
 
 /** /account/history: các lần tạo ảnh đã mua, mới nhất trước. */
 export default function PurchaseHistoryPage() {
+  useSeo({ title: 'Lịch sử mua', noindex: true });
   const navigate = useNavigate();
   const location = useLocation();
   const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useGenerationHistory();

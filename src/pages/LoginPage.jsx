@@ -1,3 +1,4 @@
+import useSeo from '../hooks/useSeo';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
@@ -7,6 +8,7 @@ import { MOCK_AUTH } from '../api/client';
 import { demoAccount } from '../api/mock/data';
 
 export default function LoginPage() {
+  useSeo({ title: 'Đăng nhập', description: 'Đăng nhập A51 để tiếp tục tạo hình ảnh chuyên nghiệp bằng AI.', noindex: true });
   const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();

@@ -1,3 +1,4 @@
+import useSeo from '../hooks/useSeo';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Icon from '../components/common/Icon';
@@ -432,6 +433,7 @@ function ProductForm({ models, creative }) {
 /** /seller/products/new (tạo mới) và /seller/products/:id/edit (sửa). */
 export default function SellerProductFormPage() {
   const { id } = useParams();
+  useSeo({ title: id ? 'Sửa sản phẩm' : 'Thêm sản phẩm', noindex: true });
   const isEdit = id != null;
   const { hasProfile, meLoaded } = useCreatorProfile();
   const models = useAiModels(hasProfile);
