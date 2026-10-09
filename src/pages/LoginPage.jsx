@@ -31,7 +31,7 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      title="Đăng nhập AI90"
+      title="Đăng nhập A51"
       subtitle="Tiếp tục tạo hình ảnh chuyên nghiệp bằng AI."
       footer={
         <>

@@ -54,7 +54,7 @@ export default function StoreSettingsPage() {
               <p className="flex items-center gap-1.5 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
                 <Icon name="percent" className="text-sm text-primary" />
                 Phí nền tảng của bạn: <b className="text-on-surface">{Number(profile.platform_fee_percent)}%</b> trên mỗi
-                ảnh bán được. Mức phí do AI90 thiết lập.
+                ảnh bán được. Mức phí do A51 thiết lập.
               </p>
             )}
 

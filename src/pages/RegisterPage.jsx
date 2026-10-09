@@ -95,7 +95,7 @@ export default function RegisterPage() {
 
   return (
     <AuthShell
-      title="Tạo tài khoản AI90"
+      title="Tạo tài khoản A51"
       subtitle="Tạo tài khoản để bắt đầu biến ảnh sản phẩm thành ảnh chuyên nghiệp."
       footer={
         <>
@@ -146,7 +146,7 @@ export default function RegisterPage() {
             />
             <span>
               Tôi đồng ý với <span className="font-semibold text-primary">Điều khoản sử dụng</span> và{' '}
-              <span className="font-semibold text-primary">Chính sách bảo mật</span> của AI90.
+              <span className="font-semibold text-primary">Chính sách bảo mật</span> của A51.
             </span>
           </label>
           {shown('agree') && <p className="mt-1 text-xs text-error">{errors.agree}</p>}

@@ -1,4 +1,4 @@
-# AI90 Frontend
+# A51 Frontend
 
 React 18 + Vite + Tailwind CSS + React Router + TanStack Query + axios.
 Bản thiết kế gốc: `html/index.html`.

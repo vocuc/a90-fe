@@ -26,11 +26,11 @@ function GuestHeader() {
 
   return (
     <header className={headerCls}>
-      <Link to="/" className="flex items-center gap-2" aria-label="AI90 - Trang chủ">
+      <Link to="/" className="flex items-center gap-2" aria-label="A51 - Trang chủ">
         <div className="flex size-9 items-center justify-center rounded-full bg-primary-container text-on-primary">
           <Icon name="auto_awesome" fill className="text-[20px]" />
         </div>
-        <span className="text-lg font-extrabold tracking-tight text-on-surface">AI90</span>
+        <span className="text-lg font-extrabold tracking-tight text-on-surface">A51</span>
       </Link>
       {!onAuthPage && (
         <Link
