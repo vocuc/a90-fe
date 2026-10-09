@@ -125,7 +125,7 @@ export default function ExplorePage() {
             <p className="mb-2 text-xs text-on-surface-variant">{data.total} kết quả</p>
             <div className="grid grid-cols-2 gap-3">
               {data.items.map((c) => (
-                <CompactCreativeCard key={c.id} creative={c} />
+                <CompactCreativeCard key={c.id} creative={c} naturalCover />
               ))}
             </div>
             {data.lastPage > 1 && (
