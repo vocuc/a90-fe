@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Icon from '../common/Icon';
 import { ErrorState, Skeleton } from '../common/Feedback';
@@ -10,6 +11,18 @@ export default function NewestSection() {
     limit: 10,
   });
   const items = data?.pages.flatMap((p) => p.items) ?? [];
+
+  // Cuộn gần tới cuối danh sách thì tự tải trang tiếp, hết trang thì thôi
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasNextPage || isFetchingNextPage) return undefined;
+    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && fetchNextPage(), {
+      rootMargin: '300px',
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Chưa có Creative nào thì mục "nổi bật" phía trên đã báo, không lặp lại
   if (!isLoading && !error && items.length === 0) return null;
@@ -38,16 +51,14 @@ export default function NewestSection() {
               ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="aspect-[3/4]" />)
               : items.map((c) => <CompactCreativeCard key={c.id} creative={c} naturalCover />)}
           </div>
-          {hasNextPage && (
-            <button
-              type="button"
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-              className="mt-3 h-11 w-full rounded-xl border border-outline-variant text-sm font-bold text-primary transition-colors hover:bg-surface-container-low disabled:opacity-50"
-            >
-              {isFetchingNextPage ? 'Đang tải...' : 'Xem thêm'}
-            </button>
+          {isFetchingNextPage && (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-[3/4]" />
+              ))}
+            </div>
           )}
+          {hasNextPage && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
         </>
       )}
     </section>
