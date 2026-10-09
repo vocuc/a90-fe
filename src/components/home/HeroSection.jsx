@@ -57,7 +57,7 @@ export default function HeroSection() {
           className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary-container px-4 text-sm font-semibold text-on-primary shadow-md shadow-primary-container/25 transition-all hover:bg-primary active:scale-[0.98]"
         >
           <Icon name="explore" className="text-lg" />
-          Khám phá AI Creative
+          Khám phá Creative
         </Link>
         <Link
           to="/seller"
