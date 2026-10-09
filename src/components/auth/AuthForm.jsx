@@ -8,18 +8,20 @@ export const safeRedirect = (value) =>
 export function AuthShell({ title, subtitle, children, footer }) {
   return (
     <div className="flex flex-1 flex-col px-6 pb-8 pt-4">
-      <Link
-        to="/"
-        aria-label="Về trang chủ"
-        className="-ml-2 flex size-9 items-center justify-center rounded-full hover:bg-surface-container"
-      >
-        <Icon name="arrow_back" />
-      </Link>
-
-      <div className="mt-6">
-        <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary-container text-on-primary shadow-md shadow-primary-container/25">
+      <div className="flex items-center justify-between">
+        <Link
+          to="/"
+          aria-label="Về trang chủ"
+          className="-ml-2 flex size-9 items-center justify-center rounded-full hover:bg-surface-container"
+        >
+          <Icon name="arrow_back" />
+        </Link>
+        <div className="flex size-12 items-center justify-center rounded-2xl bg-primary-container text-on-primary shadow-md shadow-primary-container/25">
           <Icon name="auto_awesome" fill />
         </div>
+      </div>
+
+      <div className="mt-6">
         <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-on-surface">{title}</h1>
         <p className="pt-1 text-sm text-on-surface-variant">{subtitle}</p>
       </div>
