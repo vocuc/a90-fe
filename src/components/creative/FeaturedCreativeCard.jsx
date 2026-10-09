@@ -23,7 +23,7 @@ export default function FeaturedCreativeCard({ creative }) {
         </h3>
         {author && (
           <div className="mb-1 flex min-w-0 items-center gap-1.5">
-            <Avatar src={author.avatarUrl} name={author.name} className="size-5 shrink-0" />
+            <Avatar src={author.avatarUrl} name={author.name} className="size-4 shrink-0" />
             <span className="truncate text-[11px] font-medium text-on-surface-variant">{author.name}</span>
             {author.verified && <Icon name="verified" fill className="shrink-0 text-xs text-secondary" />}
           </div>
@@ -48,7 +48,7 @@ export default function FeaturedCreativeCard({ creative }) {
               className="flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-primary-container text-xs font-bold text-on-primary transition-colors hover:bg-primary"
             >
               <Icon name="bolt" className="text-sm" />
-              Sử dụng
+              Chọn góc này
             </Link>
           </div>
         </div>
