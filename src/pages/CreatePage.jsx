@@ -18,7 +18,6 @@ import { formatVnd } from '../utils/format';
 // Khớp backend (GenerationController: input_max_size_kb = 10240)
 const ACCEPT = 'image/jpeg,image/png,image/webp';
 const MAX_INPUT_BYTES = 10 * 1024 * 1024;
-const RATIO_LABEL = { '1:1': 'Vuông', '4:5': 'Dọc', '3:4': 'Dọc', '2:3': 'Dọc', '9:16': 'Story', '16:9': 'Ngang', '4:3': 'Ngang', '3:2': 'Ngang', '5:4': 'Ngang', '21:9': 'Rộng' };
 
 // Mã lỗi từng ảnh (GenerationResource) -> thông báo, ảnh lỗi đều được hoàn tiền
 const OUTPUT_ERRORS = {
@@ -149,7 +148,7 @@ function OutputTile({ generationId, output, ratio, startedAt }) {
         ) : pending ? (
           <div className="flex h-full w-full animate-pulse flex-col items-center justify-center gap-1.5 text-on-surface-variant">
             <Icon name="progress_activity" className="animate-spin text-2xl text-primary" />
-            <span className="text-[11px] font-medium">{output.status === 'queued' ? 'Đang chờ...' : 'Đang tạo...'}</span>
+            <span className="px-2 text-center text-[11px] font-medium">{output.status === 'queued' ? 'Xin vui lòng chờ khoảng 2 phút...' : 'Đang tạo...'}</span>
             <Countdown startedAt={startedAt} />
           </div>
         ) : (
@@ -276,7 +275,6 @@ export default function CreatePage() {
   const create = useCreateGeneration();
 
   const [image, setImage] = useState(null);
-  const [ratio, setRatio] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [runs, setRuns] = useState([]);
   const [submitted, setSubmitted] = useState(false);
@@ -289,7 +287,7 @@ export default function CreatePage() {
   // Đổi dữ liệu gửi đi -> yêu cầu mới, khoá mới
   useEffect(() => {
     idempotencyKey.current = newKey();
-  }, [image, ratio, quantity]);
+  }, [image, quantity]);
 
   if (!slug) {
     return (
@@ -309,7 +307,8 @@ export default function CreatePage() {
 
   const options = c?.options ?? {};
   const ratios = options.aspect_ratios ?? [];
-  const selectedRatio = ratio ?? (ratios.includes(options.default_aspect_ratio) ? options.default_aspect_ratio : ratios[0]);
+  // Không cho chọn tỉ lệ: dùng tỉ lệ mặc định của mẫu (backend vẫn bắt buộc gửi aspect_ratio)
+  const selectedRatio = ratios.includes(options.default_aspect_ratio) ? options.default_aspect_ratio : ratios[0];
   const maxOutputs = Math.max(1, options.max_outputs ?? 1);
   // Chủ mẫu tự dùng không bị trừ tiền (GenerationType::Owner)
   const isOwner = !!me?.creatorProfile && me.creatorProfile.username === c?.author?.username;
@@ -388,34 +387,6 @@ export default function CreatePage() {
               </Section>
 
               <Section title="Tuỳ chọn">
-                {ratios.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-on-surface-variant">Tỉ lệ khung hình</p>
-                    <div className="flex flex-wrap gap-2">
-                      {ratios.map((r) => (
-                        <button
-                          key={r}
-                          type="button"
-                          onClick={() => setRatio(r)}
-                          aria-pressed={selectedRatio === r}
-                          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                            selectedRatio === r
-                              ? 'border-primary-container bg-primary-container text-on-primary'
-                              : 'border-outline-variant/40 text-on-surface-variant hover:border-primary-container'
-                          }`}
-                        >
-                          <span
-                            className="inline-block w-3 rounded-[2px] border-[1.5px] border-current"
-                            style={{ aspectRatio: cssRatio(r) }}
-                          />
-                          {r}
-                          {RATIO_LABEL[r] && <span className="font-normal opacity-80">· {RATIO_LABEL[r]}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold text-on-surface-variant">Số ảnh</p>

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { bannerApi, categoryApi, creativeApi, notificationApi, userApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 
@@ -30,6 +30,15 @@ export const useCreatives = (params) =>
     queryKey: ['creatives', 'list', params],
     queryFn: () => creativeApi.list(params),
     placeholderData: (prev) => prev,
+  });
+
+/** Danh sách Creative tải thêm theo trang (params không gồm page). */
+export const useInfiniteCreatives = (params) =>
+  useInfiniteQuery({
+    queryKey: ['creatives', 'infinite', params],
+    queryFn: ({ pageParam }) => creativeApi.list({ ...params, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
   });
 
 export const useCreative = (id) =>

@@ -2,13 +2,17 @@ import { Link } from 'react-router-dom';
 import Icon from '../common/Icon';
 import { ErrorState, Skeleton } from '../common/Feedback';
 import CompactCreativeCard from '../creative/CompactCreativeCard';
-import { useCreatives } from '../../hooks/queries';
+import { useInfiniteCreatives } from '../../hooks/queries';
 
 export default function NewestSection() {
-  const { data, isLoading, error, refetch } = useCreatives({ sort: 'newest', limit: 4 });
+  const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteCreatives({
+    sort: 'newest',
+    limit: 10,
+  });
+  const items = data?.pages.flatMap((p) => p.items) ?? [];
 
   // Chưa có Creative nào thì mục "nổi bật" phía trên đã báo, không lặp lại
-  if (!isLoading && !error && data.items.length === 0) return null;
+  if (!isLoading && !error && items.length === 0) return null;
 
   return (
     <section className="px-4 py-4">
@@ -28,11 +32,23 @@ export default function NewestSection() {
       {error ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {isLoading
-            ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="aspect-[3/4]" />)
-            : data.items.map((c) => <CompactCreativeCard key={c.id} creative={c} naturalCover />)}
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            {isLoading
+              ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="aspect-[3/4]" />)
+              : items.map((c) => <CompactCreativeCard key={c.id} creative={c} naturalCover />)}
+          </div>
+          {hasNextPage && (
+            <button
+              type="button"
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+              className="mt-3 h-11 w-full rounded-xl border border-outline-variant text-sm font-bold text-primary transition-colors hover:bg-surface-container-low disabled:opacity-50"
+            >
+              {isFetchingNextPage ? 'Đang tải...' : 'Xem thêm'}
+            </button>
+          )}
+        </>
       )}
     </section>
   );
