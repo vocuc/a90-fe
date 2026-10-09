@@ -19,7 +19,7 @@ export default function HeroSection() {
         <Icon name="auto_awesome" fill className="text-sm" />
         AI Studio Thế Hệ Mới
       </div>
-      <h1 className="text-[28px] font-extrabold leading-[34px] tracking-tight text-on-surface">
+      <h1 className="text-[28px] font-extrabold leading-[42px] tracking-tight text-on-surface">
         Tạo hình ảnh chuyên nghiệp bằng AI
       </h1>
 
