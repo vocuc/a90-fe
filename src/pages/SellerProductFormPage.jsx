@@ -380,7 +380,7 @@ function ProductForm({ models, creative }) {
           <SelectField
             label="Model AI *"
             {...field('model_id')}
-            hint={models.length === 0 ? 'Hiện chưa có model AI nào hoạt động.' : 'Cần API key hoạt động của nhà cung cấp model này để đăng bán.'}
+            hint={models.length === 0 ? 'Hiện chưa có model AI nào hoạt động.' : undefined}
           >
             <option value="">Chọn model</option>
             {models.map((m) => (

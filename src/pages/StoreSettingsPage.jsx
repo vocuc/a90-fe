@@ -3,7 +3,6 @@ import Icon from '../components/common/Icon';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import ShopInfoForm from '../components/store/ShopInfoForm';
 import ShopImages from '../components/store/ShopImages';
-import ApiKeysSection from '../components/store/ApiKeysSection';
 import { useCreatorProfile } from '../hooks/creatorQueries';
 
 function Section({ title, subtitle, children }) {
@@ -41,7 +40,7 @@ export default function StoreSettingsPage() {
         ) : !hasProfile ? (
           <Section
             title="Thông tin người bán"
-            subtitle="Tạo profile người bán để đăng bán AI Creative. Bạn có thể đổi ảnh và thêm API key AI ngay sau đó."
+            subtitle="Tạo profile người bán để đăng bán AI Creative. Bạn có thể đổi ảnh ngay sau đó."
           >
             {/* Tạo xong: /auth/me tải lại -> hasProfile = true -> trang hiện đủ các phần cấu hình */}
             <ShopInfoForm profile={null} onCreated={() => window.scrollTo({ top: 0 })} />
@@ -60,13 +59,6 @@ export default function StoreSettingsPage() {
 
             <Section title="Thông tin cửa hàng" subtitle="Hiển thị trên trang shop và các AI Creative của bạn.">
               <ShopInfoForm profile={profile} />
-            </Section>
-
-            <Section
-              title="API key AI"
-              subtitle="Dùng tài khoản AI của bạn để tạo ảnh cho người mua. Cần ít nhất 1 key hoạt động để đăng Creative."
-            >
-              <ApiKeysSection />
             </Section>
           </>
         )}

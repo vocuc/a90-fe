@@ -16,7 +16,7 @@ export default function StorePage() {
       to: '/seller/settings',
       icon: 'tune',
       title: 'Quản lý cửa hàng',
-      description: shop ? 'Tên shop, ảnh đại diện, mô tả, API key AI' : 'Tạo cửa hàng để bắt đầu bán AI Creative',
+      description: shop ? 'Tên shop, ảnh đại diện, mô tả' : 'Tạo cửa hàng để bắt đầu bán AI Creative',
     },
     {
       to: '/seller/products',

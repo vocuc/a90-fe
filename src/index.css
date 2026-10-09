@@ -6,6 +6,15 @@ body {
   min-height: 100dvh;
 }
 
+/* iOS Safari tự zoom khi focus vào input có font-size < 16px → ép 16px trên mobile */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

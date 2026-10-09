@@ -4,7 +4,6 @@ import { useMe } from './queries';
 
 export const CREATOR_KEYS = {
   profile: ['creator', 'profile'],
-  apiKeys: ['creator', 'api-keys'],
   creatives: ['creator', 'creatives'],
 };
 
@@ -112,35 +111,5 @@ export const useUpdateCreative = () =>
     return { creative, uploaded, failed, failedRemovals };
   });
 
-export const useApiKeys = (enabled) =>
-  useQuery({ queryKey: CREATOR_KEYS.apiKeys, queryFn: creatorApi.listApiKeys, enabled });
-
-// Cùng key với useAiProviders để dùng chung cache
 export const useAiModels = (enabled) =>
   useQuery({ queryKey: ['ai-models'], queryFn: aiModelApi.list, enabled, staleTime: 10 * 60_000 });
-
-// Provider lấy từ danh sách model đang hoạt động (backend chưa có API riêng cho provider)
-export const useAiProviders = (enabled) =>
-  useQuery({
-    queryKey: ['ai-models'],
-    queryFn: aiModelApi.list,
-    enabled,
-    staleTime: 10 * 60_000,
-    select: (models) => {
-      const byId = new Map();
-      models.forEach((m) => byId.set(m.provider.id, m.provider));
-      return [...byId.values()];
-    },
-  });
-
-const useApiKeyMutation = (mutationFn) => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CREATOR_KEYS.apiKeys }),
-  });
-};
-
-export const useCreateApiKey = () => useApiKeyMutation(creatorApi.createApiKey);
-export const useUpdateApiKey = () => useApiKeyMutation(({ id, ...body }) => creatorApi.updateApiKey(id, body));
-export const useDeleteApiKey = () => useApiKeyMutation(creatorApi.deleteApiKey);

@@ -129,10 +129,6 @@ export const categoryApi = {
  *            followers_count, creative_count, usage_count, rating_avg, rating_count, platform_fee_percent }
  *
  * GET    /ai-models                    -> { data: [{ id, name, code, provider: { id, code, name }, supported_aspect_ratios }] }
- * GET    /creator/api-keys             -> { data: [{ id, provider_id, label, key_hint, status, cooldown_until, last_used_at, last_error }] }
- * POST   /creator/api-keys             { provider_id, label, api_key } (backend gọi thử Provider, key sai -> 422 API_KEY_INVALID)
- * PATCH  /creator/api-keys/{id}        { label?, status?: active|disabled }
- * DELETE /creator/api-keys/{id}        -> { message, paused_creatives }
  *
  * GET /creator/creatives?status=&page=&per_page=  (Creative của chính creator, mới sửa trước)
  *   -> { data: [{ id, slug, title, price_per_image, status: draft|published|paused,
@@ -148,7 +144,6 @@ export const categoryApi = {
  * DELETE /creator/creatives/{id}/images/{imageId}  (Creative đang bán phải còn ít nhất 1 ảnh -> 409 INVALID_STATE)
  * POST /creator/creatives/{id}/publish  (chỉ draft|paused) -> { data: creative }
  *   chưa đủ điều kiện -> 422 CREATIVE_NOT_PUBLISHABLE, context.reasons: string[]; sai trạng thái -> 409 INVALID_STATE
- * status key: active | invalid | quota_exceeded | disabled
  */
 
 // Chế độ mock chưa giả lập Creator Studio; gọi backend bằng token giả sẽ bị 401 và văng đăng xuất
@@ -158,8 +153,6 @@ const requireRealBackend = (fn) => (...args) =>
     : fn(...args);
 
 const UPLOAD_TIMEOUT = 60_000;
-// Thêm/bật key phải chờ backend gọi thử Provider
-const VERIFY_KEY_TIMEOUT = 45_000;
 
 const uploadImage = (path, file) => {
   const form = new FormData();
@@ -173,15 +166,6 @@ export const creatorApi = {
   updateProfile: requireRealBackend((body) => client.put('/creator/profile', body).then(({ data }) => data)),
   uploadAvatar: requireRealBackend((file) => uploadImage('/creator/profile/avatar', file)),
   uploadCover: requireRealBackend((file) => uploadImage('/creator/profile/cover', file)),
-
-  listApiKeys: requireRealBackend(() => client.get('/creator/api-keys').then(({ data }) => data)),
-  createApiKey: requireRealBackend((body) =>
-    client.post('/creator/api-keys', body, { timeout: VERIFY_KEY_TIMEOUT }).then(({ data }) => data),
-  ),
-  updateApiKey: requireRealBackend((id, body) =>
-    client.patch(`/creator/api-keys/${id}`, body, { timeout: VERIFY_KEY_TIMEOUT }).then(({ data }) => data),
-  ),
-  deleteApiKey: requireRealBackend((id) => client.delete(`/creator/api-keys/${id}`)),
 
   listCreatives: requireRealBackend(({ status, page, limit } = {}) =>
     client.get('/creator/creatives', { params: { status, page, per_page: limit } }).then(({ data, meta }) => ({
