@@ -109,7 +109,12 @@ export default function RegisterPage() {
         </>
       }
     >
-      <form onSubmit={onSubmit} className="mt-8 space-y-4" noValidate>
+      <div className="mt-8">
+        <GoogleSignInButton redirect={redirect} prominent />
+      </div>
+      <AuthDivider label="hoặc đăng ký bằng email" />
+
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <TextField label="Họ và tên" icon="person" autoComplete="name" placeholder="Nguyễn Văn A" {...field('name')} />
         <TextField
           label="Email"
@@ -168,9 +173,6 @@ export default function RegisterPage() {
           Đăng ký
         </SubmitButton>
       </form>
-
-      <AuthDivider />
-      <GoogleSignInButton redirect={redirect} />
     </AuthShell>
   );
 }
