@@ -45,7 +45,12 @@ export default function LoginPage() {
         </>
       }
     >
-      <form onSubmit={onSubmit} className="mt-8 space-y-4" noValidate>
+      <div className="mt-8">
+        <GoogleSignInButton redirect={redirect} prominent />
+      </div>
+      <AuthDivider label="hoặc đăng nhập bằng email" />
+
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <TextField
           label="Email"
           icon="mail"
@@ -75,9 +80,6 @@ export default function LoginPage() {
           Đăng nhập
         </SubmitButton>
       </form>
-
-      <AuthDivider />
-      <GoogleSignInButton redirect={redirect} />
 
       {MOCK_AUTH && (
         <div className="mt-6 rounded-xl border border-dashed border-outline-variant bg-surface-container-low p-3 text-xs text-on-surface-variant">
