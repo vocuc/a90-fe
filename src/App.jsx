@@ -14,12 +14,17 @@ import PurchaseHistoryPage from './pages/PurchaseHistoryPage';
 import CreatePage from './pages/CreatePage';
 import SellerProductFormPage from './pages/SellerProductFormPage';
 import PlaceholderPage from './pages/PlaceholderPage';
+import ToolsPage from './pages/ToolsPage';
+import ToolDetailPage from './pages/ToolDetailPage';
 
 export default function App() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<HomePage />} />
+        <Route path="tools" element={<ToolsPage />} />
+        <Route path="tools/:slug" element={<ToolDetailPage />} />
+        {/* Danh mục không còn là tab, chỉ vào từ nút "Xem tất cả" ở trang chủ */}
         <Route path="categories" element={<CategoriesPage />} />
         {/* Tab "Bộ sưu tập" cũ đã đổi thành Danh mục */}
         <Route path="collection" element={<Navigate to="/categories" replace />} />

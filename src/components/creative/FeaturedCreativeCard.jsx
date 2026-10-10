@@ -48,7 +48,7 @@ export default function FeaturedCreativeCard({ creative }) {
               className="flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-primary-container text-xs font-bold text-on-primary transition-colors hover:bg-primary"
             >
               <Icon name="bolt" className="text-sm" />
-              Chọn góc này
+              Chọn mẫu này
             </Link>
           </div>
         </div>

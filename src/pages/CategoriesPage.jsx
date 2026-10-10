@@ -13,9 +13,18 @@ export default function CategoriesPage() {
 
   return (
     <>
-      <header className="sticky top-[60px] z-30 border-b border-surface-container bg-surface-container-lowest/90 px-4 py-3 backdrop-blur-md">
-        <h1 className="text-lg font-bold text-on-surface">Danh mục</h1>
-        <p className="text-xs text-on-surface-variant">Chọn danh mục để xem các AI Creative phù hợp</p>
+      <header className="sticky top-[60px] z-30 flex items-center gap-2 border-b border-surface-container bg-surface-container-lowest/90 px-2 py-2 backdrop-blur-md">
+        <Link
+          to="/"
+          aria-label="Quay lại"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-surface-container"
+        >
+          <Icon name="arrow_back" />
+        </Link>
+        <div>
+          <h1 className="text-lg font-bold text-on-surface">Danh mục</h1>
+          <p className="text-xs text-on-surface-variant">Chọn danh mục để xem các AI Creative phù hợp</p>
+        </div>
       </header>
 
       <section className="p-4">

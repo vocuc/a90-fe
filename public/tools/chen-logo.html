@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cắt ảnh theo tỷ lệ</title>
+<style>
+:root{--bg:#f5f5f2;--fg:#1d1d1b;--mut:#6d6d68;--line:#d9d9d3;--card:#fff;--acc:#2b5fd9}
+@media (prefers-color-scheme:dark){:root{--bg:#161616;--fg:#eee;--mut:#9a9a94;--line:#333;--card:#202020;--acc:#7da2ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:900px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:22px;margin:0 0 4px}
+p.sub{margin:0 0 20px;color:var(--mut)}
+#drop{border:2px dashed var(--line);border-radius:10px;padding:32px 16px;text-align:center;color:var(--mut);cursor:pointer;background:var(--card)}
+#drop.over{border-color:var(--acc);color:var(--acc)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0}
+.bar.g{gap:12px 20px;align-items:end}
+label{display:flex;flex-direction:column;font-size:13px;color:var(--mut);gap:4px}
+input[type=number],input[type=text],select{width:84px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);font:inherit}
+input[type=text]{width:100%}
+select{width:auto}
+button{padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--fg);font:inherit;cursor:pointer}
+button.p{background:var(--acc);border-color:var(--acc);color:#fff}
+button.on{border-color:var(--acc);color:var(--acc);font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,#drop:focus-visible,#view:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#view{position:relative;overflow:hidden;width:100%;max-width:640px;margin:0 auto;background:#000;border:1px solid var(--line);border-radius:4px;cursor:grab;touch-action:none;user-select:none}
+#view.drag{cursor:grabbing}
+#pic{position:absolute;left:0;top:0;max-width:none;transform-origin:0 0;pointer-events:none;-webkit-user-drag:none}
+#thirds{position:absolute;inset:0;pointer-events:none;opacity:.55;
+background:linear-gradient(#fff,#fff) 33.33% 0/1px 100% no-repeat,linear-gradient(#fff,#fff) 66.66% 0/1px 100% no-repeat,
+linear-gradient(#fff,#fff) 0 33.33%/100% 1px no-repeat,linear-gradient(#fff,#fff) 0 66.66%/100% 1px no-repeat}
+#wm{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+#lg{position:absolute;overflow:hidden;cursor:move;touch-action:none;outline:1px dashed rgba(255,255,255,.7)}
+#lg img{display:block;width:100%;height:100%;pointer-events:none;-webkit-user-drag:none}
+.zoom{display:flex;align-items:center;gap:8px;max-width:640px;margin:12px auto 0}
+.zoom input{flex:1}
+.zoom span{min-width:48px;text-align:right;color:var(--mut);font-size:13px}
+#info{max-width:640px;margin:8px auto 0;color:var(--mut);font-size:13px;text-align:center}
+#logobox,#wmbox{max-width:640px;margin:20px auto 0;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+#logobox h2,#wmbox h2{font-size:15px;margin:0 0 10px}
+.lrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.sl{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--mut)}
+.sl b{min-width:96px;font-weight:400}
+.sl input{flex:1}
+.sl span{min-width:44px;text-align:right}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+@include('landing.theme1.manager.tools.menu')
+<main>
+  <h1>Cắt ảnh theo tỷ lệ khung hình</h1>
+  <p class="sub">Chọn ảnh, chọn tỷ lệ, kéo để dời ảnh, cuộn chuột hoặc kéo thanh trượt để zoom, rồi bấm tải về. Ảnh không bị gửi đi đâu, mọi thứ xử lý trong trình duyệt.</p>
+  <div id="drop" tabindex="0" role="button">Kéo ảnh vào đây hoặc bấm để chọn ảnh</div>
+  <input id="file" type="file" accept="image/*" hidden>
+
+  <section id="work" hidden>
+    <div class="bar" id="ratios"></div>
+    <div class="bar g">
+      <label>Tuỳ chỉnh (rộng : cao)
+        <span style="display:flex;gap:6px;align-items:center">
+          <input id="cw" type="number" min="1" max="100" value="5" aria-label="Rộng">:
+          <input id="ch" type="number" min="1" max="100" value="7" aria-label="Cao">
+          <button id="setc" type="button">Áp dụng</button>
+        </span>
+      </label>
+      <label>Chiều rộng xuất (px)<input id="ow" type="number" min="16" max="8000" placeholder="Gốc"></label>
+      <label>Định dạng
+        <select id="fmt"><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select>
+      </label>
+      <button id="dl" class="p" type="button">Tải về</button>
+    </div>
+
+    <div id="view" tabindex="0" aria-label="Khung cắt ảnh"><img id="pic" alt=""><div id="thirds"></div><canvas id="wm"></canvas><div id="lg" hidden><img id="lgimg" alt="Logo"></div></div>
+    <div class="zoom">
+      <button id="zo" type="button" aria-label="Thu nhỏ">−</button>
+      <input id="z" type="range" min="1" max="8" step="0.01" value="1" aria-label="Zoom">
+      <button id="zi" type="button" aria-label="Phóng to">+</button>
+      <button id="rs" type="button">Đặt lại</button>
+      <span id="zv">100%</span>
+    </div>
+    <div id="info"></div>
+
+    <div id="logobox">
+      <h2>Logo</h2>
+      <div class="lrow">
+        <button id="lpick" type="button">Tải logo lên</button>
+        <button id="ldel" type="button" disabled>Xoá logo</button>
+        <input id="lfile" type="file" accept="image/*" hidden>
+        <span style="font-size:13px;color:var(--mut)">Kéo logo trong khung để đổi vị trí.</span>
+      </div>
+      <div class="sl"><b>Bo góc</b><input id="lr" type="range" min="0" max="50" step="1" value="12" autocomplete="off" disabled><span id="lrv">12%</span></div>
+      <div class="sl"><b>Độ mờ</b><input id="lo" type="range" min="5" max="100" step="1" value="80" autocomplete="off" disabled><span id="lov">80%</span></div>
+      <div class="sl"><b>Kích thước</b><input id="ls" type="range" min="5" max="100" step="1" value="7" autocomplete="off" disabled><span id="lsv">7%</span></div>
+    </div>
+
+    <div id="wmbox">
+      <h2>Chữ chìm chéo màn hình</h2>
+      <input id="wt" type="text" maxlength="80" placeholder="Nhập chữ (để trống = tắt), ví dụ: © tenbanquyen.com" autocomplete="off">
+      <div class="sl"><b>Cỡ chữ</b><input id="wf" type="range" min="1" max="15" step="0.5" value="2.5" autocomplete="off"><span id="wfv">2.5%</span></div>
+      <div class="sl"><b>Độ mờ</b><input id="wo" type="range" min="5" max="100" step="1" value="33" autocomplete="off"><span id="wov">33%</span></div>
+      <div class="sl"><b>Cách giữa lần lặp</b><input id="wx" type="range" min="0" max="50" step="1" value="50" autocomplete="off"><span id="wxv">50%</span></div>
+      <div class="sl"><b>Cách giữa hàng</b><input id="wy" type="range" min="0" max="50" step="1" value="37" autocomplete="off"><span id="wyv">37%</span></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const drop = $('drop'), file = $('file'), work = $('work'), view = $('view'), pic = $('pic'), zr = $('z');
+const PRESETS = [['1:1',1,1],['4:3',4,3],['3:4',3,4],['3:2',3,2],['2:3',2,3],['16:9',16,9],['9:16',9,16],['4:5',4,5]];
+let img = null, name = 'anh', rw = 1, rh = 1;
+let W = 0, H = 0, vw = 0, vh = 0, base = 1, z = 1, ox = 0, oy = 0;
+// logo: lx, ly = tâm logo (0..1 so với khung), ls = rộng logo (% rộng khung), lr = bo góc (% cạnh ngắn), lo = độ mờ (%)
+let logo = null, lx = 0.95, ly = 0.95, ls = 7, lr = 12, lo = 80;
+const LOGO_MARGIN = 0.02; // khoảng cách từ logo tới mép khung (tỷ lệ theo chiều rộng khung)
+const WM_ANGLE = -30;     // góc nghiêng chữ chìm (độ)
+
+// chọn ảnh
+drop.onclick = () => file.click();
+drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click(); } };
+file.onchange = () => file.files[0] && load(file.files[0]);
+['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => e.dataTransfer.files[0] && load(e.dataTransfer.files[0]));
+
+function load(f) {
+  if (!f.type.startsWith('image/')) return;
+  name = f.name.replace(/\.[^.]+$/, '') || 'anh';
+  const im = new Image();
+  im.onload = () => {
+    img = im; W = im.naturalWidth; H = im.naturalHeight;
+    pic.src = im.src; work.hidden = false;
+    layout(true);
+  };
+  im.src = URL.createObjectURL(f);
+}
+
+// nút tỷ lệ
+const rbox = $('ratios');
+PRESETS.forEach(([t, a, b]) => {
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.textContent = t; btn.dataset.r = t;
+  btn.onclick = () => setRatio(a, b);
+  rbox.append(btn);
+});
+const orig = document.createElement('button');
+orig.type = 'button'; orig.textContent = 'Gốc'; orig.dataset.r = 'orig';
+orig.onclick = () => img && setRatio(W, H, 'orig');
+rbox.prepend(orig);
+$('setc').onclick = () => {
+  const a = parseFloat($('cw').value), b = parseFloat($('ch').value);
+  if (a > 0 && b > 0) setRatio(a, b, 'custom');
+};
+
+function setRatio(a, b, tag) {
+  rw = a; rh = b;
+  const key = tag || PRESETS.find(p => p[1] === a && p[2] === b)?.[0] || 'custom';
+  rbox.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.r === key));
+  if (img) layout(true);
+}
+
+// bố cục khung theo tỷ lệ
+function layout(reset) {
+  if (!img) return;
+  view.style.aspectRatio = `${rw} / ${rh}`;
+  // giới hạn chiều cao để khung không quá dài
+  const maxH = Math.max(280, window.innerHeight * 0.7);
+  const wByH = maxH * rw / rh;
+  view.style.width = `min(100%, ${Math.round(wByH)}px)`;
+  const r = view.getBoundingClientRect();
+  vw = r.width; vh = r.height;
+  const nb = Math.max(vw / W, vh / H);
+  if (reset) { z = 1; base = nb; ox = (vw - W * base) / 2; oy = (vh - H * base) / 2; }
+  else {
+    // giữ nguyên phần đang xem khi đổi kích thước cửa sổ
+    const k = nb / base; ox *= k; oy *= k; base = nb;
+  }
+  apply();
+}
+
+function clamp() {
+  const s = base * z;
+  ox = Math.min(0, Math.max(vw - W * s, ox));
+  oy = Math.min(0, Math.max(vh - H * s, oy));
+}
+
+function apply() {
+  clamp();
+  const s = base * z;
+  pic.style.transform = `translate(${ox}px,${oy}px) scale(${s})`;
+  pic.style.width = W + 'px'; pic.style.height = H + 'px';
+  zr.value = z; $('zv').textContent = Math.round(z * 100) + '%';
+  const sw = Math.round(vw / s), sh = Math.round(vh / s);
+  $('info').textContent = `Ảnh gốc ${W}×${H}px, vùng cắt ${sw}×${sh}px, tỷ lệ ${fmtRatio()}`;
+  $('ow').placeholder = 'Gốc (' + sw + ')';
+  drawWM();
+  updateLogo();
+}
+function fmtRatio() { return $('ratios').querySelector('.on')?.textContent || `${rw}:${rh}`; }
+
+// zoom quanh một điểm trong khung (cx, cy)
+function zoomTo(nz, cx = vw / 2, cy = vh / 2) {
+  nz = Math.min(8, Math.max(1, nz));
+  const s0 = base * z, s1 = base * nz;
+  const ix = (cx - ox) / s0, iy = (cy - oy) / s0; // điểm ảnh dưới con trỏ
+  z = nz; ox = cx - ix * s1; oy = cy - iy * s1;
+  apply();
+}
+
+zr.oninput = () => zoomTo(parseFloat(zr.value));
+$('zi').onclick = () => zoomTo(z * 1.2);
+$('zo').onclick = () => zoomTo(z / 1.2);
+$('rs').onclick = () => layout(true);
+view.addEventListener('wheel', e => {
+  if (!img) return;
+  e.preventDefault();
+  const r = view.getBoundingClientRect();
+  zoomTo(z * Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+
+// kéo ảnh, hai ngón để pinch zoom
+const ptrs = new Map(); let lastD = 0;
+view.addEventListener('pointerdown', e => {
+  view.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  view.classList.add('drag'); lastD = 0;
+});
+view.addEventListener('pointermove', e => {
+  if (!ptrs.has(e.pointerId)) return;
+  const p = ptrs.get(e.pointerId);
+  if (ptrs.size === 1) {
+    ox += e.clientX - p[0]; oy += e.clientY - p[1];
+    ptrs.set(e.pointerId, [e.clientX, e.clientY]); apply();
+  } else {
+    ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+    const [a, b] = [...ptrs.values()];
+    const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (lastD) {
+      const r = view.getBoundingClientRect();
+      zoomTo(z * d / lastD, (a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top);
+    }
+    lastD = d;
+  }
+});
+['pointerup','pointercancel'].forEach(ev => view.addEventListener(ev, e => {
+  ptrs.delete(e.pointerId); lastD = 0;
+  if (!ptrs.size) view.classList.remove('drag');
+}));
+view.addEventListener('keydown', e => {
+  const st = 20;
+  if (e.key === 'ArrowLeft') ox += st; else if (e.key === 'ArrowRight') ox -= st;
+  else if (e.key === 'ArrowUp') oy += st; else if (e.key === 'ArrowDown') oy -= st;
+  else if (e.key === '+' || e.key === '=') return zoomTo(z * 1.1);
+  else if (e.key === '-') return zoomTo(z / 1.1);
+  else return;
+  e.preventDefault(); apply();
+});
+window.addEventListener('resize', () => img && layout(false));
+
+// ===== Chữ chìm lặp chéo =====
+// Mọi kích thước tính theo % chiều rộng khung nên bản xem trước và ảnh xuất luôn giống nhau.
+function paintWM(g, w, h) {
+  const text = $('wt').value.trim();
+  if (!text) return;
+  const fs = +$('wf').value / 100 * w;
+  const op = +$('wo').value / 100;
+  const gx = +$('wx').value / 100 * w;
+  const gy = +$('wy').value / 100 * w;
+  g.save();
+  g.globalAlpha = op;
+  g.font = `700 ${fs}px system-ui,-apple-system,"Segoe UI",Arial,sans-serif`;
+  g.textAlign = 'left'; g.textBaseline = 'middle';
+  g.fillStyle = '#fff';
+  g.strokeStyle = 'rgba(0,0,0,.65)';
+  g.lineWidth = Math.max(1, fs * 0.06);
+  g.lineJoin = 'round';
+  const tw = g.measureText(text).width;
+  const stepX = Math.max(1, tw + gx), stepY = Math.max(1, fs + gy);
+  const R = Math.hypot(w, h) / 2 + stepX; // bán kính phủ kín khung sau khi xoay
+  g.translate(w / 2, h / 2);
+  g.rotate(WM_ANGLE * Math.PI / 180);
+  let row = 0;
+  for (let y = -R; y <= R; y += stepY, row++) {
+    const off = (row % 2) * stepX / 2; // so le các hàng
+    for (let x = -R - stepX + off; x <= R; x += stepX) {
+      g.strokeText(text, x, y);
+      g.fillText(text, x, y);
+    }
+  }
+  g.restore();
+}
+
+const wmc = $('wm');
+function drawWM() {
+  if (!vw) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cw = Math.round(vw * dpr), chh = Math.round(vh * dpr);
+  if (wmc.width !== cw || wmc.height !== chh) { wmc.width = cw; wmc.height = chh; }
+  const g = wmc.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, wmc.width, wmc.height);
+  g.scale(dpr, dpr);
+  paintWM(g, vw, vh);
+}
+$('wt').addEventListener('input', drawWM);
+['wf', 'wo', 'wx', 'wy'].forEach(id => $(id).addEventListener('input', () => {
+  $(id + 'v').textContent = $(id).value + '%';
+  drawWM();
+}));
+
+// ===== Logo =====
+const lg = $('lg'), lgimg = $('lgimg'), lfile = $('lfile');
+const lsliders = ['lr', 'lo', 'ls'].map($);
+
+// đặt logo sát góc dưới cùng bên phải của khung
+function placeBottomRight() {
+  if (!logo || !vw) return;
+  const w = ls / 100 * vw, h = w * logo.naturalHeight / logo.naturalWidth;
+  const m = LOGO_MARGIN * vw;
+  lx = (vw - m - w / 2) / vw;
+  ly = (vh - m - h / 2) / vh;
+}
+
+$('lpick').onclick = () => lfile.click();
+lfile.onchange = () => {
+  const f = lfile.files[0]; lfile.value = '';
+  if (!f || !f.type.startsWith('image/')) return;
+  const im = new Image();
+  im.onload = () => {
+    logo = im; lgimg.src = im.src;
+    lsliders.forEach(s => s.disabled = false);
+    $('ldel').disabled = false;
+    placeBottomRight();
+    updateLogo();
+  };
+  im.src = URL.createObjectURL(f);
+};
+$('ldel').onclick = () => {
+  logo = null; lgimg.removeAttribute('src');
+  lsliders.forEach(s => s.disabled = true);
+  $('ldel').disabled = true;
+  updateLogo();
+};
+$('lr').oninput = e => { lr = +e.target.value; $('lrv').textContent = lr + '%'; updateLogo(); };
+$('lo').oninput = e => { lo = +e.target.value; $('lov').textContent = lo + '%'; updateLogo(); };
+$('ls').oninput = e => { ls = +e.target.value; $('lsv').textContent = ls + '%'; updateLogo(); };
+
+function updateLogo() {
+  if (!logo || !vw) { lg.hidden = true; return; }
+  const w = ls / 100 * vw, h = w * logo.naturalHeight / logo.naturalWidth;
+  lg.hidden = false;
+  lg.style.width = w + 'px'; lg.style.height = h + 'px';
+  lg.style.left = (lx * vw - w / 2) + 'px'; lg.style.top = (ly * vh - h / 2) + 'px';
+  lg.style.borderRadius = (lr / 100 * Math.min(w, h)) + 'px';
+  lg.style.opacity = lo / 100;
+}
+
+// kéo logo (không làm di chuyển ảnh nền)
+let ld = null;
+lg.addEventListener('pointerdown', e => {
+  e.stopPropagation();
+  lg.setPointerCapture(e.pointerId);
+  ld = { id: e.pointerId, x: e.clientX, y: e.clientY };
+});
+lg.addEventListener('pointermove', e => {
+  if (!ld || ld.id !== e.pointerId) return;
+  lx = Math.min(1, Math.max(0, lx + (e.clientX - ld.x) / vw));
+  ly = Math.min(1, Math.max(0, ly + (e.clientY - ld.y) / vh));
+  ld.x = e.clientX; ld.y = e.clientY;
+  updateLogo();
+});
+['pointerup','pointercancel'].forEach(ev => lg.addEventListener(ev, () => { ld = null; }));
+
+function rrect(g, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+// tải về
+$('dl').onclick = () => {
+  if (!img) return;
+  const s = base * z;
+  const sx = -ox / s, sy = -oy / s, sw = vw / s, sh = vh / s;
+  let w = Math.round(sw), h = Math.round(sh);
+  const ow = parseInt($('ow').value);
+  if (ow > 0) { h = Math.round(ow * sh / sw); w = ow; }
+  const type = $('fmt').value, ext = type === 'image/png' ? 'png' : 'jpg';
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const g = cv.getContext('2d');
+  g.imageSmoothingQuality = 'high';
+  if (type === 'image/jpeg') { g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); }
+  g.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+  paintWM(g, w, h); // chữ chìm nằm dưới logo
+  if (logo) {
+    const lw = ls / 100 * w, lh = lw * logo.naturalHeight / logo.naturalWidth;
+    const x = lx * w - lw / 2, y = ly * h - lh / 2;
+    g.save();
+    g.globalAlpha = lo / 100;
+    rrect(g, x, y, lw, lh, lr / 100 * Math.min(lw, lh));
+    g.clip();
+    g.drawImage(logo, x, y, lw, lh);
+    g.restore();
+  }
+  cv.toBlob(b => {
+    const url = URL.createObjectURL(b);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${name}_${rw}x${rh}.${ext}`.replace(/[^\w.\-]/g, '_');
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, type, 0.95);
+};
+
+setRatio(1, 1);
+</script>
+</body>
+</html>
