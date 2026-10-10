@@ -7,7 +7,7 @@ export default function AppLayout({ showNav = true }) {
     // overflow-x-clip (không dùng overflow-x-hidden): hidden biến khung này thành vùng cuộn riêng
     // và làm các thanh sticky (header) không dính khi cuộn trang
     <div
-      className={`relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-x-clip bg-surface-container-lowest shadow-2xl ${
+      className={`relative mx-auto flex min-h-screen w-full max-w-md lg:max-w-4xl flex-col overflow-x-clip bg-surface-container-lowest shadow-2xl ${
         showNav ? 'pb-24' : ''
       }`}
     >

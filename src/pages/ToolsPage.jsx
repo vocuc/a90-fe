@@ -17,7 +17,7 @@ export default function ToolsPage() {
         <p className="text-xs text-on-surface-variant">Ghép ảnh, chèn logo ngay trên trình duyệt</p>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 p-4">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4 p-4">
         {TOOLS.map((t) => (
           <Link
             key={t.slug}

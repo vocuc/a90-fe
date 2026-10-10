@@ -144,7 +144,7 @@ export default function CreativeDetailPage() {
             )}
           </div>
 
-          <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md border-t border-surface-container bg-surface-container-lowest p-4">
+          <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md lg:max-w-4xl border-t border-surface-container bg-surface-container-lowest p-4">
             {notEnoughCredits && (
               <p className="mb-2 text-center text-xs text-error">
                 Bạn cần {formatVnd(c.price)} cho mỗi ảnh, số dư hiện còn {formatVnd(me.credits)}.

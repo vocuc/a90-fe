@@ -46,13 +46,13 @@ export default function NewestSection() {
         <ErrorState error={error} onRetry={refetch} />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {isLoading
               ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="aspect-[3/4]" />)
               : items.map((c) => <CompactCreativeCard key={c.id} creative={c} naturalCover />)}
           </div>
           {isFetchingNextPage && (
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
               {Array.from({ length: 2 }).map((_, i) => (
                 <Skeleton key={i} className="aspect-[3/4]" />
               ))}

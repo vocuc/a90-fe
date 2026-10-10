@@ -6,8 +6,8 @@ import { useCreatives } from '../../hooks/queries';
 
 // Backend chưa có cờ "nổi bật" -> lấy các Creative được dùng nhiều nhất
 export default function FeaturedSection() {
-  // Chỉ hiện 1 hàng 2 thẻ, xem thêm ở trang Sản phẩm
-  const { data, isLoading, error, refetch } = useCreatives({ sort: 'popular', limit: 2 });
+  // Chỉ hiện 1 hàng (2 thẻ trên điện thoại, 4 thẻ trên máy tính), xem thêm ở trang Sản phẩm
+  const { data, isLoading, error, refetch } = useCreatives({ sort: 'popular', limit: 4 });
 
   return (
     <section className="px-4 py-4">
@@ -24,15 +24,15 @@ export default function FeaturedSection() {
       {error ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : isLoading ? (
-        <div className="grid grid-cols-2 gap-3">
-          {Array.from({ length: 2 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 max-lg:[&>*:nth-child(n+3)]:hidden">
+          {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="aspect-[3/5] !rounded-2xl" />
           ))}
         </div>
       ) : data.items.length === 0 ? (
         <EmptyState icon="auto_awesome" message="Chưa có AI Creative nào được đăng." />
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 max-lg:[&>*:nth-child(n+3)]:hidden">
           {data.items.map((c) => (
             <FeaturedCreativeCard key={c.id} creative={c} />
           ))}

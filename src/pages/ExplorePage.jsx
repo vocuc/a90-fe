@@ -113,7 +113,7 @@ export default function ExplorePage() {
         {error ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : isLoading ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="aspect-[3/4]" />
             ))}
@@ -123,7 +123,7 @@ export default function ExplorePage() {
         ) : (
           <>
             <p className="mb-2 text-xs text-on-surface-variant">{data.total} kết quả</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {data.items.map((c) => (
                 <CompactCreativeCard key={c.id} creative={c} naturalCover />
               ))}
