@@ -110,7 +110,7 @@ export default function RegisterPage() {
       }
     >
       <div className="mt-8">
-        <GoogleSignInButton redirect={redirect} />
+        <GoogleSignInButton redirect={redirect} prominent />
       </div>
       <AuthDivider label="hoặc đăng ký bằng email" />
 
