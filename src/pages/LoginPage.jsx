@@ -46,7 +46,7 @@ export default function LoginPage() {
       }
     >
       <div className="mt-8">
-        <GoogleSignInButton redirect={redirect} prominent />
+        <GoogleSignInButton redirect={redirect} />
       </div>
       <AuthDivider label="hoặc đăng nhập bằng email" />
 
