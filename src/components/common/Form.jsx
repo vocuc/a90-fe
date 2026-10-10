@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import Icon from './Icon';
+import { MAINTENANCE_MESSAGE } from '../../api/client';
 
 function FieldMessage({ id, error, hint }) {
   if (error) {
@@ -113,13 +114,17 @@ export function SelectField({ label, error, hint, children, ...props }) {
   );
 }
 
+// Thông báo bảo trì (không gọi được API) hiện màu xanh nhạt thay vì đỏ
 export function FormAlert({ children }) {
+  const maintenance = children === MAINTENANCE_MESSAGE;
   return (
     <p
       role="alert"
-      className="flex items-center gap-1.5 rounded-lg bg-error-container/60 px-3 py-2 text-xs text-on-error-container"
+      className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs ${
+        maintenance ? 'bg-emerald-50 text-emerald-800' : 'bg-error-container/60 text-on-error-container'
+      }`}
     >
-      <Icon name="error" className="text-sm" />
+      <Icon name={maintenance ? 'construction' : 'error'} className="text-sm" />
       {children}
     </p>
   );

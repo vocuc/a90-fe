@@ -23,9 +23,14 @@ const firstErrors = (errors) =>
     ? Object.fromEntries(Object.entries(errors).map(([field, msgs]) => [field, [].concat(msgs)[0]]))
     : undefined;
 
+export const MAINTENANCE_MESSAGE = 'Máy chủ đang bảo trì, xin vui lòng quay lại sau!';
+
+// Không gọi được API: mất kết nối / timeout (không có status) hoặc proxy báo backend không phản hồi
+const isUnreachable = (status) => !status || status === 502 || status === 503 || status === 504;
+
 const messageFor = (status, body, fallback) => {
   if (status === 429) return 'Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút.';
-  if (!status) return 'Không kết nối được máy chủ. Kiểm tra mạng hoặc backend.';
+  if (isUnreachable(status)) return MAINTENANCE_MESSAGE;
   if (status >= 500) return 'Máy chủ đang gặp sự cố, vui lòng thử lại sau.';
   return body?.message || fallback || 'Có lỗi xảy ra, vui lòng thử lại.';
 };
@@ -44,6 +49,7 @@ client.interceptors.response.use(
         code: body?.code,
         context: body?.context,
         errors: firstErrors(body?.errors),
+        maintenance: isUnreachable(status),
       }),
     );
   },

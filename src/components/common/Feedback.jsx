@@ -5,10 +5,16 @@ export function Skeleton({ className = '' }) {
 }
 
 export function ErrorState({ error, onRetry }) {
+  // Không gọi được API -> thông báo bảo trì màu xanh nhạt thay vì đỏ
+  const maintenance = error?.maintenance;
   return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-error-container bg-error-container/40 p-4 text-center">
-      <Icon name="error" className="text-error" />
-      <p className="text-xs text-on-error-container">{error?.message || 'Không tải được dữ liệu.'}</p>
+    <div
+      className={`flex flex-col items-center gap-2 rounded-xl border p-4 text-center ${
+        maintenance ? 'border-emerald-200 bg-emerald-50' : 'border-error-container bg-error-container/40'
+      }`}
+    >
+      <Icon name={maintenance ? 'construction' : 'error'} className={maintenance ? 'text-emerald-600' : 'text-error'} />
+      <p className={`text-xs ${maintenance ? 'text-emerald-800' : 'text-on-error-container'}`}>{error?.message || 'Không tải được dữ liệu.'}</p>
       {onRetry && (
         <button onClick={onRetry} className="text-xs font-bold text-primary hover:underline">
           Thử lại
