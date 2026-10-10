@@ -1,10 +1,7 @@
 import useSeo, { SITE_NAME } from '../hooks/useSeo';
-import { Link, useNavigate } from 'react-router-dom';
-import Icon from '../components/common/Icon';
+import LegalPage, { CONTACT_EMAIL } from '../components/legal/LegalPage';
 
 const EFFECTIVE_DATE = '10/10/2026';
-// TODO: thay bằng email hỗ trợ chính thức
-const CONTACT_EMAIL = 'support@a51.vn';
 
 // Mỗi mục: tiêu đề + danh sách đoạn văn / gạch đầu dòng
 const SECTIONS = [
@@ -86,100 +83,20 @@ const SECTIONS = [
   },
 ];
 
-function Section({ id, title, intro, items, paragraphs, outro }) {
-  return (
-    <section id={id} className="scroll-mt-32 space-y-2">
-      <h2 className="text-base font-bold text-on-surface">{title}</h2>
-      {intro && <p>{intro}</p>}
-      {paragraphs?.map((p) => <p key={p}>{p}</p>)}
-      {items && (
-        <ul className="list-disc space-y-1.5 pl-5 marker:text-primary">
-          {items.map(([label, text]) => (
-            <li key={text}>
-              {label && <span className="font-semibold text-on-surface">{label}: </span>}
-              {text}
-            </li>
-          ))}
-        </ul>
-      )}
-      {outro && <p>{outro}</p>}
-    </section>
-  );
-}
-
 export default function PrivacyPolicyPage() {
-  const navigate = useNavigate();
   useSeo({
     title: 'Chính sách quyền riêng tư',
     description: `Chính sách quyền riêng tư của ${SITE_NAME}: thông tin chúng tôi thu thập, cách sử dụng, chia sẻ, bảo vệ dữ liệu và quyền của bạn.`,
     canonical: '/privacy',
   });
 
-  // Vào thẳng trang (không có lịch sử) thì quay về trang chủ
-  const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/'));
-
   return (
-    <>
-      <header className="sticky top-[60px] z-30 flex items-center gap-2 border-b border-surface-container bg-surface-container-lowest/90 px-2 py-2 backdrop-blur-md">
-        <button
-          type="button"
-          onClick={goBack}
-          aria-label="Quay lại"
-          className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container"
-        >
-          <Icon name="arrow_back" />
-        </button>
-        <h1 className="text-base font-bold text-on-surface">Chính sách quyền riêng tư</h1>
-      </header>
-
-      <article className="space-y-6 p-4 text-sm leading-relaxed text-on-surface-variant">
-        <div className="flex items-start gap-3 rounded-2xl bg-primary-fixed/40 p-4">
-          <Icon name="shield_person" className="text-2xl text-primary" />
-          <div className="space-y-1">
-            <p>
-              {SITE_NAME} tôn trọng và cam kết bảo vệ quyền riêng tư của bạn. Chính sách này giải thích cách chúng tôi thu thập,
-              sử dụng và bảo vệ thông tin khi bạn sử dụng website và dịch vụ của {SITE_NAME}.
-            </p>
-            <p className="text-xs text-outline">Có hiệu lực từ ngày {EFFECTIVE_DATE}</p>
-          </div>
-        </div>
-
-        <nav aria-label="Mục lục" className="rounded-2xl border border-outline-variant/40 p-4">
-          <p className="mb-2 font-bold text-on-surface">Mục lục</p>
-          <ol className="space-y-1">
-            {[...SECTIONS, { id: 'lien-he', title: '8. Liên hệ' }].map(({ id, title }) => (
-              <li key={id}>
-                <a href={`#${id}`} className="text-primary hover:underline">
-                  {title}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </nav>
-
-        {SECTIONS.map((s) => (
-          <Section key={s.id} {...s} />
-        ))}
-
-        <section id="lien-he" className="scroll-mt-32 space-y-2">
-          <h2 className="text-base font-bold text-on-surface">8. Liên hệ</h2>
-          <p>Mọi câu hỏi hoặc yêu cầu liên quan đến quyền riêng tư, vui lòng liên hệ:</p>
-          <a
-            href={`mailto:${CONTACT_EMAIL}`}
-            className="flex items-center gap-3 rounded-2xl border border-outline-variant/40 p-4 transition-colors hover:bg-surface-container-low"
-          >
-            <Icon name="mail" className="text-xl text-primary" />
-            <span className="flex-1 font-semibold text-on-surface">{CONTACT_EMAIL}</span>
-            <Icon name="chevron_right" className="text-xl text-outline" />
-          </a>
-        </section>
-
-        <p className="border-t border-surface-container pt-4 text-center text-xs text-outline">
-          <Link to="/" className="hover:text-primary">
-            © {new Date().getFullYear()} {SITE_NAME}
-          </Link>
-        </p>
-      </article>
-    </>
+    <LegalPage
+      title="Chính sách quyền riêng tư"
+      icon="shield_person"
+      effectiveDate={EFFECTIVE_DATE}
+      intro={`${SITE_NAME} tôn trọng và cam kết bảo vệ quyền riêng tư của bạn. Chính sách này giải thích cách chúng tôi thu thập, sử dụng và bảo vệ thông tin khi bạn sử dụng website và dịch vụ của ${SITE_NAME}.`}
+      sections={SECTIONS}
+    />
   );
 }

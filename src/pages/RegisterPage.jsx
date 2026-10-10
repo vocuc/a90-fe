@@ -147,9 +147,13 @@ export default function RegisterPage() {
               }}
               className="mt-0.5 size-4 rounded border-outline-variant text-primary-container focus:ring-primary-container/30"
             />
+            {/* Link mở tab mới để không mất dữ liệu đang nhập */}
             <span>
-              Tôi đồng ý với <span className="font-semibold text-primary">Điều khoản sử dụng</span> và{' '}
-              {/* Mở tab mới để không mất dữ liệu đang nhập */}
+              Tôi đồng ý với{' '}
+              <Link to="/terms" target="_blank" rel="noopener" className="font-semibold text-primary hover:underline">
+                Điều khoản sử dụng
+              </Link>{' '}
+              và{' '}
               <Link to="/privacy" target="_blank" rel="noopener" className="font-semibold text-primary hover:underline">
                 Chính sách quyền riêng tư
               </Link> của A51.
