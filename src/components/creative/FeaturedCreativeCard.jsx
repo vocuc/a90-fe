@@ -22,10 +22,15 @@ export default function FeaturedCreativeCard({ creative }) {
           <Link to={`/creatives/${id}`}>{title}</Link>
         </h3>
         {author && (
-          <div className="mb-1 flex min-w-0 items-center gap-1.5">
-            <Avatar src={author.avatarUrl} name={author.name} className="size-4 shrink-0" />
-            <span className="truncate text-[11px] font-medium text-on-surface-variant">{author.name}</span>
-            {author.verified && <Icon name="verified" fill className="shrink-0 text-xs text-secondary" />}
+          <div className="mb-1.5 flex min-w-0 items-center gap-1.5 rounded-lg bg-surface-container-low p-1.5">
+            <Avatar src={author.avatarUrl} name={author.name} className="size-6 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[9px] leading-tight text-on-surface-variant">Nhà sáng tạo</p>
+              <p className="flex min-w-0 items-center gap-0.5 text-[11px] font-bold leading-tight text-on-surface">
+                <span className="truncate">{author.name}</span>
+                {author.verified && <Icon name="verified" fill className="shrink-0 text-xs text-secondary" />}
+              </p>
+            </div>
           </div>
         )}
         <div className="flex min-w-0 items-center gap-2 text-[11px] text-outline">
