@@ -16,6 +16,7 @@ import SellerProductFormPage from './pages/SellerProductFormPage';
 import PlaceholderPage from './pages/PlaceholderPage';
 import ToolsPage from './pages/ToolsPage';
 import ToolDetailPage from './pages/ToolDetailPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
 export default function App() {
   return (
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
         <Route path="creatives/:slug" element={<CreativeDetailPage />} />
+        <Route path="privacy" element={<PrivacyPolicyPage />} />
       </Route>
     </Routes>
   );

@@ -34,6 +34,7 @@ export default function AccountPage() {
     { to: '/account/history', icon: 'receipt_long', title: 'Lịch sử mua hàng' },
     { to: '/seller/settings', icon: 'tune', title: 'Quản lý cửa hàng' },
     { to: '/seller/products', icon: 'inventory_2', title: 'Quản lý sản phẩm', disabled: !me?.creatorProfile },
+    { to: '/privacy', icon: 'shield_person', title: 'Chính sách quyền riêng tư' },
   ];
 
   // Về trang chủ trước rồi mới xoá phiên, tránh RequireAuth chuyển sang trang đăng nhập

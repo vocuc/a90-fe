@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { AuthShell, FormAlert, SubmitButton, TextField, safeRedirect } from '../components/auth/AuthForm';
+import GoogleSignInButton, { AuthDivider } from '../components/auth/GoogleSignInButton';
 import { useAuth } from '../context/AuthContext';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -148,7 +149,10 @@ export default function RegisterPage() {
             />
             <span>
               Tôi đồng ý với <span className="font-semibold text-primary">Điều khoản sử dụng</span> và{' '}
-              <span className="font-semibold text-primary">Chính sách bảo mật</span> của A51.
+              {/* Mở tab mới để không mất dữ liệu đang nhập */}
+              <Link to="/privacy" target="_blank" rel="noopener" className="font-semibold text-primary hover:underline">
+                Chính sách quyền riêng tư
+              </Link> của A51.
             </span>
           </label>
           {shown('agree') && <p className="mt-1 text-xs text-error">{errors.agree}</p>}
@@ -160,6 +164,9 @@ export default function RegisterPage() {
           Đăng ký
         </SubmitButton>
       </form>
+
+      <AuthDivider />
+      <GoogleSignInButton redirect={redirect} />
     </AuthShell>
   );
 }

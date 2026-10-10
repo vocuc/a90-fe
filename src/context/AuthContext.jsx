@@ -39,6 +39,11 @@ export function AuthProvider({ children }) {
     [startSession],
   );
 
+  const loginWithGoogle = useCallback(
+    async (google) => startSession(await authApi.google(google)),
+    [startSession],
+  );
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -55,8 +60,8 @@ export function AuthProvider({ children }) {
   }, [clearSession]);
 
   const value = useMemo(
-    () => ({ token, isAuthenticated: !!token, login, register, logout }),
-    [token, login, register, logout],
+    () => ({ token, isAuthenticated: !!token, login, register, loginWithGoogle, logout }),
+    [token, login, register, loginWithGoogle, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { AuthShell, FormAlert, SubmitButton, TextField, safeRedirect } from '../components/auth/AuthForm';
+import GoogleSignInButton, { AuthDivider } from '../components/auth/GoogleSignInButton';
 import { useAuth } from '../context/AuthContext';
 import { MOCK_AUTH } from '../api/client';
 import { demoAccount } from '../api/mock/data';
@@ -74,6 +75,9 @@ export default function LoginPage() {
           Đăng nhập
         </SubmitButton>
       </form>
+
+      <AuthDivider />
+      <GoogleSignInButton redirect={redirect} />
 
       {MOCK_AUTH && (
         <div className="mt-6 rounded-xl border border-dashed border-outline-variant bg-surface-container-low p-3 text-xs text-on-surface-variant">

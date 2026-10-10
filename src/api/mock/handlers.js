@@ -79,6 +79,17 @@ export const mock = {
     saveRegisteredUser(user);
     return { token: tokenFor(user), user: publicUser(user) };
   },
+  // Giả lập Google: luôn là một tài khoản Google cố định, lần đầu thì tạo mới
+  async googleLogin() {
+    await delay(600);
+    const email = 'google.demo@gmail.com';
+    let user = allUsers().find((u) => u.email === email);
+    if (!user) {
+      user = { id: 'u_google', name: 'Người dùng Google', email, avatarUrl: null, credits: WELCOME_CREDITS };
+      saveRegisteredUser(user);
+    }
+    return { token: tokenFor(user), user: publicUser(user) };
+  },
   async logout() {
     await delay(200);
     return { success: true };

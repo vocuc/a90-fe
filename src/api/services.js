@@ -6,6 +6,7 @@ import { mock } from './mock/handlers';
  *
  * POST /auth/register { name, email, password, password_confirmation }   -> 201 { data: { token, token_type, expires_at, user } }
  * POST /auth/login    { email, password }                                -> 200 { data: { token, token_type, expires_at, user } }
+ * POST /auth/google   { id_token }                                       -> 200 | 201 (tài khoản mới), cùng dạng như login
  * POST /auth/logout   (Bearer)                                           -> { message }
  * GET  /auth/me       (Bearer)                                           -> { data: user }
  *
@@ -88,6 +89,9 @@ export const authApi = {
       : client
           .post('/auth/register', { name, email, password, password_confirmation: passwordConfirmation })
           .then(mapSession),
+  // Lần đầu -> tạo tài khoản, các lần sau -> đăng nhập; email trùng tài khoản cũ -> gắn vào tài khoản đó
+  google: ({ idToken }) =>
+    MOCK_AUTH ? mock.googleLogin() : client.post('/auth/google', { id_token: idToken }).then(mapSession),
   logout: () => (MOCK_AUTH ? mock.logout() : client.post('/auth/logout')),
 };
 
