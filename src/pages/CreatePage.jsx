@@ -151,7 +151,7 @@ function GenerationResult({ run, price, onRetried }) {
             {run.retry ? 'Tạo lại' : 'Lần tạo'} #{run.id}
           </h3>
           <p className="text-xs text-on-surface-variant">
-            {run.quantity} ảnh · {run.ratio} · {run.total > 0 ? formatVnd(run.total) : 'Miễn phí (mẫu của bạn)'}
+            {run.quantity} ảnh · {run.ratio} · {formatVnd(run.total)}
           </p>
         </div>
         <span
@@ -248,9 +248,8 @@ export default function CreatePage() {
   const ratios = options.aspect_ratios ?? [];
   const formErrors = schema && submitted ? validateValues(schema, values) : {};
   const maxOutputs = Math.max(1, options.max_outputs ?? 1);
-  // Chủ mẫu tự dùng không bị trừ tiền (GenerationType::Owner)
-  const isOwner = !!me?.creatorProfile && me.creatorProfile.username === c?.author?.username;
-  const total = isOwner ? 0 : (c?.price ?? 0) * quantity;
+  // Chủ mẫu tự dùng cũng bị trừ tiền như người mua
+  const total = (c?.price ?? 0) * quantity;
   const notEnough = !!me && total > me.credits;
   // inputs[key] gửi backend: trường ảnh 1 file, còn lại giữ giá trị
   const templateInputs = () =>
@@ -385,9 +384,8 @@ export default function CreatePage() {
                   <span>
                     {formatVnd(c.price)} × {quantity} ảnh
                   </span>
-                  <span className={isOwner ? 'line-through' : ''}>{formatVnd(c.price * quantity)}</span>
+                  <span>{formatVnd(c.price * quantity)}</span>
                 </div>
-                {isOwner && <p className="text-xs text-primary">Mẫu của bạn: tự dùng không bị trừ tiền.</p>}
                 <div className="flex justify-between border-t border-surface-container pt-2 font-bold text-on-surface">
                   <span>Tổng thanh toán</span>
                   <span className="text-primary">{formatVnd(total)}</span>
@@ -415,7 +413,7 @@ export default function CreatePage() {
                   <GenerationResult
                     key={run.id}
                     run={run}
-                    price={isOwner ? 0 : c.price}
+                    price={c.price}
                     onRetried={(next) => setRuns((list) => [{ ...next, retry: true }, ...list])}
                   />
                 ))}

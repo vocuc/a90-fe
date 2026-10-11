@@ -201,7 +201,7 @@ export const extractVariables = (text) => [...new Set([...(text ?? '').matchAll(
 /** Các vai trò ảnh đang được dùng trong Template, theo thứ tự field. */
 export const imageAttachments = (fields) =>
   fields.flatMap((f) => {
-    if (!f.enabled || !isImageType(f.type)) return [];
+    if (f.enabled === false || !isImageType(f.type)) return [];
     if (f.type === 'image_set') return f.slots.map((s) => ({ field: f, key: `${f.key}.${s.key}`, label: s.label, role: s.role }));
     return [{ field: f, key: f.key, label: f.label, role: f.prompt_mapping?.role }];
   });
@@ -255,7 +255,8 @@ export function buildRequestJson(template, values, model) {
 const isEmptyValue = (v) => v == null || v === '' || v === false || (Array.isArray(v) && v.length === 0);
 
 export function isFieldVisible(field, values, byKey) {
-  if (!field.enabled) return false;
+  // input_schema backend trả về không kèm "enabled": thiếu thì coi là đang bật
+  if (field.enabled === false) return false;
   const rule = field.visibility_rule;
   if (!rule?.field) return true;
   const source = byKey?.[rule.field];
@@ -473,6 +474,13 @@ export function toPayload(template) {
   };
 }
 
+// Nháp/Creative cũ lưu max_size_mb = 20 (trước khi hạ theo backend) mà giao diện không có ô sửa: ép về giới hạn hiện tại
+const clampValidation = (type, v) => {
+  if (!isImageType(type)) return v;
+  const mb = Number(v.max_size_mb);
+  return { ...v, max_size_mb: mb > 0 ? Math.min(mb, MAX_FILE_MB) : MAX_FILE_MB };
+};
+
 /** Đọc lại từ payload/JSON đã lưu; ném lỗi nếu sai cấu trúc. */
 export function fromPayload(data) {
   const schema = data?.schema_json ?? data;
@@ -489,7 +497,7 @@ export function fromPayload(data) {
         ...(f.type === 'aspect_ratio' ? { key: ASPECT_RATIO_KEY } : {}),
         label: String(f.label ?? ''),
         description: String(f.description ?? ''),
-        validation: { ...base.validation, ...f.validation },
+        validation: clampValidation(f.type, { ...base.validation, ...f.validation }),
         options: hasOptions(f.type) ? (f.options ?? []).map((o) => ({ value: String(o.value), label: String(o.label) })) : [],
         default_value: f.default_value ?? base.default_value,
         visibility_rule: f.visibility_rule ?? null,
