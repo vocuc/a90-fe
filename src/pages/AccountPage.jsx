@@ -51,7 +51,14 @@ export default function AccountPage() {
         <Link to="/" aria-label="Quay lại" className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container">
           <Icon name="arrow_back" />
         </Link>
-        <h1 className="text-base font-bold text-on-surface">Tài khoản</h1>
+        <h1 className="flex-1 text-base font-bold text-on-surface">Tài khoản</h1>
+        <Link
+          to="/account/topup"
+          className="mr-2 flex h-9 items-center gap-1 rounded-full bg-primary px-3 text-sm font-bold text-on-primary transition-opacity hover:opacity-90"
+        >
+          <Icon name="add_card" className="text-lg" />
+          Nạp ví
+        </Link>
       </header>
 
       <div className="space-y-4 p-4">

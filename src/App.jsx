@@ -42,6 +42,10 @@ export default function App() {
           <Route path="store/*" element={<Navigate to="/account" replace />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="account/history" element={<PurchaseHistoryPage />} />
+          <Route
+            path="account/topup"
+            element={<PlaceholderPage title="Hướng dẫn nạp tiền" icon="account_balance_wallet" backTo="/account" />}
+          />
           {/* Trang Cá nhân cũ đã đổi thành Tài khoản */}
           <Route path="profile" element={<Navigate to="/account" replace />} />
         </Route>
