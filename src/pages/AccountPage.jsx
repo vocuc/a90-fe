@@ -47,16 +47,13 @@ export default function AccountPage() {
 
   return (
     <>
-      <header className="sticky top-[60px] z-30 flex items-center gap-2 border-b border-surface-container bg-surface-container-lowest/90 px-2 py-2 backdrop-blur-md">
-        <Link to="/" aria-label="Quay lại" className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container">
-          <Icon name="arrow_back" />
-        </Link>
+      <header className="sticky top-[60px] z-30 flex h-[53px] items-center gap-2 border-b border-surface-container bg-surface-container-lowest/90 px-4 py-2 backdrop-blur-md">
         <h1 className="flex-1 text-base font-bold text-on-surface">Tài khoản</h1>
         <Link
           to="/account/topup"
-          className="mr-2 flex h-9 items-center gap-1 rounded-full bg-primary px-3 text-sm font-bold text-on-primary transition-opacity hover:opacity-90"
+          className="flex h-8 items-center gap-1 rounded-full bg-primary px-2.5 text-xs font-bold text-on-primary transition-opacity hover:opacity-90"
         >
-          <Icon name="add_card" className="text-lg" />
+          <Icon name="add_card" className="text-base" />
           Nạp ví
         </Link>
       </header>
