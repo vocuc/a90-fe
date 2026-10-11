@@ -13,6 +13,7 @@ import { useAiModels, useCreatorCreative, useCreatorProfile, useSaveTemplateCrea
 import {
   buildRequestJson,
   createField,
+  emptyTemplate,
   withRatioField,
   fromCreative,
   fromPayload,
@@ -173,8 +174,9 @@ function Builder({ creative: loaded }) {
   // Tạo mới đã lưu Creative nhưng ảnh đại diện lỗi -> các lần lưu sau là sửa Creative vừa tạo
   const [savedCreative, setSavedCreative] = useState(null);
   const creative = savedCreative ?? loaded;
-  const [template, setTemplate] = useState(() => (loaded ? fromCreative(loaded) : loadDraft()));
-  const [picking, setPicking] = useState(() => !template);
+  // Tạo mới chưa có nháp -> vào thẳng builder với Template trống
+  const [template, setTemplate] = useState(() => (loaded ? fromCreative(loaded) : (loadDraft() ?? withRatioField(emptyTemplate()))));
+  const [picking, setPicking] = useState(false);
   const [tab, setTab] = useState('fields');
   const [selectedId, setSelectedId] = useState(() => template?.fields[0]?._id ?? null);
   const [savedAt, setSavedAt] = useState(null);
@@ -252,7 +254,8 @@ function Builder({ creative: loaded }) {
   };
 
   const pickPreset = (preset) => {
-    if (template && (template.fields.length || template.prompt_text.trim()) && !window.confirm('Thay thế Template hiện tại bằng mẫu mới?'))
+    const edited = template.fields.some((f) => f.type !== 'aspect_ratio') || template.prompt_text.trim();
+    if (edited && !window.confirm('Thay thế Template hiện tại bằng mẫu mới?'))
       return;
     start(preset.build());
   };
