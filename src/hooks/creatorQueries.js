@@ -113,3 +113,38 @@ export const useUpdateCreative = () =>
 
 export const useAiModels = (enabled) =>
   useQuery({ queryKey: ['ai-models'], queryFn: aiModelApi.list, enabled, staleTime: 10 * 60_000 });
+
+// data URL của ảnh đại diện (đọc trong trình duyệt) -> File để tải lên
+const dataUrlToFile = async (dataUrl) => {
+  const blob = await (await fetch(dataUrl)).blob();
+  const ext = blob.type.split('/')[1] === 'jpeg' ? 'jpg' : blob.type.split('/')[1] || 'png';
+  return new File([blob], `cover.${ext}`, { type: blob.type });
+};
+
+/**
+ * Lưu Creative từ Template Builder: tạo hoặc sửa thông tin, rồi đổi ảnh đại diện (ảnh đầu tiên) nếu có thay đổi.
+ * cover: data URL (ảnh mới) | URL ảnh đang có | null. Ảnh mới tải lên trước, đưa lên đầu, rồi mới xoá ảnh cũ
+ * (Creative đang bán phải luôn còn ảnh).
+ * Ảnh lỗi không làm hỏng phần đã lưu: trả { creative, coverError } để lần bấm sau chỉ thử lại ảnh.
+ */
+export const useSaveTemplateCreative = () =>
+  useCreativeMutation(async ({ creative, payload, cover }) => {
+    const saved = creative ? await creatorApi.updateCreative(creative.id, payload) : await creatorApi.createCreative(payload);
+    const images = creative?.images ?? [];
+    const current = images[0];
+    if (cover === (current?.url ?? null)) return { creative: saved, coverError: null };
+
+    try {
+      if (cover) {
+        const image = await creatorApi.uploadCreativeImage(saved.id, await dataUrlToFile(cover));
+        if (images.length)
+          await creatorApi.reorderCreativeImages(saved.id, [image.id, ...images.filter((i) => i !== current).map((i) => i.id)]);
+      }
+      if (current) await creatorApi.deleteCreativeImage(saved.id, current.id);
+      return { creative: saved, coverError: null };
+    } catch (err) {
+      // Tải lại để lần thử sau biết ảnh nào đã lên được
+      const fresh = await creatorApi.getCreative(saved.id).catch(() => saved);
+      return { creative: fresh, coverError: err.message };
+    }
+  });

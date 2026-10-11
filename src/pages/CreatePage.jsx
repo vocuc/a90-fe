@@ -14,17 +14,13 @@ import {
   useRetryGeneration,
 } from '../hooks/generationQueries';
 import { formatVnd } from '../utils/format';
-
-// Khớp backend (GenerationController: input_max_size_kb = 10240)
-const ACCEPT = 'image/jpeg,image/png,image/webp';
-const MAX_INPUT_BYTES = 10 * 1024 * 1024;
+import DynamicForm, { initialValues, validateValues } from '../components/template/DynamicForm';
 
 // Mã lỗi từng ảnh (GenerationResource) -> thông báo, ảnh lỗi đều được hoàn tiền
 const OUTPUT_ERRORS = {
   CONTENT_BLOCKED: 'Ảnh hoặc nội dung vi phạm chính sách an toàn của AI.',
   NO_IMAGE_RETURNED: 'AI không tạo được ảnh.',
   TIMEOUT: 'Quá thời gian xử lý.',
-  NO_USABLE_API_KEY: 'Mẫu tạm thời không tạo được ảnh (API key AI của người bán đã hết hạn mức).',
 };
 
 // Lỗi khi gửi yêu cầu tạo ảnh -> thông báo (backend còn ghi "Credit", frontend hiển thị VND)
@@ -52,65 +48,6 @@ function Section({ title, subtitle, children }) {
       </div>
       {children}
     </section>
-  );
-}
-
-/** Ảnh sản phẩm người dùng tải lên làm đầu vào. */
-function InputImagePicker({ image, onChange, disabled }) {
-  const inputRef = useRef(null);
-  const [error, setError] = useState(null);
-
-  const onPick = (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    if (!ACCEPT.split(',').includes(file.type)) return setError('Chỉ nhận ảnh JPG, PNG hoặc WEBP.');
-    if (file.size > MAX_INPUT_BYTES) return setError('Ảnh tối đa 10MB.');
-    setError(null);
-    onChange({ file, url: URL.createObjectURL(file) });
-  };
-
-  return (
-    <div className="space-y-2">
-      {image ? (
-        <div className="relative overflow-hidden rounded-xl bg-surface-container">
-          <img src={image.url} alt="Ảnh sản phẩm của bạn" className="max-h-80 w-full object-contain" />
-          {!disabled && (
-            <div className="absolute right-2 top-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="flex h-8 items-center gap-1 rounded-full bg-surface-container-lowest/90 px-3 text-xs font-semibold text-on-surface shadow-sm hover:text-primary"
-              >
-                <Icon name="swap_horiz" className="text-sm" />
-                Đổi ảnh
-              </button>
-              <button
-                type="button"
-                onClick={() => onChange(null)}
-                aria-label="Xoá ảnh"
-                className="flex size-8 items-center justify-center rounded-full bg-surface-container-lowest/90 text-on-surface shadow-sm hover:text-error"
-              >
-                <Icon name="close" className="text-sm" />
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={disabled}
-          className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-outline-variant text-on-surface-variant transition-colors hover:border-primary-container hover:text-primary"
-        >
-          <Icon name="add_photo_alternate" className="text-4xl" />
-          <span className="text-sm font-semibold">Chọn ảnh sản phẩm</span>
-          <span className="text-xs">JPG, PNG, WEBP tối đa 10MB</span>
-        </button>
-      )}
-      <input ref={inputRef} type="file" accept={ACCEPT} hidden onChange={onPick} />
-      {error && <p className="text-xs text-error">{error}</p>}
-    </div>
   );
 }
 
@@ -214,7 +151,7 @@ function GenerationResult({ run, price, onRetried }) {
             {run.retry ? 'Tạo lại' : 'Lần tạo'} #{run.id}
           </h3>
           <p className="text-xs text-on-surface-variant">
-            {run.quantity} ảnh · {run.ratio} · {run.total > 0 ? formatVnd(run.total) : 'Miễn phí (mẫu của bạn)'}
+            {run.quantity} ảnh · {run.ratio} · {formatVnd(run.total)}
           </p>
         </div>
         <span
@@ -274,20 +211,22 @@ export default function CreatePage() {
   const { data: me } = useMe();
   const create = useCreateGeneration();
 
-  const [image, setImage] = useState(null);
+  // Form người mua theo input_schema của Creative
+  const schema = c?.inputSchema ?? null;
+  const [values, setValues] = useState({});
+  useEffect(() => {
+    if (schema) setValues(initialValues(schema));
+  }, [schema]);
   const [quantity, setQuantity] = useState(1);
   const [runs, setRuns] = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const idempotencyKey = useRef(newKey());
   const resultsRef = useRef(null);
 
-  // Giải phóng URL xem trước khi đổi ảnh hoặc rời trang
-  useEffect(() => () => image && URL.revokeObjectURL(image.url), [image]);
-
   // Đổi dữ liệu gửi đi -> yêu cầu mới, khoá mới
   useEffect(() => {
     idempotencyKey.current = newKey();
-  }, [image, quantity]);
+  }, [values, quantity]);
 
   if (!slug) {
     return (
@@ -307,21 +246,21 @@ export default function CreatePage() {
 
   const options = c?.options ?? {};
   const ratios = options.aspect_ratios ?? [];
-  // Không cho chọn tỉ lệ: dùng tỉ lệ mặc định của mẫu (backend vẫn bắt buộc gửi aspect_ratio)
-  const selectedRatio = ratios.includes(options.default_aspect_ratio) ? options.default_aspect_ratio : ratios[0];
+  const formErrors = schema && submitted ? validateValues(schema, values) : {};
   const maxOutputs = Math.max(1, options.max_outputs ?? 1);
-  // Chủ mẫu tự dùng không bị trừ tiền (GenerationType::Owner)
-  const isOwner = !!me?.creatorProfile && me.creatorProfile.username === c?.author?.username;
-  const total = isOwner ? 0 : (c?.price ?? 0) * quantity;
+  // Chủ mẫu tự dùng cũng bị trừ tiền như người mua
+  const total = (c?.price ?? 0) * quantity;
   const notEnough = !!me && total > me.credits;
-  const missingImage = submitted && !image;
+  // inputs[key] gửi backend: trường ảnh 1 file, còn lại giữ giá trị
+  const templateInputs = () =>
+    Object.fromEntries(schema.map((f) => [f.key, f.type === 'image' ? (values[f.key]?.[0] ?? null) : values[f.key]]));
 
   const onSubmit = (e) => {
     e.preventDefault();
     setSubmitted(true);
-    if (!image || !selectedRatio || notEnough) return;
+    if (notEnough || !schema || Object.keys(validateValues(schema, values)).length) return;
     create.mutate(
-      { creativeId: c.creativeId, image: image.file, quantity, aspectRatio: selectedRatio, idempotencyKey: idempotencyKey.current },
+      { creativeId: c.creativeId, inputs: templateInputs(), quantity, idempotencyKey: idempotencyKey.current },
       {
         onSuccess: (generation) => {
           idempotencyKey.current = newKey();
@@ -381,9 +320,31 @@ export default function CreatePage() {
             </Link>
 
             <form onSubmit={onSubmit} noValidate className="space-y-4">
-              <Section title="Ảnh sản phẩm của bạn" subtitle="AI sẽ giữ sản phẩm trong ảnh và dựng lại theo phong cách của mẫu.">
-                <InputImagePicker image={image} onChange={setImage} disabled={create.isPending} />
-                {missingImage && <p className="text-xs text-error">Vui lòng chọn ảnh sản phẩm.</p>}
+              {(c.description || c.videoUrl) && (
+                <Section title="Hướng dẫn sử dụng">
+                  {c.description && <p className="whitespace-pre-line text-sm text-on-surface">{c.description}</p>}
+                  {c.videoUrl && (
+                    <a
+                      href={c.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:underline"
+                    >
+                      <Icon name="play_circle" className="text-lg" />
+                      Xem video hướng dẫn trên TikTok
+                    </a>
+                  )}
+                </Section>
+              )}
+
+              <Section title="Thông tin tạo ảnh">
+                <DynamicForm
+                  fields={schema ?? []}
+                  values={values}
+                  errors={formErrors}
+                  aspectRatios={ratios}
+                  onChange={(key, v) => setValues((prev) => ({ ...prev, [key]: v }))}
+                />
               </Section>
 
               <Section title="Tuỳ chọn">
@@ -423,9 +384,8 @@ export default function CreatePage() {
                   <span>
                     {formatVnd(c.price)} × {quantity} ảnh
                   </span>
-                  <span className={isOwner ? 'line-through' : ''}>{formatVnd(c.price * quantity)}</span>
+                  <span>{formatVnd(c.price * quantity)}</span>
                 </div>
-                {isOwner && <p className="text-xs text-primary">Mẫu của bạn: tự dùng không bị trừ tiền.</p>}
                 <div className="flex justify-between border-t border-surface-container pt-2 font-bold text-on-surface">
                   <span>Tổng thanh toán</span>
                   <span className="text-primary">{formatVnd(total)}</span>
@@ -440,7 +400,7 @@ export default function CreatePage() {
               {notEnough && <FormAlert>Số dư không đủ, cần thêm {formatVnd(total - me.credits)}.</FormAlert>}
               {create.error && <FormAlert>{requestError(create.error)}</FormAlert>}
 
-              <SubmitButton loading={create.isPending} loadingText="Đang gửi ảnh..." disabled={notEnough || !selectedRatio}>
+              <SubmitButton loading={create.isPending} loadingText="Đang gửi ảnh..." disabled={notEnough || !schema}>
                 <Icon name="auto_awesome" />
                 {runs.length ? 'Tạo thêm' : 'Tạo'} {quantity} ảnh · {formatVnd(total)}
               </SubmitButton>
@@ -453,7 +413,7 @@ export default function CreatePage() {
                   <GenerationResult
                     key={run.id}
                     run={run}
-                    price={isOwner ? 0 : c.price}
+                    price={c.price}
                     onRetried={(next) => setRuns((list) => [{ ...next, retry: true }, ...list])}
                   />
                 ))}

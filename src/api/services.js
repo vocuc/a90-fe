@@ -55,6 +55,9 @@ const mapCreative = (c) => ({
       }
     : null,
   options: c.options ?? null,
+  // Form người mua theo input_schema (chỉ có ở trang chi tiết)
+  inputSchema: c.input_schema ?? null,
+  videoUrl: c.video_url ?? null,
 });
 
 const mapPage = ({ data, meta }) => ({
@@ -138,11 +141,13 @@ export const categoryApi = {
  *   -> { data: [{ id, slug, title, price_per_image, status: draft|published|paused,
  *                 pause_reason: manual|no_valid_api_key|null, is_hidden, usage_count, rating_avg, cover_url,
  *                 published_at, created_at, updated_at }], meta: { current_page, last_page, per_page, total } }
- * POST /creator/creatives  { title, description?, category_id?, model_id, price_per_image, system_prompt?,
- *                            creative_prompt?, negative_prompt?, max_outputs?, allowed_aspect_ratios?,
- *                            default_aspect_ratio?, extra_params?: { temperature, topP, topK, seed } }
+ * POST /creator/creatives  { title, description? (hướng dẫn sử dụng mẫu), category_id?, model_id, price_per_image,
+ *                            video_url? (TikTok), input_schema: field[], prompt_template, max_outputs? }
+ *   input_schema: đúng 1 trường { key: 'aspectRatio', type: 'aspect_ratio', default_value } -> default_aspect_ratio
  *   -> 201 { data: creative } (trạng thái draft)
- * GET  /creator/creatives/{id}  -> { data: creative + { images: [{ id, url, sort_order }], config: { creative_prompt, ... } } }
+ * GET  /creator/creatives/{id}  -> { data: creative + { video_url, images: [{ id, url, sort_order }],
+ *                                           config: { input_schema, prompt_template, max_outputs, default_aspect_ratio } } }
+ * PATCH /creator/creatives/{id}/images/order  { image_ids } (ảnh đầu tiên là ảnh đại diện)
  * PUT  /creator/creatives/{id}  (các trường như POST, gửi trường nào sửa trường đó)
  * POST /creator/creatives/{id}/images  multipart image (jpg/png/webp, <= 10MB, tối đa 10 ảnh) -> 201 { data: { id, url, sort_order } }
  * DELETE /creator/creatives/{id}/images/{imageId}  (Creative đang bán phải còn ít nhất 1 ảnh -> 409 INVALID_STATE)
@@ -184,6 +189,10 @@ export const creatorApi = {
   updateCreative: requireRealBackend((id, body) => client.put(`/creator/creatives/${id}`, body).then(({ data }) => data)),
   uploadCreativeImage: requireRealBackend((id, file) => uploadImage(`/creator/creatives/${id}/images`, file)),
   deleteCreativeImage: requireRealBackend((id, imageId) => client.delete(`/creator/creatives/${id}/images/${imageId}`)),
+  // Ảnh đầu tiên là ảnh đại diện
+  reorderCreativeImages: requireRealBackend((id, imageIds) =>
+    client.patch(`/creator/creatives/${id}/images/order`, { image_ids: imageIds }),
+  ),
   publishCreative: requireRealBackend((id) =>
     client.post(`/creator/creatives/${id}/publish`).then(({ data }) => data),
   ),
@@ -208,8 +217,9 @@ export const creativeApi = {
 /*
  * ---- Tạo ảnh (cần đăng nhập) ----
  *
- * POST /generations  multipart { creative_id, input_image (jpg/png/webp <= 10MB), quantity (1..max_outputs),
- *                                aspect_ratio (một trong options.aspect_ratios), idempotency_key }
+ * POST /generations  multipart { creative_id, quantity (1..max_outputs), idempotency_key,
+ *                                inputs[key] theo input_schema: ảnh (jpg/png/webp <= 10MB) hoặc giá trị,
+ *                                inputs[aspectRatio] (một trong options.aspect_ratios, bỏ trống = mặc định) }
  *   -> 202 { data: generation }  (trừ tiền ngay, xử lý nền; chủ Creative tự dùng không bị trừ)
  *   lỗi: 402 INSUFFICIENT_CREDIT (context: { required, balance }), 404 CREATIVE_NOT_AVAILABLE,
  *        409 CREATIVE_TEMPORARILY_UNAVAILABLE, 409 IDEMPOTENCY_CONFLICT, 422 quantity/aspect_ratio
@@ -225,13 +235,22 @@ export const creativeApi = {
  */
 const GENERATION_UPLOAD_TIMEOUT = 60_000;
 
+// inputs[key] cho multipart: mảng -> inputs[key][], bật/tắt -> 1/0, trống thì bỏ qua
+const appendInputs = (form, inputs) =>
+  Object.entries(inputs).forEach(([key, value]) => {
+    if (value == null || value === '') return;
+    if (Array.isArray(value)) value.forEach((v) => form.append(`inputs[${key}][]`, v));
+    else if (typeof value === 'boolean') form.append(`inputs[${key}]`, value ? '1' : '0');
+    else form.append(`inputs[${key}]`, value);
+  });
+
 export const generationApi = {
-  create: requireRealBackend(({ creativeId, image, quantity, aspectRatio, idempotencyKey }) => {
+  // inputs: { [key]: File | giá trị } theo input_schema của Creative (gồm inputs.aspectRatio)
+  create: requireRealBackend(({ creativeId, inputs, quantity, idempotencyKey }) => {
     const form = new FormData();
     form.append('creative_id', creativeId);
-    form.append('input_image', image);
+    appendInputs(form, inputs);
     form.append('quantity', quantity);
-    form.append('aspect_ratio', aspectRatio);
     form.append('idempotency_key', idempotencyKey);
     return client.post('/generations', form, { timeout: GENERATION_UPLOAD_TIMEOUT }).then(({ data }) => data);
   }),

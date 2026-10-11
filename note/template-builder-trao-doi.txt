@@ -1,0 +1,72 @@
+GHI CHÚ TRAO ĐỔI — TEMPLATE BUILDER (AI90)
+Ngày: 11/10/2026 · Nhánh: feature/prompt-template-builder
+Tài liệu gốc: note/AI90_Tong_Hop_Dac_Ta_He_Thong_Hoan_Chinh.pdf
+
+======================================================================
+1. YÊU CẦU CỦA BẠN (theo thứ tự trao đổi)
+======================================================================
+- Đọc file PDF đặc tả, xây giao diện cho Creator tạo template mẫu cho các Creative.
+- Không làm ngay: phải trao đổi cách làm trước.
+- Chốt: chỉ làm GIAO DIỆN DÙNG THỬ, CHƯA LÀM BACKEND (khi nào bảo mới làm).
+  Làm một TRANG RIÊNG chỉ có phần thiết kế template của Creator.
+- Đổi bố cục:
+  + Ô BÊN PHẢI: tải lên ảnh đại diện của Creative.
+  + BÊN TRÁI: nơi Creator KÉO các thành phần vào template, ví dụ:
+    · kéo ô tải ảnh -> đặt tên trường + label hiển thị cho người dùng
+    · kéo ô nhập text -> đặt tên trường + label
+    · kéo ô select -> đặt tên trường + label + các option
+
+======================================================================
+2. ĐÃ LÀM
+======================================================================
+Route: /template-builder (toàn màn hình, không cần đăng nhập, ngoài AppLayout)
+Chạy: npm run dev -> http://localhost:5173/template-builder
+Dữ liệu tự lưu nháp vào localStorage:
+  - ai90_template_builder_draft  (template + prompt)
+  - ai90_template_builder_cover  (ảnh đại diện, data URL)
+
+Các tab trên trang:
+  - Thiết kế form : bên trái kéo thả thành phần, bên phải ảnh đại diện
+  - Prompt        : soạn Prompt Template, chèn biến {{ten_truong}}, chèn khung §5.2
+  - Xem trước     : form đúng như người mua thấy + mô phỏng request gửi Gemini
+                    (prompt đã thay biến + ảnh kèm nhãn vai trò, KHÔNG gọi Gemini thật)
+  - JSON          : xem / sao chép / tải / nhập lại JSON (schema_json + prompt_template)
+  - Kiểm tra      : checklist lỗi/cảnh báo theo Phụ lục C, §14.3
+
+Lần đầu mở: chọn mẫu khởi đầu (Trống / Ảnh giày 1 ảnh / Ảnh thời trang giày + outfit).
+
+Thành phần kéo thả: Ảnh, Nhiều ảnh, Văn bản, Đoạn văn, Danh sách chọn, Nút chọn,
+Chọn nhiều, Bật/tắt. Mỗi ô có: Label hiển thị, Tên trường (tự sinh từ label cho ô
+mới kéo vào), Bắt buộc, lên/xuống/xoá, kéo tay nắm để đổi vị trí. Điện thoại: bấm để thêm.
+
+Tôi tự thêm (chờ bạn xác nhận):
+  - Ô ảnh có chọn "Vai trò ảnh khi gửi tới AI" (sản phẩm chính / outfit / phong cách /
+    bối cảnh) — cần để Prompt Engine phân biệt ảnh.
+  - Giá trị option tự sinh từ nhãn (vd "Phong cách Hàn" -> phong_cach_han).
+  - Bỏ bảng cài đặt chi tiết (giới hạn file, độ dài, điều kiện hiển thị) -> đang dùng mặc định.
+  - Vẫn giữ tab Prompt / Xem trước / JSON / Kiểm tra (nếu chỉ muốn phần thiết kế form thì bỏ).
+
+File:
+  src/pages/TemplateBuilderPage.jsx         trang chính, các tab, lưu nháp
+  src/components/template/FormCanvas.jsx    thanh thành phần + khung kéo thả + ô trường
+  src/components/template/CoverUpload.jsx   ô tải ảnh đại diện
+  src/components/template/PromptEditor.jsx  soạn prompt
+  src/components/template/DynamicForm.jsx   render form người mua từ schema (dùng lại cho Buyer)
+  src/components/template/templateSchema.js loại trường, vai trò ảnh, validator, toPayload/fromPayload
+  src/components/template/presets.js        mẫu Ảnh giày / Ảnh thời trang (§6 spec)
+  src/components/template/inputs.jsx        ô nhập dùng chung
+  src/App.jsx                               thêm route template-builder
+Trạng thái: build OK, logic đã test bằng Node; CHƯA kiểm tra kéo thả trên trình duyệt; CHƯA commit.
+
+======================================================================
+3. VIỆC CÒN LẠI / CẦN BẠN QUYẾT
+======================================================================
+- Kiểm tra giao diện kéo thả trên trình duyệt, góp ý bố cục.
+- Có giữ các tab Prompt / Xem trước / JSON / Kiểm tra không?
+- Có cần lại phần cài đặt chi tiết cho từng ô (giới hạn file, độ dài, số ảnh, điều kiện hiển thị)?
+- Ảnh đại diện: chỉ 1 ảnh hay nhiều ảnh mẫu? Có thêm tên/mô tả/danh mục/giá Creative ở bên phải?
+- Mục "Câu lệnh" cũ ở trang sửa sản phẩm (creative_prompt [{label, value}]): giữ hay thay bằng Prompt Builder?
+- Khi làm backend: dùng JSON ở tab JSON làm format đề xuất; endpoint theo §11 spec
+  (POST /creator/creatives/:id/templates, /validate, /preview, /publish, GET /creatives/:id/input-schema).
+  Backend hiện chưa có endpoint nào cho template; generation hiện chỉ nhận 1 input_image cố định.
+- Phía Buyer: trang chi tiết Creative dùng DynamicForm để render form động (chưa làm).
