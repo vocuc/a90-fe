@@ -1,7 +1,8 @@
 import { useRef } from 'react';
 import { useAiModels } from '../../hooks/creatorQueries';
+import { useCategories } from '../../hooks/queries';
 import { Input, Select, borderCls, inputCls } from './inputs';
-import { MAX_PROMPT_LENGTH, MAX_TITLE_LENGTH, MAX_USAGE_GUIDE_LENGTH } from './templateSchema';
+import { MAX_PROMPT_LENGTH, MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH } from './templateSchema';
 
 // Khung prompt khuyến nghị (§5.2)
 const SECTIONS = [
@@ -19,7 +20,7 @@ const SECTIONS = [
 ];
 
 /**
- * onSet: sửa title / model_id / price_per_image / usage_guide của template. errors: lỗi theo path của validateTemplate.
+ * onSet: sửa title / category_id / model_id / price_per_image / description của template. errors: lỗi theo path của validateTemplate.
  * stacked: xếp phần model, giá / hướng dẫn dưới ô prompt, dùng khi đặt trong cột hẹp.
  */
 export default function PromptEditor({ template, onChange, onSet, errors = {}, stacked = false }) {
@@ -27,6 +28,7 @@ export default function PromptEditor({ template, onChange, onSet, errors = {}, s
   const { prompt_text: text } = template;
   const error = errors.prompt_text;
   const models = useAiModels(true);
+  const categories = useCategories();
 
   // Chèn tại con trỏ rồi đặt lại con trỏ sau đoạn vừa chèn
   const insert = (snippet, block = false) => {
@@ -91,6 +93,20 @@ export default function PromptEditor({ template, onChange, onSet, errors = {}, s
             error={errors.title}
           />
           <Select
+            label="Danh mục"
+            value={template.category_id ?? ''}
+            onChange={(e) => onSet({ category_id: e.target.value })}
+            disabled={!categories.data}
+            hint={categories.error ? `Không tải được danh mục: ${categories.error.message}` : undefined}
+          >
+            <option value="">Chưa chọn danh mục</option>
+            {categories.data?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+          <Select
             label="AI model *"
             value={template.model_id ?? ''}
             onChange={(e) => onSet({ model_id: e.target.value })}
@@ -129,10 +145,10 @@ export default function PromptEditor({ template, onChange, onSet, errors = {}, s
         <section className="space-y-2 rounded-xl border border-outline-variant/40 p-3">
           <h3 className="text-[11px] font-bold uppercase tracking-wide text-outline">Hướng dẫn sử dụng mẫu</h3>
           <textarea
-            value={template.usage_guide ?? ''}
-            onChange={(e) => onSet({ usage_guide: e.target.value })}
+            value={template.description ?? ''}
+            onChange={(e) => onSet({ description: e.target.value })}
             rows={6}
-            maxLength={MAX_USAGE_GUIDE_LENGTH}
+            maxLength={MAX_DESCRIPTION_LENGTH}
             placeholder={'Hướng dẫn người mua dùng mẫu, ví dụ:\n- Chụp giày trên nền trơn, đủ sáng.\n- Mỗi lần chỉ tải 1 đôi giày.'}
             aria-label="Hướng dẫn sử dụng mẫu"
             className={`${inputCls} ${borderCls()} resize-y text-[13px] leading-relaxed`}
@@ -140,7 +156,7 @@ export default function PromptEditor({ template, onChange, onSet, errors = {}, s
           <p className="flex items-start justify-between gap-2 text-[11px] text-on-surface-variant">
             <span>Người mua thấy hướng dẫn này khi dùng mẫu.</span>
             <span className="shrink-0 text-outline">
-              {(template.usage_guide ?? '').length.toLocaleString('vi-VN')}/{MAX_USAGE_GUIDE_LENGTH.toLocaleString('vi-VN')}
+              {(template.description ?? '').length.toLocaleString('vi-VN')}/{MAX_DESCRIPTION_LENGTH.toLocaleString('vi-VN')}
             </span>
           </p>
         </section>

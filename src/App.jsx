@@ -12,7 +12,6 @@ import SellerProductsPage from './pages/SellerProductsPage';
 import AccountPage from './pages/AccountPage';
 import PurchaseHistoryPage from './pages/PurchaseHistoryPage';
 import CreatePage from './pages/CreatePage';
-import SellerProductFormPage from './pages/SellerProductFormPage';
 import PlaceholderPage from './pages/PlaceholderPage';
 import ToolsPage from './pages/ToolsPage';
 import ToolDetailPage from './pages/ToolDetailPage';
@@ -38,8 +37,6 @@ export default function App() {
           <Route path="seller" element={<Navigate to="/account" replace />} />
           <Route path="seller/settings" element={<StoreSettingsPage />} />
           <Route path="seller/products" element={<SellerProductsPage />} />
-          <Route path="seller/products/new" element={<SellerProductFormPage />} />
-          <Route path="seller/products/:id/edit" element={<SellerProductFormPage />} />
           <Route path="seller/prompts/new" element={<Navigate to="/seller/products/new" replace />} />
           {/* Đường dẫn /store cũ: trang người bán đã gộp vào Tài khoản */}
           <Route path="store/*" element={<Navigate to="/account" replace />} />
@@ -57,8 +54,12 @@ export default function App() {
         <Route path="privacy" element={<PrivacyPolicyPage />} />
         <Route path="terms" element={<TermsOfServicePage />} />
       </Route>
-      {/* Bản dùng thử Template Builder: toàn màn hình, chưa nối backend */}
-      <Route path="template-builder" element={<TemplateBuilderPage />} />
+      {/* Tạo/sửa sản phẩm bằng Template Builder: toàn màn hình, ngoài AppLayout */}
+      <Route element={<RequireAuth />}>
+        <Route path="seller/products/new" element={<TemplateBuilderPage />} />
+        <Route path="seller/products/:id/edit" element={<TemplateBuilderPage />} />
+      </Route>
+      <Route path="template-builder" element={<Navigate to="/seller/products/new" replace />} />
     </Routes>
   );
 }

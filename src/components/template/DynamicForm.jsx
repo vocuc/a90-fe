@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from '../common/Icon';
 import { borderCls, inputCls } from './inputs';
-import { MIME_LABEL, hasOptions, isFieldVisible, isImageType } from './templateSchema';
+import { ASPECT_RATIOS, MIME_LABEL, hasOptions, isFieldVisible, isImageType } from './templateSchema';
 
 /*
  * Dynamic Form Renderer (§4): render form người mua từ Template schema.
@@ -127,7 +127,7 @@ function ImageInput({ files, onChange, max, validation, label, error }) {
   );
 }
 
-function FieldControl({ field: f, value, onChange, errors }) {
+function FieldControl({ field: f, value, onChange, errors, aspectRatios = ASPECT_RATIOS }) {
   const v = f.validation ?? {};
   const error = errors[f.key];
   const id = `df-${f.key}`;
@@ -226,6 +226,36 @@ function FieldControl({ field: f, value, onChange, errors }) {
         </div>
       );
     }
+    case 'aspect_ratio':
+      return (
+        // Creator chỉ đặt tỉ lệ mặc định, người mua được đổi sang mọi tỉ lệ
+        <div className="flex flex-wrap gap-2" role="radiogroup">
+          {aspectRatios.map((r) => ({ value: r, label: r })).map((o) => {
+            const [w, h] = o.value.split(':').map(Number);
+            const scale = 18 / Math.max(w, h);
+            return (
+              <button
+                key={o.value}
+                type="button"
+                role="radio"
+                aria-checked={value === o.value}
+                onClick={() => onChange(o.value)}
+                className={`flex min-w-16 flex-col items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                  value === o.value
+                    ? 'border-primary-container bg-primary-fixed/50 text-primary'
+                    : 'border-outline-variant/50 text-on-surface hover:border-primary-container'
+                }`}
+              >
+                {/* Khung minh hoạ đúng tỉ lệ */}
+                <span className="flex size-5 items-center justify-center">
+                  <span className="rounded-sm border-2 border-current" style={{ width: w * scale, height: h * scale }} />
+                </span>
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+      );
     case 'toggle':
       return (
         <button
@@ -243,7 +273,8 @@ function FieldControl({ field: f, value, onChange, errors }) {
   }
 }
 
-export default function DynamicForm({ fields, values, onChange, errors = {} }) {
+/** aspectRatios: tỉ lệ người mua được chọn (theo model của Creative); không truyền thì dùng danh sách chung. */
+export default function DynamicForm({ fields, values, onChange, errors = {}, aspectRatios }) {
   const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
   const visible = fields.filter((f) => isFieldVisible(f, values, byKey));
 
@@ -262,7 +293,13 @@ export default function DynamicForm({ fields, values, onChange, errors = {} }) {
             </label>
             {f.description && <p className="text-[11px] text-on-surface-variant">{f.description}</p>}
           </div>
-          <FieldControl field={f} value={values[f.key]} onChange={(v) => onChange(f.key, v)} errors={errors} />
+          <FieldControl
+            field={f}
+            value={values[f.key]}
+            onChange={(v) => onChange(f.key, v)}
+            errors={errors}
+            aspectRatios={aspectRatios}
+          />
           {errors[f.key] && <p className="mt-1 text-xs text-error">{errors[f.key]}</p>}
         </div>
       ))}

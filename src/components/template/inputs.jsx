@@ -1,6 +1,6 @@
 import { useId } from 'react';
 
-// Ô nhập gọn cho Template Builder (cùng kiểu với PromptInstructions)
+// Ô nhập gọn cho Template Builder
 export const inputCls =
   'w-full rounded-lg border bg-surface-container-lowest px-3 py-2 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 disabled:opacity-60';
 export const borderCls = (error) =>

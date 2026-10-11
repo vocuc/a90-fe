@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from '../common/Icon';
 import { Switch, borderCls, inputCls } from './inputs';
-import { FIELD_TYPES, MAX_FIELDS, hasOptions, isImageType } from './templateSchema';
+import { ASPECT_RATIOS, FIELD_TYPES, MAX_FIELDS, hasOptions, isImageType } from './templateSchema';
 
 /*
  * Khung kéo thả: kéo thành phần từ thanh công cụ vào form, mỗi ô nhập trực tiếp key, label (và option nếu là select).
  * Trên điện thoại không kéo thả được -> bấm vào thành phần để thêm xuống cuối.
  */
 
-const PALETTE = ['image', 'text'];
+const PALETTE = ['image'];
 const TYPE_MIME = 'application/x-ai90-field-type';
 const MOVE_MIME = 'application/x-ai90-field-id';
 
@@ -23,22 +23,23 @@ export const toKey = (v) =>
     .replace(/^_+|_+$/g, '')
     .slice(0, 50);
 
-function Palette({ onAdd, disabled }) {
+function Palette({ onAdd, disabled, fields }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {PALETTE.map((type) => {
         const t = FIELD_TYPES[type];
+        const off = disabled;
         return (
           <button
             key={type}
             type="button"
-            draggable={!disabled}
+            draggable={!off}
             onDragStart={(e) => {
               e.dataTransfer.setData(TYPE_MIME, type);
               e.dataTransfer.effectAllowed = 'copy';
             }}
             onClick={() => onAdd(type)}
-            disabled={disabled}
+            disabled={off}
             title={`${t.hint} — kéo vào form hoặc bấm để thêm`}
             className="flex cursor-grab items-center gap-1.5 rounded-lg border border-outline-variant/50 bg-surface-container-lowest px-2.5 py-1.5 text-xs font-semibold text-on-surface shadow-sm transition-colors hover:border-primary-container hover:text-primary active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -100,6 +101,51 @@ function OptionList({ options, onChange, error }) {
   );
 }
 
+// Creator chọn 1 tỉ lệ mặc định; người mua được chọn sẵn tỉ lệ này và đổi được sang tỉ lệ khác
+function RatioPicker({ field, onChange, error }) {
+  const offered = field.options.map((o) => o.value);
+  const pick = (r) => onChange({ ...field, options: [{ value: r, label: r }], default_value: r });
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-semibold text-on-surface">Tỉ lệ mặc định</p>
+      <p className="text-[11px] text-on-surface-variant">Người mua được chọn sẵn tỉ lệ này và có thể đổi sang tỉ lệ khác.</p>
+      <div className="flex flex-wrap gap-1.5" role="radiogroup">
+        {ASPECT_RATIOS.map((r) => (
+          <button
+            key={r}
+            type="button"
+            role="radio"
+            aria-checked={offered.includes(r)}
+            onClick={() => pick(r)}
+            className={`rounded-lg border px-2.5 py-1 text-xs font-semibold ${
+              offered.includes(r)
+                ? 'border-primary-container bg-primary-fixed/50 text-primary'
+                : 'border-outline-variant/50 text-on-surface-variant hover:border-primary-container'
+            }`}
+          >
+            {r}
+          </button>
+        ))}
+      </div>
+      <label className="flex items-center gap-2 text-xs text-on-surface">
+        Mặc định
+        <select
+          value={field.default_value ?? ''}
+          onChange={(e) => pick(e.target.value)}
+          className={`${inputCls} ${borderCls(false)} !w-36 py-1`}
+        >
+          {ASPECT_RATIOS.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+      </label>
+      {error && <p className="text-xs text-error">{error}</p>}
+    </div>
+  );
+}
+
 // Hình minh hoạ ô người mua sẽ thấy
 function BuyerHint({ type }) {
   if (isImageType(type))
@@ -121,8 +167,10 @@ function FieldCard({ field, index, total, errors, selected, onSelect, onChange, 
     if (selected) ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selected]);
 
+  // Tên trường tỉ lệ khung hình cố định là aspect_ratio
+  const fixedKey = field.type === 'aspect_ratio';
   // Trường vừa kéo vào: tên trường tự theo label cho tới khi Creator tự sửa
-  const setLabel = (label) => onChange({ ...field, label, ...(field._autoKey ? { key: toKey(label) } : {}) });
+  const setLabel = (label) => onChange({ ...field, label, ...(field._autoKey && !fixedKey ? { key: toKey(label) } : {}) });
 
   return (
     <div
@@ -164,14 +212,17 @@ function FieldCard({ field, index, total, errors, selected, onSelect, onChange, 
         >
           <Icon name="arrow_downward" className="text-base" />
         </button>
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={`Xoá ${field.label || t.label}`}
-          className="flex size-7 items-center justify-center rounded-lg text-outline hover:bg-error-container/40 hover:text-error"
-        >
-          <Icon name="delete" className="text-base" />
-        </button>
+        {/* Trường tỉ lệ khung hình là bắt buộc của mọi mẫu, không xoá được */}
+        {!fixedKey && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Xoá ${field.label || t.label}`}
+            className="flex size-7 items-center justify-center rounded-lg text-outline hover:bg-error-container/40 hover:text-error"
+          >
+            <Icon name="delete" className="text-base" />
+          </button>
+        )}
       </div>
 
       <div className="space-y-2.5">
@@ -192,17 +243,20 @@ function FieldCard({ field, index, total, errors, selected, onSelect, onChange, 
             <input
               value={field.key}
               onChange={(e) => onChange({ ...field, key: toKey(e.target.value), _autoKey: false })}
+              readOnly={fixedKey}
+              title={fixedKey ? 'Tên trường tỉ lệ khung hình cố định, không sửa được' : undefined}
               placeholder="vi_du_product_image"
-              className={`${inputCls} ${borderCls(err('key'))} font-mono text-xs`}
+              className={`${inputCls} ${borderCls(err('key'))} font-mono text-xs ${fixedKey ? 'cursor-not-allowed bg-surface-container text-on-surface-variant' : ''}`}
             />
             {err('key') && <p className="mt-1 text-xs text-error">{err('key')}</p>}
           </div>
         </div>
 
-        {hasOptions(field.type) && <OptionList options={field.options} onChange={(options) => onChange({ ...field, options })} error={err('options')} />}
+        {field.type === 'aspect_ratio' && <RatioPicker field={field} onChange={onChange} error={err('options')} />}
+        {hasOptions(field.type) && field.type !== 'aspect_ratio' && <OptionList options={field.options} onChange={(options) => onChange({ ...field, options })} error={err('options')} />}
         <BuyerHint type={field.type} />
 
-        {field.type !== 'toggle' && (
+        {field.type !== 'toggle' && !fixedKey && (
           <Switch label="Bắt buộc" checked={field.required} onChange={(required) => onChange({ ...field, required })} />
         )}
       </div>
@@ -250,7 +304,7 @@ export default function FormCanvas({ fields, errors, selectedId, onSelect, onAdd
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-outline">
           Nguyên liệu — kéo vào form bên dưới ({fields.length}/{MAX_FIELDS})
         </p>
-        <Palette onAdd={(type) => onAdd(type, fields.length)} disabled={full} />
+        <Palette onAdd={(type) => onAdd(type, fields.length)} disabled={full} fields={fields} />
       </div>
 
       <div

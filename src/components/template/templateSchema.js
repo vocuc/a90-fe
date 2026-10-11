@@ -11,13 +11,18 @@ export const SCHEMA_VERSION = 1;
 export const MAX_FIELDS = 20;
 export const MAX_PROMPT_LENGTH = 10_000;
 export const MAX_TITLE_LENGTH = 150;
-export const MAX_USAGE_GUIDE_LENGTH = 2_000;
-export const MAX_FILE_MB = 20;
+// Hướng dẫn sử dụng mẫu = description của Creative (backend tối đa 5000)
+export const MAX_DESCRIPTION_LENGTH = 5_000;
+// Khớp backend: setting generation.input_max_size_kb = 10240
+export const MAX_FILE_MB = 10;
 export const MAX_FILES_PER_FIELD = 10;
 export const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 export const MIME_LABEL = { 'image/jpeg': 'JPG', 'image/png': 'PNG', 'image/webp': 'WEBP' };
 
 export const KEY_PATTERN = /^[a-z][a-z0-9_]{1,49}$/;
+
+// Loại trường backend xử lý được khi tạo ảnh (CreativeTemplate::TYPES)
+export const SUPPORTED_TYPES = ['image', 'text', 'textarea', 'number', 'select', 'radio', 'multi_select', 'toggle', 'aspect_ratio'];
 
 // Link video hướng dẫn: chỉ nhận TikTok (tiktok.com và các tên miền con như www., m., vt., vm.)
 export const isTiktokUrl = (value) => {
@@ -42,10 +47,18 @@ export const FIELD_TYPES = {
   multi_select: { label: 'Chọn nhiều', icon: 'checklist', hint: 'Chọn nhiều phương án', group: 'choice' },
   radio: { label: 'Nút chọn', icon: 'radio_button_checked', hint: 'Chọn một, hiển thị trực quan', group: 'choice' },
   toggle: { label: 'Bật/tắt', icon: 'toggle_on', hint: 'Tùy chọn có/không', group: 'choice' },
+  aspect_ratio: { label: 'Tỉ lệ khung hình', icon: 'aspect_ratio', hint: 'Người mua bấm chọn tỉ lệ ảnh', group: 'choice' },
 };
 
+// Tỉ lệ khung hình Creator có thể cho người mua chọn
+// Tên trường cố định của trường tỉ lệ khung hình (ngoại lệ của KEY_PATTERN)
+export const ASPECT_RATIO_KEY = 'aspectRatio';
+
+export const ASPECT_RATIOS = ['1:1', '9:16', '16:9', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4', '21:9'];
+const ratioOption = (r) => ({ value: r, label: r });
+
 export const isImageType = (type) => FIELD_TYPES[type]?.group === 'image';
-export const hasOptions = (type) => ['select', 'multi_select', 'radio'].includes(type);
+export const hasOptions = (type) => ['select', 'multi_select', 'radio', 'aspect_ratio'].includes(type);
 
 // Vai trò ảnh khi gửi tới model (Phụ lục B). keywords: dùng để cảnh báo prompt chưa hướng dẫn cách dùng ảnh
 export const IMAGE_ROLES = {
@@ -115,6 +128,7 @@ const BASE_KEY = {
   multi_select: 'choices',
   radio: 'option',
   toggle: 'toggle',
+  aspect_ratio: 'aspect_ratio',
 };
 
 let uid = 0;
@@ -125,14 +139,15 @@ export function createField(type, fields = []) {
   const meta = FIELD_TYPES[type];
   const field = {
     _id: newUid(),
-    key: uniqueKey(BASE_KEY[type], fields),
+    // Tên cố định (mỗi mẫu chỉ có 1 trường tỉ lệ)
+    key: type === 'aspect_ratio' ? ASPECT_RATIO_KEY : uniqueKey(BASE_KEY[type], fields),
     label: meta.label,
     type,
     description: '',
-    required: isImageType(type),
-    default_value: type === 'toggle' ? false : type === 'multi_select' ? [] : '',
+    required: isImageType(type) || type === 'aspect_ratio',
+    default_value: type === 'toggle' ? false : type === 'multi_select' ? [] : type === 'aspect_ratio' ? '1:1' : '',
     validation: defaultValidation(type),
-    options: hasOptions(type) ? defaultOptions() : [],
+    options: type === 'aspect_ratio' ? [ratioOption('1:1')] : hasOptions(type) ? defaultOptions() : [],
     prompt_mapping: { role: isImageType(type) ? 'primary_product' : type === 'textarea' ? 'user_instruction' : 'prompt_variable' },
     visibility_rule: null,
     enabled: true,
@@ -146,6 +161,19 @@ export function createField(type, fields = []) {
   }
   return field;
 }
+
+// Trường tỉ lệ chỉ cho 1 tỉ lệ: bản nháp cũ nhiều tỉ lệ thì giữ tỉ lệ mặc định
+const oneRatio = (f) => {
+  if (f.options.length <= 1) return f;
+  const r = f.options.some((o) => o.value === f.default_value) ? f.default_value : f.options[0].value;
+  return { ...f, options: [ratioOption(r)], default_value: r };
+};
+
+/** Mẫu nào cũng phải có trường tỉ lệ khung hình (bắt buộc, không xoá được): thiếu thì thêm vào cuối. */
+export const withRatioField = (template) =>
+  template.fields.some((f) => f.type === 'aspect_ratio')
+    ? { ...template, fields: template.fields.map((f) => (f.type === 'aspect_ratio' ? oneRatio({ ...f, required: true, enabled: true }) : f)) }
+    : { ...template, fields: [...template.fields, createField('aspect_ratio', template.fields)] };
 
 /** Đổi kiểu trường: giữ key/label/mô tả, đặt lại phần phụ thuộc kiểu. */
 export function changeFieldType(field, type, fields) {
@@ -161,7 +189,8 @@ export const emptyTemplate = () => ({
   title: '',
   model_id: '',
   price_per_image: '',
-  usage_guide: '',
+  category_id: '',
+  description: '',
   video_url: '',
 });
 
@@ -186,27 +215,39 @@ const displayValue = (field, value) => {
   return value == null ? '' : String(value);
 };
 
+// product_image -> productImage
+const camelKey = (key) => key.replace(/[_.]([a-z0-9])/g, (_, c) => c.toUpperCase());
+
+// Mặc định 1:1 như trang tạo sản phẩm; model không hỗ trợ 1:1 thì lấy tỉ lệ đầu tiên
+export const pickDefaultRatio = (ratios = []) => (ratios.includes('1:1') ? '1:1' : (ratios[0] ?? null));
+
 /**
- * Mô phỏng Prompt Engine (§7): thay {{key}} bằng giá trị người mua nhập, ảnh gửi thành image part kèm nhãn vai trò.
- * values: { [key]: value }, ảnh: { [key]: File[] } (image_set: { [slotKey]: File[] }).
+ * Mô phỏng Prompt Engine (§7): JSON gửi tới model.
+ * Mỗi trường ảnh thành một khoá camelCase (nhiều ảnh -> mảng), {{key}} trong prompt thay bằng giá trị người mua nhập.
+ * Ảnh trong bản thử chưa tải lên S3 nên chỉ ghi tên file thay cho URL.
+ * values: { [key]: value }, ảnh: { [key]: File[] } (image_set: { [slotKey]: File[] }). model: phần tử của /ai-models.
  */
-export function buildRequestPreview({ fields, prompt_text }, values) {
+export function buildRequestJson(template, values, model) {
+  const { fields, prompt_text } = template;
   const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
+  const out = {};
+  imageAttachments(fields.filter((f) => isFieldVisible(f, values, byKey))).forEach((a) => {
+    const [fieldKey, slotKey] = a.key.split('.');
+    const raw = values[fieldKey];
+    const urls = ((slotKey ? raw?.[slotKey] : raw) ?? []).map((file) => `(URL sau khi tải lên: ${file.name})`);
+    out[camelKey(a.key)] = a.field.type === 'image_list' ? urls : (urls[0] ?? null);
+  });
   const text = (prompt_text ?? '').replace(VARIABLE_PATTERN, (_, key) => {
     const field = byKey[key];
     if (!field || isImageType(field.type) || !isFieldVisible(field, values, byKey)) return '';
     return displayValue(field, values[key]).trim();
   });
-  const parts = [{ kind: 'text', text: text.replace(/\n{3,}/g, '\n\n').trim() }];
-  imageAttachments(fields.filter((f) => isFieldVisible(f, values, byKey))).forEach((a) => {
-    const [fieldKey, slotKey] = a.key.split('.');
-    const raw = values[fieldKey];
-    const files = (slotKey ? raw?.[slotKey] : raw) ?? [];
-    if (!files.length) return;
-    parts.push({ kind: 'text', text: `${a.label} (${IMAGE_ROLES[a.role]?.label ?? a.role}):` });
-    files.forEach((file) => parts.push({ kind: 'image', file, role: a.role }));
-  });
-  return parts;
+  out.prompt = text.replace(/\n{3,}/g, '\n\n').trim();
+  // Tỉ lệ người mua bấm chọn; mẫu không có trường tỉ lệ thì dùng mặc định của model
+  const ratioField = fields.find((f) => f.type === 'aspect_ratio' && isFieldVisible(f, values, byKey));
+  out.aspectRatio = (ratioField && values[ratioField.key]) || pickDefaultRatio(model?.supported_aspect_ratios);
+  out.modelDisplayName = model?.name ?? null;
+  return out;
 }
 
 // ---------------- Điều kiện hiển thị ----------------
@@ -237,10 +278,10 @@ export function isFieldVisible(field, values, byKey) {
 
 /**
  * Trả { errors: { [path]: msg }, issues: [{ level: 'error'|'warning', message, fieldId? }] }.
- * path: 'name', 'prompt_text', `${_id}.key`, `${_id}.options`...
+ * path: 'title', 'prompt_text', `${_id}.key`, `${_id}.options`...
  */
 export function validateTemplate(template) {
-  const { name, fields, prompt_text } = template;
+  const { fields, prompt_text } = template;
   const errors = {};
   const issues = [];
   const add = (level, message, fieldId, path) => {
@@ -248,9 +289,9 @@ export function validateTemplate(template) {
     if (level === 'error' && path && !errors[path]) errors[path] = message;
   };
 
-  if (!name.trim()) add('error', 'Chưa đặt tên Template.', null, 'name');
   if (!fields.length) add('error', 'Template cần ít nhất 1 trường đầu vào.');
   if (fields.length > MAX_FIELDS) add('error', `Tối đa ${MAX_FIELDS} trường.`);
+  if (fields.filter((f) => f.type === 'aspect_ratio').length > 1) add('error', 'Chỉ được có 1 trường tỉ lệ khung hình.');
   if (!fields.some((f) => f.enabled && isImageType(f.type)))
     add('warning', 'Template chưa có trường ảnh nào — người mua sẽ không gửi được ảnh sản phẩm.');
 
@@ -262,8 +303,11 @@ export function validateTemplate(template) {
     const p = (k) => `${f._id}.${k}`;
     const v = f.validation ?? {};
 
+    if (!SUPPORTED_TYPES.includes(f.type))
+      add('error', `${name}: loại "${FIELD_TYPES[f.type]?.label ?? f.type}" chưa dùng được khi tạo ảnh, hãy xoá trường này.`, f._id);
+
     if (!f.key) add('error', `${name}: chưa nhập tên trường.`, f._id, p('key'));
-    else if (!KEY_PATTERN.test(f.key))
+    else if (f.type !== 'aspect_ratio' && !KEY_PATTERN.test(f.key))
       add('error', `${name}: tên trường chỉ gồm chữ thường không dấu, số, dấu _ và bắt đầu bằng chữ (2–50 ký tự).`, f._id, p('key'));
     else if (keyCount.get(f.key) > 1) add('error', `Tên trường "${f.key}" bị trùng.`, f._id, p('key'));
     if (!f.label.trim()) add('error', `Trường #${index + 1}: chưa nhập label hiển thị.`, f._id, p('label'));
@@ -296,7 +340,9 @@ export function validateTemplate(template) {
 
     if (hasOptions(f.type)) {
       const values = f.options.map((o) => o.value.trim());
-      if (f.options.length < 2) add('error', `${name}: cần ít nhất 2 lựa chọn.`, f._id, p('options'));
+      if (f.type === 'aspect_ratio') {
+        if (!f.options.length) add('error', `${name}: chọn ít nhất 1 tỉ lệ.`, f._id, p('options'));
+      } else if (f.options.length < 2) add('error', `${name}: cần ít nhất 2 lựa chọn.`, f._id, p('options'));
       else if (values.some((x) => !x) || f.options.some((o) => !o.label.trim()))
         add('error', `${name}: lựa chọn chưa đủ giá trị và nhãn.`, f._id, p('options'));
       else if (new Set(values).size !== values.length) add('error', `${name}: giá trị lựa chọn bị trùng.`, f._id, p('options'));
@@ -375,6 +421,9 @@ const cleanField = ({ _id, ...f }, index) => {
   return out;
 };
 
+// Tên Template không còn ô nhập riêng: dùng tên cũ nếu có, không thì lấy tiêu đề sản phẩm
+const templateName = (t) => (t.name?.trim() || t.title?.trim() || '');
+
 export const slugify = (s) =>
   s
     .normalize('NFD')
@@ -399,14 +448,15 @@ export function toPayload(template) {
   return {
     schema_json: {
       schema_version: SCHEMA_VERSION,
-      template_key: template.template_key || slugify(template.name) || 'template',
-      name: template.name.trim(),
+      template_key: template.template_key || slugify(templateName(template)) || 'template',
+      name: templateName(template),
       fields: fields.map(cleanField),
     },
     title: (template.title ?? '').trim(),
     model_id: template.model_id ? Number(template.model_id) : null,
     price_per_image: (template.price_per_image ?? '') === '' ? null : Number(template.price_per_image),
-    usage_guide: (template.usage_guide ?? '').trim(),
+    category_id: template.category_id || null,
+    description: (template.description ?? '').trim(),
     video_url: (template.video_url ?? '').trim(),
     prompt_template: {
       prompt_text: template.prompt_text,
@@ -436,6 +486,7 @@ export function fromPayload(data) {
         ...base,
         ...f,
         _id: newUid(),
+        ...(f.type === 'aspect_ratio' ? { key: ASPECT_RATIO_KEY } : {}),
         label: String(f.label ?? ''),
         description: String(f.description ?? ''),
         validation: { ...base.validation, ...f.validation },
@@ -453,7 +504,42 @@ export function fromPayload(data) {
     title: String(data?.title ?? ''),
     model_id: data?.model_id == null ? '' : String(data.model_id),
     price_per_image: data?.price_per_image == null ? '' : String(data.price_per_image),
-    usage_guide: String(data?.usage_guide ?? ''),
+    category_id: data?.category_id == null ? '' : String(data.category_id),
+    // Nháp cũ lưu hướng dẫn ở usage_guide
+    description: String(data?.description ?? data?.usage_guide ?? ''),
     video_url: String(data?.video_url ?? ''),
   };
+}
+
+// ---------------- Creative trên backend ----------------
+
+/** Dữ liệu gửi POST/PUT /creator/creatives. */
+export function toCreativePayload(template) {
+  const trimmed = (v) => (v ?? '').trim() || null;
+  return {
+    title: (template.title ?? '').trim(),
+    model_id: Number(template.model_id),
+    price_per_image: Number(template.price_per_image),
+    category_id: template.category_id ? Number(template.category_id) : null,
+    description: trimmed(template.description),
+    video_url: trimmed(template.video_url),
+    input_schema: toPayload(template).schema_json.fields,
+    prompt_template: template.prompt_text,
+  };
+}
+
+/** GET /creator/creatives/{id} -> template để sửa. */
+export function fromCreative(creative) {
+  const config = creative.config ?? {};
+  const info = {
+    title: creative.title ?? '',
+    model_id: creative.model_id == null ? '' : String(creative.model_id),
+    price_per_image: creative.price_per_image == null ? '' : String(creative.price_per_image),
+    category_id: creative.category_id == null ? '' : String(creative.category_id),
+    description: creative.description ?? '',
+    video_url: creative.video_url ?? '',
+  };
+
+  const template = fromPayload({ schema_json: { name: creative.title, fields: config.input_schema ?? [] } });
+  return withRatioField({ ...template, ...info, prompt_text: config.prompt_template ?? '' });
 }

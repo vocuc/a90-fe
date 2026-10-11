@@ -1,25 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import Icon from '../components/common/Icon';
+import { ErrorState, Skeleton } from '../components/common/Feedback';
 import FormCanvas from '../components/template/FormCanvas';
 import CoverUpload from '../components/template/CoverUpload';
 import PromptEditor from '../components/template/PromptEditor';
 import DynamicForm, { initialValues, validateValues } from '../components/template/DynamicForm';
 import { PRESETS } from '../components/template/presets';
 import { Input } from '../components/template/inputs';
+import { useAiModels, useCreatorCreative, useCreatorProfile, useSaveTemplateCreative } from '../hooks/creatorQueries';
 import {
-  IMAGE_ROLES,
-  buildRequestPreview,
+  buildRequestJson,
   createField,
+  withRatioField,
+  fromCreative,
   fromPayload,
+  toCreativePayload,
   toPayload,
   validateTemplate,
 } from '../components/template/templateSchema';
 
 /*
- * /template-builder: Creator thiết kế Template đầu vào + Prompt Template cho một AI Creative.
- * Bản dùng thử chỉ có frontend: tự lưu nháp vào localStorage, chưa gọi backend.
+ * /seller/products/new (tạo) và /seller/products/:id/edit (sửa): Creator thiết kế form người mua + Prompt Template.
+ * Tạo mới tự lưu nháp vào localStorage tới khi tạo xong; sửa thì đọc/ghi thẳng Creative trên backend.
  */
 
 const STORAGE_KEY = 'ai90_template_builder_draft';
@@ -37,7 +41,7 @@ const loadCover = () => {
 const loadDraft = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? fromPayload(JSON.parse(raw)) : null;
+    return raw ? withRatioField(fromPayload(JSON.parse(raw))) : null;
   } catch {
     return null;
   }
@@ -82,16 +86,6 @@ function PresetDialog({ onPick, onClose, canClose }) {
   );
 }
 
-function FileThumb({ file }) {
-  const [url, setUrl] = useState(null);
-  useEffect(() => {
-    const u = URL.createObjectURL(file);
-    setUrl(u);
-    return () => URL.revokeObjectURL(u);
-  }, [file]);
-  return url ? <img src={url} alt={file.name} className="size-16 rounded-lg object-cover" /> : null;
-}
-
 function Panel({ title, subtitle, children, className = '' }) {
   return (
     <section className={`space-y-3 rounded-2xl border border-outline-variant/40 bg-surface-container-lowest p-4 ${className}`}>
@@ -119,14 +113,16 @@ function PreviewTab({ template }) {
     return base;
   }, [fields, values]);
   const errors = submitted ? validateValues(fields, formValues) : {};
-  const parts = buildRequestPreview(template, formValues);
+  const models = useAiModels(true);
+  const model = models.data?.find((m) => String(m.id) === String(template.model_id));
+  const request = buildRequestJson(template, formValues, model);
   const valid = Object.keys(validateValues(fields, formValues)).length === 0;
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Panel title="Form người mua" subtitle="Hiển thị đúng như trang Creative sau khi publish. Điền thử để kiểm tra.">
         <div className="rounded-xl bg-surface-container-low p-4">
-          <p className="mb-3 text-base font-bold text-on-surface">{template.name || 'Template chưa đặt tên'}</p>
+          {template.title?.trim() && <p className="mb-3 text-base font-bold text-on-surface">{template.title.trim()}</p>}
           <DynamicForm
             fields={fields}
             values={formValues}
@@ -143,7 +139,7 @@ function PreviewTab({ template }) {
           </button>
           {submitted && (
             <p className={`mt-2 text-center text-xs ${valid ? 'text-emerald-700' : 'text-error'}`}>
-              {valid ? 'Dữ liệu hợp lệ — xem yêu cầu sẽ gửi tới model ở bên cạnh.' : 'Form còn lỗi, backend sẽ từ chối trước khi gọi model.'}
+              {valid ? 'Dữ liệu hợp lệ — xem prompt hoàn chỉnh ở bên cạnh.' : 'Form còn lỗi, backend sẽ từ chối trước khi gọi model.'}
             </p>
           )}
         </div>
@@ -159,58 +155,46 @@ function PreviewTab({ template }) {
         </button>
       </Panel>
 
-      <Panel title="Yêu cầu gửi tới model" subtitle="Mô phỏng Prompt Engine: thay biến, rồi gắn ảnh theo vai trò. Không gọi Gemini thật.">
-        <ol className="space-y-2">
-          {parts.map((p, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="mt-0.5 shrink-0 rounded bg-surface-container px-1.5 py-0.5 font-mono text-[10px] font-bold text-on-surface-variant">
-                {p.kind === 'image' ? 'image' : 'text'}
-              </span>
-              {p.kind === 'image' ? (
-                <div className="flex items-center gap-2">
-                  <FileThumb file={p.file} />
-                  <span className="text-[11px] text-on-surface-variant">
-                    {p.file.name}
-                    <br />
-                    {IMAGE_ROLES[p.role]?.label ?? p.role} · {p.file.type}
-                  </span>
-                </div>
-              ) : (
-                <pre className="min-w-0 flex-1 whitespace-pre-wrap break-words rounded-lg bg-surface-container-low p-2 font-mono text-[11px] leading-relaxed text-on-surface">
-                  {p.text || <span className="text-outline">(trống)</span>}
-                </pre>
-              )}
-            </li>
-          ))}
-        </ol>
-        {parts.length === 1 && <p className="text-[11px] text-on-surface-variant">Tải ảnh ở form bên cạnh để thấy ảnh được gắn vào yêu cầu.</p>}
+      <Panel title="Prompt hoàn chỉnh" subtitle="JSON gửi tới model: thay biến vào prompt, mỗi ảnh một khoá. Không gọi Gemini thật.">
+        <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-inverse-surface p-3 font-mono text-[11px] leading-relaxed text-inverse-on-surface">
+          {JSON.stringify(request, null, 4)}
+        </pre>
+        <p className="text-[11px] text-on-surface-variant">
+          Ảnh chỉ có URL thật sau khi được tải lên lúc người mua tạo ảnh; bản thử ghi tên file thay cho URL.
+        </p>
       </Panel>
     </div>
   );
 }
 
-export default function TemplateBuilderPage() {
-  useSeo({ title: 'Thiết kế Template', noindex: true });
-  const [template, setTemplate] = useState(loadDraft);
+function Builder({ creative: loaded }) {
+  const navigate = useNavigate();
+  const isEdit = !!loaded;
+  // Tạo mới đã lưu Creative nhưng ảnh đại diện lỗi -> các lần lưu sau là sửa Creative vừa tạo
+  const [savedCreative, setSavedCreative] = useState(null);
+  const creative = savedCreative ?? loaded;
+  const [template, setTemplate] = useState(() => (loaded ? fromCreative(loaded) : loadDraft()));
   const [picking, setPicking] = useState(() => !template);
   const [tab, setTab] = useState('fields');
   const [selectedId, setSelectedId] = useState(() => template?.fields[0]?._id ?? null);
   const [savedAt, setSavedAt] = useState(null);
-  const [cover, setCover] = useState(loadCover);
+  const [cover, setCover] = useState(() => (loaded ? (loaded.images?.[0]?.url ?? null) : loadCover()));
   const [coverSaved, setCoverSaved] = useState(true);
+  const saveCreative = useSaveTemplateCreative();
 
-  // Tự lưu nháp
+  // Tạo mới: tự lưu nháp trên trình duyệt
   useEffect(() => {
-    if (!template) return;
+    if (!template || isEdit) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toPayload(template)));
       setSavedAt(new Date());
     } catch {
       setSavedAt(null);
     }
-  }, [template]);
+  }, [template, isEdit]);
 
   useEffect(() => {
+    if (isEdit) return;
     try {
       if (cover) localStorage.setItem(COVER_KEY, cover);
       else localStorage.removeItem(COVER_KEY);
@@ -218,31 +202,49 @@ export default function TemplateBuilderPage() {
     } catch {
       setCoverSaved(false);
     }
-  }, [cover]);
+  }, [cover, isEdit]);
 
   const { errors, issues } = useMemo(() => (template ? validateTemplate(template) : { errors: {}, issues: [] }), [template]);
   const errorIssues = issues.filter((i) => i.level === 'error');
   const errorCount = errorIssues.length;
 
-  // Nút Tạo sản phẩm: còn lỗi thì liệt kê lỗi dưới nút; hợp lệ thì ghi nháp ngay. Chưa có API lưu Template ở backend.
-  const [saveState, setSaveState] = useState(null);
-  // Đang hiện danh sách lỗi thì giữ để danh sách tự cập nhật khi sửa
-  useEffect(() => setSaveState((s) => (s === 'invalid' ? s : null)), [template]);
+  // Nút Tạo sản phẩm: còn lỗi thì liệt kê lỗi dưới nút; hợp lệ thì lưu lên backend
+  const [showErrors, setShowErrors] = useState(false);
+  // Lỗi backend trả về (422) hoặc lỗi tải ảnh đại diện
+  const [serverErrors, setServerErrors] = useState([]);
+  useEffect(() => setServerErrors([]), [template, cover]);
   const save = () => {
     if (errorCount) {
-      setSaveState('invalid');
+      setShowErrors(true);
       return;
     }
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(toPayload(template)));
-      setSavedAt(new Date());
-      setSaveState('saved');
-    } catch {
-      setSaveState('failed');
-    }
+    setServerErrors([]);
+    saveCreative.mutate(
+      { creative, payload: toCreativePayload(template), cover },
+      {
+        onSuccess: ({ creative: saved, coverError }) => {
+          if (coverError) {
+            setSavedCreative(saved);
+            setServerErrors([`Đã lưu sản phẩm nhưng chưa tải được ảnh đại diện: ${coverError} Bấm lưu lại để thử lại.`]);
+            return;
+          }
+          if (!isEdit) {
+            try {
+              localStorage.removeItem(STORAGE_KEY);
+              localStorage.removeItem(COVER_KEY);
+            } catch {
+              // Không xoá được nháp cũng không sao
+            }
+          }
+          navigate('/seller/products', { replace: true });
+        },
+        onError: (err) => setServerErrors(err.errors ? [...new Set(Object.values(err.errors))] : [err.message]),
+      },
+    );
   };
 
-  const start = (next) => {
+  const start = (picked) => {
+    const next = withRatioField(picked);
     setTemplate(next);
     setSelectedId(next.fields[0]?._id ?? null);
     setPicking(false);
@@ -287,6 +289,7 @@ export default function TemplateBuilderPage() {
   const removeField = (id) => {
     const index = template.fields.findIndex((f) => f._id === id);
     const removed = template.fields[index];
+    if (!removed || removed.type === 'aspect_ratio') return;
     const next = template.fields.filter((f) => f._id !== id).map((f) =>
       f.visibility_rule?.field === removed.key ? { ...f, visibility_rule: null } : f,
     );
@@ -312,41 +315,35 @@ export default function TemplateBuilderPage() {
     <div className="min-h-screen bg-surface-container-low">
       <header className="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface-container-lowest/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2">
-          <Link to="/" aria-label="Về trang chủ" className="flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-surface-container">
+          <Link
+            to="/seller/products"
+            aria-label="Về danh sách sản phẩm"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-surface-container"
+          >
             <Icon name="arrow_back" />
           </Link>
           <div className="min-w-0 flex-1">
-            <input
-              value={template.name}
-              onChange={(e) => set({ name: e.target.value })}
-              placeholder="Tên Template, ví dụ: Ảnh sản phẩm giày"
-              aria-label="Tên Template"
-              maxLength={150}
-              className={`w-full rounded-lg border bg-transparent px-2 py-1 text-sm font-bold text-on-surface placeholder:font-normal placeholder:text-outline focus:outline-none focus:ring-2 ${
-                errors.name ? 'border-error focus:ring-error/20' : 'border-transparent hover:border-outline-variant/50 focus:border-primary-container focus:ring-primary-container/20'
-              }`}
-            />
+            <p className="truncate px-2 text-sm font-bold text-on-surface">{template.title?.trim() || 'Tạo và chỉnh sửa Creative'}</p>
             <p className="px-2 text-[10px] text-outline">
-              Bản dùng thử · {savedAt ? `Đã lưu nháp trên trình duyệt lúc ${savedAt.toLocaleTimeString('vi-VN')}` : 'Chưa lưu được nháp'}
+              {isEdit
+                ? creative.status === 'published'
+                  ? 'Sản phẩm đang bán: thay đổi có hiệu lực ngay khi lưu'
+                  : 'Sửa sản phẩm · đăng bán ở trang Quản lý sản phẩm'
+                : savedAt
+                  ? `Đã lưu nháp trên trình duyệt lúc ${savedAt.toLocaleTimeString('vi-VN')}`
+                  : 'Chưa lưu được nháp'}
             </p>
           </div>
-          <span
-            className={`flex h-9 shrink-0 items-center gap-1 rounded-lg px-2.5 text-xs font-bold ${
-              errorCount ? 'bg-error-container/60 text-on-error-container' : 'bg-emerald-50 text-emerald-800'
-            }`}
-          >
-            <Icon name={errorCount ? 'error' : 'check_circle'} className="text-base" />
-            <span className="hidden sm:inline">{errorCount ? `${errorCount} lỗi` : 'Hợp lệ'}</span>
-            <span className="sm:hidden">{errorCount || '✓'}</span>
-          </span>
-          <button
-            type="button"
-            onClick={() => setPicking(true)}
-            className="flex h-9 shrink-0 items-center gap-1 rounded-lg border border-outline-variant/50 px-2.5 text-xs font-semibold text-on-surface hover:border-primary-container hover:text-primary"
-          >
-            <Icon name="note_add" className="text-base" />
-            <span className="hidden sm:inline">Mẫu mới</span>
-          </button>
+          {!isEdit && (
+            <button
+              type="button"
+              onClick={() => setPicking(true)}
+              className="flex h-9 shrink-0 items-center gap-1 rounded-lg border border-outline-variant/50 px-2.5 text-xs font-semibold text-on-surface hover:border-primary-container hover:text-primary"
+            >
+              <Icon name="note_add" className="text-base" />
+              <span className="hidden sm:inline">Mẫu mới</span>
+            </button>
+          )}
         </div>
         <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-3" role="tablist">
           {TABS.map((t) => (
@@ -413,19 +410,28 @@ export default function TemplateBuilderPage() {
               <button
                 type="button"
                 onClick={save}
-                className="mt-3 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:opacity-90"
+                disabled={saveCreative.isPending}
+                className="mt-3 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:opacity-90 disabled:opacity-60"
               >
-                <Icon name="add_circle" className="text-lg" />
-                Tạo sản phẩm
+                <Icon name={creative ? 'save' : 'add_circle'} className="text-lg" />
+                {saveCreative.isPending ? 'Đang lưu...' : creative ? 'Lưu thay đổi' : 'Tạo sản phẩm'}
               </button>
-              {saveState === 'saved' && (
-                <p className="mt-2 flex items-center justify-center gap-1 text-xs font-semibold text-emerald-700">
-                  <Icon name="check_circle" className="text-base" />
-                  Đã lưu
+              {!isEdit && !savedCreative && (
+                <p className="mt-2 text-center text-[11px] text-on-surface-variant">
+                  Sản phẩm được lưu dạng nháp. Đăng bán ở trang Quản lý sản phẩm.
                 </p>
               )}
-              {saveState === 'failed' && <p className="mt-2 text-center text-xs text-error">Không lưu được trên trình duyệt.</p>}
-              {saveState === 'invalid' && errorCount > 0 && (
+              {serverErrors.length > 0 && (
+                <ul className="mt-2 space-y-1.5">
+                  {serverErrors.map((message) => (
+                    <li key={message} className="flex items-start gap-2 rounded-lg bg-error-container/50 px-3 py-2 text-xs text-on-error-container">
+                      <Icon name="error" className="text-base" />
+                      <span className="flex-1">{message}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {showErrors && errorCount > 0 && (
                 <ul className="mt-2 space-y-1.5">
                   {errorIssues.map((issue, i) => (
                     <li key={i}>
@@ -449,4 +455,42 @@ export default function TemplateBuilderPage() {
       </main>
     </div>
   );
+}
+
+/** Tải hồ sơ cửa hàng, danh sách model và Creative (khi sửa) trước khi mở builder. */
+export default function TemplateBuilderPage() {
+  const { id } = useParams();
+  const isEdit = id != null;
+  useSeo({ title: isEdit ? 'Sửa sản phẩm' : 'Tạo sản phẩm', noindex: true });
+  const { hasProfile, meLoaded } = useCreatorProfile();
+  const creative = useCreatorCreative(id, hasProfile && isEdit);
+
+  const loading = !meLoaded || (hasProfile && isEdit && creative.isLoading);
+
+  if (loading || !hasProfile || (isEdit && creative.error)) {
+    return (
+      <div className="min-h-screen bg-surface-container-low p-4">
+        <div className="mx-auto max-w-3xl">
+          {loading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-96 w-full" />
+            </div>
+          ) : !hasProfile ? (
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
+              <Icon name="storefront" className="text-4xl text-outline" />
+              <p className="text-sm text-on-surface-variant">Bạn cần tạo cửa hàng trước khi {isEdit ? 'quản lý' : 'tạo'} sản phẩm.</p>
+              <Link to="/seller/settings" className="text-sm font-bold text-primary hover:underline">
+                Tạo cửa hàng
+              </Link>
+            </div>
+          ) : (
+            <ErrorState error={creative.error} onRetry={creative.refetch} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return <Builder key={id ?? 'new'} creative={isEdit ? creative.data : null} />;
 }
