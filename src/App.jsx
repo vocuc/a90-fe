@@ -18,6 +18,7 @@ import ToolsPage from './pages/ToolsPage';
 import ToolDetailPage from './pages/ToolDetailPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
+import TemplateBuilderPage from './pages/TemplateBuilderPage';
 
 export default function App() {
   return (
@@ -56,6 +57,8 @@ export default function App() {
         <Route path="privacy" element={<PrivacyPolicyPage />} />
         <Route path="terms" element={<TermsOfServicePage />} />
       </Route>
+      {/* Bản dùng thử Template Builder: toàn màn hình, chưa nối backend */}
+      <Route path="template-builder" element={<TemplateBuilderPage />} />
     </Routes>
   );
 }
