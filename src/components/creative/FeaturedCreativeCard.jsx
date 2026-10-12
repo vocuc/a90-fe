@@ -18,7 +18,7 @@ export default function FeaturedCreativeCard({ creative }) {
         </div>
       </Link>
       <div className="flex flex-1 flex-col p-2.5">
-        <h3 className="mb-1.5 line-clamp-2 text-xs font-bold text-on-surface">
+        <h3 className="mb-1.5 truncate text-xs font-bold text-on-surface" title={title}>
           <Link to={`/creatives/${id}`}>{title}</Link>
         </h3>
         {author && (
