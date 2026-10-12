@@ -52,7 +52,7 @@ export default function AccountPage() {
         <h1 className="flex-1 text-base font-bold text-on-surface">Tài khoản</h1>
         <Link
           to="/account/topup"
-          className="flex h-8 items-center gap-1 rounded-full bg-primary px-2.5 text-xs font-bold text-on-primary transition-opacity hover:opacity-90"
+          className="flex h-8 items-center gap-1 rounded-full bg-primary px-5 text-xs font-bold text-on-primary transition-opacity hover:opacity-90"
         >
           <Icon name="add_card" className="text-base" />
           Nạp ví
