@@ -152,6 +152,7 @@ export const categoryApi = {
  * POST /creator/creatives/{id}/images  multipart image (jpg/png/webp, <= 10MB, tối đa 10 ảnh) -> 201 { data: { id, url, sort_order } }
  * DELETE /creator/creatives/{id}/images/{imageId}  (Creative đang bán phải còn ít nhất 1 ảnh -> 409 INVALID_STATE)
  * POST /creator/creatives/{id}/publish  (chỉ draft|paused) -> { data: creative }
+ * POST /creator/creatives/{id}/pause    (chỉ published) -> { data: creative } (trạng thái paused)
  *
  * GET /creator/wallet  -> { data: { pending_balance, available_balance, withdrawable_balance, total_earned } }
  *   ví hoa hồng; doanh thu nằm ở pending trong thời gian giữ rồi mới chuyển sang available
@@ -198,6 +199,9 @@ export const creatorApi = {
   ),
   publishCreative: requireRealBackend((id) =>
     client.post(`/creator/creatives/${id}/publish`).then(({ data }) => data),
+  ),
+  pauseCreative: requireRealBackend((id) =>
+    client.post(`/creator/creatives/${id}/pause`).then(({ data }) => data),
   ),
   getWallet: requireRealBackend(() => client.get('/creator/wallet').then(({ data }) => data)),
 };

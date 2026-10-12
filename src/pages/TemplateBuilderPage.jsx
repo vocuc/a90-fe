@@ -9,7 +9,14 @@ import PromptEditor from '../components/template/PromptEditor';
 import DynamicForm, { initialValues, validateValues } from '../components/template/DynamicForm';
 import { PRESETS } from '../components/template/presets';
 import { Input } from '../components/template/inputs';
-import { useAiModels, useCreatorCreative, useCreatorProfile, useSaveTemplateCreative } from '../hooks/creatorQueries';
+import { PUBLISHABLE, STATUS_BADGE } from '../components/creative/creativeStatus';
+import {
+  useAiModels,
+  useCreatorCreative,
+  useCreatorProfile,
+  usePublishCreative,
+  useSaveTemplateCreative,
+} from '../hooks/creatorQueries';
 import {
   buildRequestJson,
   createField,
@@ -168,6 +175,31 @@ function PreviewTab({ template }) {
   );
 }
 
+/** Badge trạng thái + nút Đăng bán (tạm dừng ở trang Quản lý sản phẩm); đăng bán dùng nội dung đã lưu trên backend. */
+function StatusControl({ id, status, publish, onChange }) {
+  const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
+
+  return (
+    <div className="flex shrink-0 items-center gap-1.5">
+      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge.cls}`}>{badge.label}</span>
+      {PUBLISHABLE.includes(status) && (
+        <button
+          type="button"
+          onClick={() => publish.mutate(id, { onSuccess: (saved) => onChange(saved.status) })}
+          disabled={publish.isPending}
+          className="flex h-9 items-center gap-1 rounded-lg bg-primary-container px-2.5 text-xs font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+        >
+          <Icon
+            name={publish.isPending ? 'progress_activity' : 'rocket_launch'}
+            className={`text-base ${publish.isPending ? 'animate-spin' : ''}`}
+          />
+          <span className="hidden sm:inline">{status === 'paused' ? 'Đăng bán lại' : 'Đăng bán'}</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 function Builder({ creative: loaded }) {
   const navigate = useNavigate();
   const isEdit = !!loaded;
@@ -183,6 +215,10 @@ function Builder({ creative: loaded }) {
   const [cover, setCover] = useState(() => (loaded ? (loaded.images?.[0]?.url ?? null) : loadCover()));
   const [coverSaved, setCoverSaved] = useState(true);
   const saveCreative = useSaveTemplateCreative();
+  const publish = usePublishCreative();
+  // Trạng thái hiện tại: lấy từ kết quả đăng bán gần nhất, không chờ tải lại Creative
+  const [status, setStatus] = useState(loaded?.status ?? null);
+  const statusError = publish.error;
 
   // Tạo mới: tự lưu nháp trên trình duyệt
   useEffect(() => {
@@ -329,14 +365,15 @@ function Builder({ creative: loaded }) {
             <p className="truncate px-2 text-sm font-bold text-on-surface">{template.title?.trim() || 'Tạo và chỉnh sửa Creative'}</p>
             <p className="px-2 text-[10px] text-outline">
               {isEdit
-                ? creative.status === 'published'
+                ? status === 'published'
                   ? 'Sản phẩm đang bán: thay đổi có hiệu lực ngay khi lưu'
-                  : 'Sửa sản phẩm · đăng bán ở trang Quản lý sản phẩm'
+                  : 'Sửa sản phẩm · lưu thay đổi trước khi đăng bán'
                 : savedAt
                   ? `Đã lưu nháp trên trình duyệt lúc ${savedAt.toLocaleTimeString('vi-VN')}`
                   : 'Chưa lưu được nháp'}
             </p>
           </div>
+          {isEdit && <StatusControl id={creative.id} status={status} publish={publish} onChange={setStatus} />}
           {!isEdit && (
             <button
               type="button"
@@ -348,6 +385,23 @@ function Builder({ creative: loaded }) {
             </button>
           )}
         </div>
+        {statusError && (
+          <div role="alert" className="mx-auto max-w-7xl px-3 pb-2">
+            <div className="rounded-lg bg-error-container/60 px-3 py-2 text-xs text-on-error-container">
+              <p className="flex items-start gap-1.5 font-semibold">
+                <Icon name="error" className="text-base" />
+                <span className="flex-1">{statusError.message}</span>
+              </p>
+              {statusError.context?.reasons?.length > 0 && (
+                <ul className="mt-1 list-disc space-y-0.5 pl-6">
+                  {statusError.context.reasons.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
         <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-3" role="tablist">
           {TABS.map((t) => (
             <button

@@ -71,6 +71,7 @@ const useCreativeMutation = (mutationFn) => {
 };
 
 export const usePublishCreative = () => useCreativeMutation(creatorApi.publishCreative);
+export const usePauseCreative = () => useCreativeMutation(creatorApi.pauseCreative);
 
 /**
  * Tạo Creative rồi upload lần lượt ảnh mẫu.

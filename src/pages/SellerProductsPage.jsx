@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import Icon from '../components/common/Icon';
 import CoverImage from '../components/common/CoverImage';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
-import { useCreatorCreatives, useCreatorProfile, usePublishCreative } from '../hooks/creatorQueries';
+import { PAUSABLE, PUBLISHABLE, STATUS_BADGE } from '../components/creative/creativeStatus';
+import { useCreatorCreatives, useCreatorProfile, usePauseCreative, usePublishCreative } from '../hooks/creatorQueries';
 import useHorizontalScroll from '../hooks/useHorizontalScroll';
 import { formatCount, formatVnd } from '../utils/format';
 
@@ -16,12 +17,6 @@ const TABS = [
 ];
 const TAB_VALUES = TABS.map((t) => t.value);
 
-const STATUS_BADGE = {
-  published: { label: 'Đang bán', cls: 'bg-primary-container text-on-primary' },
-  draft: { label: 'Nháp', cls: 'bg-surface-container text-on-surface-variant' },
-  paused: { label: 'Tạm dừng', cls: 'bg-error-container text-on-error-container' },
-};
-
 const PAUSE_REASON = {
   manual: 'Bạn đã tạm dừng',
   no_valid_api_key: 'Không còn API key AI hoạt động',
@@ -29,14 +24,20 @@ const PAUSE_REASON = {
 
 const PAGE_SIZE = 20;
 
-// Chỉ đăng bán được Creative nháp hoặc tạm dừng (POST /creator/creatives/{id}/publish)
-const PUBLISHABLE = ['draft', 'paused'];
-
 function ProductCard({ creative }) {
   const publish = usePublishCreative();
+  const pause = usePauseCreative();
   const { id, title, cover_url, price_per_image, status, pause_reason, is_hidden, usage_count } = creative;
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
-  const reasons = publish.error?.context?.reasons;
+  const canPublish = PUBLISHABLE.includes(status);
+  // Mỗi trạng thái chỉ có một nút: đăng bán (nháp/tạm dừng) hoặc tạm dừng (đang bán)
+  const action = canPublish ? publish : pause;
+  const error = action.error;
+  const reasons = error?.context?.reasons;
+  const run = () => {
+    if (!canPublish && !window.confirm('Tạm dừng bán? Người mua sẽ không tạo ảnh được với Creative này tới khi đăng bán lại.')) return;
+    action.mutate(id);
+  };
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-xl border border-outline-variant/30 bg-surface-container-lowest">
@@ -68,25 +69,29 @@ function ProductCard({ creative }) {
         </div>
       </Link>
 
-      {PUBLISHABLE.includes(status) && (
+      {(canPublish || PAUSABLE.includes(status)) && (
         <div className="space-y-2 px-2.5 pb-2.5">
           <button
             type="button"
-            onClick={() => publish.mutate(id)}
-            disabled={publish.isPending}
-            className="flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+            onClick={run}
+            disabled={action.isPending}
+            className={`flex h-8 w-full items-center justify-center gap-1 rounded-lg px-3 text-xs font-bold disabled:opacity-50 ${
+              canPublish
+                ? 'bg-primary-container text-on-primary hover:bg-primary'
+                : 'border border-outline-variant/50 text-on-surface hover:border-error hover:text-error'
+            }`}
           >
             <Icon
-              name={publish.isPending ? 'progress_activity' : 'rocket_launch'}
-              className={`text-sm ${publish.isPending ? 'animate-spin' : ''}`}
+              name={action.isPending ? 'progress_activity' : canPublish ? 'rocket_launch' : 'pause_circle'}
+              className={`text-sm ${action.isPending ? 'animate-spin' : ''}`}
             />
-            {status === 'paused' ? 'Đăng bán lại' : 'Đăng bán'}
+            {!canPublish ? 'Tạm dừng' : status === 'paused' ? 'Đăng bán lại' : 'Đăng bán'}
           </button>
-          {publish.error && (
+          {error && (
             <div role="alert" className="rounded-lg bg-error-container/60 px-2.5 py-2 text-[11px] text-on-error-container">
               <p className="flex items-start gap-1 font-semibold">
                 <Icon name="error" className="text-sm" />
-                {publish.error.message}
+                {error.message}
               </p>
               {reasons?.length > 0 && (
                 <ul className="mt-1 list-disc space-y-0.5 pl-4">
