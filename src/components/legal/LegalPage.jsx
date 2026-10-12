@@ -98,6 +98,10 @@ export default function LegalPage({ title, icon, intro, effectiveDate, sections 
             Chính sách quyền riêng tư
           </Link>
           <span aria-hidden="true">·</span>
+          <Link to="/support" className="hover:text-primary">
+            Hỗ trợ
+          </Link>
+          <span aria-hidden="true">·</span>
           <Link to="/" className="hover:text-primary">
             © {new Date().getFullYear()} {SITE_NAME}
           </Link>

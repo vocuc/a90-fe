@@ -18,6 +18,8 @@ import ToolDetailPage from './pages/ToolDetailPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import TemplateBuilderPage from './pages/TemplateBuilderPage';
+import SupportPage from './pages/SupportPage';
+import TopUpPage from './pages/TopUpPage';
 
 export default function App() {
   return (
@@ -42,10 +44,7 @@ export default function App() {
           <Route path="store/*" element={<Navigate to="/account" replace />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="account/history" element={<PurchaseHistoryPage />} />
-          <Route
-            path="account/topup"
-            element={<PlaceholderPage title="Hướng dẫn nạp tiền" icon="account_balance_wallet" backTo="/account" />}
-          />
+          <Route path="account/topup" element={<TopUpPage />} />
           {/* Trang Cá nhân cũ đã đổi thành Tài khoản */}
           <Route path="profile" element={<Navigate to="/account" replace />} />
         </Route>
@@ -57,6 +56,7 @@ export default function App() {
         <Route path="creatives/:slug" element={<CreativeDetailPage />} />
         <Route path="privacy" element={<PrivacyPolicyPage />} />
         <Route path="terms" element={<TermsOfServicePage />} />
+        <Route path="support" element={<SupportPage />} />
       </Route>
       {/* Tạo/sửa sản phẩm bằng Template Builder: toàn màn hình, ngoài AppLayout */}
       <Route element={<RequireAuth />}>
