@@ -5,6 +5,7 @@ import { useMe } from './queries';
 export const CREATOR_KEYS = {
   profile: ['creator', 'profile'],
   creatives: ['creator', 'creatives'],
+  wallet: ['creator', 'wallet'],
 };
 
 // GET /creator/profile trả 403 khi chưa có hồ sơ -> chỉ gọi khi /auth/me báo đã có
@@ -29,6 +30,12 @@ const useProfileMutation = (mutationFn) => {
       queryClient.invalidateQueries({ queryKey: ['me'] });
     },
   });
+};
+
+// Ví hoa hồng: /creator/* cần hồ sơ người bán
+export const useCreatorWallet = () => {
+  const { data: me } = useMe();
+  return useQuery({ queryKey: CREATOR_KEYS.wallet, queryFn: creatorApi.getWallet, enabled: !!me?.creatorProfile });
 };
 
 export const useCreateProfile = () => useProfileMutation(creatorApi.createProfile);

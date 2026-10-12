@@ -6,6 +6,7 @@ import Icon from '../components/common/Icon';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { useAuth } from '../context/AuthContext';
 import { useMe } from '../hooks/queries';
+import { useCreatorWallet } from '../hooks/creatorQueries';
 import { formatVnd } from '../utils/format';
 
 // Khớp UserRole của backend
@@ -27,6 +28,7 @@ export default function AccountPage() {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { data: me, isLoading, error, refetch } = useMe();
+  const { data: wallet, isLoading: walletLoading } = useCreatorWallet();
   const [loggingOut, setLoggingOut] = useState(false);
 
   // Backend chỉ cho quản lý sản phẩm khi đã có profile người bán (middleware "creator")
@@ -89,6 +91,11 @@ export default function AccountPage() {
               <InfoRow icon="account_balance_wallet" label="Số dư">
                 {isLoading ? <Skeleton className="h-4 w-20" /> : <span className="text-primary">{formatVnd(me.credits)}</span>}
               </InfoRow>
+              {me?.creatorProfile && (
+                <InfoRow icon="savings" label="Hoa hồng khả dụng">
+                  {walletLoading ? <Skeleton className="h-4 w-20" /> : <span className="text-primary">{formatVnd(wallet?.available_balance)}</span>}
+                </InfoRow>
+              )}
               <InfoRow icon="badge" label="Vai trò">
                 {isLoading ? <Skeleton className="h-4 w-20" /> : (ROLE_LABEL[me.role] ?? me.role)}
               </InfoRow>
@@ -99,6 +106,11 @@ export default function AccountPage() {
                   (me.creatorProfile?.shop_name ?? 'Chưa tạo')
                 )}
               </InfoRow>
+              {me?.creatorProfile && (
+                <InfoRow icon="hourglass_top" label="Hoa hồng đang tạm giữ">
+                  {walletLoading ? <Skeleton className="h-4 w-20" /> : formatVnd(wallet?.pending_balance)}
+                </InfoRow>
+              )}
             </section>
           </>
         )}
