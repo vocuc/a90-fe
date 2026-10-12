@@ -23,6 +23,12 @@ export const toKey = (v) =>
     .replace(/^_+|_+$/g, '')
     .slice(0, 50);
 
+// Đang gõ tay ô Tên trường: giữ dấu _ (hoặc cách, -) vừa gõ ở cuối để gõ tiếp được anh_san_pham
+const typedKey = (v) => {
+  const key = toKey(v);
+  return key && /[\s_-]$/.test(v) ? `${key}_`.slice(0, 50) : key;
+};
+
 function Palette({ onAdd, disabled, fields }) {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -242,7 +248,7 @@ function FieldCard({ field, index, total, errors, selected, onSelect, onChange, 
             <label className="mb-1 block text-xs font-semibold text-on-surface">Tên trường</label>
             <input
               value={field.key}
-              onChange={(e) => onChange({ ...field, key: toKey(e.target.value), _autoKey: false })}
+              onChange={(e) => onChange({ ...field, key: typedKey(e.target.value), _autoKey: false })}
               readOnly={fixedKey}
               title={fixedKey ? 'Tên trường tỉ lệ khung hình cố định, không sửa được' : undefined}
               placeholder="vi_du_product_image"

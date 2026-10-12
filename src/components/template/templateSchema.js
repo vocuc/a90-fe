@@ -215,15 +215,15 @@ const displayValue = (field, value) => {
   return value == null ? '' : String(value);
 };
 
-// product_image -> productImage
-const camelKey = (key) => key.replace(/[_.]([a-z0-9])/g, (_, c) => c.toUpperCase());
+// Giữ nguyên tên trường Creator đặt; ô ảnh trong bộ ảnh: field.slot -> field_slot
+const requestKey = (key) => key.replace(/\./g, '_');
 
 // Mặc định 1:1 như trang tạo sản phẩm; model không hỗ trợ 1:1 thì lấy tỉ lệ đầu tiên
 export const pickDefaultRatio = (ratios = []) => (ratios.includes('1:1') ? '1:1' : (ratios[0] ?? null));
 
 /**
  * Mô phỏng Prompt Engine (§7): JSON gửi tới model.
- * Mỗi trường ảnh thành một khoá camelCase (nhiều ảnh -> mảng), {{key}} trong prompt thay bằng giá trị người mua nhập.
+ * Mỗi trường ảnh thành một khoá đúng tên trường (nhiều ảnh -> mảng), {{key}} trong prompt thay bằng giá trị người mua nhập.
  * Ảnh trong bản thử chưa tải lên S3 nên chỉ ghi tên file thay cho URL.
  * values: { [key]: value }, ảnh: { [key]: File[] } (image_set: { [slotKey]: File[] }). model: phần tử của /ai-models.
  */
@@ -235,7 +235,7 @@ export function buildRequestJson(template, values, model) {
     const [fieldKey, slotKey] = a.key.split('.');
     const raw = values[fieldKey];
     const urls = ((slotKey ? raw?.[slotKey] : raw) ?? []).map((file) => `(URL sau khi tải lên: ${file.name})`);
-    out[camelKey(a.key)] = a.field.type === 'image_list' ? urls : (urls[0] ?? null);
+    out[requestKey(a.key)] = a.field.type === 'image_list' ? urls : (urls[0] ?? null);
   });
   const text = (prompt_text ?? '').replace(VARIABLE_PATTERN, (_, key) => {
     const field = byKey[key];
