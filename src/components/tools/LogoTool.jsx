@@ -396,248 +396,253 @@ export default function LogoTool() {
   const ratioName = ratio.key === 'custom' ? `${rw}:${rh}` : ratio.key === 'orig' ? 'Gốc' : ratio.key;
 
   return (
-    <div className="space-y-5 p-4">
-      <div>
-        <SectionLabel>Tỷ lệ khung hình</SectionLabel>
-        <div className="flex flex-wrap gap-1.5">
-          <Chip active={ratio.key === 'orig'} onClick={() => setRatio(ORIGINAL)}>
-            Gốc
-          </Chip>
-          {PRESETS.map((p) => (
-            <Chip key={p.key} active={ratio.key === p.key} onClick={() => setRatio(p)}>
-              {p.key}
+    <div className="space-y-5 p-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0">
+      {/* Trái: tỷ lệ khung hình và khung xem; phải: logo, chữ chìm, xuất ảnh (màn nhỏ xếp dọc) */}
+      <div className="space-y-5">
+        <div>
+          <SectionLabel>Tỷ lệ khung hình</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            <Chip active={ratio.key === 'orig'} onClick={() => setRatio(ORIGINAL)}>
+              Gốc
             </Chip>
-          ))}
-        </div>
-        <div className="mt-3 flex items-center gap-2 text-xs text-on-surface-variant">
-          <span>Tuỳ chỉnh</span>
-          <input
-            type="number"
-            min="1"
-            max="100"
-            value={custom.w}
-            onChange={(e) => setCustom((c) => ({ ...c, w: e.target.value }))}
-            aria-label="Rộng"
-            className={`${inputClass} w-16`}
-          />
-          :
-          <input
-            type="number"
-            min="1"
-            max="100"
-            value={custom.h}
-            onChange={(e) => setCustom((c) => ({ ...c, h: e.target.value }))}
-            aria-label="Cao"
-            className={`${inputClass} w-16`}
-          />
-          <Chip
-            active={ratio.key === 'custom'}
-            onClick={() => {
-              const w = parseFloat(custom.w);
-              const h = parseFloat(custom.h);
-              if (w > 0 && h > 0) setRatio({ key: 'custom', w, h });
-            }}
-          >
-            Áp dụng
-          </Chip>
-        </div>
-      </div>
-
-      <div>
-        <div
-          ref={viewRef}
-          tabIndex={0}
-          aria-label="Khung cắt ảnh"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          onKeyDown={onKeyDown}
-          className="relative mx-auto cursor-grab touch-none select-none overflow-hidden rounded-lg bg-inverse-surface outline-none focus-visible:ring-2 focus-visible:ring-primary-container active:cursor-grabbing"
-          style={{ aspectRatio: `${rw} / ${rh}`, width: `min(100%, ${Math.round((60 * rw) / rh)}vh)` }}
-        >
-          <img
-            src={photo.url}
-            alt=""
-            draggable={false}
-            className="pointer-events-none absolute left-0 top-0 max-w-none origin-top-left"
-            style={{ width: W, height: H, transform: `translate(${g.ox}px, ${g.oy}px) scale(${s})` }}
-          />
-          {/* Lưới 1/3 hỗ trợ căn bố cục */}
-          <div
-            className="pointer-events-none absolute inset-0 opacity-50"
-            style={{
-              background:
-                'linear-gradient(#fff,#fff) 33.33% 0/1px 100% no-repeat,linear-gradient(#fff,#fff) 66.66% 0/1px 100% no-repeat,linear-gradient(#fff,#fff) 0 33.33%/100% 1px no-repeat,linear-gradient(#fff,#fff) 0 66.66%/100% 1px no-repeat',
-            }}
-          />
-          <canvas ref={wmRef} className="pointer-events-none absolute inset-0 size-full" />
-          {logo && g.vw > 0 && (
-            <div
-              onPointerDown={onLogoDown}
-              onPointerMove={onLogoMove}
-              onPointerUp={onLogoUp}
-              onPointerCancel={onLogoUp}
-              className="absolute cursor-move touch-none overflow-hidden outline-dashed outline-1 outline-white/70"
-              style={{
-                width: logoW,
-                height: logoH,
-                left: logoPos.x * g.vw - logoW / 2,
-                top: logoPos.y * g.vh - logoH / 2,
-                borderRadius: (logoOpts.radius / 100) * Math.min(logoW, logoH),
-                opacity: logoOpts.opacity / 100,
-              }}
-            >
-              <img src={logo.url} alt="Logo" draggable={false} className="pointer-events-none block size-full" />
-            </div>
-          )}
-        </div>
-
-        <div className="mt-3 flex items-center gap-2">
-          <ZoomButton icon="remove" label="Thu nhỏ" onClick={() => zoomTo(g.z / 1.2)} />
-          <input
-            type="range"
-            min="1"
-            max={MAX_ZOOM}
-            step="0.01"
-            value={g.z}
-            onChange={(e) => zoomTo(parseFloat(e.target.value))}
-            aria-label="Zoom"
-            className="min-w-0 flex-1 accent-primary-container"
-          />
-          <ZoomButton icon="add" label="Phóng to" onClick={() => zoomTo(g.z * 1.2)} />
-          <ZoomButton icon="restart_alt" label="Đặt lại" onClick={() => measure(true)} />
-          <span className="w-11 text-right text-xs tabular-nums text-on-surface-variant">{Math.round(g.z * 100)}%</span>
-        </div>
-        <p className="mt-2 text-center text-xs text-on-surface-variant">
-          Ảnh gốc {W}×{H}px, vùng cắt {cropW}×{cropH}px, tỷ lệ {ratioName}
-        </p>
-        <button
-          type="button"
-          onClick={pickPhoto}
-          className="mx-auto mt-2 flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-        >
-          <Icon name="swap_horiz" className="text-base" />
-          Chọn ảnh khác
-        </button>
-      </div>
-
-      <section className="space-y-3 rounded-2xl border border-outline-variant/40 p-4">
-        <h2 className="text-sm font-bold text-on-surface">Logo</h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <Chip onClick={() => logoFileRef.current.click()}>{logo ? 'Đổi logo' : 'Tải logo lên'}</Chip>
-          {logo && <Chip onClick={() => setLogo(null)}>Xoá logo</Chip>}
-        </div>
-        {logo && <p className="text-xs text-on-surface-variant">Kéo logo trong khung để đổi vị trí.</p>}
-        <Slider
-          label="Bo góc"
-          min="0"
-          max="50"
-          step="1"
-          value={logoOpts.radius}
-          disabled={!logo}
-          onChange={(e) => setLogoOpts((o) => ({ ...o, radius: +e.target.value }))}
-          display={`${logoOpts.radius}%`}
-        />
-        <Slider
-          label="Độ mờ"
-          min="5"
-          max="100"
-          step="1"
-          value={logoOpts.opacity}
-          disabled={!logo}
-          onChange={(e) => setLogoOpts((o) => ({ ...o, opacity: +e.target.value }))}
-          display={`${logoOpts.opacity}%`}
-        />
-        <Slider
-          label="Kích thước"
-          min="5"
-          max="100"
-          step="1"
-          value={logoOpts.size}
-          disabled={!logo}
-          onChange={(e) => setLogoOpts((o) => ({ ...o, size: +e.target.value }))}
-          display={`${logoOpts.size}%`}
-        />
-      </section>
-
-      <section className="space-y-3 rounded-2xl border border-outline-variant/40 p-4">
-        <h2 className="text-sm font-bold text-on-surface">Chữ chìm chéo màn hình</h2>
-        <input
-          type="text"
-          maxLength={80}
-          value={wm.text}
-          onChange={(e) => setWm((w) => ({ ...w, text: e.target.value }))}
-          placeholder="Nhập chữ (để trống = tắt), ví dụ: © tenbanquyen.com"
-          autoComplete="off"
-          className={`${inputClass} w-full`}
-        />
-        <Slider
-          label="Cỡ chữ"
-          min="1"
-          max="15"
-          step="0.5"
-          value={wm.size}
-          onChange={(e) => setWm((w) => ({ ...w, size: +e.target.value }))}
-          display={`${wm.size}%`}
-        />
-        <Slider
-          label="Độ mờ"
-          min="5"
-          max="100"
-          step="1"
-          value={wm.opacity}
-          onChange={(e) => setWm((w) => ({ ...w, opacity: +e.target.value }))}
-          display={`${wm.opacity}%`}
-        />
-        <Slider
-          label="Cách lần lặp"
-          min="0"
-          max="50"
-          step="1"
-          value={wm.gapX}
-          onChange={(e) => setWm((w) => ({ ...w, gapX: +e.target.value }))}
-          display={`${wm.gapX}%`}
-        />
-        <Slider
-          label="Cách hàng"
-          min="0"
-          max="50"
-          step="1"
-          value={wm.gapY}
-          onChange={(e) => setWm((w) => ({ ...w, gapY: +e.target.value }))}
-          display={`${wm.gapY}%`}
-        />
-      </section>
-
-      <section className="space-y-3 rounded-2xl border border-outline-variant/40 p-4">
-        <h2 className="text-sm font-bold text-on-surface">Xuất ảnh</h2>
-        <div className="flex gap-3">
-          <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-on-surface-variant">
-            Chiều rộng (px)
+            {PRESETS.map((p) => (
+              <Chip key={p.key} active={ratio.key === p.key} onClick={() => setRatio(p)}>
+                {p.key}
+              </Chip>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-2 text-xs text-on-surface-variant">
+            <span>Tuỳ chỉnh</span>
             <input
               type="number"
-              min="16"
-              max="8000"
-              value={outWidth}
-              onChange={(e) => setOutWidth(e.target.value)}
-              placeholder={`Gốc (${cropW})`}
-              className={inputClass}
+              min="1"
+              max="100"
+              value={custom.w}
+              onChange={(e) => setCustom((c) => ({ ...c, w: e.target.value }))}
+              aria-label="Rộng"
+              className={`${inputClass} w-16`}
             />
-          </label>
-          <label className="flex w-24 flex-col gap-1 text-xs text-on-surface-variant">
-            Định dạng
-            <select value={format} onChange={(e) => setFormat(e.target.value)} className={inputClass}>
-              <option value="image/jpeg">JPG</option>
-              <option value="image/png">PNG</option>
-            </select>
-          </label>
+            :
+            <input
+              type="number"
+              min="1"
+              max="100"
+              value={custom.h}
+              onChange={(e) => setCustom((c) => ({ ...c, h: e.target.value }))}
+              aria-label="Cao"
+              className={`${inputClass} w-16`}
+            />
+            <Chip
+              active={ratio.key === 'custom'}
+              onClick={() => {
+                const w = parseFloat(custom.w);
+                const h = parseFloat(custom.h);
+                if (w > 0 && h > 0) setRatio({ key: 'custom', w, h });
+              }}
+            >
+              Áp dụng
+            </Chip>
+          </div>
         </div>
-        <PrimaryButton onClick={download}>
-          <Icon name="download" className="text-lg" />
-          Tải về
-        </PrimaryButton>
-      </section>
+
+        <div>
+          <div
+            ref={viewRef}
+            tabIndex={0}
+            aria-label="Khung cắt ảnh"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            onKeyDown={onKeyDown}
+            className="relative mx-auto cursor-grab touch-none select-none overflow-hidden rounded-lg bg-inverse-surface outline-none focus-visible:ring-2 focus-visible:ring-primary-container active:cursor-grabbing"
+            style={{ aspectRatio: `${rw} / ${rh}`, width: `min(100%, ${Math.round((60 * rw) / rh)}vh)` }}
+          >
+            <img
+              src={photo.url}
+              alt=""
+              draggable={false}
+              className="pointer-events-none absolute left-0 top-0 max-w-none origin-top-left"
+              style={{ width: W, height: H, transform: `translate(${g.ox}px, ${g.oy}px) scale(${s})` }}
+            />
+            {/* Lưới 1/3 hỗ trợ căn bố cục */}
+            <div
+              className="pointer-events-none absolute inset-0 opacity-50"
+              style={{
+                background:
+                  'linear-gradient(#fff,#fff) 33.33% 0/1px 100% no-repeat,linear-gradient(#fff,#fff) 66.66% 0/1px 100% no-repeat,linear-gradient(#fff,#fff) 0 33.33%/100% 1px no-repeat,linear-gradient(#fff,#fff) 0 66.66%/100% 1px no-repeat',
+              }}
+            />
+            <canvas ref={wmRef} className="pointer-events-none absolute inset-0 size-full" />
+            {logo && g.vw > 0 && (
+              <div
+                onPointerDown={onLogoDown}
+                onPointerMove={onLogoMove}
+                onPointerUp={onLogoUp}
+                onPointerCancel={onLogoUp}
+                className="absolute cursor-move touch-none overflow-hidden outline-dashed outline-1 outline-white/70"
+                style={{
+                  width: logoW,
+                  height: logoH,
+                  left: logoPos.x * g.vw - logoW / 2,
+                  top: logoPos.y * g.vh - logoH / 2,
+                  borderRadius: (logoOpts.radius / 100) * Math.min(logoW, logoH),
+                  opacity: logoOpts.opacity / 100,
+                }}
+              >
+                <img src={logo.url} alt="Logo" draggable={false} className="pointer-events-none block size-full" />
+              </div>
+            )}
+          </div>
+
+          <div className="mt-3 flex items-center gap-2">
+            <ZoomButton icon="remove" label="Thu nhỏ" onClick={() => zoomTo(g.z / 1.2)} />
+            <input
+              type="range"
+              min="1"
+              max={MAX_ZOOM}
+              step="0.01"
+              value={g.z}
+              onChange={(e) => zoomTo(parseFloat(e.target.value))}
+              aria-label="Zoom"
+              className="min-w-0 flex-1 accent-primary-container"
+            />
+            <ZoomButton icon="add" label="Phóng to" onClick={() => zoomTo(g.z * 1.2)} />
+            <ZoomButton icon="restart_alt" label="Đặt lại" onClick={() => measure(true)} />
+            <span className="w-11 text-right text-xs tabular-nums text-on-surface-variant">{Math.round(g.z * 100)}%</span>
+          </div>
+          <p className="mt-2 text-center text-xs text-on-surface-variant">
+            Ảnh gốc {W}×{H}px, vùng cắt {cropW}×{cropH}px, tỷ lệ {ratioName}
+          </p>
+          <button
+            type="button"
+            onClick={pickPhoto}
+            className="mx-auto mt-2 flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+          >
+            <Icon name="swap_horiz" className="text-base" />
+            Chọn ảnh khác
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-5">
+        <section className="space-y-3 rounded-2xl border border-outline-variant/40 p-4">
+          <h2 className="text-sm font-bold text-on-surface">Logo</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip onClick={() => logoFileRef.current.click()}>{logo ? 'Đổi logo' : 'Tải logo lên'}</Chip>
+            {logo && <Chip onClick={() => setLogo(null)}>Xoá logo</Chip>}
+          </div>
+          {logo && <p className="text-xs text-on-surface-variant">Kéo logo trong khung để đổi vị trí.</p>}
+          <Slider
+            label="Bo góc"
+            min="0"
+            max="50"
+            step="1"
+            value={logoOpts.radius}
+            disabled={!logo}
+            onChange={(e) => setLogoOpts((o) => ({ ...o, radius: +e.target.value }))}
+            display={`${logoOpts.radius}%`}
+          />
+          <Slider
+            label="Độ mờ"
+            min="5"
+            max="100"
+            step="1"
+            value={logoOpts.opacity}
+            disabled={!logo}
+            onChange={(e) => setLogoOpts((o) => ({ ...o, opacity: +e.target.value }))}
+            display={`${logoOpts.opacity}%`}
+          />
+          <Slider
+            label="Kích thước"
+            min="5"
+            max="100"
+            step="1"
+            value={logoOpts.size}
+            disabled={!logo}
+            onChange={(e) => setLogoOpts((o) => ({ ...o, size: +e.target.value }))}
+            display={`${logoOpts.size}%`}
+          />
+        </section>
+
+        <section className="space-y-3 rounded-2xl border border-outline-variant/40 p-4">
+          <h2 className="text-sm font-bold text-on-surface">Chữ chìm chéo màn hình</h2>
+          <input
+            type="text"
+            maxLength={80}
+            value={wm.text}
+            onChange={(e) => setWm((w) => ({ ...w, text: e.target.value }))}
+            placeholder="Nhập chữ (để trống = tắt), ví dụ: © tenbanquyen.com"
+            autoComplete="off"
+            className={`${inputClass} w-full`}
+          />
+          <Slider
+            label="Cỡ chữ"
+            min="1"
+            max="15"
+            step="0.5"
+            value={wm.size}
+            onChange={(e) => setWm((w) => ({ ...w, size: +e.target.value }))}
+            display={`${wm.size}%`}
+          />
+          <Slider
+            label="Độ mờ"
+            min="5"
+            max="100"
+            step="1"
+            value={wm.opacity}
+            onChange={(e) => setWm((w) => ({ ...w, opacity: +e.target.value }))}
+            display={`${wm.opacity}%`}
+          />
+          <Slider
+            label="Cách lần lặp"
+            min="0"
+            max="50"
+            step="1"
+            value={wm.gapX}
+            onChange={(e) => setWm((w) => ({ ...w, gapX: +e.target.value }))}
+            display={`${wm.gapX}%`}
+          />
+          <Slider
+            label="Cách hàng"
+            min="0"
+            max="50"
+            step="1"
+            value={wm.gapY}
+            onChange={(e) => setWm((w) => ({ ...w, gapY: +e.target.value }))}
+            display={`${wm.gapY}%`}
+          />
+        </section>
+
+        <section className="space-y-3 rounded-2xl border border-outline-variant/40 p-4">
+          <h2 className="text-sm font-bold text-on-surface">Xuất ảnh</h2>
+          <div className="flex gap-3">
+            <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-on-surface-variant">
+              Chiều rộng (px)
+              <input
+                type="number"
+                min="16"
+                max="8000"
+                value={outWidth}
+                onChange={(e) => setOutWidth(e.target.value)}
+                placeholder={`Gốc (${cropW})`}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex w-24 flex-col gap-1 text-xs text-on-surface-variant">
+              Định dạng
+              <select value={format} onChange={(e) => setFormat(e.target.value)} className={inputClass}>
+                <option value="image/jpeg">JPG</option>
+                <option value="image/png">PNG</option>
+              </select>
+            </label>
+          </div>
+          <PrimaryButton onClick={download}>
+            <Icon name="download" className="text-lg" />
+            Tải về
+          </PrimaryButton>
+        </section>
+      </div>
 
       {fileInputs}
     </div>
