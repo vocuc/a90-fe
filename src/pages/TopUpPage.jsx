@@ -86,35 +86,17 @@ export default function TopUpPage() {
 
         <Step number={1} title="Chuyển khoản vào tài khoản ngân hàng">
           <p className="text-sm text-on-surface-variant">
-            Quét mã QR bằng ứng dụng ngân hàng hoặc chuyển khoản theo thông tin bên dưới. Nhớ ghi đúng nội dung chuyển khoản để được cộng tiền nhanh.
+            Chuyển khoản theo thông tin bên dưới. Nhớ ghi đúng nội dung chuyển khoản để được cộng tiền nhanh.
           </p>
-          <div className="flex flex-col items-center gap-4 lg:flex-row lg:items-start">
-            {/* Ảnh gốc có nhiều nền thừa: chỉ hiện phần thẻ VietQR, bấm để xem ảnh đầy đủ */}
-            <a
-              href={BANK.qr}
-              target="_blank"
-              rel="noopener"
-              aria-label="Mở ảnh mã QR ngân hàng"
-              className="block w-60 shrink-0 overflow-hidden rounded-2xl border border-outline-variant/40"
-              style={{ aspectRatio: '460 / 620' }}
-            >
-              <img
-                src={BANK.qr}
-                alt={`Mã VietQR ${BANK.name} - ${BANK.accountName}`}
-                className="max-w-none"
-                style={{ width: '135%', marginLeft: '-17.4%', marginTop: '-44.6%' }}
-              />
-            </a>
-            <div className="w-full divide-y divide-surface-container overflow-hidden rounded-2xl border border-outline-variant/40">
-              <CopyRow label="Ngân hàng" value={BANK.name} />
-              <CopyRow label="Số tài khoản" value={BANK.accountNumber} />
-              <CopyRow label="Chủ tài khoản" value={BANK.accountName} />
-              <CopyRow label="Nội dung" value={transferNote} />
-            </div>
+          <div className="w-full divide-y divide-surface-container overflow-hidden rounded-2xl border border-outline-variant/40">
+            <CopyRow label="Ngân hàng" value={BANK.name} />
+            <CopyRow label="Số tài khoản" value={BANK.accountNumber} />
+            <CopyRow label="Chủ tài khoản" value={BANK.accountName} />
+            <CopyRow label="Nội dung" value={transferNote} />
           </div>
         </Step>
 
-        <Step number={2} title="Gửi bill chuyển khoản cho admin qua Zalo">
+        <Step number={2} title="Liên hệ admin để dùng thử miễn phí">
           <p className="text-sm text-on-surface-variant">
             Chụp màn hình giao dịch thành công và gửi cho admin qua Zalo kèm email tài khoản. Số dư sẽ được cộng sau khi admin xác nhận.
           </p>
