@@ -396,7 +396,7 @@ export default function LogoTool() {
   const ratioName = ratio.key === 'custom' ? `${rw}:${rh}` : ratio.key === 'orig' ? 'Gốc' : ratio.key;
 
   return (
-    <div className="space-y-5 p-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0">
+    <div className="space-y-5 p-4">
       {/* Trái: tỷ lệ khung hình và khung xem; phải: logo, chữ chìm, xuất ảnh (màn nhỏ xếp dọc) */}
       <div className="space-y-5">
         <div>

@@ -31,17 +31,23 @@ const cat = (slug) => {
   return { slug: c.slug, name: c.name };
 };
 
-const authors = {
+export const authors = {
   huy: {
+    username: 'huystudio',
     name: 'Huy Studio AI',
+    verified: true,
     avatarUrl: img('AB6AXuA_65ODRpU7kKnaUq6dqoAFxZlLvr0yRXCXuV0oGg79EXy1wiXp_oEtGNcfBr1Mh5NkozaDifKsoj0k6o5aSlW0AWCC_fPho8P_NkB0Vh3nRRjAAwcOJbygTwkF2XLiilwYUgZXb668Ex-D330zxiJW-3-lqmc_zaYlbHveyuTngpGIrGKZBk8XO-oSStHLBM932i5GzFQvGIRzyrfg_O1m2VhS4vz8JcWjpVf4SDk'),
   },
   linh: {
+    username: 'linhvisuals',
     name: 'Linh Visuals',
+    verified: true,
     avatarUrl: img('AB6AXuCS-vjYekiVY670CZEQWYScCwAma91aMT-3v45Fcwu9RAWhzrfQ71l-m394mP6bP4RiWWZYVf6P3uwwI6hPGS7Ewbc3zj-FD0HQEiRLdNQFDwPYnKadahRnU4v5jue2k8Antz1O0fjyGmMXpsQbTGzOtaw1IOehgrDDD_VcVaT3rUWzZKGnKWtMVloky7QDFtWkEkqkzldRnuD3u0dh5FVEwQmZZpiwBZGfmGdP8fQ'),
   },
   bao: {
+    username: 'baoprompter',
     name: 'Bảo Prompter',
+    verified: false,
     avatarUrl: img('AB6AXuBlLGYrrPPM1fReOYbPta8D64HlnM-hwSH4jKgxmpIhNBe3rXPuYGhHIXxj6kqgWmsGkNfZfekEGKCID-bN0Kay9S5Ume6yHcQ-twk0Mg23rHLDAzWuGjtyzuMY0o2fiJ1mPr_oCCiSId6Nv-vrqD4vSaNp6OoiQXVD0IavUBXmRuRm4YQjfWFePumQiDhv_pj7W-wbLjFydwHzvpMGkSnz-oF_xbJo7h2oYG7XyjQ'),
   },
 };
@@ -135,3 +141,35 @@ export const creatives = [
     author: authors.huy,
   },
 ];
+
+// Hồ sơ công khai của nhà sáng tạo (trang /creators/:username), theo username
+export const creatorProfiles = {
+  huystudio: {
+    description:
+      'Chuyên prompt ảnh sản phẩm phong cách studio: giày, đồ uống, phụ kiện.\nMỗi Creative đều được thử trên hàng trăm ảnh thật trước khi đăng bán.',
+    website: 'https://huystudio.vn',
+    socialLinks: { tiktok: 'https://tiktok.com/@huystudio', instagram: 'https://instagram.com/huystudio' },
+    followersCount: 1280,
+    ratingAvg: 4.9,
+    ratingCount: 214,
+    joinedAt: '2025-03-12',
+  },
+  linhvisuals: {
+    description: 'Ảnh mỹ phẩm, skincare tông sáng, trong trẻo. Nhận làm Creative theo yêu cầu cho shop.',
+    website: null,
+    socialLinks: { instagram: 'https://instagram.com/linhvisuals', youtube: 'https://youtube.com/@linhvisuals' },
+    followersCount: 860,
+    ratingAvg: 4.8,
+    ratingCount: 97,
+    joinedAt: '2025-06-01',
+  },
+  baoprompter: {
+    description: null,
+    website: null,
+    socialLinks: {},
+    followersCount: 42,
+    ratingAvg: null,
+    ratingCount: 0,
+    joinedAt: '2026-01-20',
+  },
+};

@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { bannerApi, categoryApi, creativeApi, notificationApi, userApi } from '../api/services';
+import { bannerApi, categoryApi, creativeApi, creatorPageApi, notificationApi, userApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 
 // Chỉ gọi các API cá nhân khi đã đăng nhập
@@ -45,3 +45,22 @@ export const useInfiniteCreatives = (params) =>
 
 export const useCreative = (id) =>
   useQuery({ queryKey: ['creative', id], queryFn: () => creativeApi.getById(id), enabled: !!id });
+
+// Trang công khai của nhà sáng tạo
+export const useCreatorPage = (username) =>
+  useQuery({
+    queryKey: ['creator-page', username],
+    queryFn: () => creatorPageApi.getByUsername(username),
+    enabled: !!username,
+  });
+
+/** Creative đang bán của một nhà sáng tạo, tải thêm theo trang (params không gồm page). */
+export const useInfiniteCreatorCreatives = (username, params) =>
+  useInfiniteQuery({
+    queryKey: ['creator-page', username, 'creatives', params],
+    queryFn: ({ pageParam }) => creatorPageApi.listCreatives(username, { ...params, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
+    enabled: !!username,
+    placeholderData: (prev) => prev,
+  });

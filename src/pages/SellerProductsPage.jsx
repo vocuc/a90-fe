@@ -193,7 +193,7 @@ export default function SellerProductsPage() {
         ) : error ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : isLoading ? (
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="aspect-[3/4]" />
             ))}
@@ -216,14 +216,14 @@ export default function SellerProductsPage() {
         ) : (
           <>
             <p className="mb-2 text-xs text-on-surface-variant">{data.pages[0].total} AI Creative</p>
-            {/* 2 sản phẩm mỗi hàng (4 trên máy tính), thẻ cùng hàng cao bằng nhau */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {/* 2 sản phẩm mỗi hàng, thẻ cùng hàng cao bằng nhau */}
+            <div className="grid grid-cols-2 gap-3">
               {items.map((c) => (
                 <ProductCard key={c.id} creative={c} />
               ))}
             </div>
             {isFetchingNextPage && (
-              <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <div className="mt-3 grid grid-cols-2 gap-3">
                 {Array.from({ length: 2 }).map((_, i) => (
                   <Skeleton key={i} className="aspect-[3/4]" />
                 ))}

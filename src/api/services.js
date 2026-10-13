@@ -223,6 +223,21 @@ export const creativeApi = {
 };
 
 /*
+ * ---- Trang nhà sáng tạo (công khai) ----
+ *
+ * Backend CHƯA có API, tạm luôn dùng dữ liệu giả lập. Đề xuất:
+ * GET /creators/{username}  -> { data: { username, shop_name, avatar_url, cover_url, description, website,
+ *                                        social_links, verified, followers_count, creative_count, usage_count,
+ *                                        rating_avg, rating_count, created_at } }  (không có / chưa duyệt -> 404)
+ * GET /creatives?creator={username}&sort=&page=&per_page=  (như GET /creatives, chỉ Creative đang bán của người đó)
+ */
+export const creatorPageApi = {
+  getByUsername: (username) => mock.getCreatorByUsername(username),
+  // params: { sort, page, limit }
+  listCreatives: (username, params) => mock.getCreatorCreatives(username, params),
+};
+
+/*
  * ---- Tạo ảnh (cần đăng nhập) ----
  *
  * POST /generations  multipart { creative_id, quantity (1..max_outputs), idempotency_key,

@@ -135,7 +135,7 @@ export default function SupportPage() {
         </section>
 
         {!query && (
-          <nav aria-label="Chủ đề" className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <nav aria-label="Chủ đề" className="grid grid-cols-2 gap-3">
             {TOPICS.map(({ id, icon, title }) => (
               <a
                 key={id}

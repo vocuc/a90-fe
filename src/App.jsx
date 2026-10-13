@@ -4,6 +4,7 @@ import RequireAuth from './components/auth/RequireAuth';
 import HomePage from './pages/HomePage';
 import CategoriesPage from './pages/CategoriesPage';
 import ExplorePage from './pages/ExplorePage';
+import CreatorPage from './pages/CreatorPage';
 import CreativeDetailPage from './pages/CreativeDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -33,6 +34,7 @@ export default function App() {
         {/* Tab "Bộ sưu tập" cũ đã đổi thành Danh mục */}
         <Route path="collection" element={<Navigate to="/categories" replace />} />
         <Route path="explore" element={<ExplorePage />} />
+        <Route path="creators/:username" element={<CreatorPage />} />
         <Route element={<RequireAuth />}>
           <Route path="create" element={<CreatePage />} />
           {/* Tab Người bán đã gộp vào trang Tài khoản */}

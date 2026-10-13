@@ -127,16 +127,20 @@ export default function CreativeDetailPage() {
             </div>
 
             {c.author && (
-              <div className="flex items-center gap-2 rounded-xl bg-surface-container-low p-3">
+              <Link
+                to={`/creators/${encodeURIComponent(c.author.username)}`}
+                className="flex items-center gap-2 rounded-xl bg-surface-container-low p-3 transition-colors hover:bg-surface-container"
+              >
                 <Avatar src={c.author.avatarUrl} name={c.author.name} className="size-9" />
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-xs text-on-surface-variant">Nhà sáng tạo</p>
                   <p className="flex items-center gap-1 text-sm font-bold text-on-surface">
-                    {c.author.name}
+                    <span className="truncate">{c.author.name}</span>
                     {c.author.verified && <Icon name="verified" fill className="text-sm text-secondary" />}
                   </p>
                 </div>
-              </div>
+                <Icon name="chevron_right" className="text-outline" />
+              </Link>
             )}
 
             {c.description && (
@@ -144,7 +148,7 @@ export default function CreativeDetailPage() {
             )}
           </div>
 
-          <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md lg:max-w-4xl border-t border-surface-container bg-surface-container-lowest p-4">
+          <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-[640px] border-t border-surface-container bg-surface-container-lowest p-4">
             {notEnoughCredits && (
               <p className="mb-2 text-center text-xs text-error">
                 Bạn cần {formatVnd(c.price)} cho mỗi ảnh, số dư hiện còn {formatVnd(me.credits)}.

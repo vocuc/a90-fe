@@ -133,7 +133,7 @@ export default function ExplorePage() {
         {error ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : isLoading ? (
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="aspect-[3/4]" />
             ))}
@@ -143,13 +143,13 @@ export default function ExplorePage() {
         ) : (
           <>
             <p className="mb-2 text-xs text-on-surface-variant">{data.pages[0].total} kết quả</p>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3">
               {items.map((c) => (
                 <CompactCreativeCard key={c.id} creative={c} naturalCover />
               ))}
             </div>
             {isFetchingNextPage && (
-              <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <div className="mt-3 grid grid-cols-2 gap-3">
                 {Array.from({ length: 2 }).map((_, i) => (
                   <Skeleton key={i} className="aspect-[3/4]" />
                 ))}

@@ -6,7 +6,8 @@ import { formatCount, formatVnd, formatRating } from '../../utils/format';
 
 // Thẻ nửa chiều rộng (2 thẻ một hàng), cao bằng thẻ cùng hàng.
 // naturalCover: ảnh bìa giữ tỉ lệ gốc, không cắt (khung trống khi thiếu ảnh vẫn vuông)
-export default function FeaturedCreativeCard({ creative, naturalCover = false }) {
+// hideAuthor: bỏ ô nhà sáng tạo (vd. đang ở trang của chính nhà sáng tạo đó)
+export default function FeaturedCreativeCard({ creative, naturalCover = false, hideAuthor = false }) {
   const { id, title, imageUrl, rating, price, author, usageCount, category } = creative;
 
   return (
@@ -31,7 +32,7 @@ export default function FeaturedCreativeCard({ creative, naturalCover = false })
         <h3 className="mb-1.5 truncate text-xs font-bold text-on-surface" title={title}>
           <Link to={`/creatives/${id}`}>{title}</Link>
         </h3>
-        {author && (
+        {author && !hideAuthor && (
           <div className="mb-1.5 flex min-w-0 items-center gap-1.5 rounded-lg bg-surface-container-low p-1.5">
             <Avatar src={author.avatarUrl} name={author.name} className="size-6 shrink-0" />
             <div className="min-w-0">

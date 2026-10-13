@@ -113,10 +113,10 @@ export const mock = {
     return db.categories;
   },
   // Lọc/sắp xếp giống MarketplaceController@creatives của backend
-  async getCreatives({ q, category, sort = 'newest', page = 1, limit = 20 } = {}) {
+  async getCreatives({ q, category, sort = 'newest', page = 1, limit = 20, only = null } = {}) {
     await delay();
     // Phần tử sau trong mảng coi như đăng sau
-    let items = [...db.creatives].reverse();
+    let items = [...(only ?? db.creatives)].reverse();
     if (category) items = items.filter((c) => c.category.slug === category);
     if (q) {
       const kw = q.toLowerCase();
@@ -126,6 +126,28 @@ export const mock = {
     if (sort === 'price_asc') items.sort((a, b) => a.price - b.price);
     if (sort === 'price_desc') items.sort((a, b) => b.price - a.price);
     return paginate(items, page, limit);
+  },
+  // Username lạ (vd. lấy từ dữ liệu backend thật) vẫn dựng một hồ sơ mẫu để xem được giao diện
+  async getCreatorByUsername(username) {
+    await delay();
+    const author = Object.values(db.authors).find((a) => a.username === username);
+    const extra = db.creatorProfiles[username] ?? db.creatorProfiles.huystudio;
+    const mine = db.creatives.filter((c) => c.author?.username === username);
+    const creatives = mine.length ? mine : db.creatives;
+    return {
+      username,
+      name: author?.name ?? username,
+      avatarUrl: author?.avatarUrl ?? null,
+      coverUrl: null,
+      verified: author?.verified ?? false,
+      ...extra,
+      creativeCount: creatives.length,
+      usageCount: creatives.reduce((sum, c) => sum + c.usageCount, 0),
+    };
+  },
+  async getCreatorCreatives(username, { sort = 'popular', page = 1, limit = 20 } = {}) {
+    const mine = db.creatives.filter((c) => c.author?.username === username);
+    return mock.getCreatives({ sort, page, limit, only: mine.length ? mine : null });
   },
   async getCreative(id) {
     await delay();
