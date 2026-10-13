@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
+import ImageViewer from '../components/common/ImageViewer';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { useDownloadOutput, useGenerationHistory } from '../hooks/generationQueries';
 import { formatVnd } from '../utils/format';
@@ -26,6 +27,7 @@ function OrderCard({ order }) {
 
   const [first, ...rest] = images;
   const [downloadingAll, setDownloadingAll] = useState(false);
+  const [viewing, setViewing] = useState(null);
 
   // Tải lần lượt từng ảnh để trình duyệt không chặn nhiều lượt tải cùng lúc
   const downloadAll = async () => {
@@ -43,19 +45,20 @@ function OrderCard({ order }) {
     <button
       key={o.id}
       type="button"
-      onClick={() => download.mutate({ generationId: order.id, outputId: o.id })}
-      aria-label={`Tải ảnh ${o.position}`}
-      className={`group relative aspect-square overflow-hidden rounded-lg ${className}`}
+      onClick={() => setViewing(o)}
+      aria-label={`Xem ảnh ${o.position}`}
+      className={`group relative cursor-zoom-in aspect-square overflow-hidden rounded-lg ${className}`}
     >
       <CoverImage src={o.image_url} alt={`Ảnh ${o.position}`} className="size-full" />
       <span className="absolute inset-0 flex items-center justify-center bg-inverse-surface/40 text-on-primary opacity-0 transition-opacity group-hover:opacity-100">
-        <Icon name="download" className="text-lg" />
+        <Icon name="zoom_in" className="text-lg" />
       </span>
     </button>
   );
 
   return (
     <article className="flex gap-3 rounded-2xl border border-outline-variant/40 p-3">
+      <ImageViewer src={viewing?.image_url} alt={`Ảnh ${viewing?.position}`} onClose={() => setViewing(null)} />
       {/* Ảnh bên trái: ảnh đầu to, các ảnh còn lại xếp lưới nhỏ bên dưới */}
       <div className="w-24 shrink-0 space-y-1.5">
         {first ? (

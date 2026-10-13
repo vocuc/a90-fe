@@ -57,8 +57,8 @@ function Step({ number, title, children }) {
 export default function TopUpPage() {
   useSeo({ title: 'Nạp tiền vào ví', noindex: true });
   const { data: me, isLoading } = useMe();
-  // Nội dung chuyển khoản để admin đối chiếu đúng tài khoản cần cộng tiền
-  const transferNote = `NAP ${me?.email ?? ''}`;
+  // Nội dung chuyển khoản cố định; admin đối chiếu tài khoản qua email gửi kèm bill ở bước 2
+  const transferNote = 'Nap tien A51';
 
   return (
     <>
@@ -109,7 +109,7 @@ export default function TopUpPage() {
               <CopyRow label="Ngân hàng" value={BANK.name} />
               <CopyRow label="Số tài khoản" value={BANK.accountNumber} />
               <CopyRow label="Chủ tài khoản" value={BANK.accountName} />
-              <CopyRow label="Nội dung" value={transferNote} loading={isLoading} />
+              <CopyRow label="Nội dung" value={transferNote} />
             </div>
           </div>
         </Step>

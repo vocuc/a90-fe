@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
+import ImageViewer from '../components/common/ImageViewer';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { FormAlert, SubmitButton } from '../components/common/Form';
 import { useCreative, useMe } from '../hooks/queries';
@@ -74,14 +75,16 @@ function Countdown({ startedAt }) {
 function OutputTile({ generationId, output, ratio, startedAt }) {
   const download = useDownloadOutput();
   const pending = !FINAL_STATUSES.includes(output.status);
+  const [viewing, setViewing] = useState(false);
 
   return (
     <div className="space-y-1.5">
+      <ImageViewer src={viewing ? output.image_url : null} alt={`Ảnh ${output.position}`} onClose={() => setViewing(false)} />
       <div className="relative overflow-hidden rounded-xl bg-surface-container" style={{ aspectRatio: cssRatio(ratio) }}>
         {output.status === 'completed' && output.image_url ? (
-          <a href={output.image_url} target="_blank" rel="noreferrer" title="Xem ảnh lớn">
+          <button type="button" onClick={() => setViewing(true)} title="Xem ảnh lớn" className="block h-full w-full cursor-zoom-in">
             <img src={output.image_url} alt={`Ảnh ${output.position}`} className="h-full w-full object-cover" />
-          </a>
+          </button>
         ) : pending ? (
           <div className="flex h-full w-full animate-pulse flex-col items-center justify-center gap-1.5 text-on-surface-variant">
             <Icon name="progress_activity" className="animate-spin text-2xl text-primary" />
