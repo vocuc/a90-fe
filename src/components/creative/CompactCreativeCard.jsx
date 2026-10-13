@@ -33,7 +33,11 @@ export default function FeaturedCreativeCard({ creative, naturalCover = false, h
           <Link to={`/creatives/${id}`}>{title}</Link>
         </h3>
         {author && !hideAuthor && (
-          <div className="mb-1.5 flex min-w-0 items-center gap-1.5 rounded-lg bg-surface-container-low p-1.5">
+          <Link
+            to={`/creators/${encodeURIComponent(author.username)}`}
+            state={{ creator: author }}
+            className="mb-1.5 flex min-w-0 items-center gap-1.5 rounded-lg bg-surface-container-low p-1.5 transition-colors hover:bg-surface-container"
+          >
             <Avatar src={author.avatarUrl} name={author.name} className="size-6 shrink-0" />
             <div className="min-w-0">
               <p className="text-[9px] leading-tight text-on-surface-variant">Nhà sáng tạo</p>
@@ -42,7 +46,7 @@ export default function FeaturedCreativeCard({ creative, naturalCover = false, h
                 {author.verified && <Icon name="verified" fill className="shrink-0 text-xs text-secondary" />}
               </p>
             </div>
-          </div>
+          </Link>
         )}
         <div className="flex min-w-0 items-center gap-2 text-[11px] text-outline">
           <span className="flex shrink-0 items-center gap-0.5">

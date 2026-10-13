@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import CompactCreativeCard from '../components/creative/CompactCreativeCard';
@@ -38,9 +38,9 @@ function ProfileSkeleton() {
 
 function Stat({ value, label }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 py-2.5">
-      <span className="text-sm font-bold text-on-surface">{value}</span>
-      <span className="text-[11px] text-on-surface-variant">{label}</span>
+    <div className="flex flex-col items-center justify-center gap-0.5 px-1 py-2.5 text-center">
+      <span className="flex h-5 items-center text-sm font-bold leading-5 text-on-surface">{value}</span>
+      <span className="text-[11px] leading-4 text-on-surface-variant">{label}</span>
     </div>
   );
 }
@@ -137,8 +137,9 @@ function ProfileHeader({ profile }) {
           <Stat value={formatCount(profile.usageCount)} label="Lượt dùng" />
           <Stat
             value={
-              <span className="flex items-center gap-0.5">
-                <Icon name="star" fill className="text-sm text-amber-400" />
+              // Ngôi sao nằm ngoài lề trái để con số căn giữa thẳng với nhãn bên dưới
+              <span className="relative">
+                <Icon name="star" fill className="absolute right-full top-1/2 mr-0.5 -translate-y-1/2 !text-sm !leading-none text-amber-400" />
                 {formatRating(profile.ratingCount > 0 ? profile.ratingAvg : null)}
               </span>
             }
@@ -227,7 +228,16 @@ function CreatorCreatives({ username }) {
 export default function CreatorPage() {
   const { username } = useParams();
   const navigate = useNavigate();
-  const { data: profile, isLoading, error, refetch } = useCreatorPage(username);
+  const { data, isLoading, error, refetch } = useCreatorPage(username);
+  // Thông tin nhà sáng tạo từ thẻ Creative vừa bấm: hiện ngay tên cửa hàng khi hồ sơ còn đang tải
+  const seed = useLocation().state?.creator;
+  const profile = data && {
+    ...data,
+    name: data.name || seed?.name || data.username,
+    avatarUrl: data.avatarUrl ?? seed?.avatarUrl ?? null,
+    verified: data.verified ?? seed?.verified ?? false,
+  };
+  const shopName = profile?.name ?? seed?.name;
 
   useSeo({
     title: profile ? `${profile.name} (@${profile.username})` : 'Nhà sáng tạo',
@@ -253,7 +263,7 @@ export default function CreatorPage() {
           >
             <Icon name="arrow_back" />
           </button>
-          <h1 className="flex-1 truncate text-base font-bold text-on-surface">{profile?.name ?? 'Nhà sáng tạo'}</h1>
+          <h1 className="flex-1 truncate text-base font-bold text-on-surface">{shopName ?? 'Nhà sáng tạo'}</h1>
         </div>
       </header>
 

@@ -127,7 +127,8 @@ export const mock = {
     if (sort === 'price_desc') items.sort((a, b) => b.price - a.price);
     return paginate(items, page, limit);
   },
-  // Username lạ (vd. lấy từ dữ liệu backend thật) vẫn dựng một hồ sơ mẫu để xem được giao diện
+  // Username lạ (vd. lấy từ dữ liệu backend thật) vẫn dựng một hồ sơ mẫu để xem được giao diện;
+  // tên/ảnh để null, trang lấy từ thẻ Creative đã bấm vào
   async getCreatorByUsername(username) {
     await delay();
     const author = Object.values(db.authors).find((a) => a.username === username);
@@ -136,10 +137,10 @@ export const mock = {
     const creatives = mine.length ? mine : db.creatives;
     return {
       username,
-      name: author?.name ?? username,
+      name: author?.name ?? null,
       avatarUrl: author?.avatarUrl ?? null,
       coverUrl: null,
-      verified: author?.verified ?? false,
+      verified: author?.verified ?? null,
       ...extra,
       creativeCount: creatives.length,
       usageCount: creatives.reduce((sum, c) => sum + c.usageCount, 0),

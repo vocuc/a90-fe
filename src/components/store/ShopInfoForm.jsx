@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Icon from '../common/Icon';
 import { FormAlert, SubmitButton, TextArea, TextField } from '../common/Form';
+import SuccessDialog from '../common/SuccessDialog';
 import { useCreateProfile, useUpdateProfile } from '../../hooks/creatorQueries';
 
 // Khớp luật của backend (Creator\ProfileController@rules)
@@ -102,12 +104,6 @@ export default function ShopInfoForm({ profile, onCreated }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
-  useEffect(() => {
-    if (!saved) return undefined;
-    const t = setTimeout(() => setSaved(false), 3000);
-    return () => clearTimeout(t);
-  }, [saved]);
-
   const errors = validate(form);
   const shown = (key) => (touched[key] ? errors[key] : undefined) ?? serverErrors[key];
 
@@ -208,10 +204,19 @@ export default function ShopInfoForm({ profile, onCreated }) {
 
       {generalError && <FormAlert>{generalError}</FormAlert>}
       {saved && (
-        <p role="status" className="flex items-center gap-1.5 rounded-lg bg-surface-container px-3 py-2 text-xs text-primary">
-          <Icon name="check_circle" className="text-sm" />
-          Đã lưu thông tin cửa hàng.
-        </p>
+        <SuccessDialog
+          title="Lưu thành công"
+          message="Thông tin cửa hàng đã được cập nhật."
+          onClose={() => setSaved(false)}
+        >
+          <Link
+            to={`/creators/${encodeURIComponent(form.username)}`}
+            className="flex h-10 w-full items-center justify-center gap-1 rounded-xl border border-outline-variant/50 text-sm font-bold text-on-surface hover:border-primary-container"
+          >
+            <Icon name="storefront" className="text-lg text-primary" />
+            Xem trang shop
+          </Link>
+        </SuccessDialog>
       )}
 
       <SubmitButton loading={mutation.isPending} loadingText="Đang lưu...">

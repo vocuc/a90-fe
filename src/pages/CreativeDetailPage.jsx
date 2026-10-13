@@ -129,6 +129,7 @@ export default function CreativeDetailPage() {
             {c.author && (
               <Link
                 to={`/creators/${encodeURIComponent(c.author.username)}`}
+                state={{ creator: c.author }}
                 className="flex items-center gap-2 rounded-xl bg-surface-container-low p-3 transition-colors hover:bg-surface-container"
               >
                 <Avatar src={c.author.avatarUrl} name={c.author.name} className="size-9" />

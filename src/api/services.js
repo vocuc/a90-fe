@@ -225,16 +225,43 @@ export const creativeApi = {
 /*
  * ---- Trang nhà sáng tạo (công khai) ----
  *
- * Backend CHƯA có API, tạm luôn dùng dữ liệu giả lập. Đề xuất:
- * GET /creators/{username}  -> { data: { username, shop_name, avatar_url, cover_url, description, website,
- *                                        social_links, verified, followers_count, creative_count, usage_count,
- *                                        rating_avg, rating_count, created_at } }  (không có / chưa duyệt -> 404)
- * GET /creatives?creator={username}&sort=&page=&per_page=  (như GET /creatives, chỉ Creative đang bán của người đó)
+ * GET /creators/{username}  -> { data: { profile, creatives } }  (không có -> 404)
+ *   profile: { username, shop_name, avatar_url, cover_url, description, website, social_links, verified,
+ *              followers_count, creative_count, usage_count, rating_avg, rating_count, created_at }
+ *   creatives: trang đầu Creative mới nhất; trang này không dùng (danh sách lấy ở GET /creatives?creator=)
+ * GET /creatives?creator={username}&sort=&page=&per_page=  (như GET /creatives, chỉ Creative của người đó)
  */
+const mapCreatorProfile = (p) => ({
+  username: p.username,
+  name: p.shop_name,
+  avatarUrl: p.avatar_url,
+  coverUrl: p.cover_url,
+  description: p.description,
+  website: p.website,
+  // Backend trả social_links là {} hoặc [] khi trống
+  socialLinks: p.social_links && !Array.isArray(p.social_links) ? p.social_links : {},
+  verified: p.verified,
+  followersCount: p.followers_count,
+  creativeCount: p.creative_count,
+  usageCount: p.usage_count,
+  ratingAvg: p.rating_avg,
+  ratingCount: p.rating_count,
+  joinedAt: p.created_at,
+});
+
 export const creatorPageApi = {
-  getByUsername: (username) => mock.getCreatorByUsername(username),
+  getByUsername: (username) =>
+    MOCK_MARKETPLACE
+      ? mock.getCreatorByUsername(username)
+      : client
+          // per_page=1: chỉ cần hồ sơ, bớt tải danh sách Creative đi kèm
+          .get(`/creators/${encodeURIComponent(username)}`, { params: { per_page: 1 } })
+          .then(({ data }) => mapCreatorProfile(data.profile)),
   // params: { sort, page, limit }
-  listCreatives: (username, params) => mock.getCreatorCreatives(username, params),
+  listCreatives: (username, params) =>
+    MOCK_MARKETPLACE
+      ? mock.getCreatorCreatives(username, params)
+      : creativeApi.list({ ...params, creator: username }),
 };
 
 /*
