@@ -3,7 +3,7 @@ import Icon from '../common/Icon';
 
 const items = [
   { to: '/', label: 'Trang chủ', icon: 'home', end: true },
-  { to: '/explore', label: 'Sản phẩm', icon: 'shopping_bag' },
+  { to: '/explore', label: 'Khám phá', icon: 'shopping_bag' },
   { to: '/tools', label: 'Công cụ', icon: 'handyman' },
   { to: '/account', label: 'Tài khoản', icon: 'person' },
 ];

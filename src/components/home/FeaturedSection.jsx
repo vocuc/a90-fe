@@ -6,7 +6,7 @@ import { useCreatives } from '../../hooks/queries';
 
 // Backend chưa có cờ "nổi bật" -> lấy các Creative được dùng nhiều nhất
 export default function FeaturedSection() {
-  // Chỉ hiện 1 hàng 2 thẻ, xem thêm ở trang Sản phẩm
+  // Chỉ hiện 1 hàng 2 thẻ, xem thêm ở trang Khám phá
   const { data, isLoading, error, refetch } = useCreatives({ sort: 'popular', limit: 2 });
 
   return (
