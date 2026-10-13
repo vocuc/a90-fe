@@ -1,15 +1,44 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useMe, useUnreadCount } from '../../hooks/queries';
 import Avatar from '../common/Avatar';
 import Icon from '../common/Icon';
 import { Skeleton } from '../common/Feedback';
 import { formatVnd } from '../../utils/format';
+import Logo from './Logo';
+import { NAV_ITEMS } from './navItems';
 
 // Header chung của mọi trang (gắn trong AppLayout). Cao cố định 60px: thanh tiêu đề riêng
 // của từng trang dính ngay bên dưới bằng "sticky top-[60px] z-30".
-const headerCls =
-  'sticky top-0 z-40 flex h-[60px] items-center justify-between border-b border-surface-container bg-surface-container-lowest/90 px-4 backdrop-blur-md';
+// Desktop: logo + menu ngang bên trái, ví / thông báo / tài khoản bên phải.
+function HeaderBar({ children }) {
+  return (
+    <header className="sticky top-0 z-40 h-[60px] border-b border-surface-container bg-surface-container-lowest/90 backdrop-blur-md">
+      <div className="mx-auto flex h-full max-w-[1200px] items-center gap-3 px-4 lg:px-8">{children}</div>
+    </header>
+  );
+}
+
+function DesktopNav() {
+  return (
+    <nav aria-label="Điều hướng chính" className="ml-6 hidden items-center gap-1 lg:flex">
+      {NAV_ITEMS.filter((i) => !i.mobileOnly).map(({ to, label, end }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={end}
+          className={({ isActive }) =>
+            `rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+              isActive ? 'bg-surface-container text-primary' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
+            }`
+          }
+        >
+          {label}
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
 
 const AUTH_PAGES = ['/login', '/register'];
 
@@ -25,23 +54,19 @@ function GuestHeader() {
   const onAuthPage = AUTH_PAGES.includes(location.pathname);
 
   return (
-    <header className={headerCls}>
-      <Link to="/" className="flex items-center gap-2" aria-label="A51 - Trang chủ">
-        <div className="flex size-9 items-center justify-center rounded-full bg-primary-container text-on-primary">
-          <Icon name="auto_awesome" fill className="text-[20px]" />
-        </div>
-        <span className="text-lg font-extrabold tracking-tight text-on-surface">A51</span>
-      </Link>
+    <HeaderBar>
+      <Logo />
+      <DesktopNav />
       {!onAuthPage && (
         <Link
           to={`/login?redirect=${redirect}`}
-          className="flex h-9 items-center gap-1.5 rounded-full bg-primary-container px-4 text-xs font-bold text-on-primary transition-colors hover:bg-primary"
+          className="ml-auto flex h-9 items-center gap-1.5 rounded-full bg-primary-container px-4 text-xs font-bold text-on-primary transition-colors hover:bg-primary"
         >
           <Icon name="login" className="text-base" />
           Đăng nhập
         </Link>
       )}
-    </header>
+    </HeaderBar>
   );
 }
 
@@ -50,8 +75,11 @@ function UserHeader() {
   const { data: unread } = useUnreadCount();
 
   return (
-    <header className={headerCls}>
-      <Link to="/account" aria-label="Thông tin tài khoản" className="flex min-w-0 items-center gap-3">
+    <HeaderBar>
+      {/* Mobile: avatar bên trái thay logo. Desktop: logo + menu bên trái, avatar dời về cuối bên phải */}
+      <Logo className="hidden lg:flex" />
+      <DesktopNav />
+      <Link to="/account" aria-label="Thông tin tài khoản" className="flex min-w-0 items-center gap-3 lg:order-last">
         {isLoading ? (
           <Skeleton className="size-9 !rounded-full" />
         ) : (
@@ -66,7 +94,7 @@ function UserHeader() {
           )}
         </div>
       </Link>
-      <div className="flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-2">
         <div className="flex items-center gap-1.5 rounded-full border border-outline-variant/30 bg-surface-container px-3 py-1">
           <Icon name="account_balance_wallet" fill className="text-base text-primary" />
           <span className="text-xs font-bold text-primary">{formatVnd(me?.credits)}</span>
@@ -83,6 +111,6 @@ function UserHeader() {
           )}
         </button>
       </div>
-    </header>
+    </HeaderBar>
   );
 }

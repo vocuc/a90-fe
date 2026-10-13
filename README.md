@@ -3,6 +3,15 @@
 React 18 + Vite + Tailwind CSS + React Router + TanStack Query + axios.
 Bản thiết kế gốc: `html/index.html`.
 
+## Giao diện mobile / desktop
+
+Một codebase responsive, mốc desktop là `lg` (≥ 1024px):
+
+- Mobile: cột rộng tối đa 640px, tab dưới cùng (`BottomNav`).
+- Desktop: header có menu ngang (`Header` + `layout/navItems.js`), nội dung rộng tối đa 1200px, ẩn tab dưới, thêm `Footer`.
+- Trang danh sách (trang chủ, Khám phá, Danh mục, Công cụ, nhà sáng tạo, Quản lý sản phẩm) trải rộng, lưới 4–5 cột. Trang chi tiết Creative chia 2 cột (ảnh | thông tin + nút tạo ảnh).
+- Trang biểu mẫu / đọc chữ (đăng nhập, tài khoản, tạo ảnh, pháp lý...) bọc trong `PageColumn` ở `App.jsx`: giữ cột 640px ở giữa.
+
 ## Chạy
 
 ```bash

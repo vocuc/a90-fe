@@ -27,7 +27,7 @@ export default function CategoryStrip({ title, active, onSelect, rows }) {
   // Lần đầu (vừa chuyển trang sang) nhảy ngay, các lần chọn sau thì cuộn mượt
   const centeredOnce = useRef(false);
 
-  // Chế độ lưới chừa 1 ô cuối cho nút "Xem thêm"
+  // Chế độ lưới chừa 1 ô cuối cho nút "Xem thêm" (desktop 8 cột: cùng số ô, gói gọn trong 1 hàng khi rows=2)
   const limit = rows ? rows * GRID_COLS - 1 : Infinity;
   const visible = categories?.slice(0, limit);
 
@@ -64,7 +64,7 @@ export default function CategoryStrip({ title, active, onSelect, rows }) {
       ) : (
         <div
           ref={rows ? undefined : setStripRef}
-          className={rows ? 'grid grid-cols-4 gap-2.5 px-4 pb-2' : 'no-scrollbar relative flex gap-2.5 overflow-x-auto px-4 pb-2'}
+          className={rows ? 'grid grid-cols-4 gap-2.5 px-4 pb-2 lg:grid-cols-8 lg:gap-3' : 'no-scrollbar relative flex gap-2.5 overflow-x-auto px-4 pb-2'}
         >
           {isLoading
             ? Array.from({ length: rows ? limit + 1 : 5 }).map((_, i) => (

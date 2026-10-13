@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
+import PageColumn from './components/layout/PageColumn';
 import RequireAuth from './components/auth/RequireAuth';
 import HomePage from './pages/HomePage';
 import CategoriesPage from './pages/CategoriesPage';
@@ -25,40 +26,47 @@ import TopUpPage from './pages/TopUpPage';
 export default function App() {
   return (
     <Routes>
+      {/* Desktop: trang danh sách trải rộng; trang biểu mẫu / đọc chữ nằm trong PageColumn (cột 640px ở giữa) */}
       <Route element={<AppLayout />}>
         <Route index element={<HomePage />} />
         <Route path="tools" element={<ToolsPage />} />
-        <Route path="tools/:slug" element={<ToolDetailPage />} />
         {/* Danh mục không còn là tab, chỉ vào từ nút "Xem tất cả" ở trang chủ */}
         <Route path="categories" element={<CategoriesPage />} />
         {/* Tab "Bộ sưu tập" cũ đã đổi thành Danh mục */}
         <Route path="collection" element={<Navigate to="/categories" replace />} />
         <Route path="explore" element={<ExplorePage />} />
         <Route path="creators/:username" element={<CreatorPage />} />
+        <Route element={<PageColumn />}>
+          <Route path="tools/:slug" element={<ToolDetailPage />} />
+          <Route path="*" element={<PlaceholderPage title="Không tìm thấy trang" icon="error" />} />
+        </Route>
         <Route element={<RequireAuth />}>
-          <Route path="create" element={<CreatePage />} />
+          <Route path="seller/products" element={<SellerProductsPage />} />
           {/* Tab Người bán đã gộp vào trang Tài khoản */}
           <Route path="seller" element={<Navigate to="/account" replace />} />
-          <Route path="seller/settings" element={<StoreSettingsPage />} />
-          <Route path="seller/products" element={<SellerProductsPage />} />
           <Route path="seller/prompts/new" element={<Navigate to="/seller/products/new" replace />} />
           {/* Đường dẫn /store cũ: trang người bán đã gộp vào Tài khoản */}
           <Route path="store/*" element={<Navigate to="/account" replace />} />
-          <Route path="account" element={<AccountPage />} />
-          <Route path="account/history" element={<PurchaseHistoryPage />} />
-          <Route path="account/topup" element={<TopUpPage />} />
           {/* Trang Cá nhân cũ đã đổi thành Tài khoản */}
           <Route path="profile" element={<Navigate to="/account" replace />} />
+          <Route element={<PageColumn />}>
+            <Route path="create" element={<CreatePage />} />
+            <Route path="seller/settings" element={<StoreSettingsPage />} />
+            <Route path="account" element={<AccountPage />} />
+            <Route path="account/history" element={<PurchaseHistoryPage />} />
+            <Route path="account/topup" element={<TopUpPage />} />
+          </Route>
         </Route>
-        <Route path="*" element={<PlaceholderPage title="Không tìm thấy trang" icon="error" />} />
       </Route>
       <Route element={<AppLayout showNav={false} />}>
-        <Route path="login" element={<LoginPage />} />
-        <Route path="register" element={<RegisterPage />} />
         <Route path="creatives/:slug" element={<CreativeDetailPage />} />
-        <Route path="privacy" element={<PrivacyPolicyPage />} />
-        <Route path="terms" element={<TermsOfServicePage />} />
-        <Route path="support" element={<SupportPage />} />
+        <Route element={<PageColumn />}>
+          <Route path="login" element={<LoginPage />} />
+          <Route path="register" element={<RegisterPage />} />
+          <Route path="privacy" element={<PrivacyPolicyPage />} />
+          <Route path="terms" element={<TermsOfServicePage />} />
+          <Route path="support" element={<SupportPage />} />
+        </Route>
       </Route>
       {/* Tạo/sửa sản phẩm bằng Template Builder: toàn màn hình, ngoài AppLayout */}
       <Route element={<RequireAuth />}>

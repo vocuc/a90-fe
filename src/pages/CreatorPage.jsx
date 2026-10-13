@@ -27,7 +27,7 @@ const shortUrl = (url) => url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/,
 function ProfileSkeleton() {
   return (
     <div className="px-4 pt-4">
-      <Skeleton className="aspect-[3/1] w-full rounded-2xl" />
+      <Skeleton className="aspect-[3/1] w-full rounded-2xl lg:aspect-[4/1]" />
       <Skeleton className="-mt-8 ml-4 size-20 rounded-full" />
       <Skeleton className="mt-3 h-5 w-40" />
       <Skeleton className="mt-2 h-4 w-24" />
@@ -54,7 +54,7 @@ function ProfileHeader({ profile }) {
   return (
     <div className="px-4 pt-4">
       <div className="relative">
-        <div className="aspect-[3/1] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-primary-container via-primary to-secondary">
+        <div className="aspect-[3/1] w-full overflow-hidden rounded-2xl bg-gradient-to-br lg:aspect-[4/1] from-primary-container via-primary to-secondary">
           {profile.coverUrl && <img src={profile.coverUrl} alt="" className="h-full w-full object-cover" />}
         </div>
         <div className="absolute -bottom-8 left-4 size-20 overflow-hidden rounded-full border-4 border-surface-container-lowest bg-surface-container shadow-md">
@@ -197,7 +197,7 @@ function CreatorCreatives({ username }) {
       {error ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : isLoading ? (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="aspect-[3/4]" />
           ))}
@@ -206,13 +206,13 @@ function CreatorCreatives({ username }) {
         <EmptyState icon="inventory_2" message="Nhà sáng tạo này chưa có AI Creative nào đang bán." />
       ) : (
         <>
-          <div className={`grid grid-cols-2 gap-3 transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`}>
+          <div className={`grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5 transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`}>
             {items.map((c) => (
               <CompactCreativeCard key={c.id} creative={c} naturalCover hideAuthor />
             ))}
           </div>
           {isFetchingNextPage && (
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
               {Array.from({ length: 2 }).map((_, i) => (
                 <Skeleton key={i} className="aspect-[3/4]" />
               ))}

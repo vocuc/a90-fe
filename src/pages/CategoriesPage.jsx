@@ -31,7 +31,7 @@ export default function CategoriesPage() {
         {error ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : isLoading ? (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3 lg:grid-cols-8 lg:gap-4">
             {Array.from({ length: 9 }).map((_, i) => (
               <Skeleton key={i} className="aspect-square" />
             ))}
@@ -39,7 +39,7 @@ export default function CategoriesPage() {
         ) : categories.length === 0 ? (
           <EmptyState icon="category" message="Chưa có danh mục nào." />
         ) : (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3 lg:grid-cols-8 lg:gap-4">
             {categories.map((c) => (
               <Link
                 key={c.id}

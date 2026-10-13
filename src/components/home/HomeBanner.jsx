@@ -10,7 +10,7 @@ export default function HomeBanner() {
   const single = banners.length === 1;
 
   return (
-    <div className="-mx-4 mt-3 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="-mx-4 mt-3 flex snap-x lg:mx-0 lg:mt-0 lg:px-0 snap-mandatory gap-2.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {banners.map((b) => {
         const image = (
           <CoverImage src={b.imageUrl} alt={b.title || 'Banner'} className="aspect-[2/1] w-full rounded-2xl" />

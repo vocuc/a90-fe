@@ -95,7 +95,7 @@ export default function ExplorePage() {
     <>
       <header className="sticky top-[60px] z-30 border-b border-surface-container bg-surface-container-lowest/90 px-4 py-3 backdrop-blur-md">
         <h1 className="mb-3 text-lg font-bold text-on-surface">Khám phá</h1>
-        <div className="flex w-full items-center rounded-xl border border-outline-variant/40 bg-surface-container-low px-3.5 py-1.5 focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20">
+        <div className="flex w-full items-center rounded-xl border border-outline-variant/40 bg-surface-container-low px-3.5 py-1.5 lg:max-w-xl focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20">
           <Icon name="search" className="mr-2 text-[22px] text-outline" />
           <input
             type="search"
@@ -133,7 +133,7 @@ export default function ExplorePage() {
         {error ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : isLoading ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="aspect-[3/4]" />
             ))}
@@ -143,13 +143,13 @@ export default function ExplorePage() {
         ) : (
           <>
             <p className="mb-2 text-xs text-on-surface-variant">{data.pages[0].total} kết quả</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
               {items.map((c) => (
                 <CompactCreativeCard key={c.id} creative={c} naturalCover />
               ))}
             </div>
             {isFetchingNextPage && (
-              <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
                 {Array.from({ length: 2 }).map((_, i) => (
                   <Skeleton key={i} className="aspect-[3/4]" />
                 ))}

@@ -86,9 +86,14 @@ export default function CreativeDetailPage() {
           <Skeleton className="h-16 w-full" />
         </div>
       ) : (
-        <>
+        // Desktop: ảnh xếp lưới bên trái, thông tin + nút tạo ảnh dính bên phải
+        <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-8 lg:px-4 lg:py-6">
           {/* Ảnh giữ tỉ lệ gốc (cao tự động); khung trống khi thiếu/lỗi ảnh vẫn là hình vuông */}
-          <div className="no-scrollbar flex items-start snap-x snap-mandatory gap-3 overflow-x-auto p-4">
+          <div
+            className={`no-scrollbar flex items-start snap-x snap-mandatory gap-3 overflow-x-auto p-4 lg:grid lg:overflow-visible lg:p-0 ${
+              images.length > 1 ? 'lg:grid-cols-2' : ''
+            }`}
+          >
             {images.map((src, i) => (
               <button
                 key={src ?? i}
@@ -96,7 +101,7 @@ export default function CreativeDetailPage() {
                 disabled={!src}
                 onClick={() => setViewing({ src, alt: `${c.title} - ảnh ${i + 1}` })}
                 aria-label={`Phóng to ảnh ${i + 1}`}
-                className={`shrink-0 snap-center ${images.length > 1 ? 'w-[88%]' : 'w-full'}`}
+                className={`shrink-0 snap-center lg:w-full ${images.length > 1 ? 'w-[88%]' : 'w-full'}`}
               >
                 <CoverImage
                   src={src}
@@ -107,7 +112,7 @@ export default function CreativeDetailPage() {
             ))}
           </div>
           <ImageViewer src={viewing?.src} alt={viewing?.alt} onClose={() => setViewing(null)} />
-          <div className="space-y-4 px-4 pb-32">
+          <div className="space-y-4 px-4 pb-32 lg:sticky lg:top-[132px] lg:self-start lg:px-0 lg:pb-0">
             <div>
               {c.category && <span className="text-xs font-semibold text-primary">{c.category.name}</span>}
               <h2 className="text-xl font-extrabold text-on-surface">{c.title}</h2>
@@ -147,27 +152,28 @@ export default function CreativeDetailPage() {
             {c.description && (
               <p className="whitespace-pre-line text-sm leading-relaxed text-on-surface-variant">{c.description}</p>
             )}
-          </div>
 
-          <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-[640px] border-t border-surface-container bg-surface-container-lowest p-4">
-            {notEnoughCredits && (
-              <p className="mb-2 text-center text-xs text-error">
-                Bạn cần {formatVnd(c.price)} cho mỗi ảnh, số dư hiện còn {formatVnd(me.credits)}.
-              </p>
-            )}
-            <Link
-              to={actionLink}
-              state={isAuthenticated ? { fromDetail: true } : undefined}
-              aria-disabled={notEnoughCredits}
-              className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-on-primary transition-colors ${
-                notEnoughCredits ? 'pointer-events-none bg-outline' : 'bg-primary-container hover:bg-primary'
-              }`}
-            >
-              <Icon name={isAuthenticated ? 'bolt' : 'login'} />
-              {isAuthenticated ? 'Tạo ảnh sử dụng mẫu này' : 'Đăng nhập để sử dụng'}
-            </Link>
+            {/* Mobile: thanh cố định dưới đáy màn hình. Desktop: nằm cuối cột thông tin */}
+            <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-[640px] border-t border-surface-container bg-surface-container-lowest p-4 lg:static lg:z-auto lg:max-w-none lg:border-0 lg:bg-transparent lg:p-0">
+              {notEnoughCredits && (
+                <p className="mb-2 text-center text-xs text-error">
+                  Bạn cần {formatVnd(c.price)} cho mỗi ảnh, số dư hiện còn {formatVnd(me.credits)}.
+                </p>
+              )}
+              <Link
+                to={actionLink}
+                state={isAuthenticated ? { fromDetail: true } : undefined}
+                aria-disabled={notEnoughCredits}
+                className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-on-primary transition-colors ${
+                  notEnoughCredits ? 'pointer-events-none bg-outline' : 'bg-primary-container hover:bg-primary'
+                }`}
+              >
+                <Icon name={isAuthenticated ? 'bolt' : 'login'} />
+                {isAuthenticated ? 'Tạo ảnh sử dụng mẫu này' : 'Đăng nhập để sử dụng'}
+              </Link>
+            </div>
           </div>
-        </>
+        </div>
       )}
     </>
   );
