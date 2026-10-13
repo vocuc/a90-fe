@@ -1,45 +1,10 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import Icon from '../components/common/Icon';
 import { Skeleton } from '../components/common/Feedback';
 import { useMe } from '../hooks/queries';
 import { formatVnd } from '../utils/format';
-import { BANK, ZALO_LINK, ZALO_QR } from '../utils/contact';
-
-// Dòng thông tin chuyển khoản kèm nút sao chép
-function CopyRow({ label, value, loading }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Trình duyệt chặn clipboard: người dùng tự chép tay
-    }
-  };
-
-  return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      <span className="w-24 shrink-0 text-sm text-on-surface-variant">{label}</span>
-      {loading ? (
-        <Skeleton className="h-4 flex-1" />
-      ) : (
-        <span className="min-w-0 flex-1 break-all text-sm font-semibold text-on-surface">{value}</span>
-      )}
-      <button
-        type="button"
-        onClick={copy}
-        disabled={loading}
-        aria-label={`Sao chép ${label.toLowerCase()}`}
-        className="flex size-8 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-surface-container disabled:opacity-50"
-      >
-        <Icon name={copied ? 'check' : 'content_copy'} className="text-lg" />
-      </button>
-    </div>
-  );
-}
+import { ZALO_LINK, ZALO_QR } from '../utils/contact';
 
 function Step({ number, title, children }) {
   return (
@@ -53,12 +18,10 @@ function Step({ number, title, children }) {
   );
 }
 
-/** /account/topup: hướng dẫn nạp ví bằng chuyển khoản rồi gửi bill cho admin qua Zalo. */
+/** /account/topup: liên hệ admin qua Zalo để nạp ví / dùng thử. */
 export default function TopUpPage() {
   useSeo({ title: 'Nạp tiền vào ví', noindex: true });
   const { data: me, isLoading } = useMe();
-  // Nội dung chuyển khoản cố định; admin đối chiếu tài khoản qua email gửi kèm bill ở bước 2
-  const transferNote = 'Nap tien A51';
 
   return (
     <>
@@ -84,19 +47,7 @@ export default function TopUpPage() {
           )}
         </div>
 
-        <Step number={1} title="Chuyển khoản vào tài khoản ngân hàng">
-          <p className="text-sm text-on-surface-variant">
-            Chuyển khoản theo thông tin bên dưới. Nhớ ghi đúng nội dung chuyển khoản để được cộng tiền nhanh.
-          </p>
-          <div className="w-full divide-y divide-surface-container overflow-hidden rounded-2xl border border-outline-variant/40">
-            <CopyRow label="Ngân hàng" value={BANK.name} />
-            <CopyRow label="Số tài khoản" value={BANK.accountNumber} />
-            <CopyRow label="Chủ tài khoản" value={BANK.accountName} />
-            <CopyRow label="Nội dung" value={transferNote} />
-          </div>
-        </Step>
-
-        <Step number={2} title="Liên hệ admin để dùng thử miễn phí">
+        <Step number={1} title="Liên hệ admin để dùng thử miễn phí">
           <p className="text-sm text-on-surface-variant">
             Chụp màn hình giao dịch thành công và gửi cho admin qua Zalo kèm email tài khoản. Số dư sẽ được cộng sau khi admin xác nhận.
           </p>
@@ -125,7 +76,7 @@ export default function TopUpPage() {
         <p className="flex items-start gap-2 rounded-2xl bg-surface-container-low p-4 text-xs leading-relaxed text-on-surface-variant">
           <Icon name="info" className="text-base text-primary" />
           <span>
-            Chỉ chuyển khoản vào đúng tài khoản trên. Nếu sau khi gửi bill mà số dư chưa được cộng, hãy nhắn lại cho admin qua Zalo hoặc xem thêm tại{' '}
+            Nếu số dư chưa được cộng, hãy nhắn lại cho admin qua Zalo hoặc xem thêm tại{' '}
             <Link to="/support" className="font-semibold text-primary hover:underline">
               Trung tâm hỗ trợ
             </Link>
