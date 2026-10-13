@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import useSeo from '../hooks/useSeo';
 import { Link, useSearchParams } from 'react-router-dom';
 import Icon from '../components/common/Icon';
@@ -112,23 +113,31 @@ export default function SellerProductsPage() {
   useSeo({ title: 'Sản phẩm của tôi', noindex: true });
   const [params, setParams] = useSearchParams();
   const status = TAB_VALUES.includes(params.get('status')) ? params.get('status') : '';
-  const page = Math.max(1, Number(params.get('page')) || 1);
   const tabScrollRef = useHorizontalScroll();
 
   // GET /creator/creatives cần profile người bán (403 khi chưa có)
   const { hasProfile, meLoaded } = useCreatorProfile();
-  const { data, isLoading, isFetching, error, refetch } = useCreatorCreatives(
-    { status: status || undefined, page, limit: PAGE_SIZE },
-    hasProfile,
-  );
+  const { data, isLoading, isFetching, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useCreatorCreatives({ status: status || undefined, limit: PAGE_SIZE }, hasProfile);
+  const items = data?.pages.flatMap((p) => p.items) ?? [];
 
-  const update = (key, value) => {
+  // Cuộn gần tới cuối danh sách thì tự tải trang tiếp, hết trang thì thôi
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasNextPage || isFetchingNextPage) return undefined;
+    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && fetchNextPage(), {
+      rootMargin: '300px',
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const setStatus = (value) => {
     const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    if (key !== 'page') next.delete('page');
-    setParams(next, { replace: key !== 'page' });
-    if (key === 'page') window.scrollTo({ top: 0 });
+    if (value) next.set('status', value);
+    else next.delete('status');
+    setParams(next, { replace: true });
   };
 
   return (
@@ -139,7 +148,7 @@ export default function SellerProductsPage() {
             <Icon name="arrow_back" />
           </Link>
           <h1 className="flex-1 text-base font-bold text-on-surface">Quản lý sản phẩm</h1>
-          {isFetching && !isLoading && <Icon name="progress_activity" className="animate-spin text-lg text-outline" />}
+          {isFetching && !isLoading && !isFetchingNextPage && <Icon name="progress_activity" className="animate-spin text-lg text-outline" />}
           {hasProfile && (
             <Link
               to="/seller/products/new"
@@ -156,7 +165,7 @@ export default function SellerProductsPage() {
               <button
                 key={t.value}
                 type="button"
-                onClick={() => update('status', t.value)}
+                onClick={() => setStatus(t.value)}
                 className={`whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
                   status === t.value
                     ? 'border-primary-container bg-primary-container text-on-primary'
@@ -189,7 +198,7 @@ export default function SellerProductsPage() {
               <Skeleton key={i} className="aspect-[3/4]" />
             ))}
           </div>
-        ) : data.items.length === 0 ? (
+        ) : items.length === 0 ? (
           <EmptyState
             icon="inventory_2"
             message={status ? 'Không có AI Creative nào ở trạng thái này.' : 'Bạn chưa tạo AI Creative nào.'}
@@ -206,36 +215,21 @@ export default function SellerProductsPage() {
           </EmptyState>
         ) : (
           <>
-            <p className="mb-2 text-xs text-on-surface-variant">{data.total} AI Creative</p>
+            <p className="mb-2 text-xs text-on-surface-variant">{data.pages[0].total} AI Creative</p>
             {/* 2 sản phẩm mỗi hàng (4 trên máy tính), thẻ cùng hàng cao bằng nhau */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {data.items.map((c) => (
+              {items.map((c) => (
                 <ProductCard key={c.id} creative={c} />
               ))}
             </div>
-            {data.lastPage > 1 && (
-              <div className="mt-4 flex items-center justify-between">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => update('page', String(page - 1))}
-                  className="flex h-9 items-center gap-1 rounded-lg border border-outline-variant/40 px-3 text-xs font-semibold text-on-surface disabled:opacity-40"
-                >
-                  <Icon name="chevron_left" className="text-base" /> Trước
-                </button>
-                <span className="text-xs text-on-surface-variant">
-                  Trang {data.page}/{data.lastPage}
-                </span>
-                <button
-                  type="button"
-                  disabled={page >= data.lastPage}
-                  onClick={() => update('page', String(page + 1))}
-                  className="flex h-9 items-center gap-1 rounded-lg border border-outline-variant/40 px-3 text-xs font-semibold text-on-surface disabled:opacity-40"
-                >
-                  Sau <Icon name="chevron_right" className="text-base" />
-                </button>
+            {isFetchingNextPage && (
+              <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <Skeleton key={i} className="aspect-[3/4]" />
+                ))}
               </div>
             )}
+            {hasNextPage && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
           </>
         )}
       </section>

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { aiModelApi, creatorApi } from '../api/services';
 import { useMe } from './queries';
 
@@ -43,12 +43,14 @@ export const useUpdateProfile = () => useProfileMutation(creatorApi.updateProfil
 export const useUploadAvatar = () => useProfileMutation(creatorApi.uploadAvatar);
 export const useUploadCover = () => useProfileMutation(creatorApi.uploadCover);
 
+/** Creative của creator, tải thêm theo trang (params không gồm page). */
 export const useCreatorCreatives = (params, enabled) =>
-  useQuery({
-    queryKey: [...CREATOR_KEYS.creatives, params],
-    queryFn: () => creatorApi.listCreatives(params),
+  useInfiniteQuery({
+    queryKey: [...CREATOR_KEYS.creatives, 'infinite', params],
+    queryFn: ({ pageParam }) => creatorApi.listCreatives({ ...params, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
     enabled,
-    placeholderData: (prev) => prev,
   });
 
 export const useCreatorCreative = (id, enabled) =>

@@ -39,6 +39,8 @@ export const useInfiniteCreatives = (params) =>
     queryFn: ({ pageParam }) => creativeApi.list({ ...params, page: pageParam }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
+    // Đổi bộ lọc vẫn giữ danh sách cũ tới khi có kết quả mới, tránh nháy khung xám khi gõ tìm kiếm
+    placeholderData: (prev) => prev,
   });
 
 export const useCreative = (id) =>

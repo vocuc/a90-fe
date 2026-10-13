@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import CategoryStrip from '../components/home/CategoryStrip';
 import CompactCreativeCard from '../components/creative/CompactCreativeCard';
-import { useCategories, useCreatives } from '../hooks/queries';
+import { useCategories, useInfiniteCreatives } from '../hooks/queries';
 import useSeo from '../hooks/useSeo';
 import useHorizontalScroll from '../hooks/useHorizontalScroll';
 
@@ -24,19 +24,17 @@ export default function ExplorePage() {
   const category = params.get('category') ?? '';
   // Link cũ có thể mang sort không còn hỗ trợ (vd. rating) -> về mặc định
   const sort = SORT_VALUES.includes(params.get('sort')) ? params.get('sort') : 'popular';
-  const page = Math.max(1, Number(params.get('page')) || 1);
 
   const [input, setInput] = useState(q);
   const sortScrollRef = useHorizontalScroll();
 
-  // Đổi bộ lọc thì quay về trang 1
+  // Đổi bộ lọc thì danh sách tải lại từ đầu
   const update = (key, value) => {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
-    if (key !== 'page') next.delete('page');
-    setParams(next, { replace: key !== 'page' });
-    if (key === 'page') window.scrollTo({ top: 0 });
+    next.delete('page');
+    setParams(next, { replace: true });
   };
 
   // Đồng bộ ô tìm kiếm -> URL sau 400ms ngừng gõ
@@ -47,13 +45,35 @@ export default function ExplorePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input]);
 
-  const { data, isLoading, isFetching, error, refetch } = useCreatives({
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isPlaceholderData,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteCreatives({
     q: q || undefined,
     category: category || undefined,
     sort,
-    page,
     limit: PAGE_SIZE,
   });
+  const items = data?.pages.flatMap((p) => p.items) ?? [];
+
+  // Cuộn gần tới cuối danh sách thì tự tải trang tiếp, hết trang thì thôi
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasNextPage || isFetchingNextPage || isPlaceholderData) return undefined;
+    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && fetchNextPage(), {
+      rootMargin: '300px',
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, isPlaceholderData, fetchNextPage]);
 
   // Mỗi danh mục là một trang riêng cho SEO; kết quả tìm kiếm thì không index
   const { data: categories } = useCategories();
@@ -86,7 +106,7 @@ export default function ExplorePage() {
             aria-label="Tìm kiếm AI Creative"
             className="w-full border-none bg-transparent p-0 text-sm font-medium text-on-surface placeholder:text-outline focus:outline-none focus:ring-0"
           />
-          {isFetching && <Icon name="progress_activity" className="animate-spin text-lg text-outline" />}
+          {isFetching && !isFetchingNextPage && <Icon name="progress_activity" className="animate-spin text-lg text-outline" />}
         </div>
       </header>
 
@@ -118,39 +138,24 @@ export default function ExplorePage() {
               <Skeleton key={i} className="aspect-[3/4]" />
             ))}
           </div>
-        ) : data.items.length === 0 ? (
+        ) : items.length === 0 ? (
           <EmptyState message="Không tìm thấy AI Creative phù hợp." />
         ) : (
           <>
-            <p className="mb-2 text-xs text-on-surface-variant">{data.total} kết quả</p>
+            <p className="mb-2 text-xs text-on-surface-variant">{data.pages[0].total} kết quả</p>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {data.items.map((c) => (
+              {items.map((c) => (
                 <CompactCreativeCard key={c.id} creative={c} naturalCover />
               ))}
             </div>
-            {data.lastPage > 1 && (
-              <div className="mt-4 flex items-center justify-between">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => update('page', String(page - 1))}
-                  className="flex h-9 items-center gap-1 rounded-lg border border-outline-variant/40 px-3 text-xs font-semibold text-on-surface disabled:opacity-40"
-                >
-                  <Icon name="chevron_left" className="text-base" /> Trước
-                </button>
-                <span className="text-xs text-on-surface-variant">
-                  Trang {data.page}/{data.lastPage}
-                </span>
-                <button
-                  type="button"
-                  disabled={page >= data.lastPage}
-                  onClick={() => update('page', String(page + 1))}
-                  className="flex h-9 items-center gap-1 rounded-lg border border-outline-variant/40 px-3 text-xs font-semibold text-on-surface disabled:opacity-40"
-                >
-                  Sau <Icon name="chevron_right" className="text-base" />
-                </button>
+            {isFetchingNextPage && (
+              <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <Skeleton key={i} className="aspect-[3/4]" />
+                ))}
               </div>
             )}
+            {hasNextPage && !isPlaceholderData && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
           </>
         )}
       </section>
