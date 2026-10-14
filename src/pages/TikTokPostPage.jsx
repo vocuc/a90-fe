@@ -469,13 +469,10 @@ function AddImagesDialog({ exclude, max, onAdd, onClose }) {
   );
 }
 
-/** Đang tạo nội dung: AI đang tạo ảnh (nếu tạo mới) và viết nội dung. */
+/** Đang tạo ảnh: AI đang tạo ảnh từ các mẫu đã chọn, xong thì bài chờ người dùng điền nội dung và đăng. */
 function GeneratingPanel({ post }) {
   const done = post.images.filter((i) => !isImageBusy(i)).length;
-  const steps = [
-    ...(post.source === 'new' ? [['images', `Tạo ${post.images.length} ảnh từ mẫu đã chọn (xong ${done}/${post.images.length})`]] : []),
-    ['content', 'Viết tiêu đề, nội dung và hashtag'],
-  ];
+  const steps = [['images', `Tạo ${post.images.length} ảnh từ mẫu đã chọn (xong ${done}/${post.images.length})`]];
   return (
     <section className="space-y-5 p-4 lg:mx-auto lg:w-full lg:max-w-[640px] lg:py-10">
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-6 text-center">
@@ -483,9 +480,9 @@ function GeneratingPanel({ post }) {
           <Icon name="auto_awesome" className="animate-pulse text-3xl" />
         </span>
         <div>
-          <h2 className="text-base font-bold text-on-surface">AI đang tạo nội dung</h2>
+          <h2 className="text-base font-bold text-on-surface">AI đang tạo ảnh</h2>
           <p className="mt-1 text-xs text-on-surface-variant">
-            Bạn có thể rời trang này. Khi xong, bài chuyển sang <b>Đang chờ duyệt</b> để bạn xem lại trước khi đăng.
+            Bạn có thể rời trang này. Khi ảnh xong, bài chuyển sang <b>Chờ đăng</b> để bạn điền tiêu đề, nội dung và đăng.
           </p>
         </div>
         <ul className="w-full space-y-1.5 text-left">
@@ -574,7 +571,7 @@ function PostPreview({ post }) {
   );
 }
 
-/** Đang chờ duyệt: người dùng xem lại nội dung AI viết, sửa rồi đăng. onRefresh: tải lại bài (bắt đầu hỏi trạng thái ảnh). */
+/** Chờ đăng: ảnh đã xong, người dùng điền tiêu đề, nội dung rồi đăng. onRefresh: tải lại bài (bắt đầu hỏi trạng thái ảnh). */
 function ReviewForm({ post, onRefresh }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -793,12 +790,9 @@ function ReviewForm({ post, onRefresh }) {
           </p>
         ) : (
           <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            <Icon name="rate_review" className="text-base" />
+            <Icon name="edit_note" className="text-base" />
             <span>
-              {post.content
-                ? 'AI đã viết sẵn tiêu đề, nội dung và hashtag. Hãy xem lại, sửa nếu cần rồi bấm '
-                : 'AI chưa viết được nội dung cho bài này, bạn hãy tự viết rồi bấm '}
-              <b>Duyệt và đăng</b>.
+              Ảnh đã sẵn sàng. Hãy điền tiêu đề, nội dung, hashtag rồi bấm <b>Đăng lên TikTok</b>.
             </span>
           </p>
         )}
@@ -848,7 +842,7 @@ function ReviewForm({ post, onRefresh }) {
             <HashtagInput
               value={form.hashtags}
               onChange={set('hashtags')}
-              hint="AI gợi ý sẵn, hashtag được thêm vào cuối nội dung khi đăng. Nhấn Enter hoặc dấu phẩy để thêm."
+              hint="Hashtag được thêm vào cuối nội dung khi đăng. Nhấn Enter hoặc dấu phẩy để thêm."
             />
             {errors.hashtags && <p className="mt-1 text-xs text-error">{errors.hashtags}</p>}
           </div>
@@ -911,7 +905,7 @@ function ReviewForm({ post, onRefresh }) {
             disabled={!canPost || !!busy || imagesNotReady}
           >
             <Icon name="send" className="text-lg" />
-            Duyệt và đăng
+            Đăng lên TikTok
           </SubmitButton>
           <button
             type="button"
@@ -958,7 +952,7 @@ export default function TikTokPostPage() {
   }, [id]);
   useEffect(load, [load]);
 
-  // Đang tạo nội dung / đang đăng / còn ảnh đang tạo lại: tự cập nhật tới khi xong
+  // Đang tạo ảnh / đang đăng / còn ảnh đang tạo lại: tự cập nhật tới khi xong
   const polling = needsPolling(post);
   useEffect(() => {
     if (!polling) return undefined;

@@ -12,12 +12,12 @@ const formatTime = (iso) =>
   new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 
 const generating = (post) => post.status === POST_STATUS.GENERATING;
-const postTitle = (post) => (generating(post) ? 'AI đang viết tiêu đề...' : post.title?.trim() || 'Bài đăng ảnh');
+const postTitle = (post) => (generating(post) ? 'Đang tạo ảnh...' : post.title?.trim() || 'Bài đăng ảnh');
 const imageCount = (post) => post.imageCount;
 const coverUrl = (post) => post.coverUrl ?? null;
 
-// Bài đang chờ duyệt cần người dùng làm tiếp: nút gọi hành động thay cho "Xem"
-const actionLabel = (post) => (post.status === POST_STATUS.PENDING_REVIEW ? 'Duyệt bài' : 'Xem');
+// Bài chờ đăng cần người dùng làm tiếp (điền tiêu đề, nội dung rồi đăng): nút gọi hành động thay cho "Xem"
+const actionLabel = (post) => (post.status === POST_STATUS.PENDING_REVIEW ? 'Đăng bài' : 'Xem');
 
 function Cover({ post, className = '' }) {
   return (
@@ -48,7 +48,7 @@ function Hashtags({ tags }) {
   );
 }
 
-// Mobile: mỗi bài là một thẻ, ảnh bìa bên trái, bấm vào để xem / duyệt
+// Mobile: mỗi bài là một thẻ, ảnh bìa bên trái, bấm vào để xem / đăng
 function PostCards({ posts }) {
   return (
     <ul className="space-y-3 lg:hidden">
@@ -160,7 +160,7 @@ export default function TikTokPostsPage() {
     queryFn: ({ pageParam }) => listPosts({ page: pageParam, limit: PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
-    // Còn bài đang tạo nội dung / đang đăng thì tự cập nhật trạng thái mỗi 5 giây
+    // Còn bài đang tạo ảnh / đang đăng thì tự cập nhật trạng thái mỗi 5 giây
     refetchInterval: (q) => (q.state.data?.pages.some((p) => p.items.some(isRunning)) ? POLL_INTERVAL : false),
   });
   const posts = data ? data.pages.flatMap((p) => p.items) : null;
@@ -192,8 +192,8 @@ export default function TikTokPostsPage() {
       <section className="space-y-3 p-4 lg:py-6">
         {pendingCount > 0 && (
           <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-            <Icon name="rate_review" className="text-base" />
-            Có {pendingCount} bài đang chờ bạn duyệt trước khi đăng lên TikTok.
+            <Icon name="edit_note" className="text-base" />
+            Có {pendingCount} bài đã có ảnh, đang chờ bạn điền tiêu đề, nội dung và đăng lên TikTok.
           </p>
         )}
         {error ? (

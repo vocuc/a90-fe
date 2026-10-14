@@ -4,7 +4,7 @@ import { appendInputs } from './services';
 /*
  * ---- Đăng bài TikTok (cần đăng nhập) ----
  * Đặc tả: note/nghiep-vu-dang-bai-tiktik.txt (bài đăng), note/uy-quyen-tiktok.txt (ủy quyền OAuth).
- * Backend giữ access token TikTok, tạo ảnh, viết nội dung bằng AI và gọi Content Posting API.
+ * Backend giữ access token TikTok, tạo ảnh và gọi Content Posting API. Tiêu đề, nội dung, hashtag do người dùng tự nhập.
  *
  * GET    /tiktok/account                                 -> { data: { connected, reason, account, creator } }
  * POST   /tiktok/oauth/authorize { redirect }            -> { data: { url } }
@@ -34,8 +34,8 @@ export const PRIVACY_LABELS = {
 
 /*
  * Trạng thái bài đăng:
- *   generating      Đang tạo nội dung: AI tạo ảnh (nếu chọn tạo ảnh mới) và viết tiêu đề, nội dung, hashtag
- *   pending_review  Đang chờ duyệt: chờ người dùng xem lại, sửa và bấm đăng
+ *   generating      Đang tạo ảnh: AI tạo ảnh (chỉ khi chọn tạo ảnh mới)
+ *   pending_review  Chờ đăng: ảnh đã xong, chờ người dùng điền tiêu đề, nội dung và bấm đăng
  *   publishing      Đang đăng: đã gửi lên TikTok, chờ TikTok phản hồi
  *   published       Đã đăng lên TikTok
  */
@@ -140,7 +140,7 @@ export const listPosts = ({ page = 1, limit = 20, status } = {}) =>
 export const getPost = (id) => client.get(`/tiktok/posts/${id}`).then(({ data }) => mapPost(data));
 
 /**
- * Tạo bài từ ảnh đã có trên A51 (không tính phí): AI chỉ viết nội dung rồi bài chờ người dùng duyệt.
+ * Tạo bài từ ảnh đã có trên A51 (không tính phí): bài chờ người dùng điền tiêu đề, nội dung và đăng.
  * images: [{ generationId, outputId }] theo thứ tự, ảnh đầu làm ảnh bìa.
  */
 export const createPostFromImages = (images, idempotencyKey) =>
@@ -178,7 +178,7 @@ const splitInputs = (schema, values) => {
 };
 
 /**
- * Tạo bài với ảnh mới: bài tạo ngay ở trạng thái generating (đã trừ tiền), mỗi mẫu tạo 1 ảnh ở nền rồi AI viết nội dung.
+ * Tạo bài với ảnh mới: bài tạo ngay ở trạng thái generating (đã trừ tiền), mỗi mẫu tạo 1 ảnh ở nền; ảnh xong thì bài chờ đăng.
  * items: [{ creativeId (số), schema (input_schema), values (giá trị form) }]
  */
 export function createPostFromCreatives(items, idempotencyKey) {
@@ -230,7 +230,7 @@ export function regenerateImage(postId, image, idempotencyKey, edit) {
 }
 
 /**
- * Duyệt và đăng: gửi toàn bộ chỉnh sửa trên trang rồi gửi lên TikTok, bài chuyển sang publishing.
+ * Đăng: gửi toàn bộ chỉnh sửa trên trang rồi gửi lên TikTok, bài chuyển sang publishing.
  * Đăng lỗi thì chỉnh sửa vẫn được lưu và bài có last_error.
  */
 export const publishPost = (id, form) =>

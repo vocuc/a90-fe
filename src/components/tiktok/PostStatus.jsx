@@ -3,12 +3,12 @@ import { POST_STATUS } from '../../api/tiktok';
 
 export const POST_STATUS_INFO = {
   [POST_STATUS.GENERATING]: {
-    label: 'Đang tạo nội dung',
+    label: 'Đang tạo ảnh',
     icon: 'progress_activity',
     spin: true,
     className: 'bg-sky-50 text-sky-700',
   },
-  [POST_STATUS.PENDING_REVIEW]: { label: 'Đang chờ duyệt', icon: 'rate_review', className: 'bg-amber-50 text-amber-700' },
+  [POST_STATUS.PENDING_REVIEW]: { label: 'Chờ đăng', icon: 'edit_note', className: 'bg-amber-50 text-amber-700' },
   [POST_STATUS.PUBLISHING]: {
     label: 'Đang đăng',
     icon: 'progress_activity',

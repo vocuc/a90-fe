@@ -5,6 +5,16 @@ CẬP NHẬT 2026-10-14: Backend đã làm xong toàn bộ API trong tài liệu
 backend trả về. Frontend thay thân các hàm giả lập trong src/api/tiktok.js bằng lời gọi API thật (mục 10 liệt kê
 từng hàm). Phần ủy quyền chi tiết: note/uy-quyen-tiktok.txt.
 
+CẬP NHẬT 2026-10-14 (2): BỎ LUỒNG AI VIẾT NỘI DUNG (BACKEND CẦN SỬA). Frontend đã sửa xong.
+- Không gọi worker AI viết nội dung nữa (mục 7 bỏ). Người dùng tự điền tiêu đề, nội dung, hashtag rồi bấm
+  "Đăng lên TikTok" (vẫn là POST /tiktok/posts/{id}/publish, body như mục 5.8).
+- Bài mới tạo: title = "", content = "", hashtags = [] (không điền sẵn tên mẫu / hashtag mẫu như mục 0b).
+- from-creatives: generating chỉ còn là đang tạo ảnh; mọi ảnh xong (thành công hoặc lỗi) -> pending_review ngay.
+- from-images: không còn gì để chờ -> trả 201 với status pending_review luôn (frontend vẫn xử lý được nếu là
+  generating, nhưng sẽ phải polling vô ích).
+- Tên hiển thị trên giao diện: generating = "Đang tạo ảnh", pending_review = "Chờ đăng". Các thông báo lỗi có chữ
+  "tạo nội dung" (vd 409 POST_NOT_DELETABLE) nên đổi thành "tạo ảnh".
+
 Quy ước chung (giống các API hiện có):
 - Gốc API: /api/v1. Mọi API dưới đây đều cần đăng nhập (Authorization: Bearer <token>).
 - JSON snake_case. Thành công trả { data } (danh sách: { data, links, meta: { current_page, last_page, per_page, total } }).

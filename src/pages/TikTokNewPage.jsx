@@ -36,13 +36,13 @@ const SOURCES = [
     value: 'new',
     icon: 'auto_awesome',
     title: 'Tạo ảnh mới',
-    description: 'Chọn mẫu AI Creative, nhập thông tin cho từng mẫu, AI tạo ảnh rồi viết nội dung',
+    description: 'Chọn mẫu AI Creative, nhập thông tin cho từng mẫu, AI tạo ảnh rồi bạn điền tiêu đề, nội dung và đăng',
   },
   {
     value: 'existing',
     icon: 'photo_library',
     title: 'Dùng ảnh đã có',
-    description: 'Chọn trong các ảnh bạn đã tạo trên A51, AI viết nội dung',
+    description: 'Chọn trong các ảnh bạn đã tạo trên A51 rồi điền tiêu đề, nội dung và đăng',
   },
 ];
 
@@ -100,7 +100,7 @@ function SourceChooser({ onPick }) {
   );
 }
 
-/** Dùng ảnh đã có: chọn ảnh rồi tạo bài, AI viết nội dung. */
+/** Dùng ảnh đã có: chọn ảnh rồi tạo bài, sang trang bài để điền tiêu đề, nội dung và đăng. */
 function ExistingSource() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -415,7 +415,7 @@ function CreativeInputCard({ creative, detail, values, errors, missing, open, on
 /**
  * Tạo ảnh mới, 2 bước (?step=inputs là bước 2, nút quay lại của trình duyệt về bước 1):
  * 1. chọn mẫu; 2. nhập thông tin riêng cho từng mẫu theo form của mẫu đó. Xong thì tạo bài ngay,
- * ảnh và nội dung được tạo ở nền (bài ở trạng thái "Đang tạo nội dung").
+ * ảnh được tạo ở nền (bài ở trạng thái "Đang tạo ảnh"); ảnh xong thì người dùng điền tiêu đề, nội dung rồi đăng.
  */
 function NewSource() {
   const navigate = useNavigate();
