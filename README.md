@@ -59,12 +59,14 @@ Backend chưa có API thông báo, nên số thông báo chưa đọc luôn là 
 | Method | Endpoint | Trả về |
 | --- | --- | --- |
 | GET | `/categories` | `{ data: [{ id, name, slug, icon }] }` (`icon` là tên Material Symbol) |
-| GET | `/creatives?q=&category=&sort=&page=&per_page=` | `{ data: CreativeCard[], meta: { current_page, last_page, per_page, total } }` |
+| GET | `/hashtags?q=&limit=` | `{ data: [{ name, slug, creative_count }] }` (gợi ý theo tiền tố, nhiều Creative đang bán trước) |
+| GET | `/creatives?q=&category=&hashtag=&sort=&page=&per_page=` | `{ data: CreativeCard[], meta: { current_page, last_page, per_page, total } }` |
 | GET | `/creatives/{slug}` | `{ data: CreativeCard + { description, images, options } }` |
 
 - `sort`: `newest` | `popular` | `price_asc` | `price_desc`. `per_page` tối đa 50. `q` tối đa 100 ký tự, chỉ tìm theo tiêu đề.
 - Trang chủ: "AI Creative nổi bật" = 3 Creative `popular`, "Mới ra mắt" = 4 Creative `newest` (backend chưa có cờ nổi bật / trending).
 - URL trang chi tiết dùng `slug`: `/creatives/{slug}`.
+- Hashtag: trang Khám phá lọc bằng `/explore?hashtag={slug}` (dải hashtag phổ biến; ô tìm kiếm mặc định lọc theo hashtag, có gợi ý, dòng cuối gợi ý "Tìm theo tên mẫu" chuyển sang `?q=`). Trang chi tiết hiện hashtag dạng link. Creator nhập tối đa 10 hashtag ở form tạo/sửa Creative (gửi `hashtags: string[]`, thay toàn bộ).
 - `price_per_image` hiển thị dạng `2.000 VND` (`formatVnd`, cả số dư `credit_balance` cũng hiển thị bằng VND). Creative chưa có lượt đánh giá hiển thị "Mới".
 - Link ảnh là link ký số, hết hạn sau 15 phút. Ảnh lỗi/hết hạn sẽ hiện khung trống; tải lại trang để lấy link mới.
 - Dữ liệu được đổi sang dạng frontend trong `mapCategory` / `mapCreative` ở `src/api/services.js`.

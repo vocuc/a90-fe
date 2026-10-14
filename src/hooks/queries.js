@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { bannerApi, categoryApi, creativeApi, creatorPageApi, notificationApi, userApi } from '../api/services';
+import { bannerApi, categoryApi, creativeApi, hashtagApi, creatorPageApi, notificationApi, userApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 
 // Chỉ gọi các API cá nhân khi đã đăng nhập
@@ -24,6 +24,16 @@ export const useBanners = () =>
 
 export const useCategories = () =>
   useQuery({ queryKey: ['categories'], queryFn: categoryApi.getAll, staleTime: 10 * 60_000 });
+
+/** Gợi ý hashtag theo tiền tố q (rỗng -> hashtag phổ biến nhất). */
+export const useHashtags = (q = '', { limit = 10, enabled = true } = {}) =>
+  useQuery({
+    queryKey: ['hashtags', q, limit],
+    queryFn: () => hashtagApi.suggest({ q, limit }),
+    staleTime: 5 * 60_000,
+    placeholderData: (prev) => prev,
+    enabled,
+  });
 
 export const useCreatives = (params) =>
   useQuery({

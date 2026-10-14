@@ -16,11 +16,13 @@ import { mock } from './mock/handlers';
  * ---- Marketplace (công khai) ----
  *
  * GET /categories        -> { data: [{ id, name, slug, icon }] }
+ * GET /hashtags          -> { data: [{ name, slug, creative_count }] }  (hashtag có nhiều Creative đang bán nhất trước)
+ *     query: q (tiền tố, có hoặc không có #), limit (<= 50, mặc định 20)
  * GET /creatives         -> { data: CreativeCard[], meta: { current_page, last_page, per_page, total } }
- *     query: q, category (slug), sort (newest|popular|price_asc|price_desc), page, per_page (<= 50)
+ *     query: q, category (slug), hashtag (slug), sort (newest|popular|price_asc|price_desc), page, per_page (<= 50)
  * GET /creatives/{slug}  -> { data: CreativeCard + { description, images: [{ id, url }], options } }
  *
- * CreativeCard: { id, slug, title, price_per_image, cover_url, category, usage_count, rating_avg,
+ * CreativeCard: { id, slug, title, price_per_image, cover_url, category, hashtags: [{ name, slug }], usage_count, rating_avg,
  *                 rating_count, published_at, creator: { username, shop_name, avatar_url, verified } | null }
  * Link ảnh (cover_url, images[].url) là link ký số, hết hạn sau 15 phút.
  *
@@ -46,6 +48,7 @@ const mapCreative = (c) => ({
   price: c.price_per_image,
   usageCount: c.usage_count,
   category: c.category ? { slug: c.category.slug, name: c.category.name } : null,
+  hashtags: c.hashtags?.map((h) => ({ name: h.name, slug: h.slug })) ?? [],
   author: c.creator
     ? {
         name: c.creator.shop_name,
@@ -124,6 +127,16 @@ export const categoryApi = {
       : client.get('/categories').then(({ data }) => data.map(mapCategory)),
 };
 
+// Gợi ý hashtag (tìm kiếm ở Khám phá, nhập hashtag khi tạo Creative). Mock chưa có hashtag -> rỗng
+export const hashtagApi = {
+  suggest: ({ q, limit } = {}) =>
+    MOCK_MARKETPLACE
+      ? Promise.resolve([])
+      : client
+          .get('/hashtags', { params: { q: q || undefined, limit } })
+          .then(({ data }) => data.map((h) => ({ name: h.name, slug: h.slug, count: h.creative_count ?? 0 }))),
+};
+
 /*
  * ---- Creator Studio: cửa hàng (cần đăng nhập, dữ liệu giữ nguyên snake_case như form gửi lên) ----
  *
@@ -142,7 +155,8 @@ export const categoryApi = {
  *                 pause_reason: manual|no_valid_api_key|null, is_hidden, usage_count, rating_avg, cover_url,
  *                 published_at, created_at, updated_at }], meta: { current_page, last_page, per_page, total } }
  * POST /creator/creatives  { title, description? (hướng dẫn sử dụng mẫu), category_id?, model_id, price_per_image,
- *                            video_url? (TikTok), input_schema: field[], prompt_template, max_outputs? }
+ *                            video_url? (TikTok), input_schema: field[], prompt_template, max_outputs?,
+ *                            hashtags? (tối đa 10, mỗi cái <= 50 ký tự: chữ, số, _; có hoặc không có #; gửi cả danh sách để thay thế) }
  *   input_schema: đúng 1 trường { key: 'aspectRatio', type: 'aspect_ratio', default_value } -> default_aspect_ratio
  *   -> 201 { data: creative } (trạng thái draft)
  * GET  /creator/creatives/{id}  -> { data: creative + { video_url, images: [{ id, url, sort_order }],
@@ -211,7 +225,7 @@ export const aiModelApi = {
 };
 
 export const creativeApi = {
-  // params: { q, category, sort, page, limit }
+  // params: { q, category, hashtag, sort, page, limit }
   list: ({ limit, ...params } = {}) =>
     MOCK_MARKETPLACE
       ? mock.getCreatives({ ...params, limit })

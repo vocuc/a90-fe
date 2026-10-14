@@ -7,6 +7,8 @@
  * Backend vẫn phải validate lại toàn bộ; kiểm tra ở đây chỉ để Creator thấy lỗi sớm.
  */
 
+import { MAX_HASHTAGS, hashtagError } from '../../utils/hashtag';
+
 export const SCHEMA_VERSION = 1;
 export const MAX_FIELDS = 20;
 export const MAX_PROMPT_LENGTH = 10_000;
@@ -192,6 +194,7 @@ export const emptyTemplate = () => ({
   category_id: '',
   description: '',
   video_url: '',
+  hashtags: [],
 });
 
 // ---------------- Prompt ----------------
@@ -376,6 +379,10 @@ export function validateTemplate(template) {
   const videoUrl = (template.video_url ?? '').trim();
   if (videoUrl && !isTiktokUrl(videoUrl))
     add('error', 'Link video hướng dẫn phải là link TikTok (https://www.tiktok.com/... hoặc https://vt.tiktok.com/...).', null, 'video_url');
+  const hashtags = template.hashtags ?? [];
+  const hashtagMessage =
+    hashtags.length > MAX_HASHTAGS ? `Tối đa ${MAX_HASHTAGS} hashtag.` : hashtags.map(hashtagError).find(Boolean);
+  if (hashtagMessage) add('error', hashtagMessage, null, 'hashtags');
 
   // ---- Prompt ----
   const prompt = prompt_text ?? '';
@@ -459,6 +466,7 @@ export function toPayload(template) {
     category_id: template.category_id || null,
     description: (template.description ?? '').trim(),
     video_url: (template.video_url ?? '').trim(),
+    hashtags: template.hashtags ?? [],
     prompt_template: {
       prompt_text: template.prompt_text,
       variables,
@@ -516,6 +524,7 @@ export function fromPayload(data) {
     // Nháp cũ lưu hướng dẫn ở usage_guide
     description: String(data?.description ?? data?.usage_guide ?? ''),
     video_url: String(data?.video_url ?? ''),
+    hashtags: Array.isArray(data?.hashtags) ? data.hashtags.map(String) : [],
   };
 }
 
@@ -531,6 +540,7 @@ export function toCreativePayload(template) {
     category_id: template.category_id ? Number(template.category_id) : null,
     description: trimmed(template.description),
     video_url: trimmed(template.video_url),
+    hashtags: template.hashtags ?? [],
     input_schema: toPayload(template).schema_json.fields,
     prompt_template: template.prompt_text,
   };
@@ -546,6 +556,7 @@ export function fromCreative(creative) {
     category_id: creative.category_id == null ? '' : String(creative.category_id),
     description: creative.description ?? '',
     video_url: creative.video_url ?? '',
+    hashtags: creative.hashtags?.map((h) => h.name) ?? [],
   };
 
   const template = fromPayload({ schema_json: { name: creative.title, fields: config.input_schema ?? [] } });

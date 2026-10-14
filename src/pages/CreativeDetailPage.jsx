@@ -149,6 +149,20 @@ export default function CreativeDetailPage() {
               </Link>
             )}
 
+            {c.hashtags?.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {c.hashtags.map((h) => (
+                  <Link
+                    key={h.slug}
+                    to={`/explore?hashtag=${encodeURIComponent(h.slug)}`}
+                    className="rounded-full bg-surface-container px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary-fixed/60"
+                  >
+                    #{h.name}
+                  </Link>
+                ))}
+              </div>
+            )}
+
             {c.description && (
               <p className="whitespace-pre-line text-sm leading-relaxed text-on-surface-variant">{c.description}</p>
             )}

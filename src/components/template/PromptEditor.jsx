@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useAiModels } from '../../hooks/creatorQueries';
 import { useCategories } from '../../hooks/queries';
 import { Input, Select, borderCls, inputCls } from './inputs';
+import HashtagInput from './HashtagInput';
 import { MAX_PROMPT_LENGTH, MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH } from './templateSchema';
 
 // Khung prompt khuyến nghị (§5.2)
@@ -20,7 +21,7 @@ const SECTIONS = [
 ];
 
 /**
- * onSet: sửa title / category_id / model_id / price_per_image / description của template. errors: lỗi theo path của validateTemplate.
+ * onSet: sửa title / category_id / model_id / price_per_image / description / hashtags của template. errors: lỗi theo path của validateTemplate.
  * stacked: xếp phần model, giá / hướng dẫn dưới ô prompt, dùng khi đặt trong cột hẹp.
  */
 export default function PromptEditor({ template, onChange, onSet, errors = {}, stacked = false }) {
@@ -140,6 +141,7 @@ export default function PromptEditor({ template, onChange, onSet, errors = {}, s
             onChange={(e) => onSet({ price_per_image: e.target.value })}
             error={errors.price_per_image}
           />
+          <HashtagInput value={template.hashtags ?? []} onChange={(hashtags) => onSet({ hashtags })} error={errors.hashtags} />
         </section>
 
         <section className="space-y-2 rounded-xl border border-outline-variant/40 p-3">
