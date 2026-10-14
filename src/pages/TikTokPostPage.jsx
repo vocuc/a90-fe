@@ -689,6 +689,20 @@ function ReviewForm({ post, onRefresh }) {
 
   const submit = (ev) => {
     ev.preventDefault();
+    setFormError(null);
+    // Nút đăng luôn bấm được: chưa đủ điều kiện thì báo lý do thay vì khoá nút
+    if (!creator) {
+      setFormError(tiktok === undefined ? 'Đang kiểm tra tài khoản TikTok, vui lòng chờ.' : 'Hãy ủy quyền tài khoản TikTok trước khi đăng.');
+      return;
+    }
+    if (!canPost) {
+      setFormError(creator.cannot_post_reason?.message || 'Tài khoản TikTok này tạm thời không đăng được bài.');
+      return;
+    }
+    if (imagesNotReady) {
+      setFormError('Còn ảnh đang tạo hoặc bị lỗi: hãy chờ ảnh xong, tạo lại hoặc xoá ảnh lỗi trước khi đăng.');
+      return;
+    }
     if (!validate()) return;
     run('publish', async () => {
       try {
@@ -781,18 +795,11 @@ function ReviewForm({ post, onRefresh }) {
       )}
 
       <div className="space-y-6">
-        {post.lastError && !formError ? (
+        {post.lastError && !formError && (
           <p className="flex items-start gap-2 rounded-xl bg-error-container/60 px-3 py-2 text-xs text-on-error-container">
             <Icon name="error" className="text-base" />
             <span>
               <b>Đăng lần trước không thành công.</b> {post.lastError.message}
-            </span>
-          </p>
-        ) : (
-          <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            <Icon name="edit_note" className="text-base" />
-            <span>
-              Ảnh đã sẵn sàng. Hãy điền tiêu đề, nội dung, hashtag rồi bấm <b>Đăng lên TikTok</b>.
             </span>
           </p>
         )}
@@ -902,7 +909,7 @@ function ReviewForm({ post, onRefresh }) {
           <SubmitButton
             loading={busy === 'publish'}
             loadingText="Đang gửi lên TikTok..."
-            disabled={!canPost || !!busy || imagesNotReady}
+            disabled={!!busy}
           >
             <Icon name="send" className="text-lg" />
             Đăng lên TikTok
