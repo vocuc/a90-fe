@@ -10,6 +10,7 @@ import { useCreative, useMe } from '../hooks/queries';
 import {
   FINAL_STATUSES,
   useCreateGeneration,
+  thumbOf,
   useDownloadOutput,
   useGenerationStatus,
   useRetryGeneration,
@@ -83,7 +84,7 @@ function OutputTile({ generationId, output, ratio, startedAt }) {
       <div className="relative overflow-hidden rounded-xl bg-surface-container" style={{ aspectRatio: cssRatio(ratio) }}>
         {output.status === 'completed' && output.image_url ? (
           <button type="button" onClick={() => setViewing(true)} title="Xem ảnh lớn" className="block h-full w-full cursor-zoom-in">
-            <img src={output.image_url} alt={`Ảnh ${output.position}`} className="h-full w-full object-cover" />
+            <img src={thumbOf(output)} alt={`Ảnh ${output.position}`} className="h-full w-full object-cover" />
           </button>
         ) : pending ? (
           <div className="flex h-full w-full animate-pulse flex-col items-center justify-center gap-1.5 text-on-surface-variant">

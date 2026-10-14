@@ -5,7 +5,7 @@ import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
-import { useDownloadOutput, useGenerationHistory } from '../hooks/generationQueries';
+import { thumbOf, useDownloadOutput, useGenerationHistory } from '../hooks/generationQueries';
 import { formatVnd } from '../utils/format';
 
 // Khớp GenerationStatus của backend
@@ -49,7 +49,7 @@ function OrderCard({ order }) {
       aria-label={`Xem ảnh ${o.position}`}
       className={`group relative cursor-zoom-in aspect-square overflow-hidden rounded-lg ${className}`}
     >
-      <CoverImage src={o.image_url} alt={`Ảnh ${o.position}`} className="size-full" />
+      <CoverImage src={thumbOf(o)} alt={`Ảnh ${o.position}`} className="size-full" />
       <span className="absolute inset-0 flex items-center justify-center bg-inverse-surface/40 text-on-primary opacity-0 transition-opacity group-hover:opacity-100">
         <Icon name="zoom_in" className="text-lg" />
       </span>

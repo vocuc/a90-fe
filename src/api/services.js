@@ -289,13 +289,14 @@ export const creatorPageApi = {
  *        409 CREATIVE_TEMPORARILY_UNAVAILABLE, 409 IDEMPOTENCY_CONFLICT, 422 quantity/aspect_ratio
  * GET  /generations?page=&per_page= (<= 50, mới nhất trước) -> { data: generation[] (kèm outputs), meta: { current_page, last_page, ... } }
  * GET  /generations/{id}/status  -> { data: { id, status, success_count, failed_count,
- *                                             outputs: [{ id, position, status, image_url, error_code }] } }
+ *                                             outputs: [{ id, position, status, image_url, thumb_url, error_code }] } }
  *   status (generation và output): queued | processing | completed | failed (generation có thêm cancelled)
  * POST /generations/{id}/retry  { output_ids, idempotency_key } -> 202 { data: generation mới } (trừ tiền lại)
  * GET  /generations/{id}/outputs/{outputId}/download -> { data: { url, filename, expires_in_minutes } }
  *   url ký số có Content-Disposition: attachment -> mở là tải về
  * generation: { id, status, creative: { id, slug, title }, quantity, aspect_ratio, price_per_image, total_charged,
- *               success_count, failed_count, outputs?: [{ id, position, status, image_url, error_message }], created_at }
+ *               success_count, failed_count, outputs?: [{ id, position, status, image_url, thumb_url, error_message }], created_at }
+ *   thumb_url: ảnh nhỏ để hiển thị, image_url: ảnh gốc (chỉ dùng khi phóng to)
  */
 const GENERATION_UPLOAD_TIMEOUT = 60_000;
 

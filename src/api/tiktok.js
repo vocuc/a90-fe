@@ -101,6 +101,7 @@ const mapImage = (img) => ({
   outputId: img.output_id,
   status: img.status,
   url: img.image_url,
+  thumbUrl: img.thumb_url || img.image_url,
   errorMessage: img.error_message ?? null,
   creativeSlug: null,
   creativeTitle: null,

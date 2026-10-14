@@ -205,7 +205,7 @@ function ImageStrip({ images, editable, onRemove, onAdd, onRegenerate, onEditInp
                     aria-label={`Xem ảnh ${i + 1}`}
                     className="size-full cursor-zoom-in"
                   >
-                    <CoverImage src={img.url} alt="" className="size-full" />
+                    <CoverImage src={img.thumbUrl ?? img.url} alt="" className="size-full" />
                   </button>
                 ) : (
                   failed &&
@@ -342,7 +342,7 @@ function EditInputsDialog({ postId, image, onSubmit, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-surface-container px-4 py-3">
-          <CoverImage src={image.url} alt="" className="size-10 shrink-0 rounded-lg" />
+          <CoverImage src={image.thumbUrl ?? image.url} alt="" className="size-10 shrink-0 rounded-lg" />
           <div className="min-w-0 flex-1">
             <h2 id="edit-inputs-title" className="text-base font-bold text-on-surface">
               Sửa nguyên liệu
@@ -500,7 +500,7 @@ function GeneratingPanel({ post }) {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {post.images.map((t) =>
           t.url ? (
-            <CoverImage key={t.key} src={t.url} alt="" className="aspect-[3/4] w-full rounded-xl opacity-70" />
+            <CoverImage key={t.key} src={t.thumbUrl ?? t.url} alt="" className="aspect-[3/4] w-full rounded-xl opacity-70" />
           ) : (
             <Skeleton key={t.key} className="aspect-[3/4]" />
           ),
@@ -741,6 +741,7 @@ function ReviewForm({ post, onRefresh }) {
         outputId: p.outputId,
         status: IMAGE_STATUS.COMPLETED,
         url: p.url,
+        thumbUrl: p.thumbUrl,
         errorMessage: null,
         creativeSlug: p.creativeSlug,
         creativeTitle: p.creativeTitle,

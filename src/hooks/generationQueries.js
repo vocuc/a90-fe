@@ -2,6 +2,9 @@ import { useEffect } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { generationApi } from '../api/services';
 
+// Ảnh nhỏ để hiển thị; ảnh gốc (image_url) chỉ tải khi phóng to hoặc tải về
+export const thumbOf = (output) => output.thumb_url || output.image_url;
+
 // Generation xong (kể cả lỗi một phần) thì ngừng hỏi trạng thái
 export const FINAL_STATUSES = ['completed', 'failed', 'cancelled'];
 const POLL_INTERVAL = 2000;

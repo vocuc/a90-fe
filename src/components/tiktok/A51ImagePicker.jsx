@@ -2,13 +2,13 @@ import { Link } from 'react-router-dom';
 import CoverImage from '../common/CoverImage';
 import Icon from '../common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../common/Feedback';
-import { useGenerationHistory } from '../../hooks/generationQueries';
+import { thumbOf, useGenerationHistory } from '../../hooks/generationQueries';
 
 const GRID = 'grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6';
 
 /**
  * Chọn ảnh đã tạo trên A51 (lịch sử tạo ảnh, chỉ ảnh hoàn tất).
- * selected: [{ key, generationId, outputId, url, creativeSlug, creativeTitle }] theo thứ tự chọn.
+ * selected: [{ key, generationId, outputId, url, thumbUrl, creativeSlug, creativeTitle }] theo thứ tự chọn.
  * exclude: key (`${generationId}_${outputId}`) của ảnh đã có trong bài, không cho chọn lại.
  */
 export default function A51ImagePicker({ selected, onChange, max, exclude = [] }) {
@@ -24,6 +24,7 @@ export default function A51ImagePicker({ selected, onChange, max, exclude = [] }
           generationId: g.id,
           outputId: o.id,
           url: o.image_url,
+          thumbUrl: thumbOf(o),
           creativeSlug: g.creative?.slug ?? null,
           creativeTitle: g.creative?.title ?? null,
         })),
@@ -75,7 +76,7 @@ export default function A51ImagePicker({ selected, onChange, max, exclude = [] }
                 picked ? 'ring-[3px] ring-primary-container ring-offset-2' : 'hover:opacity-90'
               }`}
             >
-              <CoverImage src={img.url} alt="" className="size-full" />
+              <CoverImage src={img.thumbUrl} alt="" className="size-full" />
               <span
                 className={`absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full border-2 text-xs font-bold ${
                   picked ? 'border-primary-container bg-primary-container text-on-primary' : 'border-white bg-black/20'
