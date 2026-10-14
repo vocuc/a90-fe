@@ -1,0 +1,211 @@
+NGHIỆP VỤ ỦY QUYỀN TÀI KHOẢN TIKTOK - ĐẶC TẢ BACKEND (ĐÃ LÀM XONG)
+==================================================================
+
+CẬP NHẬT 2026-10-14: Backend đã làm xong. Tài liệu đã sửa theo đúng những gì backend trả về.
+Mục 4 trong note/nghiep-vu-dang-bai-tiktik.txt chỉ là tóm tắt của tài liệu này.
+Frontend đang giả lập ở src/api/tiktok.js (getCreatorInfo, authorizeTikTok: lưu cờ "đã kết nối" trong localStorage)
+-> thay bằng API thật theo mục 4, bỏ cờ localStorage.
+
+Quy ước chung giống các API hiện có:
+- Gốc API: /api/v1. Mọi API cần đăng nhập (Authorization: Bearer <token>), TRỪ callback OAuth (TikTok gọi về).
+- JSON snake_case. Thành công trả { data }. Lỗi trả { message, code?, context?, errors? }.
+- Token TikTok KHÔNG BAO GIỜ trả cho frontend.
+
+
+0. FRONTEND CẦN SỬA
+-------------------
+
+a) getCreatorInfo() gọi GET /tiktok/account. Dữ liệu là snake_case (creator.username, creator.privacy_level_options,
+   creator.comment_disabled...), không phải creatorUsername / privacyLevelOptions như bản giả lập.
+   Trả cả { connected, reason, account, creator } thay vì null / object creator.
+b) Có thêm creator.can_post / creator.cannot_post_reason: can_post = false thì khoá nút "Duyệt và đăng" và hiện
+   cannot_post_reason.message (khi đó privacy_level_options = [] nên ô quyền riêng tư cũng khoá).
+c) reason = expired / revoked mà account khác null: hiện "Ủy quyền lại @{account.username}" (username có thể null).
+   reason = scope_missing: hiện "Cần cho phép quyền đăng bài..." + nút "Ủy quyền".
+d) Lỗi 502 TIKTOK_UNAVAILABLE ở GET /tiktok/account: hiện lỗi + nút "Thử lại", KHÔNG hiện "Chưa ủy quyền",
+   KHÔNG coi là máy chủ bảo trì (src/api/client.js đang đổi mọi 502 thành MAINTENANCE_MESSAGE -> phải dùng body.message
+   khi body.code = TIKTOK_UNAVAILABLE).
+e) authorizeTikTok(redirect): POST /tiktok/oauth/authorize { redirect: đường dẫn hiện tại, vd "/tiktok/post/123" }
+   rồi window.location.href = data.url.
+f) Trang quay về đọc ?tiktok=connected | error&reason=..., hiện thông báo (mục 2), xoá tham số khỏi URL,
+   gọi lại GET /tiktok/account.
+g) (Tuỳ chọn) Nút "Huỷ kết nối" -> DELETE /tiktok/account; trang Tài khoản dùng GET /auth/me -> tiktok { connected, username }.
+h) Lỗi TIKTOK_NOT_CONNECTED (409) ở API đăng bài: gọi lại GET /tiktok/account để hiện nút "Ủy quyền".
+
+
+1. TỔNG QUAN
+------------
+
+- Mỗi người dùng A51 kết nối TỐI ĐA 1 tài khoản TikTok. Kết nối tài khoản khác = thay thế tài khoản cũ
+  (backend thu hồi token cũ).
+- Một tài khoản TikTok có thể được nhiều người dùng A51 cùng kết nối (mỗi người một token riêng).
+- Ủy quyền dùng TikTok Login Kit (OAuth 2.0, luồng web, authorization code). Backend giữ access token /
+  refresh token, tự làm mới, và dùng token đó để gọi Content Posting API khi người dùng bấm "Duyệt và đăng".
+- Scope: user.info.basic, video.publish. Người dùng BỎ TÍCH video.publish trên màn hình đồng ý của TikTok
+  -> backend không lưu, trả về reason=scope_missing.
+
+Giao diện (trang /tiktok/post/{id}, ô "tài khoản TikTok" phía trên form đăng):
+  - Đang tải            -> khung xám.
+  - Chưa ủy quyền       -> connected = false: "Chưa ủy quyền TikTok" + nút "Ủy quyền"; ô quyền riêng tư và
+                           nút "Duyệt và đăng" bị khoá.
+  - Đã kết nối          -> nickname, @username, nhãn "Đã kết nối"; ô quyền riêng tư lấy từ privacy_level_options;
+                           comment_disabled = true thì khoá công tắc "Cho phép bình luận" (backend cũng tự tắt).
+                           can_post = false thì hiện cannot_post_reason.message và khoá nút đăng.
+  - Lỗi (502)           -> thông báo lỗi + nút "Thử lại".
+
+
+2. LUỒNG ỦY QUYỀN
+-----------------
+
+  [Frontend]  bấm "Ủy quyền"
+      |  POST /tiktok/oauth/authorize { redirect: "/tiktok/post/123" }
+      v
+  [Backend]   tạo state (dùng 1 lần, sống 10 phút), trả URL ủy quyền TikTok
+      |  frontend: window.location.href = url
+      v
+  [TikTok]    người dùng đăng nhập TikTok, đồng ý cấp quyền
+      |  302 -> {BACKEND}/api/v1/tiktok/oauth/callback?code=...&state=...
+      v
+  [Backend]   kiểm tra state -> đổi code lấy token -> kiểm tra scope -> lấy thông tin user -> lưu
+      |  302 -> {FRONTEND_URL}{redirect}?tiktok=connected      (hoặc ?tiktok=error&reason=...)
+      v
+  [Frontend]  đọc ?tiktok=, hiện thông báo, xoá tham số khỏi URL, gọi lại GET /tiktok/account
+
+  redirect có sẵn query (vd "/tiktok/post/123?tab=photo") thì backend nối thêm bằng "&".
+  redirect phải là đường dẫn tương đối bắt đầu bằng "/" (không "//", không có scheme / host), sai -> về "/tiktok".
+
+Lỗi ở callback -> {FRONTEND_URL}{redirect}?tiktok=error&reason=<mã>:
+  access_denied   người dùng bấm từ chối / huỷ trên TikTok
+  scope_missing   người dùng bỏ tích quyền đăng bài
+  state_invalid   state sai / hết hạn / đã dùng (vd. mở lại link cũ) -> luôn về {FRONTEND_URL}/tiktok
+  server_error    đổi code thất bại, TikTok lỗi, lỗi khác
+
+Thông báo frontend hiện:
+  connected      "Đã kết nối tài khoản TikTok."
+  access_denied  "Bạn đã huỷ ủy quyền TikTok."
+  scope_missing  "Cần cho phép quyền đăng bài để A51 đăng lên TikTok. Vui lòng ủy quyền lại."
+  state_invalid  "Phiên ủy quyền đã hết hạn, vui lòng thử lại."
+  server_error   "Không kết nối được TikTok, vui lòng thử lại sau."
+
+
+3. DỮ LIỆU BACKEND LƯU (tham khảo, frontend không đọc trực tiếp)
+---------------------------------------------------------------
+
+- tiktok_accounts (1 dòng / người dùng): open_id, scope, access_token / refresh_token (mã hoá), thời hạn token,
+  display_name, username, avatar_url (cache từ creator_info), status active | expired | revoked, last_error,
+  connected_at, last_refreshed_at.
+- State OAuth trong cache, 10 phút, dùng 1 lần.
+- Bài đăng lưu tài khoản đã dùng để đăng: tiktok_username trả ra ở TikTokPost ("Đã đăng lên @username").
+
+
+4. API
+------
+
+4.1 GET /tiktok/account
+  Mỗi lần gọi, backend gọi TikTok creator_info/query (TikTok yêu cầu lấy mới mỗi lần hiển thị trang đăng bài).
+  Gọi khi mở trang đăng bài và khi bấm "Thử lại"; không polling.
+
+  Chưa kết nối / không dùng được:
+  -> 200 { data: {
+       connected: false,
+       reason: "not_connected",       // not_connected | expired | revoked | scope_missing
+       account: null,                 // expired / revoked / scope_missing: account cũ (để hiện "Ủy quyền lại @username")
+       creator: null
+     } }
+
+  Đã kết nối:
+  -> 200 { data: {
+       connected: true,
+       reason: null,
+       account: {
+         username: "a51.vn",            // có thể null
+         nickname: "A51 Official",      // có thể null
+         avatar_url: "https://...",     // có thể null; link TikTok có hạn, chỉ dùng hiển thị ngay
+         connected_at: "2026-10-14T09:00:00.000000Z"
+       },
+       creator: {
+         avatar_url, username, nickname,
+         privacy_level_options: ["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "SELF_ONLY"],
+                                        // có thể có "FOLLOWER_OF_CREATOR"; [] khi can_post = false
+         comment_disabled: false, duet_disabled: false, stitch_disabled: false,
+         max_video_post_duration_sec: 600,   // có thể null
+         can_post: true,
+         cannot_post_reason: null       // { code, message } khi can_post = false, vd
+                                        // { code: "spam_risk_too_many_posts", message: "Tài khoản đã đạt giới hạn đăng bài trong ngày, thử lại sau." }
+                                        // code khác: spam_risk_user_banned_from_posting, reached_active_user_cap
+       }
+     } }
+
+  Token hết hạn: backend tự làm mới rồi gọi lại; làm mới thất bại -> connected: false, reason: "expired".
+  TikTok lỗi mạng / 5xx / giới hạn tần suất -> 502 { code: "TIKTOK_UNAVAILABLE", message: "Không kết nối được TikTok, vui lòng thử lại sau." }
+
+4.2 POST /tiktok/oauth/authorize
+  body: { redirect: "/tiktok/post/123" }   (tuỳ chọn, mặc định "/tiktok")
+  -> 200 { data: { url: "https://www.tiktok.com/v2/auth/authorize/?client_key=...&state=..." } }
+
+4.3 GET /tiktok/oauth/callback   (TikTok gọi, frontend không gọi)
+  Luôn redirect 302 về frontend theo mục 2.
+
+4.4 DELETE /tiktok/account   (huỷ kết nối)
+  Thu hồi token ở TikTok, xoá token; sau đó GET /tiktok/account trả reason: "revoked".
+  Còn bài đang "publishing" -> 409 TIKTOK_PUBLISHING_IN_PROGRESS
+    "Đang có bài đăng lên TikTok, vui lòng chờ đăng xong rồi huỷ kết nối."
+  Chưa từng kết nối -> vẫn 204.
+  -> 204
+
+4.5 GET /auth/me  thêm:
+  tiktok: { connected: true, username: "a51.vn" }   // không gọi TikTok; connected = token còn dùng được
+  (chỉ có ở /auth/me, không có trong response đăng nhập / đăng ký)
+
+
+5. QUẢN LÝ TOKEN (backend tự làm, frontend không cần xử lý)
+----------------------------------------------------------
+
+- Access token còn < 5 phút -> làm mới trước khi gọi TikTok; có khoá theo tài khoản.
+- Job hằng ngày làm mới các tài khoản có refresh token còn < 30 ngày, đánh dấu expired tài khoản quá hạn.
+- Người dùng gỡ quyền A51 ngay trong app TikTok: webhook authorization.removed -> status revoked
+  (GET /tiktok/account trả reason: "revoked").
+
+
+6. LIÊN QUAN ĐẾN ĐĂNG BÀI
+-------------------------
+
+- POST /tiktok/posts/{id}/publish:
+    + Chưa kết nối / expired / revoked / thiếu scope -> 409 TIKTOK_NOT_CONNECTED, context.reason như 4.1
+      (frontend gọi lại GET /tiktok/account để hiện nút "Ủy quyền").
+    + Backend gọi lại creator_info ngay trước khi đăng: privacy_level phải nằm trong privacy_level_options
+      (sai -> 422 errors.privacy_level), can_post = false -> 409 TIKTOK_CANNOT_POST.
+- Kết quả đăng do webhook TikTok báo về. TikTok báo bị gỡ quyền giữa chừng -> bài về pending_review,
+  last_error { code: "TIKTOK_NOT_CONNECTED", message: "Mất kết nối TikTok, vui lòng ủy quyền lại và đăng lại." }.
+
+
+7. MÃ LỖI
+---------
+
+  409 TIKTOK_NOT_CONNECTED            chưa ủy quyền / token hết hạn / bị thu hồi (context.reason)
+  409 TIKTOK_PUBLISHING_IN_PROGRESS   huỷ kết nối khi còn bài đang đăng
+  409 TIKTOK_CANNOT_POST              creator bị TikTok chặn đăng (lúc bấm đăng)
+  502 TIKTOK_UNAVAILABLE              TikTok lỗi / không phản hồi / bị giới hạn tần suất
+  Callback: ?tiktok=error&reason=access_denied | scope_missing | state_invalid | server_error
+
+
+8. CẤU HÌNH (backend / devops)
+------------------------------
+
+- TikTok Developer Portal: Login Kit (web) + Content Posting API (Direct Post), scope user.info.basic, video.publish.
+- Redirect URI: {BACKEND}/api/v1/tiktok/oauth/callback (HTTPS, khớp chính xác).
+- Webhook URL: {BACKEND}/api/v1/tiktok/webhook (authorization.removed, post.publish.*).
+- Xác minh tên miền chứa ảnh gửi TikTok (TIKTOK_MEDIA_URL).
+- Env backend: TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URI, FRONTEND_URL (gốc của frontend,
+  vd https://a51.vn), TIKTOK_MEDIA_URL, TIKTOK_MEDIA_BUCKET.
+- App CHƯA QUA KIỂM DUYỆT (audit) của TikTok: mọi bài đăng bị ép SELF_ONLY, tài khoản đăng phải để riêng tư,
+  giới hạn số người dùng ủy quyền mỗi ngày.
+
+
+9. ĐÃ CHỐT
+----------
+
+- Mỗi người dùng 1 tài khoản TikTok.
+- Một tài khoản TikTok được nhiều người dùng A51 cùng kết nối, mỗi người một token riêng.
+- Dùng webhook (authorization.removed và kết quả đăng bài), không polling phía backend.
+- Xoá tài khoản A51: chưa có chức năng xoá tài khoản; khi xoá user, dữ liệu tiktok_accounts bị xoá theo.

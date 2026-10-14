@@ -21,7 +21,7 @@ export default function ToolsPage() {
         {TOOLS.map((t) => (
           <Link
             key={t.slug}
-            to={`/tools/${t.slug}`}
+            to={t.to ?? `/tools/${t.slug}`}
             className="group flex flex-col gap-3 rounded-2xl border border-outline-variant/30 bg-surface-container-low p-3 transition-all hover:border-primary-container active:scale-[0.98]"
           >
             <span className="flex size-12 items-center justify-center rounded-xl bg-surface-container text-primary transition-colors group-hover:bg-primary-container group-hover:text-on-primary">

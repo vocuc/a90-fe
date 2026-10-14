@@ -1,20 +1,29 @@
-// Giả lập TikTok Content Posting API (Direct Post). Chưa có backend: khi có, thay thân hàm bằng lời gọi
-// tới backend, backend giữ access token và gọi TikTok:
-// - getCreatorInfo -> POST /v2/post/publish/creator_info/query/
-// - publishVideo   -> POST /v2/post/publish/video/init/ (rồi PUT file lên upload_url)
-// - publishPhotos  -> POST /v2/post/publish/content/init/ (media_type PHOTO)
+import client from './client';
+import { appendInputs } from './services';
 
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+/*
+ * ---- Đăng bài TikTok (cần đăng nhập) ----
+ * Đặc tả: note/nghiep-vu-dang-bai-tiktik.txt (bài đăng), note/uy-quyen-tiktok.txt (ủy quyền OAuth).
+ * Backend giữ access token TikTok, tạo ảnh, viết nội dung bằng AI và gọi Content Posting API.
+ *
+ * GET    /tiktok/account                                 -> { data: { connected, reason, account, creator } }
+ * POST   /tiktok/oauth/authorize { redirect }            -> { data: { url } }
+ * DELETE /tiktok/account                                 -> 204
+ * GET    /tiktok/posts?page=&per_page=&status=           -> { data: TikTokPost[], meta }
+ * GET    /tiktok/posts/{id}                              -> { data: TikTokPost }
+ * POST   /tiktok/posts/from-images                       -> 201 { data: TikTokPost }
+ * POST   /tiktok/posts/from-creatives (multipart)        -> 201 { data: TikTokPost }
+ * GET    /tiktok/posts/{id}/images/{imageId}/inputs      -> { data: { creative, inputs } }
+ * POST   /tiktok/posts/{id}/images/{imageId}/regenerate  -> 202 { data: TikTokPostImage }
+ * POST   /tiktok/posts/{id}/publish                      -> { data: TikTokPost }
+ * DELETE /tiktok/posts/{id}                              -> 204
+ */
 
 // Giới hạn theo tài liệu TikTok
-export const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
-export const VIDEO_MAX_BYTES = 4 * 1024 * 1024 * 1024;
-export const PHOTO_TYPES = ['image/jpeg', 'image/webp'];
-export const PHOTO_MAX_BYTES = 20 * 1024 * 1024;
 export const PHOTO_MAX_COUNT = 35;
-export const VIDEO_TITLE_MAX = 2200;
 export const PHOTO_TITLE_MAX = 90;
 export const PHOTO_DESCRIPTION_MAX = 4000;
+export const HASHTAG_MAX = 10;
 
 export const PRIVACY_LABELS = {
   PUBLIC_TO_EVERYONE: 'Mọi người',
@@ -23,40 +32,220 @@ export const PRIVACY_LABELS = {
   SELF_ONLY: 'Chỉ mình tôi',
 };
 
-export async function getCreatorInfo() {
-  await delay(500);
-  return {
-    creatorAvatarUrl: null,
-    creatorUsername: 'a51.vn',
-    creatorNickname: 'A51 Official',
-    privacyLevelOptions: ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY'],
-    commentDisabled: false,
-    duetDisabled: false,
-    stitchDisabled: false,
-    maxVideoPostDurationSec: 600,
-  };
+/*
+ * Trạng thái bài đăng:
+ *   generating      Đang tạo nội dung: AI tạo ảnh (nếu chọn tạo ảnh mới) và viết tiêu đề, nội dung, hashtag
+ *   pending_review  Đang chờ duyệt: chờ người dùng xem lại, sửa và bấm đăng
+ *   publishing      Đang đăng: đã gửi lên TikTok, chờ TikTok phản hồi
+ *   published       Đã đăng lên TikTok
+ */
+export const POST_STATUS = {
+  GENERATING: 'generating',
+  PENDING_REVIEW: 'pending_review',
+  PUBLISHING: 'publishing',
+  PUBLISHED: 'published',
+};
+
+// Trạng thái ảnh trong bài
+export const IMAGE_STATUS = {
+  QUEUED: 'queued',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+};
+export const isImageBusy = (img) => img.status === IMAGE_STATUS.QUEUED || img.status === IMAGE_STATUS.PROCESSING;
+
+/** Khoá chống tạo trùng: tạo 1 lần cho mỗi lần bấm, bấm lại do lỗi mạng thì dùng lại khoá cũ. */
+export const newIdempotencyKey = () =>
+  globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const UPLOAD_TIMEOUT = 60_000;
+
+// ---- Ủy quyền TikTok ----
+
+/**
+ * Trạng thái ủy quyền + thông tin creator (backend lấy mới từ TikTok mỗi lần gọi). Giữ nguyên snake_case:
+ * { connected, reason: not_connected|expired|revoked|scope_missing|null, account, creator }.
+ * TikTok lỗi -> 502 code TIKTOK_UNAVAILABLE.
+ */
+export const getCreatorInfo = () => client.get('/tiktok/account').then(({ data }) => data);
+
+/** Lấy URL ủy quyền rồi chuyển sang TikTok; xong TikTok đưa về {redirect}?tiktok=connected|error&reason=... */
+export async function authorizeTikTok(redirect) {
+  const { data } = await client.post('/tiktok/oauth/authorize', { redirect });
+  window.location.href = data.url;
 }
 
-// Giả lập tải file lên: báo tiến độ 0-100 qua onProgress
-async function fakeUpload(onProgress) {
-  for (let p = 0; p <= 100; p += 10) {
-    onProgress?.(p);
-    await delay(150);
-  }
+export const disconnectTikTok = () => client.delete('/tiktok/account');
+
+// Thông báo khi TikTok đưa người dùng quay về trang (?tiktok=connected | error&reason=...)
+export const OAUTH_RESULT_MESSAGES = {
+  connected: 'Đã kết nối tài khoản TikTok.',
+  access_denied: 'Bạn đã huỷ ủy quyền TikTok.',
+  scope_missing: 'Cần cho phép quyền đăng bài để A51 đăng lên TikTok. Vui lòng ủy quyền lại.',
+  state_invalid: 'Phiên ủy quyền đã hết hạn, vui lòng thử lại.',
+  server_error: 'Không kết nối được TikTok, vui lòng thử lại sau.',
+};
+
+// ---- Bài đăng ----
+
+const mapCreative = (c) => (c ? { creativeId: c.id, creativeSlug: c.slug, creativeTitle: c.title, price: c.price_per_image ?? 0 } : {});
+
+const mapImage = (img) => ({
+  // id ảnh trong bài, giữ nguyên khi tạo lại; ảnh vừa thêm ở bước duyệt (chưa lưu) có id null
+  id: img.id,
+  // Khoá theo ảnh gốc trong lịch sử tạo ảnh, dùng để không chọn trùng
+  key: `${img.generation_id}_${img.output_id}`,
+  position: img.position,
+  generationId: img.generation_id,
+  outputId: img.output_id,
+  status: img.status,
+  url: img.image_url,
+  errorMessage: img.error_message ?? null,
+  creativeSlug: null,
+  creativeTitle: null,
+  price: 0,
+  ...mapCreative(img.creative),
+});
+
+const mapPost = (p) => ({
+  id: p.id,
+  status: p.status,
+  source: p.source,
+  title: p.title ?? '',
+  content: p.content ?? '',
+  hashtags: p.hashtags ?? [],
+  privacyLevel: p.privacy_level,
+  allowComment: p.allow_comment,
+  autoAddMusic: p.auto_add_music,
+  imageCount: p.image_count ?? p.images?.length ?? 0,
+  coverUrl: p.cover_url,
+  images: (p.images ?? []).map(mapImage),
+  lastError: p.last_error,
+  tiktokUsername: p.tiktok_username,
+  tiktokPostUrl: p.tiktok_post_url,
+  createdAt: p.created_at,
+  publishedAt: p.published_at,
+});
+
+/** Mới nhất trước, có phân trang. */
+export const listPosts = ({ page = 1, limit = 20, status } = {}) =>
+  client.get('/tiktok/posts', { params: { page, per_page: limit, status } }).then(({ data, meta }) => ({
+    items: data.map(mapPost),
+    page: meta.current_page,
+    lastPage: meta.last_page,
+    total: meta.total,
+  }));
+
+export const getPost = (id) => client.get(`/tiktok/posts/${id}`).then(({ data }) => mapPost(data));
+
+/**
+ * Tạo bài từ ảnh đã có trên A51 (không tính phí): AI chỉ viết nội dung rồi bài chờ người dùng duyệt.
+ * images: [{ generationId, outputId }] theo thứ tự, ảnh đầu làm ảnh bìa.
+ */
+export const createPostFromImages = (images, idempotencyKey) =>
+  client
+    .post('/tiktok/posts/from-images', {
+      images: images.map((i) => ({ generation_id: i.generationId, output_id: i.outputId })),
+      idempotency_key: idempotencyKey,
+    })
+    .then(({ data }) => mapPost(data));
+
+/*
+ * Giá trị form (DynamicForm) -> inputs gửi đi. Trường ảnh trong form là mảng gồm File (ảnh mới tải lên) hoặc
+ * ảnh đã lưu { fileId, url, name } (lấy từ getImageInputs). Ảnh đã lưu gửi bằng keep_files[key][]=fileId.
+ * Backend chỉ hỗ trợ trường ảnh 1 file (type image); image_set chưa hỗ trợ nên bỏ qua.
+ */
+const isFile = (v) => typeof Blob !== 'undefined' && v instanceof Blob;
+
+const splitInputs = (schema, values) => {
+  const inputs = {};
+  const keepFiles = {};
+  schema.forEach((f) => {
+    const value = values[f.key];
+    if (f.type === 'image_set') return;
+    if (f.type === 'image' || f.type === 'image_list') {
+      const list = value ?? [];
+      const files = list.filter(isFile);
+      const kept = list.filter((v) => !isFile(v) && v?.fileId).map((v) => v.fileId);
+      if (files.length) inputs[f.key] = f.type === 'image' ? files[0] : files;
+      else if (kept.length) keepFiles[f.key] = kept;
+      return;
+    }
+    inputs[f.key] = value;
+  });
+  return { inputs, keepFiles };
+};
+
+/**
+ * Tạo bài với ảnh mới: bài tạo ngay ở trạng thái generating (đã trừ tiền), mỗi mẫu tạo 1 ảnh ở nền rồi AI viết nội dung.
+ * items: [{ creativeId (số), schema (input_schema), values (giá trị form) }]
+ */
+export function createPostFromCreatives(items, idempotencyKey) {
+  const form = new FormData();
+  items.forEach(({ creativeId, schema, values }, i) => {
+    form.append(`items[${i}][creative_id]`, creativeId);
+    appendInputs(form, splitInputs(schema, values).inputs, `items[${i}][inputs]`);
+  });
+  form.append('idempotency_key', idempotencyKey);
+  return client
+    .post('/tiktok/posts/from-creatives', form, { timeout: UPLOAD_TIMEOUT })
+    .then(({ data }) => mapPost(data));
 }
 
-const publishId = (prefix) => `${prefix}~v2.${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+/**
+ * Nguyên liệu đã dùng để tạo ảnh, đổi sang giá trị form: trường ảnh -> [{ fileId, url, name }].
+ * Trả { creative, values } ; values = null khi không còn nguyên liệu (file đã bị xoá theo chính sách lưu trữ).
+ */
+export const getImageInputs = (postId, image) =>
+  client.get(`/tiktok/posts/${postId}/images/${image.id}/inputs`).then(({ data }) => ({
+    creative: data.creative,
+    values: data.inputs
+      ? Object.fromEntries(
+          Object.entries(data.inputs).map(([key, v]) => [
+            key,
+            Array.isArray(v) && v.some((x) => x && typeof x === 'object' && 'file_id' in x)
+              ? v.map((x) => ({ fileId: x.file_id, url: x.url, name: x.name }))
+              : v,
+          ]),
+        )
+      : null,
+  }));
 
-/** settings: { title, privacyLevel, disableComment, disableDuet, disableStitch, brandOrganic, brandedContent } */
-export async function publishVideo(file, settings, onProgress) {
-  await delay(300);
-  await fakeUpload(onProgress);
-  return { publishId: publishId('v_pub_file') };
+/**
+ * Tạo lại một ảnh của bài (tính phí như lần tạo đầu). Ảnh mới thay vào đúng vị trí cũ (cùng id), status queued:
+ * trang tự hỏi lại bài tới khi ảnh xong.
+ * edit: { schema, values } khi người dùng sửa nguyên liệu; bỏ trống = dùng lại nguyên liệu cũ.
+ */
+export function regenerateImage(postId, image, idempotencyKey, edit) {
+  const url = `/tiktok/posts/${postId}/images/${image.id}/regenerate`;
+  if (!edit) return client.post(url, { idempotency_key: idempotencyKey }).then(({ data }) => mapImage(data));
+
+  const { inputs, keepFiles } = splitInputs(edit.schema, edit.values);
+  const form = new FormData();
+  appendInputs(form, inputs);
+  Object.entries(keepFiles).forEach(([key, ids]) => ids.forEach((id) => form.append(`keep_files[${key}][]`, id)));
+  form.append('idempotency_key', idempotencyKey);
+  return client.post(url, form, { timeout: UPLOAD_TIMEOUT }).then(({ data }) => mapImage(data));
 }
 
-/** settings: { title, description, privacyLevel, disableComment, autoAddMusic, brandOrganic, brandedContent } */
-export async function publishPhotos(files, settings, onProgress) {
-  await delay(300);
-  await fakeUpload(onProgress);
-  return { publishId: publishId('p_pub_file') };
-}
+/**
+ * Duyệt và đăng: gửi toàn bộ chỉnh sửa trên trang rồi gửi lên TikTok, bài chuyển sang publishing.
+ * Đăng lỗi thì chỉnh sửa vẫn được lưu và bài có last_error.
+ */
+export const publishPost = (id, form) =>
+  client
+    .post(`/tiktok/posts/${id}/publish`, {
+      title: form.title,
+      content: form.content,
+      hashtags: form.hashtags,
+      privacy_level: form.privacyLevel,
+      allow_comment: form.allowComment,
+      auto_add_music: form.autoAddMusic,
+      images: form.images.map((img) =>
+        img.id ? { image_id: img.id } : { generation_id: img.generationId, output_id: img.outputId },
+      ),
+    })
+    .then(({ data }) => mapPost(data));
+
+export const deletePost = (id) => client.delete(`/tiktok/posts/${id}`);

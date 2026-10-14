@@ -1,0 +1,342 @@
+NGHIỆP VỤ ĐĂNG BÀI TIKTOK - ĐẶC TẢ BACKEND (ĐÃ LÀM XONG)
+=========================================================
+
+CẬP NHẬT 2026-10-14: Backend đã làm xong toàn bộ API trong tài liệu này. Tài liệu đã sửa theo đúng những gì
+backend trả về. Frontend thay thân các hàm giả lập trong src/api/tiktok.js bằng lời gọi API thật (mục 10 liệt kê
+từng hàm). Phần ủy quyền chi tiết: note/uy-quyen-tiktok.txt.
+
+Quy ước chung (giống các API hiện có):
+- Gốc API: /api/v1. Mọi API dưới đây đều cần đăng nhập (Authorization: Bearer <token>).
+- JSON snake_case. Thành công trả { data } (danh sách: { data, links, meta: { current_page, last_page, per_page, total } }).
+- Lỗi trả { message, code?, context?, errors?: { field: [msg] } } như hiện tại.
+- Mỗi người dùng chỉ thấy và thao tác trên bài đăng của chính mình (bài của người khác -> 404).
+
+
+0. NHỮNG GÌ KHÁC SO VỚI BẢN ĐẶC TẢ TRƯỚC (FRONTEND CẦN SỬA)
+-----------------------------------------------------------
+
+a) BỎ nút "Viết lại bằng AI": không có API rewrite-content. Xoá rewritePostContent và nút trên trang duyệt.
+   AI chỉ viết nội dung 1 lần, lúc tạo bài.
+b) AI viết nội dung có thể thất bại. Khi đó bài vẫn sang pending_review với nội dung mặc định:
+   title = tên mẫu đầu tiên, content = "" (rỗng), hashtags = hashtag của các mẫu. Trang duyệt phải chấp nhận
+   content rỗng; người dùng tự viết.
+c) Không xoá được bài đang "generating" (409 POST_NOT_DELETABLE): ẩn / khoá nút xoá ở trạng thái này.
+d) Id của bài và ảnh là SỐ (integer), không phải chuỗi "post_xxx" như bản giả lập.
+e) Trạng thái là chữ thường: generating | pending_review | publishing | published
+   (POST_STATUS trong tiktok.js đang viết hoa -> đổi giá trị cho khớp).
+f) Ảnh trong bài có cấu trúc mới (mục 3): image_url thay cho url; creative { id, slug, title, price_per_image }
+   thay cho creativeSlug / creativeTitle / price; có status (queued | processing | completed | failed).
+   Bỏ "alternates" (chỉ có ở bản giả lập).
+g) Ảnh "đã có" khi tạo bài / thêm ở bước duyệt gửi { generation_id, output_id } (lấy từ GET /generations),
+   không gửi url.
+h) Sửa nguyên liệu: ảnh cũ giữ lại bằng file_id (mục 5.6, 5.7), không gửi lại File.
+i) Lỗi TikTok có thông báo tiếng Việt riêng trong body.message, kể cả khi HTTP status là 429 hoặc 502.
+   src/api/client.js (messageFor) đang thay message của 429 bằng "Bạn thao tác quá nhanh..." và của 502 bằng
+   MAINTENANCE_MESSAGE. Với lỗi có body.code (TIKTOK_*, POST_*...) phải dùng body.message của backend.
+   Lỗi 502 TIKTOK_UNAVAILABLE KHÔNG phải bảo trì máy chủ: không đặt maintenance = true cho lỗi này.
+j) Thông tin creator ở GET /tiktok/account là snake_case và nằm trong data.creator (getCreatorInfo đang trả
+   camelCase creatorUsername...). Có thêm can_post / cannot_post_reason (xem note/uy-quyen-tiktok.txt).
+k) Kết quả đăng do TikTok báo về qua webhook. Frontend vẫn polling GET /tiktok/posts/{id} như cũ.
+
+
+1. TỔNG QUAN QUY TRÌNH
+----------------------
+
+Bước 1. Danh sách bài đăng (/tiktok): người dùng xem các bài, bấm "Tạo bài đăng".
+
+Bước 2. Chọn nguồn ảnh (/tiktok/new), 2 cách:
+  a) Tạo ảnh mới:
+     - Tìm và chọn một hoặc nhiều mẫu AI Creative (lọc theo tên, ngành hàng, hashtag). Tối đa 10 mẫu.
+       Chọn cùng một mẫu nhiều lần (nguyên liệu khác nhau) vẫn được.
+     - Nhập thông tin (nguyên liệu) RIÊNG cho từng mẫu theo input_schema của mẫu đó. Mỗi mẫu tạo 1 ảnh.
+       Backend hiện chỉ hỗ trợ trường ảnh 1 file (type "image"); chưa hỗ trợ image_list / image_set.
+     - Bấm "Tạo bài đăng": bài được tạo NGAY (không chờ tạo ảnh), trạng thái "Đang tạo nội dung", đã trừ tiền.
+       Ảnh tạo ở nền; mọi ảnh xong (thành công hoặc lỗi) thì AI viết tiêu đề, nội dung, hashtag rồi bài sang
+       "Đang chờ duyệt".
+  b) Dùng ảnh đã có:
+     - Chỉ được chọn ảnh đã tạo trên A51 (lịch sử tạo ảnh của chính người dùng, output status completed),
+       KHÔNG tải ảnh từ máy lên. Không tính phí.
+     - Chọn tối đa 35 ảnh, không trùng, ảnh chọn đầu tiên làm ảnh bìa.
+     - Bấm "Tạo bài đăng": bài ở "Đang tạo nội dung" trong lúc AI viết nội dung, xong thì sang "Đang chờ duyệt".
+
+Bước 3. Xem lại và duyệt (/tiktok/post/{id}):
+  - Khi bài "Đang chờ duyệt", người dùng:
+    + Xem / sửa tiêu đề, nội dung, hashtag do AI viết sẵn (KHÔNG có nút viết lại bằng AI).
+    + Với từng ảnh: "Tạo lại" (chạy lại mẫu với nguyên liệu cũ), "Sửa nguyên liệu" (bút chì: sửa thông tin
+      nhập rồi tạo lại), xoá ảnh (bài còn ít nhất 1 ảnh). Thêm ảnh có sẵn trên A51.
+    + Chọn ai có thể xem, cho phép bình luận, tự động thêm nhạc.
+    + Bấm "Duyệt và đăng": gửi lên TikTok, bài sang "Đang đăng", TikTok xử lý xong thì "Đã đăng".
+    + Hoặc xoá bài.
+  - Không có "lưu nháp": chỉnh sửa trên trang chỉ được gửi lên khi bấm "Duyệt và đăng"
+    (đăng thất bại thì chỉnh sửa VẪN được lưu vào bài).
+    Riêng ảnh tạo lại / sửa nguyên liệu thì backend lưu ngay vào bài (vì đã tính phí).
+  - Tab "Video": đang phát triển, chưa có API.
+
+Trước khi đăng, người dùng phải ủy quyền tài khoản TikTok (OAuth), xem note/uy-quyen-tiktok.txt.
+
+
+2. TRẠNG THÁI BÀI ĐĂNG
+----------------------
+
+  generating      Đang tạo nội dung  AI đang tạo ảnh (nếu tạo ảnh mới) và viết tiêu đề / nội dung / hashtag
+  pending_review  Đang chờ duyệt     Chờ người dùng xem lại, sửa và bấm đăng
+  publishing      Đang đăng          Đã gửi lên TikTok, chờ TikTok phản hồi
+  published       Đã đăng            TikTok báo đăng thành công
+
+Chuyển trạng thái:
+  (tạo bài) -> generating -> pending_review -> publishing -> published
+  - generating -> pending_review: khi mọi ảnh đã xong (thành công hoặc lỗi) VÀ AI viết xong nội dung
+    (hoặc AI lỗi -> nội dung mặc định, mục 0b). Ảnh lỗi vẫn nằm trong bài với status failed (đã hoàn tiền),
+    người dùng tạo lại hoặc xoá ở bước duyệt.
+  - publishing -> pending_review: khi TikTok báo đăng thất bại (hoặc gọi TikTok lỗi ngay lúc bấm đăng).
+    last_error = { code, message } (message tiếng Việt, hiện cho người dùng), sửa rồi đăng lại.
+  - Bấm đăng lại thành công thì last_error về null.
+
+Frontend tự hỏi lại (polling) khi còn bài generating / publishing, hoặc còn ảnh queued / processing
+(sau khi tạo lại ảnh): danh sách mỗi 5 giây, trang chi tiết mỗi 3 giây.
+
+
+3. DỮ LIỆU BÀI ĐĂNG (TikTokPost)
+--------------------------------
+
+{
+  "id": 123,
+  "status": "pending_review",                 // generating | pending_review | publishing | published
+  "source": "new",                            // new: tạo ảnh mới | existing: dùng ảnh đã có
+  "title": "Lột xác ảnh sản phẩm với ...",    // <= 90 ký tự, "" khi đang generating
+  "content": "Từ ảnh chụp bình thường ...",   // <= 4000 ký tự, KHÔNG chứa hashtag; có thể "" (mục 0b)
+  "hashtags": ["a51", "anhsanpham"],          // không có dấu #, tối đa 10; [] khi đang generating
+  "privacy_level": "PUBLIC_TO_EVERYONE",      // mặc định PUBLIC_TO_EVERYONE (xem mục 9)
+  "allow_comment": true,
+  "auto_add_music": true,
+  "image_count": 3,
+  "cover_url": "https://...",                 // image_url của ảnh đầu tiên đã có ảnh, null nếu chưa có
+  "images": [ TikTokPostImage, ... ],         // theo thứ tự position, ảnh đầu là ảnh bìa
+  "last_error": null,                         // { code, message } khi lần đăng gần nhất thất bại
+  "tiktok_publish_id": null,
+  "tiktok_username": null,                    // tài khoản đã dùng để đăng: hiện "Đã đăng lên @username"
+  "tiktok_post_url": null,                    // link bài trên TikTok; chỉ có khi bài công khai (SELF_ONLY: luôn null)
+  "created_at": "2026-10-14T09:00:00.000000Z",
+  "published_at": null
+}
+
+TikTokPostImage (mỗi ảnh = MỘT OUTPUT của một generation, backend đọc trạng thái / ảnh từ output):
+{
+  "id": 456,                    // id ảnh trong bài; GIỮ NGUYÊN khi tạo lại (generation_id / output_id đổi)
+  "position": 1,                // thứ tự trong bài, 1 = ảnh bìa
+  "generation_id": 789,
+  "output_id": 1011,
+  "status": "completed",        // queued | processing | completed | failed
+  "image_url": "https://...",   // link ký số (hết hạn sau ~15 phút, tải lại bài để có link mới); null khi chưa xong / lỗi
+  "error_message": null,        // chỉ khi failed, vd "Ảnh hoặc nội dung vi phạm chính sách an toàn của AI."
+  "creative": { "id": 5, "slug": "anh-my-pham-studio", "title": "Ảnh mỹ phẩm studio", "price_per_image": 5000 }
+                                // null nếu không xác định được mẫu (ẩn nút "Tạo lại" / "Sửa nguyên liệu")
+}
+
+Danh sách (GET /tiktok/posts) trả cùng cấu trúc, CÓ "images".
+
+
+4. API TÀI KHOẢN TIKTOK (OAuth)
+-------------------------------
+
+Xem chi tiết note/uy-quyen-tiktok.txt. Tóm tắt:
+  GET    /tiktok/account            trạng thái ủy quyền + thông tin creator (lấy mới mỗi lần)
+  POST   /tiktok/oauth/authorize    { redirect } -> { url } để chuyển window.location sang TikTok
+  GET    /tiktok/oauth/callback     TikTok gọi về, backend redirect về {redirect}?tiktok=connected|error&reason=...
+  DELETE /tiktok/account            huỷ kết nối
+  GET    /auth/me                   có thêm tiktok: { connected, username }
+
+
+5. API BÀI ĐĂNG
+---------------
+
+5.1 GET /tiktok/posts?page=&per_page=&status=
+  Mới nhất trước. per_page mặc định 20, tối đa 50. status (tuỳ chọn): generating | pending_review | publishing | published.
+  -> { data: TikTokPost[], links, meta }
+
+5.2 GET /tiktok/posts/{id}
+  -> { data: TikTokPost }   (404 nếu không phải bài của người dùng)
+
+5.3 POST /tiktok/posts/from-images   (Bước 2b - dùng ảnh đã có)
+  body JSON:
+    {
+      "images": [ { "generation_id": 789, "output_id": 1011 }, ... ],   // theo thứ tự, 1..35 ảnh, không trùng
+      "idempotency_key": "uuid"                                          // <= 80 ký tự
+    }
+  Không tính phí. Gửi lại cùng idempotency_key -> trả lại bài đã tạo.
+  -> 201 { data: TikTokPost }   (status generating)
+  Lỗi: 422 errors["images"] (quá 35 ảnh), errors["images.2"] (ảnh không hợp lệ / không thuộc người dùng / chưa xong),
+       errors["images.1.output_id"] (trùng), 409 IDEMPOTENCY_CONFLICT (key đã dùng cho loại bài khác)
+
+5.4 POST /tiktok/posts/from-creatives   (Bước 2a - tạo ảnh mới)
+  multipart/form-data, mỗi mẫu một phần tử items[i] (1..10 mẫu), inputs giống POST /generations hiện có
+  (dùng lại cách append của generationApi: bật/tắt -> 1/0, multi_select -> [], trống thì bỏ qua):
+    items[0][creative_id]=5
+    items[0][inputs][product_image]=<file>            // trường ảnh: 1 file
+    items[0][inputs][mau_sac]=do                      // chữ / số / lựa chọn
+    items[0][inputs][phong_cach][]=a                  // multi_select
+    items[0][inputs][them_logo]=1                     // bật/tắt: 1/0
+    items[0][inputs][aspectRatio]=9:16                // bỏ trống = tỉ lệ mặc định của mẫu
+    items[1][creative_id]=8
+    ...
+    idempotency_key=uuid                              // <= 80 ký tự
+  Xử lý:
+    - Kiểm tra inputs của TẤT CẢ mẫu một lần, lỗi theo field: errors["items.1.inputs.product_image"] = ["..."]
+    - Tổng phí = tổng price_per_image các mẫu. Không đủ -> 402 INSUFFICIENT_CREDIT, context { required, balance }
+      (required = TỔNG phí). Đủ thì trừ ngay, mỗi ảnh một giao dịch; ảnh lỗi được hoàn tiền ảnh đó.
+    - Ảnh mới cũng xuất hiện trong lịch sử tạo ảnh (GET /generations), mỗi mẫu 1 generation quantity=1.
+  -> 201 { data: TikTokPost }   (status generating, images có sẵn với status queued, creative đã điền)
+  Lỗi: 422, 402 INSUFFICIENT_CREDIT, 404 CREATIVE_NOT_AVAILABLE, 409 CREATIVE_TEMPORARILY_UNAVAILABLE,
+       409 IDEMPOTENCY_CONFLICT, 429 (gọi quá 10 lần / phút, chung giới hạn với tạo ảnh)
+  Sau khi tạo: tải lại GET /auth/me để cập nhật số dư.
+
+5.5 (ĐÃ BỎ) POST /tiktok/posts/{id}/rewrite-content - không có nút "Viết lại bằng AI".
+
+5.6 GET /tiktok/posts/{id}/images/{image_id}/inputs   (mở popup "Sửa nguyên liệu")
+  Nguyên liệu đã dùng để tạo ảnh (ảnh "đã có" thì lấy từ generation gốc của ảnh đó).
+  -> 200 { data: {
+       creative: { id, slug, title, price_per_image },     // null nếu không xác định được mẫu
+       inputs: {
+         "product_image": [ { "file_id": "f_3a9c...", "url": "https://...", "name": "8b1e....png" } ],
+                                               // trường ảnh: LUÔN là mảng (0 hoặc 1 phần tử); name là tên file lưu
+                                               // trên hệ thống, không phải tên gốc người dùng tải lên
+         "mau_sac": "do",
+         "phong_cach": ["a", "b"],
+         "them_logo": true,                     // bật/tắt là boolean
+         "aspectRatio": "9:16"                  // luôn có
+       } } }
+  Trường không nhập lần trước thì không có trong inputs (trừ trường ảnh: []).
+  Không còn nguyên liệu (file đầu vào đã bị xoá theo chính sách lưu trữ) -> inputs: null
+  (frontend hiện "Không còn thông tin đã nhập lần trước, hãy nhập lại").
+  Lấy form (input_schema, options.aspect_ratios) bằng GET /creatives/{slug} như hiện có.
+
+5.7 POST /tiktok/posts/{id}/images/{image_id}/regenerate   (nút "Tạo lại" và "Sửa nguyên liệu")
+  Chạy lại mẫu đã tạo ra ảnh, tính phí price_per_image như lần đầu. Chỉ khi bài pending_review.
+  - "Tạo lại": body JSON { "idempotency_key": "uuid" } -> dùng lại nguyên liệu cũ.
+    Chỉ tạo lại được ảnh đã xong (completed hoặc failed); ảnh đang tạo -> 409 IMAGE_NOT_READY.
+  - "Sửa nguyên liệu": multipart, có inputs[...] và/hoặc keep_files (backend nhận ra chế độ này nhờ 2 trường đó).
+    Gửi ĐỦ các trường của form như lần tạo đầu (giống 5.4 nhưng không có items[]):
+      inputs[mau_sac]=xanh
+      inputs[aspectRatio]=4:5
+      inputs[product_image]=<file mới>            // HOẶC giữ ảnh cũ:
+      keep_files[product_image][]=f_3a9c...       // file_id lấy từ 5.6 (đúng 1 file_id cho trường ảnh 1 file)
+      idempotency_key=uuid
+    Trường ảnh có cả file mới lẫn keep_files thì dùng file mới. Trường ảnh bắt buộc mà không có file mới,
+    không có keep_files -> lỗi errors["inputs.product_image"].
+  Ảnh mới thay vào ĐÚNG VỊ TRÍ ảnh cũ (cùng id, cùng position). Ảnh cũ vẫn còn trong lịch sử tạo ảnh.
+  Gửi lại cùng idempotency_key -> không tính phí lần 2.
+  -> 202 { data: TikTokPostImage }   (status queued; polling GET /tiktok/posts/{id} tới khi ảnh xong)
+  Lỗi: 402 INSUFFICIENT_CREDIT, 409 POST_NOT_EDITABLE, 409 IMAGE_NOT_READY, 422 (inputs sai),
+       422 errors["keep_files.product_image"] = ["Ảnh cũ không còn, vui lòng tải ảnh lên lại."],
+       404 CREATIVE_NOT_AVAILABLE (mẫu đã ẩn / tạm dừng), 409 IMAGE_HAS_NO_CREATIVE, 429
+  Sau khi tạo lại: tải lại GET /auth/me để cập nhật số dư.
+
+5.8 POST /tiktok/posts/{id}/publish   (nút "Duyệt và đăng")
+  body JSON - toàn bộ chỉnh sửa trên trang:
+    {
+      "title": "...",                          // bắt buộc, <= 90
+      "content": "...",                        // <= 4000; được rỗng
+      "hashtags": ["a51", "anhsanpham"],       // <= 10, mỗi tag <= 50 ký tự, chữ / số / "_" (được có # ở đầu, backend bỏ)
+      "privacy_level": "PUBLIC_TO_EVERYONE",   // PUBLIC_TO_EVERYONE | MUTUAL_FOLLOW_FRIENDS | FOLLOWER_OF_CREATOR | SELF_ONLY,
+                                               // và phải nằm trong creator.privacy_level_options
+      "allow_comment": true,
+      "auto_add_music": true,
+      "images": [                              // thứ tự cuối cùng, ảnh đầu là ảnh bìa, 1..35 ảnh, không trùng
+        { "image_id": 456 },                                   // ảnh đang có trong bài
+        { "generation_id": 900, "output_id": 1200 }            // ảnh "đã có" người dùng vừa thêm ở bước duyệt
+      ]
+    }
+    Ảnh của bài không có trong "images" sẽ bị gỡ khỏi bài (ảnh vẫn còn trong lịch sử tạo ảnh).
+  Kiểm tra: bài pending_review; đã ủy quyền TikTok; mọi ảnh completed; content + "\n" + "#tag ..." <= 4000 ký tự;
+            gọi lại creator_info ngay trước khi đăng (privacy hợp lệ, can_post).
+            comment_disabled của creator = true thì backend lưu allow_comment = false.
+  -> 200 { data: TikTokPost }   (status publishing, tiktok_publish_id đã có)
+  Sau đó polling GET /tiktok/posts/{id}: published, hoặc về pending_review + last_error nếu TikTok báo lỗi
+  (vd last_error { code: "photo_pull_failed", message: "TikTok không tải được ảnh, vui lòng đăng lại." }).
+  Lỗi (gọi TikTok lỗi thì bài vẫn ở pending_review, chỉnh sửa đã lưu, last_error đã đặt):
+       409 POST_NOT_EDITABLE
+       409 TIKTOK_NOT_CONNECTED        context.reason: not_connected | expired | scope_missing -> hiện lại nút "Ủy quyền"
+       409 IMAGES_NOT_READY            còn ảnh đang tạo / bị lỗi
+       409 TIKTOK_CANNOT_POST          creator bị TikTok chặn đăng (context.reason = mã TikTok), dùng message
+       422 errors: title, content, hashtags, privacy_level, images, images.N
+       429 / 403 / 422 TIKTOK_PUBLISH_REJECTED   TikTok từ chối (context.tiktok_code), message tiếng Việt, vd
+                                       "Tài khoản đã đạt giới hạn đăng bài trong ngày, thử lại sau."
+                                       "Ứng dụng A51 chưa được TikTok duyệt: chỉ đăng được lên tài khoản riêng tư..."
+       502 TIKTOK_UNAVAILABLE          TikTok không phản hồi, thử lại sau
+  -> Mọi lỗi trên đều hiện body.message (xem mục 0i).
+
+5.9 DELETE /tiktok/posts/{id}
+  Chỉ xoá khi pending_review. Xoá bài không xoá ảnh khỏi lịch sử tạo ảnh, không hoàn tiền.
+  generating: 409 POST_NOT_DELETABLE "Bài đang được tạo nội dung, vui lòng chờ xong rồi xoá."
+  publishing / published: 409 POST_NOT_DELETABLE "Bài đã gửi lên TikTok, không xoá được trên A51."
+  -> 204
+
+
+6. API ĐÃ CÓ, FRONTEND DÙNG LẠI
+-------------------------------
+
+- GET /creatives?q=&category=&hashtag=&page=&per_page=   Tìm mẫu ở bước chọn mẫu (tên, ngành hàng, hashtag)
+- GET /creatives/{slug}         Lấy input_schema, options.aspect_ratios, price_per_image, images của mẫu
+                                (bước nhập nguyên liệu và popup sửa nguyên liệu)
+- GET /categories               Dải "Ngành hàng"
+- GET /hashtags?q=&limit=       Dải "Hashtag phổ biến" và gợi ý khi nhập hashtag
+- GET /generations?page=&per_page=   Ảnh "đã có": outputs status completed, mỗi generation có
+                                creative { id, slug, title }. Ảnh gửi đi = { generation_id: generation.id, output_id: output.id }.
+- GET /auth/me                  Số dư (tải lại sau khi tạo bài / tạo lại ảnh vì bị trừ tiền); tiktok { connected, username }
+
+
+7. AI VIẾT NỘI DUNG
+-------------------
+
+Worker nội bộ của A51 viết (không phải frontend gọi): đầu vào là tên, mô tả, ngành hàng, hashtag của các mẫu
+và link các ảnh của bài. Đầu ra đã được backend kiểm tra lại: title <= 90 ký tự, content <= 4000 (hashtag lẫn
+trong content được tách sang hashtags), hashtags <= 10 theo quy tắc hashtag của Creative.
+Worker lỗi sau 3 lần -> nội dung mặc định (mục 0b).
+
+
+8. GIỚI HẠN
+-----------
+
+- Ảnh mỗi bài: 1..35 (giới hạn TikTok photo post). Backend tự chuyển ảnh PNG sang JPG khi gửi TikTok.
+- Mẫu mỗi lần "Tạo ảnh mới": 1..10, mỗi mẫu 1 ảnh.
+- title <= 90, content <= 4000 và content + dòng hashtag <= 4000 (TikTok), hashtag <= 10.
+- File nguyên liệu: theo validation của từng trường trong input_schema (mặc định JPG/PNG/WEBP <= 10MB).
+- POST from-creatives và regenerate: tối đa 10 lần / phút / người dùng (chung với tạo ảnh).
+
+
+9. ĐÃ CHỐT / CÒN LƯU Ý
+----------------------
+
+- Quyền riêng tư: backend lưu mặc định PUBLIC_TO_EVERYONE, nhưng khi đăng luôn bắt buộc gửi privacy_level.
+  Theo hướng dẫn UX của TikTok, người dùng phải TỰ CHỌN (không đặt sẵn) -> có thể bị từ chối khi TikTok duyệt app.
+  Nếu cần, frontend chỉ việc không chọn sẵn giá trị, backend không phải sửa.
+- "Công khai nội dung quảng cáo": không có trên giao diện, backend luôn gửi false.
+- App chưa qua kiểm duyệt (audit) của TikTok: chỉ đăng được SELF_ONLY lên tài khoản riêng tư
+  (lỗi TIKTOK_PUBLISH_REJECTED, context.tiktok_code = unaudited_client_can_only_post_to_private_accounts).
+- File nguyên liệu lưu theo chính sách hiện tại (1 năm); hết hạn thì 5.6 trả inputs: null.
+- Không huỷ được bài khi đang generating.
+- Video: đang phát triển, chưa có API.
+
+
+10. GHÉP VÀO src/api/tiktok.js
+------------------------------
+
+  getCreatorInfo()                 -> GET /tiktok/account (xem note/uy-quyen-tiktok.txt; trả cả connected / reason / account / creator)
+  authorizeTikTok(redirect)        -> POST /tiktok/oauth/authorize { redirect } rồi window.location = data.url
+                                      (bỏ cờ localStorage a51_tiktok_connected)
+  listPosts({ page, status })      -> GET /tiktok/posts (có phân trang: meta)
+  getPost(id)                      -> GET /tiktok/posts/{id}
+  createPostFromImages(images)     -> POST /tiktok/posts/from-images { images: [{ generation_id, output_id }], idempotency_key }
+  createPostFromCreatives(items)   -> POST /tiktok/posts/from-creatives (multipart items[i][creative_id], items[i][inputs][...])
+                                      tạo idempotency_key 1 lần cho mỗi lần bấm (bấm lại do lỗi mạng dùng lại key cũ)
+  getImageInputs(postId, image)    -> GET /tiktok/posts/{postId}/images/{image.id}/inputs (trả cả creative + inputs)
+  rewritePostContent(id)           -> XOÁ
+  regenerateImage(postId, image, inputs?)
+                                   -> POST /tiktok/posts/{postId}/images/{image.id}/regenerate
+                                      không có inputs: JSON { idempotency_key }
+                                      có inputs: multipart inputs[...] + keep_files[key][] cho ảnh giữ lại
+                                      trả TikTokPostImage (status queued) -> thay vào ảnh cùng id, polling bài tới khi ảnh xong
+  publishPost(id, changes)         -> POST /tiktok/posts/{id}/publish (body mục 5.8, snake_case)
+  deletePost(id)                   -> DELETE /tiktok/posts/{id}
+  Xoá phần giả lập: TEMPLATES, aiContent, localStorage a51_tiktok_posts_v2, inputsStore, advance, withCreativeSlugs.
+  PHOTO_MAX_COUNT = 35, PHOTO_TITLE_MAX = 90, PHOTO_DESCRIPTION_MAX = 4000, PRIVACY_LABELS giữ nguyên.

@@ -299,13 +299,14 @@ export const creatorPageApi = {
  */
 const GENERATION_UPLOAD_TIMEOUT = 60_000;
 
-// inputs[key] cho multipart: mảng -> inputs[key][], bật/tắt -> 1/0, trống thì bỏ qua
-const appendInputs = (form, inputs) =>
+// inputs[key] cho multipart: mảng -> inputs[key][], bật/tắt -> 1/0, trống thì bỏ qua.
+// prefix: tên trường cha, vd. items[0][inputs] khi tạo bài TikTok nhiều mẫu
+export const appendInputs = (form, inputs, prefix = 'inputs') =>
   Object.entries(inputs).forEach(([key, value]) => {
     if (value == null || value === '') return;
-    if (Array.isArray(value)) value.forEach((v) => form.append(`inputs[${key}][]`, v));
-    else if (typeof value === 'boolean') form.append(`inputs[${key}]`, value ? '1' : '0');
-    else form.append(`inputs[${key}]`, value);
+    if (Array.isArray(value)) value.forEach((v) => form.append(`${prefix}[${key}][]`, v));
+    else if (typeof value === 'boolean') form.append(`${prefix}[${key}]`, value ? '1' : '0');
+    else form.append(`${prefix}[${key}]`, value);
   });
 
 export const generationApi = {

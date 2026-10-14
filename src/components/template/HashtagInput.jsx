@@ -7,7 +7,12 @@ import { MAX_HASHTAGS, MAX_HASHTAG_LENGTH, cleanHashtag, hashtagError, hashtagSl
  * Nhập hashtag cho Creative: Enter / dấu phẩy / khoảng trắng để thêm, Backspace ở ô trống để xoá cái cuối.
  * Gợi ý lấy từ GET /hashtags (hashtag đang có Creative bán). value: tên hashtag không có #.
  */
-export default function HashtagInput({ value = [], onChange, error }) {
+export default function HashtagInput({
+  value = [],
+  onChange,
+  error,
+  hint = 'Giúp người mua tìm thấy mẫu ở trang Khám phá. Nhấn Enter hoặc dấu phẩy để thêm.',
+}) {
   const id = useId();
   const [text, setText] = useState('');
   const [focused, setFocused] = useState(false);
@@ -168,9 +173,7 @@ export default function HashtagInput({ value = [], onChange, error }) {
       {shownError ? (
         <p className="mt-1 text-xs text-error">{shownError}</p>
       ) : (
-        <p className="mt-1 text-[11px] text-on-surface-variant">
-          Giúp người mua tìm thấy mẫu ở trang Khám phá. Nhấn Enter hoặc dấu phẩy để thêm.
-        </p>
+        <p className="mt-1 text-[11px] text-on-surface-variant">{hint}</p>
       )}
     </div>
   );

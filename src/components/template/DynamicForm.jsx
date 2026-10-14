@@ -6,7 +6,10 @@ import { ASPECT_RATIOS, MIME_LABEL, hasOptions, isFieldVisible, isImageType } fr
 /*
  * Dynamic Form Renderer (§4): render form người mua từ Template schema.
  * values: { [key]: value }; trường ảnh lưu File[], image_set lưu { [slotKey]: File[] }.
+ * Trường ảnh có thể chứa ảnh đã lưu trên máy chủ { fileId, url, name } thay cho File (sửa nguyên liệu bài TikTok).
  */
+
+const isFile = (f) => f instanceof Blob;
 
 export const initialValues = (fields) =>
   Object.fromEntries(
@@ -23,9 +26,11 @@ const checkFiles = (files, v, { required, min, max }) => {
   if (required && !files.length) return 'Vui lòng tải ảnh lên.';
   if (min && files.length && files.length < min) return `Cần ít nhất ${min} ảnh.`;
   if (max && files.length > max) return `Tối đa ${max} ảnh.`;
-  if (files.some((f) => v.allowed_types?.length && !v.allowed_types.includes(f.type)))
+  // Ảnh đã lưu trên máy chủ đã được kiểm tra lúc tải lên
+  const uploads = files.filter(isFile);
+  if (uploads.some((f) => v.allowed_types?.length && !v.allowed_types.includes(f.type)))
     return `Chỉ nhận ${v.allowed_types.map((m) => MIME_LABEL[m] ?? m).join(', ')}.`;
-  if (files.some((f) => v.max_size_mb && f.size > v.max_size_mb * 1024 * 1024)) return `Mỗi ảnh tối đa ${v.max_size_mb}MB.`;
+  if (uploads.some((f) => v.max_size_mb && f.size > v.max_size_mb * 1024 * 1024)) return `Mỗi ảnh tối đa ${v.max_size_mb}MB.`;
   return null;
 };
 
@@ -39,8 +44,7 @@ export function validateValues(fields, values) {
     const value = values[f.key];
     let msg = null;
     if (f.type === 'image') msg = checkFiles(value ?? [], v, { required: f.required, max: 1 });
-    else if (f.type === 'image_list')
-      msg = checkFiles(value ?? [], v, { required: f.required, min: v.min_files, max: v.max_files });
+    else if (f.type === 'image_list') msg = checkFiles(value ?? [], v, { required: f.required, min: v.min_files, max: v.max_files });
     else if (f.type === 'image_set') {
       f.slots.forEach((s) => {
         const m = checkFiles(value?.[s.key] ?? [], v, { required: s.required, max: 1 });
@@ -67,8 +71,12 @@ export function validateValues(fields, values) {
 }
 
 function Thumb({ file, onRemove, label }) {
-  const [url, setUrl] = useState(null);
+  const [url, setUrl] = useState(isFile(file) ? null : file.url);
   useEffect(() => {
+    if (!isFile(file)) {
+      setUrl(file.url);
+      return undefined;
+    }
     const u = URL.createObjectURL(file);
     setUrl(u);
     return () => URL.revokeObjectURL(u);
@@ -88,7 +96,7 @@ function Thumb({ file, onRemove, label }) {
   );
 }
 
-function ImageInput({ files, onChange, max, validation, label, error }) {
+function ImageInput({ files, onChange, max, validation, label, error, compact }) {
   const ref = useRef(null);
   const accept = validation?.allowed_types?.join(',') || 'image/*';
   const pick = (e) => {
@@ -100,9 +108,15 @@ function ImageInput({ files, onChange, max, validation, label, error }) {
 
   return (
     <div>
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+      {/* compact + 1 ảnh: ô ảnh rộng hết ô lưới của trường */}
+      <div className={compact && max === 1 ? 'grid grid-cols-1' : 'grid grid-cols-3 gap-2 sm:grid-cols-4'}>
         {files.map((file, i) => (
-          <Thumb key={`${file.name}-${file.lastModified}-${i}`} file={file} label={`${label} ${i + 1}`} onRemove={() => onChange(files.filter((_, idx) => idx !== i))} />
+          <Thumb
+            key={`${file.fileId ?? file.name}-${file.lastModified}-${i}`}
+            file={file}
+            label={`${label} ${i + 1}`}
+            onRemove={() => onChange(files.filter((_, idx) => idx !== i))}
+          />
         ))}
         {(!max || files.length < max) && (
           <button
@@ -127,14 +141,14 @@ function ImageInput({ files, onChange, max, validation, label, error }) {
   );
 }
 
-function FieldControl({ field: f, value, onChange, errors, aspectRatios = ASPECT_RATIOS }) {
+function FieldControl({ field: f, value, onChange, errors, aspectRatios = ASPECT_RATIOS, compact }) {
   const v = f.validation ?? {};
   const error = errors[f.key];
   const id = `df-${f.key}`;
 
   switch (f.type) {
     case 'image':
-      return <ImageInput files={value ?? []} onChange={onChange} max={1} validation={v} label={f.label} error={error} />;
+      return <ImageInput files={value ?? []} onChange={onChange} max={1} validation={v} label={f.label} error={error} compact={compact} />;
     case 'image_list':
       return <ImageInput files={value ?? []} onChange={onChange} max={v.max_files} validation={v} label={f.label} error={error} />;
     case 'image_set':
@@ -199,8 +213,7 @@ function FieldControl({ field: f, value, onChange, errors, aspectRatios = ASPECT
     case 'multi_select': {
       const multi = f.type === 'multi_select';
       const selected = (o) => (multi ? (value ?? []).includes(o.value) : value === o.value);
-      const toggle = (o) =>
-        onChange(multi ? (selected(o) ? value.filter((x) => x !== o.value) : [...(value ?? []), o.value]) : o.value);
+      const toggle = (o) => onChange(multi ? (selected(o) ? value.filter((x) => x !== o.value) : [...(value ?? []), o.value]) : o.value);
       return (
         <div className="flex flex-wrap gap-2">
           {f.options.map((o) => (
@@ -217,7 +230,15 @@ function FieldControl({ field: f, value, onChange, errors, aspectRatios = ASPECT
               }`}
             >
               <Icon
-                name={multi ? (selected(o) ? 'check_box' : 'check_box_outline_blank') : selected(o) ? 'radio_button_checked' : 'radio_button_unchecked'}
+                name={
+                  multi
+                    ? selected(o)
+                      ? 'check_box'
+                      : 'check_box_outline_blank'
+                    : selected(o)
+                      ? 'radio_button_checked'
+                      : 'radio_button_unchecked'
+                }
                 className="text-base"
               />
               {o.label}
@@ -230,30 +251,32 @@ function FieldControl({ field: f, value, onChange, errors, aspectRatios = ASPECT
       return (
         // Creator chỉ đặt tỉ lệ mặc định, người mua được đổi sang mọi tỉ lệ
         <div className="flex flex-wrap gap-2" role="radiogroup">
-          {aspectRatios.map((r) => ({ value: r, label: r })).map((o) => {
-            const [w, h] = o.value.split(':').map(Number);
-            const scale = 18 / Math.max(w, h);
-            return (
-              <button
-                key={o.value}
-                type="button"
-                role="radio"
-                aria-checked={value === o.value}
-                onClick={() => onChange(o.value)}
-                className={`flex min-w-16 flex-col items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
-                  value === o.value
-                    ? 'border-primary-container bg-primary-fixed/50 text-primary'
-                    : 'border-outline-variant/50 text-on-surface hover:border-primary-container'
-                }`}
-              >
-                {/* Khung minh hoạ đúng tỉ lệ */}
-                <span className="flex size-5 items-center justify-center">
-                  <span className="rounded-sm border-2 border-current" style={{ width: w * scale, height: h * scale }} />
-                </span>
-                {o.label}
-              </button>
-            );
-          })}
+          {aspectRatios
+            .map((r) => ({ value: r, label: r }))
+            .map((o) => {
+              const [w, h] = o.value.split(':').map(Number);
+              const scale = 18 / Math.max(w, h);
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={value === o.value}
+                  onClick={() => onChange(o.value)}
+                  className={`flex min-w-16 flex-col items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                    value === o.value
+                      ? 'border-primary-container bg-primary-fixed/50 text-primary'
+                      : 'border-outline-variant/50 text-on-surface hover:border-primary-container'
+                  }`}
+                >
+                  {/* Khung minh hoạ đúng tỉ lệ */}
+                  <span className="flex size-5 items-center justify-center">
+                    <span className="rounded-sm border-2 border-current" style={{ width: w * scale, height: h * scale }} />
+                  </span>
+                  {o.label}
+                </button>
+              );
+            })}
         </div>
       );
     case 'toggle':
@@ -265,7 +288,9 @@ function FieldControl({ field: f, value, onChange, errors, aspectRatios = ASPECT
           onClick={() => onChange(!value)}
           className={`relative h-6 w-10 rounded-full transition-colors ${value ? 'bg-primary-container' : 'bg-outline-variant'}`}
         >
-          <span className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-4' : ''}`} />
+          <span
+            className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-4' : ''}`}
+          />
         </button>
       );
     default:
@@ -273,8 +298,15 @@ function FieldControl({ field: f, value, onChange, errors, aspectRatios = ASPECT
   }
 }
 
-/** aspectRatios: tỉ lệ người mua được chọn (theo model của Creative); không truyền thì dùng danh sách chung. */
-export default function DynamicForm({ fields, values, onChange, errors = {}, aspectRatios }) {
+// compact: các trường gọn (1 ảnh, chữ ngắn, số, danh sách chọn, bật/tắt) xếp cạnh nhau rồi dồn xuống hàng dưới;
+// trường cần nhiều chỗ thì chiếm cả hàng
+const WIDE_TYPES = ['image_list', 'image_set', 'textarea', 'radio', 'multi_select', 'aspect_ratio'];
+
+/**
+ * aspectRatios: tỉ lệ người mua được chọn (theo model của Creative); không truyền thì dùng danh sách chung.
+ * compact: xếp lưới nhiều cột cho form nhiều trường (mặc định mỗi trường một hàng).
+ */
+export default function DynamicForm({ fields, values, onChange, errors = {}, aspectRatios, compact = false }) {
   const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
   const visible = fields.filter((f) => isFieldVisible(f, values, byKey));
 
@@ -283,9 +315,14 @@ export default function DynamicForm({ fields, values, onChange, errors = {}, asp
   }
 
   return (
-    <div className="space-y-4">
+    <div className={compact ? 'grid grid-cols-2 items-start gap-x-3 gap-y-4 sm:grid-cols-3' : 'space-y-4'}>
       {visible.map((f) => (
-        <div key={f._id ?? f.key} className={f.type === 'toggle' ? 'flex items-center justify-between gap-3' : ''}>
+        <div
+          key={f._id ?? f.key}
+          className={`${f.type === 'toggle' ? 'flex items-center justify-between gap-3' : ''} ${
+            compact && WIDE_TYPES.includes(f.type) ? 'col-span-full' : ''
+          } min-w-0`}
+        >
           <div className={f.type === 'toggle' ? '' : 'mb-1.5'}>
             <label htmlFor={`df-${f.key}`} className="text-sm font-semibold text-on-surface">
               {f.label}
@@ -299,6 +336,7 @@ export default function DynamicForm({ fields, values, onChange, errors = {}, asp
             onChange={(v) => onChange(f.key, v)}
             errors={errors}
             aspectRatios={aspectRatios}
+            compact={compact}
           />
           {errors[f.key] && <p className="mt-1 text-xs text-error">{errors[f.key]}</p>}
         </div>

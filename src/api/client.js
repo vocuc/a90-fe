@@ -28,7 +28,11 @@ export const MAINTENANCE_MESSAGE = 'Máy chủ đang bảo trì, xin vui lòng q
 // Không gọi được API: mất kết nối / timeout (không có status) hoặc proxy báo backend không phản hồi
 const isUnreachable = (status) => !status || status === 502 || status === 503 || status === 504;
 
+// Lỗi nghiệp vụ có mã (TIKTOK_*, POST_*...) mang thông báo tiếng Việt riêng, kể cả khi status là 429 / 502
+const hasOwnMessage = (body) => Boolean(body?.code && body?.message);
+
 const messageFor = (status, body, fallback) => {
+  if (hasOwnMessage(body)) return body.message;
   if (status === 429) return 'Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút.';
   if (isUnreachable(status)) return MAINTENANCE_MESSAGE;
   if (status >= 500) return 'Máy chủ đang gặp sự cố, vui lòng thử lại sau.';
@@ -49,7 +53,8 @@ client.interceptors.response.use(
         code: body?.code,
         context: body?.context,
         errors: firstErrors(body?.errors),
-        maintenance: isUnreachable(status),
+        // 502 TIKTOK_UNAVAILABLE: TikTok lỗi, không phải máy chủ A51 bảo trì
+        maintenance: isUnreachable(status) && !hasOwnMessage(body),
       }),
     );
   },

@@ -106,6 +106,15 @@ export const TOOLS = [
     type: 'logo',
     icon: 'branding_watermark',
   },
+  {
+    // Có trang riêng (to), không mở trong ToolDetailPage
+    slug: 'dang-tiktok',
+    title: 'Đăng TikTok',
+    description: 'Đăng video hoặc ảnh lên tài khoản TikTok',
+    type: 'link',
+    to: '/tiktok',
+    icon: 'upload',
+  },
 ];
 
-export const findTool = (slug) => TOOLS.find((t) => t.slug === slug);
+export const findTool = (slug) => TOOLS.find((t) => t.slug === slug && !t.to);
