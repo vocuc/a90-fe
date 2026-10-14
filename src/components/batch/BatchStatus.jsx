@@ -1,7 +1,7 @@
 import Icon from '../common/Icon';
 import { BATCH_STATUS } from '../../api/batches';
 
-/** Đang tạo x/y ảnh hoặc Xong. */
+/** Đang tạo x/y ảnh hoặc Đã hoàn thành. */
 export function BatchStatusBadge({ batch }) {
   const generating = batch.status === BATCH_STATUS.GENERATING;
   const done = batch.imageCount - batch.generatingCount;
@@ -16,7 +16,7 @@ export function BatchStatusBadge({ batch }) {
         fill={!generating}
         className={`text-sm ${generating ? 'animate-spin' : ''}`}
       />
-      {generating ? `Đang tạo ${done}/${batch.imageCount}` : 'Xong'}
+      {generating ? `Đang tạo ${done}/${batch.imageCount}` : 'Đã hoàn thành'}
     </span>
   );
 }

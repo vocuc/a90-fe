@@ -69,6 +69,7 @@ export default function BatchesPage() {
   const createButton = (
     <Link
       to="/batches/new"
+      state={{ fromList: true }}
       className="flex h-8 items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary"
     >
       <Icon name="add" className="text-base" />

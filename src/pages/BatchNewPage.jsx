@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import useIdempotencyKey from '../hooks/useIdempotencyKey';
 import Icon from '../components/common/Icon';
@@ -15,11 +15,15 @@ import { formatVnd } from '../utils/format';
 /**
  * /batches/new: tạo lô ảnh, 2 bước (?step=inputs là bước 2, nút quay lại của trình duyệt về bước 1):
  * 1. chọn mẫu (mỗi mẫu một lần); 2. nhập thông tin và số ảnh cho từng mẫu. Xong thì tạo lô ngay (đã trừ tiền),
- * ảnh được tạo ở nền; sang trang lô để xem, tạo lại ảnh và đăng TikTok.
+ * ảnh được tạo ở nền; về danh sách lô để theo dõi trạng thái, bấm vào lô để xem, tạo lại ảnh và đăng TikTok.
  */
 export default function BatchNewPage() {
   useSeo({ title: 'Tạo lô ảnh', noindex: true });
   const navigate = useNavigate();
+  const location = useLocation();
+  // Vào từ danh sách lô: nhớ vị trí trong lịch sử của trang này (bước chọn mẫu) để tạo xong lùi về đúng danh sách,
+  // không để lại các bước tạo lô trong lịch sử (nút Back của trình duyệt không quay lại form đã trống)
+  const entry = useRef(location.state?.fromList ? (window.history.state?.idx ?? null) : null);
   const queryClient = useQueryClient();
   const idem = useIdempotencyKey();
   const [params, setParams] = useSearchParams();
@@ -79,7 +83,7 @@ export default function BatchNewPage() {
     setLoading(true);
     setServerErrors({});
     try {
-      const batch = await createBatch(
+      await createBatch(
         rows.map((r) => ({
           creativeId: r.detail.data?.creativeId ?? r.creative.creativeId,
           schema: r.schema,
@@ -92,7 +96,10 @@ export default function BatchNewPage() {
       // Đã trừ tiền -> tải lại số dư
       queryClient.invalidateQueries({ queryKey: ['me'] });
       queryClient.invalidateQueries({ queryKey: ['batches'] });
-      navigate(`/batches/${batch.id}`, { replace: true });
+      // Về danh sách lô: lô vừa tạo đứng đầu, hiện "Đang tạo" tới khi xong (danh sách tự cập nhật)
+      const idx = window.history.state?.idx;
+      if (entry.current !== null && idx != null && idx >= entry.current) navigate(-(idx - entry.current + 1));
+      else navigate('/batches', { replace: true });
     } catch (err) {
       idem.renewAfter(err);
       const byRow = {};
