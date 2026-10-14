@@ -6,6 +6,11 @@ Mục 4 trong note/nghiep-vu-dang-bai-tiktik.txt chỉ là tóm tắt của tài
 Frontend đang giả lập ở src/api/tiktok.js (getCreatorInfo, authorizeTikTok: lưu cờ "đã kết nối" trong localStorage)
 -> thay bằng API thật theo mục 4, bỏ cờ localStorage.
 
+CẬP NHẬT 2026-10-14 (2): CHUYỂN SANG UPLOAD (BACKEND CẦN SỬA), chi tiết ở đầu note/nghiep-vu-dang-bai-tiktik.txt.
+- Scope: user.info.basic, video.upload (thay video.publish). scope_missing = thiếu video.upload, thông báo:
+  "Cần cho phép quyền tải nội dung lên để A51 gửi bài sang TikTok. Vui lòng ủy quyền lại."
+- Frontend không dùng privacy_level_options / comment_disabled nữa; creator có thể null.
+
 Quy ước chung giống các API hiện có:
 - Gốc API: /api/v1. Mọi API cần đăng nhập (Authorization: Bearer <token>), TRỪ callback OAuth (TikTok gọi về).
 - JSON snake_case. Thành công trả { data }. Lỗi trả { message, code?, context?, errors? }.

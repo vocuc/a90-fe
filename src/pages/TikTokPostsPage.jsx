@@ -6,7 +6,7 @@ import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { PostStatusBadge } from '../components/tiktok/PostStatus';
 import OAuthResultNotice from '../components/tiktok/OAuthResultNotice';
-import { POST_STATUS, PRIVACY_LABELS, listPosts } from '../api/tiktok';
+import { POST_STATUS, listPosts } from '../api/tiktok';
 
 const formatTime = (iso) =>
   new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -16,8 +16,8 @@ const postTitle = (post) => (generating(post) ? 'Đang tạo ảnh...' : post.ti
 const imageCount = (post) => post.imageCount;
 const coverUrl = (post) => post.coverUrl ?? null;
 
-// Bài chờ đăng cần người dùng làm tiếp (điền tiêu đề, nội dung rồi đăng): nút gọi hành động thay cho "Xem"
-const actionLabel = (post) => (post.status === POST_STATUS.PENDING_REVIEW ? 'Đăng bài' : 'Xem');
+// Bài chờ gửi cần người dùng làm tiếp (xem lại rồi gửi sang TikTok): nút gọi hành động thay cho "Xem"
+const actionLabel = (post) => (post.status === POST_STATUS.PENDING_REVIEW ? 'Gửi TikTok' : 'Xem');
 
 function Cover({ post, className = '' }) {
   return (
@@ -109,7 +109,6 @@ function PostTable({ posts }) {
                 </p>
                 <p className="mt-1 text-xs text-outline">
                   {imageCount(post)} ảnh
-                  {post.privacyLevel && ` · ${PRIVACY_LABELS[post.privacyLevel]}`}
                 </p>
                 <p className="text-xs text-outline">{formatTime(post.createdAt)}</p>
               </td>
@@ -193,7 +192,7 @@ export default function TikTokPostsPage() {
         {pendingCount > 0 && (
           <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
             <Icon name="edit_note" className="text-base" />
-            Có {pendingCount} bài đã có ảnh, đang chờ bạn điền tiêu đề, nội dung và đăng lên TikTok.
+            Có {pendingCount} bài đã có ảnh, đang chờ bạn xem lại và gửi sang TikTok.
           </p>
         )}
         {error ? (

@@ -4,7 +4,9 @@ import { appendInputs } from './services';
 /*
  * ---- Đăng bài TikTok (cần đăng nhập) ----
  * Đặc tả: note/nghiep-vu-dang-bai-tiktik.txt (bài đăng), note/uy-quyen-tiktok.txt (ủy quyền OAuth).
- * Backend giữ access token TikTok, tạo ảnh và gọi Content Posting API. Tiêu đề, nội dung, hashtag do người dùng tự nhập.
+ * Backend giữ access token TikTok, tạo ảnh và gọi Content Posting API ở chế độ Upload (MEDIA_UPLOAD, scope video.upload):
+ * bài được gửi vào hộp thư TikTok của người dùng, người dùng mở app TikTok để hoàn tất và đăng. Tiêu đề, nội dung,
+ * hashtag không bắt buộc, chỉ điền sẵn trong app; quyền xem, bình luận, nhạc do người dùng chọn trong app.
  *
  * GET    /tiktok/account                                 -> { data: { connected, reason, account, creator } }
  * POST   /tiktok/oauth/authorize { redirect }            -> { data: { url } }
@@ -25,19 +27,12 @@ export const PHOTO_TITLE_MAX = 90;
 export const PHOTO_DESCRIPTION_MAX = 4000;
 export const HASHTAG_MAX = 10;
 
-export const PRIVACY_LABELS = {
-  PUBLIC_TO_EVERYONE: 'Mọi người',
-  MUTUAL_FOLLOW_FRIENDS: 'Bạn bè',
-  FOLLOWER_OF_CREATOR: 'Người theo dõi',
-  SELF_ONLY: 'Chỉ mình tôi',
-};
-
 /*
  * Trạng thái bài đăng:
  *   generating      Đang tạo ảnh: AI tạo ảnh (chỉ khi chọn tạo ảnh mới)
- *   pending_review  Chờ đăng: ảnh đã xong, chờ người dùng điền tiêu đề, nội dung và bấm đăng
- *   publishing      Đang đăng: đã gửi lên TikTok, chờ TikTok phản hồi
- *   published       Đã đăng lên TikTok
+ *   pending_review  Chờ gửi: ảnh đã xong, chờ người dùng bấm gửi sang TikTok
+ *   publishing      Đang gửi: đã gửi lên TikTok, chờ TikTok phản hồi
+ *   published       Đã gửi vào hộp thư TikTok, người dùng mở app TikTok để đăng
  */
 export const POST_STATUS = {
   GENERATING: 'generating',
@@ -82,7 +77,7 @@ export const disconnectTikTok = () => client.delete('/tiktok/account');
 export const OAUTH_RESULT_MESSAGES = {
   connected: 'Đã kết nối tài khoản TikTok.',
   access_denied: 'Bạn đã huỷ ủy quyền TikTok.',
-  scope_missing: 'Cần cho phép quyền đăng bài để A51 đăng lên TikTok. Vui lòng ủy quyền lại.',
+  scope_missing: 'Cần cho phép quyền tải nội dung lên để A51 gửi bài sang TikTok. Vui lòng ủy quyền lại.',
   state_invalid: 'Phiên ủy quyền đã hết hạn, vui lòng thử lại.',
   server_error: 'Không kết nối được TikTok, vui lòng thử lại sau.',
 };
@@ -116,15 +111,11 @@ const mapPost = (p) => ({
   title: p.title ?? '',
   content: p.content ?? '',
   hashtags: p.hashtags ?? [],
-  privacyLevel: p.privacy_level,
-  allowComment: p.allow_comment,
-  autoAddMusic: p.auto_add_music,
   imageCount: p.image_count ?? p.images?.length ?? 0,
   coverUrl: p.cover_url,
   images: (p.images ?? []).map(mapImage),
   lastError: p.last_error,
   tiktokUsername: p.tiktok_username,
-  tiktokPostUrl: p.tiktok_post_url,
   createdAt: p.created_at,
   publishedAt: p.published_at,
 });
@@ -141,7 +132,7 @@ export const listPosts = ({ page = 1, limit = 20, status } = {}) =>
 export const getPost = (id) => client.get(`/tiktok/posts/${id}`).then(({ data }) => mapPost(data));
 
 /**
- * Tạo bài từ ảnh đã có trên A51 (không tính phí): bài chờ người dùng điền tiêu đề, nội dung và đăng.
+ * Tạo bài từ ảnh đã có trên A51 (không tính phí): bài chờ người dùng gửi sang TikTok.
  * images: [{ generationId, outputId }] theo thứ tự, ảnh đầu làm ảnh bìa.
  */
 export const createPostFromImages = (images, idempotencyKey) =>
@@ -231,8 +222,8 @@ export function regenerateImage(postId, image, idempotencyKey, edit) {
 }
 
 /**
- * Đăng: gửi toàn bộ chỉnh sửa trên trang rồi gửi lên TikTok, bài chuyển sang publishing.
- * Đăng lỗi thì chỉnh sửa vẫn được lưu và bài có last_error.
+ * Gửi sang TikTok: lưu toàn bộ chỉnh sửa trên trang rồi tải ảnh vào hộp thư TikTok của người dùng, bài chuyển sang publishing.
+ * Tiêu đề, nội dung, hashtag không bắt buộc (điền sẵn trong app TikTok). Gửi lỗi thì chỉnh sửa vẫn được lưu và bài có last_error.
  */
 export const publishPost = (id, form) =>
   client
@@ -240,9 +231,6 @@ export const publishPost = (id, form) =>
       title: form.title,
       content: form.content,
       hashtags: form.hashtags,
-      privacy_level: form.privacyLevel,
-      allow_comment: form.allowComment,
-      auto_add_music: form.autoAddMusic,
       images: form.images.map((img) =>
         img.id ? { image_id: img.id } : { generation_id: img.generationId, output_id: img.outputId },
       ),

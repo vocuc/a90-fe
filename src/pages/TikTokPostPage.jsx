@@ -6,7 +6,7 @@ import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
-import { FormAlert, SelectField, SubmitButton, TextArea, TextField } from '../components/common/Form';
+import { FormAlert, SubmitButton, TextArea, TextField } from '../components/common/Form';
 import DynamicForm, { initialValues, validateValues } from '../components/template/DynamicForm';
 import HashtagInput from '../components/template/HashtagInput';
 import A51ImagePicker from '../components/tiktok/A51ImagePicker';
@@ -21,7 +21,6 @@ import {
   PHOTO_MAX_COUNT,
   PHOTO_TITLE_MAX,
   POST_STATUS,
-  PRIVACY_LABELS,
   authorizeTikTok,
   deletePost,
   disconnectTikTok,
@@ -40,15 +39,15 @@ const POLL_INTERVAL = 3000;
 const needsPolling = (post) =>
   !!post && (POLL_STATUSES.includes(post.status) || (post.status === POST_STATUS.PENDING_REVIEW && post.images.some(isImageBusy)));
 
-const EDIT_FIELDS = ['images', 'title', 'content', 'hashtags', 'privacyLevel', 'allowComment', 'autoAddMusic'];
+const EDIT_FIELDS = ['images', 'title', 'content', 'hashtags'];
 const pickEdit = (post) => Object.fromEntries(EDIT_FIELDS.map((k) => [k, post[k]]));
 
 // Nội dung gửi TikTok = content + "\n" + dòng hashtag, tổng không quá 4000 ký tự
 const captionLength = (content, hashtags) =>
   content.length + (hashtags.length ? 1 + hashtags.map((t) => `#${t}`).join(' ').length : 0);
 
-// Lỗi theo trường của API đăng bài (snake_case, images.N) -> trường của form
-const FIELD_FROM_API = { title: 'title', content: 'content', hashtags: 'hashtags', privacy_level: 'privacyLevel', images: 'images' };
+// Lỗi theo trường của API gửi bài (snake_case, images.N) -> trường của form
+const FIELD_FROM_API = { title: 'title', content: 'content', hashtags: 'hashtags', images: 'images' };
 const formErrorsFrom = (errors) =>
   Object.entries(errors ?? {}).reduce((acc, [field, msg]) => {
     const key = FIELD_FROM_API[field.split('.')[0]];
@@ -56,38 +55,18 @@ const formErrorsFrom = (errors) =>
     return acc;
   }, {});
 
-function Switch({ label, hint, checked, disabled, onChange }) {
-  return (
-    <label className={`flex items-center gap-3 py-2 ${disabled ? 'opacity-50' : 'cursor-pointer'}`}>
-      <span className="flex-1">
-        <span className="block text-sm font-semibold text-on-surface">{label}</span>
-        {hint && <span className="block text-xs text-on-surface-variant">{hint}</span>}
-      </span>
-      <input
-        type="checkbox"
-        role="switch"
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        className="peer sr-only"
-      />
-      <span
-        aria-hidden="true"
-        className="relative h-6 w-11 shrink-0 rounded-full bg-outline-variant transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-primary-container peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container/40"
-      />
-    </label>
-  );
-}
-
 const NOT_CONNECTED_TEXT = {
   not_connected: { title: 'Chưa ủy quyền TikTok', hint: 'Ủy quyền tài khoản TikTok để đăng bài' },
   expired: { title: 'Kết nối TikTok đã hết hạn', hint: 'Vui lòng ủy quyền lại để tiếp tục đăng bài' },
   revoked: { title: 'Kết nối TikTok đã bị huỷ', hint: 'Vui lòng ủy quyền lại để tiếp tục đăng bài' },
-  scope_missing: { title: 'Thiếu quyền đăng bài', hint: 'Cần cho phép quyền đăng bài để A51 đăng lên TikTok. Vui lòng ủy quyền lại.' },
+  scope_missing: {
+    title: 'Thiếu quyền tải nội dung lên',
+    hint: 'Cần cho phép quyền tải nội dung lên để A51 gửi bài sang TikTok. Vui lòng ủy quyền lại.',
+  },
 };
 
 /**
- * Tài khoản TikTok sẽ đăng bài: TikTok yêu cầu hiển thị rõ cho người dùng.
+ * Tài khoản TikTok sẽ nhận bài: hiển thị rõ cho người dùng.
  * tiktok: undefined đang tải, còn lại là { connected, reason, account, creator } của GET /tiktok/account.
  */
 function CreatorCard({ tiktok, error, onRetry, onAuthorize, authorizing, onDisconnect, disconnecting }) {
@@ -469,7 +448,7 @@ function AddImagesDialog({ exclude, max, onAdd, onClose }) {
   );
 }
 
-/** Đang tạo ảnh: AI đang tạo ảnh từ các mẫu đã chọn, xong thì bài chờ người dùng điền nội dung và đăng. */
+/** Đang tạo ảnh: AI đang tạo ảnh từ các mẫu đã chọn, xong thì bài chờ người dùng gửi sang TikTok. */
 function GeneratingPanel({ post }) {
   const done = post.images.filter((i) => !isImageBusy(i)).length;
   const steps = [['images', `Tạo ${post.images.length} ảnh từ mẫu đã chọn (xong ${done}/${post.images.length})`]];
@@ -482,7 +461,7 @@ function GeneratingPanel({ post }) {
         <div>
           <h2 className="text-base font-bold text-on-surface">AI đang tạo ảnh</h2>
           <p className="mt-1 text-xs text-on-surface-variant">
-            Bạn có thể rời trang này. Khi ảnh xong, bài chuyển sang <b>Chờ đăng</b> để bạn điền tiêu đề, nội dung và đăng.
+            Bạn có thể rời trang này. Khi ảnh xong, bài chuyển sang <b>Chờ gửi</b> để bạn xem lại và gửi sang TikTok.
           </p>
         </div>
         <ul className="w-full space-y-1.5 text-left">
@@ -517,7 +496,7 @@ function GeneratingPanel({ post }) {
   );
 }
 
-/** Đang đăng / Đã đăng: chỉ xem. */
+/** Đang gửi / Đã gửi vào hộp thư TikTok: chỉ xem. */
 function PostPreview({ post }) {
   return (
     <div className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8 lg:py-6">
@@ -526,31 +505,21 @@ function PostPreview({ post }) {
         {post.status === POST_STATUS.PUBLISHING ? (
           <p className="flex items-center gap-2 rounded-xl bg-primary-fixed/40 px-3 py-2 text-xs font-semibold text-primary">
             <Icon name="progress_activity" className="animate-spin text-base" />
-            Đã gửi lên TikTok, đang chờ TikTok phản hồi...
+            Đang gửi sang TikTok, chờ TikTok phản hồi...
           </p>
         ) : (
-          <div className="space-y-1 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
-            <p className="flex items-center gap-2">
+          <div className="space-y-1 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            <p className="flex items-center gap-2 font-semibold">
               <Icon name="check_circle" fill className="text-base" />
-              Đã đăng lên TikTok{post.tiktokUsername ? ` @${post.tiktokUsername}` : ''}
+              Đã gửi vào TikTok{post.tiktokUsername ? ` @${post.tiktokUsername}` : ''}
               {post.publishedAt ? ` lúc ${new Date(post.publishedAt).toLocaleString('vi-VN')}` : ''}
             </p>
-            {post.tiktokPostUrl && (
-              <a
-                href={post.tiktokPostUrl}
-                target="_blank"
-                rel="noopener"
-                className="inline-flex items-center gap-1 text-primary hover:underline"
-              >
-                Xem bài trên TikTok
-                <Icon name="open_in_new" className="text-sm" />
-              </a>
-            )}
+            <p>Mở app TikTok, xem thông báo trong Hộp thư để chỉnh sửa và đăng bài.</p>
           </div>
         )}
         <div>
           <p className="text-xs font-semibold text-outline">Tiêu đề</p>
-          <p className="text-sm font-bold text-on-surface">{post.title}</p>
+          <p className="text-sm font-bold text-on-surface">{post.title || '—'}</p>
         </div>
         <div>
           <p className="text-xs font-semibold text-outline">Nội dung</p>
@@ -563,15 +532,15 @@ function PostPreview({ post }) {
             ))}
           </p>
         )}
-        <p className="text-xs text-on-surface-variant">
-          Ai có thể xem: <b>{PRIVACY_LABELS[post.privacyLevel] ?? post.privacyLevel}</b>
-        </p>
       </section>
     </div>
   );
 }
 
-/** Chờ đăng: ảnh đã xong, người dùng điền tiêu đề, nội dung rồi đăng. onRefresh: tải lại bài (bắt đầu hỏi trạng thái ảnh). */
+/**
+ * Chờ gửi: ảnh đã xong, người dùng xem lại (tiêu đề, nội dung không bắt buộc) rồi gửi vào hộp thư TikTok.
+ * onRefresh: tải lại bài (bắt đầu hỏi trạng thái ảnh).
+ */
 function ReviewForm({ post, onRefresh }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -611,27 +580,10 @@ function ReviewForm({ post, onRefresh }) {
   }, []);
   useEffect(loadTiktok, [loadTiktok]);
 
-  // Đã ủy quyền theo connected; creator có thể thiếu (backend không lấy được creator_info) -> vẫn cho đăng,
-  // backend kiểm tra lại creator_info lúc đăng
+  // Đã ủy quyền theo connected; creator có thể thiếu -> vẫn cho gửi, backend kiểm tra lại lúc gửi
   const connected = !!tiktok?.connected;
   const creator = connected ? (tiktok.creator ?? null) : null;
-  const privacyOptions = !connected
-    ? []
-    : creator?.privacy_level_options?.length
-      ? creator.privacy_level_options
-      : Object.keys(PRIVACY_LABELS);
   const canPost = connected && creator?.can_post !== false;
-  const commentDisabled = !!creator?.comment_disabled;
-
-  // Mặc định "Mọi người"; quyền đang chọn không có trong lựa chọn của tài khoản (vd. app chưa duyệt chỉ cho SELF_ONLY)
-  // thì về "Mọi người" nếu có, không có thì bắt chọn lại
-  const privacyKey = privacyOptions.join(',');
-  useEffect(() => {
-    if (!privacyKey) return;
-    const options = privacyKey.split(',');
-    const fallback = options.includes('PUBLIC_TO_EVERYONE') ? 'PUBLIC_TO_EVERYONE' : '';
-    setForm((f) => (options.includes(f.privacyLevel) ? f : { ...f, privacyLevel: fallback }));
-  }, [privacyKey]);
 
   const authorize = async () => {
     setAuthorizing(true);
@@ -689,11 +641,9 @@ function ReviewForm({ post, onRefresh }) {
     const e = {};
     if (!form.images.length) e.images = 'Bài đăng cần ít nhất một ảnh.';
     else if (form.images.length > PHOTO_MAX_COUNT) e.images = `Bài đăng tối đa ${PHOTO_MAX_COUNT} ảnh.`;
-    if (!form.title.trim()) e.title = 'Hãy nhập tiêu đề.';
     if (form.hashtags.length > HASHTAG_MAX) e.hashtags = `Tối đa ${HASHTAG_MAX} hashtag.`;
     if (captionLength(form.content, form.hashtags) > PHOTO_DESCRIPTION_MAX)
       e.content = `Nội dung và hashtag cộng lại tối đa ${PHOTO_DESCRIPTION_MAX} ký tự.`;
-    if (!form.privacyLevel) e.privacyLevel = 'Hãy chọn ai có thể xem bài đăng.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -701,9 +651,9 @@ function ReviewForm({ post, onRefresh }) {
   const submit = (ev) => {
     ev.preventDefault();
     setFormError(null);
-    // Nút đăng luôn bấm được: chưa đủ điều kiện thì báo lý do thay vì khoá nút
+    // Nút gửi luôn bấm được: chưa đủ điều kiện thì báo lý do thay vì khoá nút
     if (!connected) {
-      setFormError(tiktok === undefined ? 'Đang kiểm tra tài khoản TikTok, vui lòng chờ.' : 'Hãy ủy quyền tài khoản TikTok trước khi đăng.');
+      setFormError(tiktok === undefined ? 'Đang kiểm tra tài khoản TikTok, vui lòng chờ.' : 'Hãy ủy quyền tài khoản TikTok trước khi gửi bài.');
       return;
     }
     if (!canPost) {
@@ -711,18 +661,18 @@ function ReviewForm({ post, onRefresh }) {
       return;
     }
     if (imagesNotReady) {
-      setFormError('Còn ảnh đang tạo hoặc bị lỗi: hãy chờ ảnh xong, tạo lại hoặc xoá ảnh lỗi trước khi đăng.');
+      setFormError('Còn ảnh đang tạo hoặc bị lỗi: hãy chờ ảnh xong, tạo lại hoặc xoá ảnh lỗi trước khi gửi.');
       return;
     }
     if (!validate()) return;
     run('publish', async () => {
       try {
-        await publishPost(post.id, { ...form, allowComment: form.allowComment && !commentDisabled });
+        await publishPost(post.id, form);
       } catch (err) {
-        // Mất kết nối / tài khoản bị chặn đăng: tải lại trạng thái tài khoản để hiện nút "Ủy quyền" hoặc lý do
+        // Mất kết nối / tài khoản bị chặn: tải lại trạng thái tài khoản để hiện nút "Ủy quyền" hoặc lý do
         if (err?.code === 'TIKTOK_NOT_CONNECTED' || err?.code === 'TIKTOK_CANNOT_POST') loadTiktok();
         setErrors(formErrorsFrom(err?.errors));
-        // Đăng lỗi: backend vẫn lưu chỉnh sửa và đặt last_error
+        // Gửi lỗi: backend vẫn lưu chỉnh sửa và đặt last_error
         onRefresh();
         throw err;
       }
@@ -811,7 +761,7 @@ function ReviewForm({ post, onRefresh }) {
           <p className="flex items-start gap-2 rounded-xl bg-error-container/60 px-3 py-2 text-xs text-on-error-container">
             <Icon name="error" className="text-base" />
             <span>
-              <b>Đăng lần trước không thành công.</b> {post.lastError.message}
+              <b>Gửi lần trước không thành công.</b> {post.lastError.message}
             </span>
           </p>
         )}
@@ -838,7 +788,10 @@ function ReviewForm({ post, onRefresh }) {
 
       <div className="space-y-6">
         <section className="space-y-4">
-          <h2 className="text-sm font-bold text-on-surface">Nội dung</h2>
+          <div>
+            <h2 className="text-sm font-bold text-on-surface">Nội dung</h2>
+            <p className="mt-0.5 text-xs text-on-surface-variant">Không bắt buộc: điền sẵn để sửa tiếp trong app TikTok.</p>
+          </div>
           <TextField
             label="Tiêu đề"
             icon="title"
@@ -861,70 +814,33 @@ function ReviewForm({ post, onRefresh }) {
             <HashtagInput
               value={form.hashtags}
               onChange={set('hashtags')}
-              hint="Hashtag được thêm vào cuối nội dung khi đăng. Nhấn Enter hoặc dấu phẩy để thêm."
+              hint="Hashtag được thêm vào cuối nội dung. Nhấn Enter hoặc dấu phẩy để thêm."
             />
             {errors.hashtags && <p className="mt-1 text-xs text-error">{errors.hashtags}</p>}
           </div>
-          <SelectField
-            label="Ai có thể xem bài đăng này"
-            value={form.privacyLevel ?? ''}
-            error={errors.privacyLevel}
-            disabled={!canPost}
-            onChange={(e) => set('privacyLevel')(e.target.value)}
-          >
-            <option value="" disabled>
-              Chọn quyền riêng tư
-            </option>
-            {privacyOptions.map((opt) => (
-              <option key={opt} value={opt}>
-                {PRIVACY_LABELS[opt] ?? opt}
-              </option>
-            ))}
-          </SelectField>
         </section>
 
-        <section className="divide-y divide-surface-container rounded-2xl border border-outline-variant/40 px-4 py-1">
-          <Switch
-            label="Cho phép bình luận"
-            hint={commentDisabled ? 'Tài khoản TikTok của bạn đã tắt bình luận' : undefined}
-            checked={form.allowComment && !commentDisabled}
-            disabled={commentDisabled}
-            onChange={set('allowComment')}
-          />
-          <Switch
-            label="Tự động thêm nhạc"
-            hint="TikTok chọn nhạc nền phù hợp cho bài đăng ảnh"
-            checked={form.autoAddMusic}
-            onChange={set('autoAddMusic')}
-          />
-        </section>
-
-        <p className="text-xs leading-relaxed text-on-surface-variant">
-          Bằng việc đăng bài, bạn đồng ý với{' '}
-          <a
-            href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en"
-            target="_blank"
-            rel="noopener"
-            className="font-semibold text-primary hover:underline"
-          >
-            Xác nhận sử dụng nhạc
-          </a>{' '}
-          của TikTok. Bài đăng có thể mất vài phút để xuất hiện trên hồ sơ của bạn.
+        <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs leading-relaxed text-on-surface-variant">
+          <Icon name="info" className="text-base" />
+          <span>
+            Bài được gửi vào <b>Hộp thư</b> trong app TikTok của bạn. Mở thông báo để chọn ai có thể xem, nhạc nền, sửa nội
+            dung rồi đăng. Có thể mất vài phút để thông báo xuất hiện.
+          </span>
         </p>
 
         {formError && <FormAlert>{formError}</FormAlert>}
         {imagesNotReady && !formError && (
-          <p className="text-xs text-amber-700">Còn ảnh đang tạo hoặc bị lỗi: hãy chờ ảnh xong, tạo lại hoặc xoá ảnh lỗi trước khi đăng.</p>
+          <p className="text-xs text-amber-700">Còn ảnh đang tạo hoặc bị lỗi: hãy chờ ảnh xong, tạo lại hoặc xoá ảnh lỗi trước khi gửi.</p>
         )}
 
         <div className="space-y-2">
           <SubmitButton
             loading={busy === 'publish'}
-            loadingText="Đang gửi lên TikTok..."
+            loadingText="Đang gửi sang TikTok..."
             disabled={!!busy}
           >
             <Icon name="send" className="text-lg" />
-            Đăng lên TikTok
+            Gửi sang TikTok
           </SubmitButton>
           <button
             type="button"

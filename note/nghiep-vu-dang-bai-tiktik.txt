@@ -15,6 +15,27 @@ CẬP NHẬT 2026-10-14 (2): BỎ LUỒNG AI VIẾT NỘI DUNG (BACKEND CẦN S�
 - Tên hiển thị trên giao diện: generating = "Đang tạo ảnh", pending_review = "Chờ đăng". Các thông báo lỗi có chữ
   "tạo nội dung" (vd 409 POST_NOT_DELETABLE) nên đổi thành "tạo ảnh".
 
+CẬP NHẬT 2026-10-14 (3): CHUYỂN TỪ DIRECT POST SANG UPLOAD (BACKEND CẦN SỬA). Frontend đã sửa xong.
+- Gọi Content Posting API với post_mode = "MEDIA_UPLOAD" thay cho "DIRECT_POST". Scope OAuth: video.upload thay
+  cho video.publish (scope_missing = người dùng bỏ tích video.upload). Ảnh vào Hộp thư (inbox) TikTok của người
+  dùng, người dùng mở app TikTok để chọn quyền xem, nhạc, sửa caption rồi tự đăng.
+- POST /tiktok/posts/{id}/publish chỉ còn body: { title, content, hashtags, images }.
+  + title KHÔNG bắt buộc (được rỗng), <= 90. content, hashtags giữ giới hạn cũ. Có thì gửi vào post_info
+    (title, description = content + dòng hashtag) để TikTok điền sẵn; rỗng thì bỏ.
+  + Bỏ privacy_level, allow_comment, auto_add_music (frontend không gửi nữa). Không gửi post_info.privacy_level,
+    disable_comment, auto_add_music lên TikTok.
+  + Không cần kiểm tra privacy_level_options / comment_disabled nữa.
+- Trạng thái giữ nguyên giá trị, đổi nghĩa: publishing = đang tải ảnh lên TikTok; published = TikTok báo
+  SEND_TO_USER_INBOX (ảnh đã vào hộp thư), published_at = lúc đó. Không có link bài (bỏ tiktok_post_url) vì
+  người dùng có thể không đăng / đăng muộn trong app.
+- Bỏ privacy_level, allow_comment, auto_add_music, tiktok_post_url khỏi TikTokPost (frontend không đọc nữa).
+- Tên trên giao diện: pending_review = "Chờ gửi", publishing = "Đang gửi", published = "Đã gửi TikTok".
+- GET /tiktok/account: creator_info/query là API của Direct Post; nếu không gọi được với scope video.upload thì
+  trả creator = null hoặc chỉ { nickname, username, avatar_url } từ user/info (frontend chấp nhận cả hai,
+  chỉ chặn gửi khi can_post === false).
+- Developer Portal: Content Posting API bật Upload (không cần Direct Post / audit cho Direct Post).
+- Các mục 5.8, 9 và note/uy-quyen-tiktok.txt bên dưới còn mô tả Direct Post: phần này ghi đè.
+
 Quy ước chung (giống các API hiện có):
 - Gốc API: /api/v1. Mọi API dưới đây đều cần đăng nhập (Authorization: Bearer <token>).
 - JSON snake_case. Thành công trả { data } (danh sách: { data, links, meta: { current_page, last_page, per_page, total } }).
