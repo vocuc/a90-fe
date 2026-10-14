@@ -22,6 +22,7 @@ import TermsOfServicePage from './pages/TermsOfServicePage';
 import TemplateBuilderPage from './pages/TemplateBuilderPage';
 import SupportPage from './pages/SupportPage';
 import TopUpPage from './pages/TopUpPage';
+import TikTokPostPage from './pages/TikTokPostPage';
 
 export default function App() {
   return (
@@ -38,6 +39,8 @@ export default function App() {
         <Route path="creators/:username" element={<CreatorPage />} />
         <Route element={<PageColumn />}>
           <Route path="tools/:slug" element={<ToolDetailPage />} />
+          {/* Đăng bài TikTok: đang giả lập API, chưa có backend */}
+          <Route path="tiktok/post" element={<TikTokPostPage />} />
           <Route path="*" element={<PlaceholderPage title="Không tìm thấy trang" icon="error" />} />
         </Route>
         <Route element={<RequireAuth />}>
