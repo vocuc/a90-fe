@@ -1,0 +1,193 @@
+TÁCH TÍNH NĂNG ĐĂNG TIKTOK: (1) TẠO ẢNH THEO LÔ, (2) ĐĂNG TIKTOK - THẢO LUẬN
+=========================================================================
+
+Ngày: 2026-10-14. Tài liệu liên quan: note/nghiep-vu-dang-bai-tiktik.txt, note/uy-quyen-tiktok.txt.
+Trả lời ngay dưới mỗi câu hỏi (dòng "TRẢ LỜI:").
+
+
+HIỆN TẠI
+--------
+
+"Bài đăng" (TikTokPost) đang gánh cả hai việc:
+- Lô ảnh: tạo ảnh từ nhiều mẫu (from-creatives), tạo lại, sửa nguyên liệu, xoá ảnh.
+- Bài TikTok: tiêu đề, nội dung, hashtag, ủy quyền, gửi sang TikTok.
+Trang: /tiktok (danh sách), /tiktok/new (TikTokNewPage), /tiktok/post/:id (TikTokPostPage).
+
+
+ĐỀ XUẤT
+-------
+Phần 1. Tạo ảnh theo lô (công cụ riêng, ví dụ /batches)
+  - Danh sách lô: ảnh bìa, số ảnh, trạng thái (Đang tạo ảnh / Xong), ngày tạo.
+  - Tạo lô: chọn các mẫu AI Creative, nhập nguyên liệu cho từng mẫu (lấy lại NewSource của TikTokNewPage).
+  - Chi tiết lô: xem ảnh, tạo lại, sửa nguyên liệu, xoá ảnh, tải ảnh về
+    (lấy lại ImageStrip, EditInputsDialog của TikTokPostPage).
+  - Mỗi lô có nút "Đăng TikTok".
+
+Phần 2. Đăng TikTok (giữ /tiktok)
+  - Bấm "Đăng TikTok" ở lô -> tạo bài từ ảnh của lô bằng POST /tiktok/posts/from-images (đã có sẵn)
+    -> chuyển sang trang bài.
+  - Trang bài chỉ còn: chọn / sắp xếp ảnh, tiêu đề, nội dung, hashtag, ủy quyền, gửi.
+    Bỏ tạo lại / sửa nguyên liệu ở đây (chuyển sang lô).
+
+Backend phải làm mới: thực thể "lô" (tách from-creatives, inputs, regenerate ra khỏi bài đăng).
+Phía đăng TikTok gần như dùng lại được hết.
+
+
+CÂU HỎI CẦN CHỐT
+----------------
+
+1. Một lô đăng TikTok được mấy lần?
+   a) Nhiều lần, mỗi lần bấm "Đăng TikTok" tạo một bài mới (đề xuất)
+   b) Chỉ một bài cho mỗi lô
+   TRẢ LỜI:a
+
+2. Bấm "Đăng TikTok" thì đăng ảnh nào?
+   a) Cho tích chọn một phần ảnh trong lô (tối đa 35), mặc định chọn hết (đề xuất)
+   b) Luôn đăng toàn bộ ảnh của lô
+   TRẢ LỜI:a
+
+3. Backend có làm API lô mới được không?
+   a) Có: làm thực thể lô riêng (/batches) (đề xuất)
+   b) Chưa: làm tạm chỉ ở frontend, coi bài đăng đang "Chờ gửi" là "lô", đổi tên / bố cục giao diện.
+      Nhanh nhưng 1 lô = 1 bài, sau khi gửi thì lô không sửa được nữa.
+   TRẢ LỜI:a
+
+4. Giữ cách "Dùng ảnh đã có" (đăng TikTok từ lịch sử tạo ảnh, không qua lô) không?
+   a) Giữ, đặt ở trang /tiktok (đề xuất)
+   b) Bỏ, chỉ đăng từ lô
+   TRẢ LỜI:a
+
+5. Giới hạn của lô?
+   a) Giữ như cũ: tối đa 10 mẫu, mỗi mẫu 1 ảnh
+   b) Cho chọn số lượng ảnh cho mỗi mẫu (tối đa bao nhiêu ảnh / mẫu, bao nhiêu ảnh / lô?)
+   TRẢ LỜI:b không giới hạn ảnh và số lượng
+
+6. Lô có tên không?
+   a) Người dùng tự đặt, để trống thì lấy mặc định (vd tên mẫu đầu tiên + ngày)
+   b) Không có tên, chỉ hiện ngày tạo và ảnh bìa
+   TRẢ LỜI: không cần tên lấy theo ID
+
+7. Đặt công cụ "Tạo ảnh theo lô" ở đâu?
+   a) Thêm thẻ mới trong danh sách công cụ (src/components/tools/tools.js), cạnh "Đăng TikTok"
+   b) Nằm trong trang Đăng TikTok (tab "Lô ảnh" / "Bài đăng")
+   TRẢ LỜI: Đổi tab đăng tiktok ở phần công cụ thành tạo ảnh theo lô
+
+8. Các bài TikTok đang có (tạo bằng from-creatives) xử lý thế nào?
+   a) Giữ nguyên trong danh sách bài, không chuyển thành lô
+   b) Backend chuyển dữ liệu: mỗi bài cũ sinh ra một lô tương ứng
+   TRẢ LỜI: xóa hết data cũ đi tạo lại
+
+9. Ghi chú / yêu cầu khác:
+   TRẢ LỜI:
+
+
+CÂU HỎI PHỤ (SAU KHI ĐỌC TRẢ LỜI)
+---------------------------------
+
+10. (Câu 5) "Không giới hạn" nghĩa là không giới hạn trên giao diện, hay cả backend cũng không chặn?
+    Lưu ý: tiền bị trừ hết một lần lúc tạo lô, và hiện có giới hạn 10 lần tạo ảnh / phút.
+    Lô 200 ảnh = form nhập rất dài, một yêu cầu tải lên nặng, hàng đợi tạo ảnh bị một người chiếm lâu.
+    a) Đặt một mức chặn kỹ thuật cao (vd 100 ảnh / lô), chỉ để chống lỗi, người dùng gần như không chạm tới (đề xuất)
+    b) Không chặn gì cả
+    TRẢ LỜI:b
+
+11. (Câu 5) "Số lượng" của một mẫu: nhập nguyên liệu 1 lần, AI tạo N ảnh khác nhau từ cùng nguyên liệu đó?
+    Và vẫn được thêm cùng một mẫu nhiều lần với nguyên liệu khác nhau như hiện tại?
+    a) Đúng cả hai (đề xuất)
+    b) Khác (ghi rõ)
+    TRẢ LỜI: một mẫu được tạo nhiều ảnh từ một nguyên liệu, nhưng trong một lô mỗi creative chỉ được chọn một lần
+
+12. (Câu 11) "Tạo lại" / "Sửa nguyên liệu" trong lô áp dụng cho:
+    a) Từng ảnh riêng (như hiện tại) (đề xuất)
+    b) Cả nhóm N ảnh của mẫu đó
+    TRẢ LỜI:a
+
+13. (Câu 4 + 7) Thẻ "Đăng TikTok" đổi thành "Tạo ảnh theo lô" thì người dùng vào danh sách bài TikTok (/tiktok)
+    và cửa "Dùng ảnh đã có" từ đâu?
+    a) Trang lô có 2 tab "Lô ảnh" / "Bài TikTok"; tab "Bài TikTok" có nút "Tạo bài từ ảnh đã có" (đề xuất)
+    b) Giữ cả 2 thẻ công cụ: "Tạo ảnh theo lô" (mới) và "Đăng TikTok" (cũ)
+    c) Chỉ link nhỏ trên trang lô
+    TRẢ LỜI:b
+
+14. (Câu 8) "Xoá hết data cũ": xoá toàn bộ bài TikTok cũ. Còn:
+    - Ảnh đã tạo từ các bài đó (đang nằm trong lịch sử tạo ảnh): giữ hay xoá?
+    - Kết nối tài khoản TikTok đã ủy quyền: giữ hay bắt ủy quyền lại?
+    a) Giữ ảnh trong lịch sử, giữ kết nối TikTok (đề xuất)
+    b) Xoá cả ảnh
+    TRẢ LỜI:a
+
+15. Sau khi đã tạo bài TikTok từ lô, người dùng tạo lại / xoá ảnh trong lô thì bài đó:
+    a) Không đổi: bài giữ ảnh đã chọn lúc tạo, lô và bài độc lập (đề xuất)
+    b) Cập nhật theo lô
+    TRẢ LỜI:a
+
+16. Lô có sửa thêm được sau khi tạo không?
+    - Thêm mẫu / ảnh mới vào lô đã có: được không?
+    - Xoá cả lô: được không (không ảnh hưởng bài đã tạo, ảnh vẫn trong lịch sử, không hoàn tiền)?
+    a) Thêm ảnh vào lô được; xoá lô được khi không còn ảnh đang tạo (đề xuất)
+    b) Lô tạo xong là cố định, chỉ tạo lại / xoá từng ảnh; xoá lô được
+    TRẢ LỜI:b
+
+17. Trang bài TikTok: bỏ "Tạo lại" / "Sửa nguyên liệu" (chuyển sang lô), chỉ còn chọn / bỏ / sắp xếp / thêm ảnh,
+    tiêu đề, nội dung, hashtag, gửi. Bài không còn trạng thái "Đang tạo ảnh" (tạo xong là "Chờ gửi" ngay).
+    a) Đồng ý (đề xuất)
+    b) Vẫn giữ tạo lại ảnh ở trang bài
+    TRẢ LỜI:a
+
+
+ĐÃ LÀM (2026-10-14)
+===================
+
+Chốt theo câu trả lời trên, thêm:
+- Câu 7 + 13: giữ cả 2 thẻ công cụ "Tạo ảnh theo lô" (/batches) và "Đăng TikTok" (/tiktok).
+- Không xoá được lô khi còn ảnh đang tạo; không xoá được ảnh đang tạo; lô luôn còn ít nhất 1 ảnh.
+- Ảnh lỗi / đang tạo không chọn được khi bấm "Đăng TikTok".
+- Số ảnh một mẫu vượt max_outputs của mẫu thì backend chia thành nhiều generation (dùng chung ảnh đầu vào,
+  chỉ tải lên 1 lần). Không giới hạn số mẫu / số ảnh.
+
+API LÔ ẢNH (cần đăng nhập, lô của người khác -> 404)
+----------------------------------------------------
+
+ImageBatch:
+{
+  "id": 12,
+  "status": "generating",        // generating (còn ảnh queued / processing) | completed
+  "image_count": 8, "generating_count": 3, "failed_count": 1,
+  "cover_url": "https://...",    // ảnh đầu tiên đã xong, null nếu chưa có
+  "post_count": 2,               // số bài TikTok đã tạo từ lô
+  "images": [ Image, ... ],      // chỉ có ở chi tiết / tạo / không có ở danh sách
+  "created_at": "..."
+}
+Image: giống TikTokPostImage (id, position, generation_id, output_id, status, image_url, thumb_url,
+       error_message, creative { id, slug, title, price_per_image }).
+
+GET    /image-batches?page=&per_page=                   danh sách, mới nhất trước (không có images)
+GET    /image-batches/{id}                              chi tiết
+POST   /image-batches                                   multipart, throttle generations (10 / phút)
+         items[i][creative_id], items[i][quantity] (>= 1), items[i][inputs][...] (như POST /generations),
+         idempotency_key (<= 80). Mỗi creative_id một lần (422 errors["items.1.creative_id"]).
+         Trừ tổng phí ngay (402 INSUFFICIENT_CREDIT context.required = tổng). -> 201 { data: ImageBatch }
+DELETE /image-batches/{id}                              409 BATCH_NOT_DELETABLE khi còn ảnh đang tạo. -> 204
+GET    /image-batches/{id}/images/{imageId}/inputs      như 5.6 cũ
+POST   /image-batches/{id}/images/{imageId}/regenerate  như 5.7 cũ (không còn POST_NOT_EDITABLE). -> 202 { data: Image }
+DELETE /image-batches/{id}/images/{imageId}             409 IMAGE_NOT_READY (đang tạo), 409 BATCH_LAST_IMAGE. -> 204
+
+Bài TikTok và lô độc lập: tạo lại / xoá ảnh trong lô không đổi bài đã tạo; xoá lô thì bài giữ nguyên
+(image_batch_id = null). Ảnh vẫn còn trong lịch sử tạo ảnh.
+
+THAY ĐỔI Ở /tiktok
+------------------
+
+- BỎ: POST /tiktok/posts/from-creatives, GET .../images/{id}/inputs, POST .../images/{id}/regenerate.
+- POST /tiktok/posts/from-images thêm image_batch_id (không bắt buộc, phải là lô của người dùng).
+  Có image_batch_id -> source = "batch", không có -> "existing".
+- TikTokPost thêm image_batch_id.
+- Trang bài TikTok: chỉ còn bỏ / thêm ảnh, tiêu đề, nội dung, hashtag, gửi. "generating" chỉ còn xảy ra khi bật
+  AI viết nội dung (TIKTOK_AI_CONTENT), giao diện gọi là "Đang chuẩn bị".
+
+DỮ LIỆU CŨ
+----------
+
+Migration 2026_10_14_130000 chỉ thêm bảng / cột. Xoá bài TikTok cũ (giữ ảnh trong lịch sử và kết nối TikTok)
+chạy tay một lần, xoá tiktok_posts sẽ tự xoá tiktok_post_images và tiktok_content_jobs (cascade):
+  php artisan tinker --execute="App\Models\TikTokPost::query()->delete();"

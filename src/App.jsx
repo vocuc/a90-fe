@@ -25,6 +25,9 @@ import TopUpPage from './pages/TopUpPage';
 import TikTokPostPage from './pages/TikTokPostPage';
 import TikTokPostsPage from './pages/TikTokPostsPage';
 import TikTokNewPage from './pages/TikTokNewPage';
+import BatchesPage from './pages/BatchesPage';
+import BatchNewPage from './pages/BatchNewPage';
+import BatchPage from './pages/BatchPage';
 
 export default function App() {
   return (
@@ -45,6 +48,10 @@ export default function App() {
         </Route>
         <Route element={<RequireAuth />}>
           <Route path="seller/products" element={<SellerProductsPage />} />
+          {/* Tạo ảnh theo lô (note/tach-lo-anh-dang-tiktok.txt). Trang rộng, tự chia cột trên desktop */}
+          <Route path="batches" element={<BatchesPage />} />
+          <Route path="batches/new" element={<BatchNewPage />} />
+          <Route path="batches/:id" element={<BatchPage />} />
           {/* TikTok (note/nghiep-vu-dang-bai-tiktik.txt). Trang rộng, tự chia cột trên desktop */}
           <Route path="tiktok" element={<TikTokPostsPage />} />
           <Route path="tiktok/new" element={<TikTokNewPage />} />

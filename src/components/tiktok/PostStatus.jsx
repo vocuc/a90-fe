@@ -3,7 +3,7 @@ import { POST_STATUS } from '../../api/tiktok';
 
 export const POST_STATUS_INFO = {
   [POST_STATUS.GENERATING]: {
-    label: 'Đang tạo ảnh',
+    label: 'Đang chuẩn bị',
     icon: 'progress_activity',
     spin: true,
     className: 'bg-sky-50 text-sky-700',

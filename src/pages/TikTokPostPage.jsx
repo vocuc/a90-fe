@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
@@ -7,13 +7,10 @@ import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { FormAlert, SubmitButton, TextArea, TextField } from '../components/common/Form';
-import DynamicForm, { initialValues, validateValues } from '../components/template/DynamicForm';
 import HashtagInput from '../components/template/HashtagInput';
 import A51ImagePicker from '../components/tiktok/A51ImagePicker';
 import OAuthResultNotice from '../components/tiktok/OAuthResultNotice';
 import { PostStatusBadge } from '../components/tiktok/PostStatus';
-import { formatVnd } from '../utils/format';
-import { useCreative } from '../hooks/queries';
 import {
   HASHTAG_MAX,
   IMAGE_STATUS,
@@ -25,19 +22,15 @@ import {
   deletePost,
   disconnectTikTok,
   getCreatorInfo,
-  getImageInputs,
   getPost,
   isImageBusy,
-  newIdempotencyKey,
   publishPost,
-  regenerateImage,
 } from '../api/tiktok';
 
-// Trạng thái còn đang chạy ở nền (hoặc còn ảnh đang tạo lại): hỏi lại mỗi 3 giây
+// Trạng thái còn đang chạy ở nền: hỏi lại mỗi 3 giây
 const POLL_STATUSES = [POST_STATUS.GENERATING, POST_STATUS.PUBLISHING];
 const POLL_INTERVAL = 3000;
-const needsPolling = (post) =>
-  !!post && (POLL_STATUSES.includes(post.status) || (post.status === POST_STATUS.PENDING_REVIEW && post.images.some(isImageBusy)));
+const needsPolling = (post) => !!post && POLL_STATUSES.includes(post.status);
 
 const EDIT_FIELDS = ['images', 'title', 'content', 'hashtags'];
 const pickEdit = (post) => Object.fromEntries(EDIT_FIELDS.map((k) => [k, post[k]]));
@@ -153,11 +146,8 @@ function CreatorCard({ tiktok, error, onRetry, onAuthorize, authorizing, onDisco
   );
 }
 
-/**
- * Ảnh của bài: ảnh đầu là ảnh bìa. editable: cho xoá, tạo lại, sửa nguyên liệu từng ảnh và thêm ảnh từ A51.
- * requesting: id các ảnh đang gửi yêu cầu tạo lại (sau đó ảnh có status queued / processing).
- */
-function ImageStrip({ images, editable, onRemove, onAdd, onRegenerate, onEditInputs, requesting = [] }) {
+/** Ảnh của bài: ảnh đầu là ảnh bìa. editable: cho xoá ảnh và thêm ảnh từ A51. */
+function ImageStrip({ images, editable, onRemove, onAdd }) {
   const [viewing, setViewing] = useState(null);
   return (
     <section className="space-y-2">
@@ -170,10 +160,8 @@ function ImageStrip({ images, editable, onRemove, onAdd, onRegenerate, onEditInp
       </div>
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {images.map((img, i) => {
-          const busy = isImageBusy(img) || requesting.includes(img.id);
+          const busy = isImageBusy(img);
           const failed = img.status === IMAGE_STATUS.FAILED;
-          // Tạo lại / sửa nguyên liệu: ảnh đã lưu trong bài (có id) và biết được mẫu đã tạo ra nó
-          const canRegenerate = editable && img.id && img.creativeSlug;
           return (
             <li key={img.key} className="space-y-1.5">
               <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-surface-container">
@@ -204,47 +192,16 @@ function ImageStrip({ images, editable, onRemove, onAdd, onRegenerate, onEditInp
                     <span className="text-[11px] font-semibold">Đang tạo ảnh...</span>
                   </span>
                 )}
-                {canRegenerate && !busy && (
-                  <button
-                    type="button"
-                    onClick={() => onEditInputs(img)}
-                    aria-label={`Sửa nguyên liệu ảnh ${i + 1}`}
-                    title="Sửa nguyên liệu"
-                    className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
-                  >
-                    <Icon name="edit" className="text-sm" />
-                  </button>
-                )}
               </div>
-              {/* Tạo lại và xoá nằm dưới ảnh, không che ảnh */}
-              {editable && (
-                <div className="flex gap-1">
-                  {canRegenerate ? (
-                    <button
-                      type="button"
-                      onClick={() => onRegenerate(img)}
-                      disabled={busy}
-                      className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border border-outline-variant/50 text-[11px] font-bold text-primary hover:bg-surface-container disabled:opacity-50"
-                    >
-                      <Icon name="refresh" className="text-sm" />
-                      Tạo lại
-                    </button>
-                  ) : (
-                    <span className="flex-1" />
-                  )}
-                  {images.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => onRemove(img.key)}
-                      disabled={busy}
-                      aria-label={`Xoá ảnh ${i + 1}`}
-                      title="Xoá ảnh"
-                      className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-outline-variant/50 text-on-surface-variant hover:border-error hover:text-error disabled:opacity-50"
-                    >
-                      <Icon name="delete" className="text-base" />
-                    </button>
-                  )}
-                </div>
+              {editable && images.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(img.key)}
+                  className="flex h-8 w-full items-center justify-center gap-1 rounded-lg border border-outline-variant/50 text-[11px] font-bold text-on-surface-variant hover:border-error hover:text-error"
+                >
+                  <Icon name="delete" className="text-sm" />
+                  Bỏ khỏi bài
+                </button>
               )}
             </li>
           );
@@ -263,130 +220,6 @@ function ImageStrip({ images, editable, onRemove, onAdd, onRegenerate, onEditInp
         )}
       </ul>
     </section>
-  );
-}
-
-/**
- * Popup sửa nguyên liệu (thông tin nhập theo form của mẫu) của một ảnh rồi tạo lại ảnh đó.
- * Điền sẵn thông tin đã dùng lần trước nếu còn (ảnh cũ giữ lại bằng file_id, không cần tải lên lại).
- */
-function EditInputsDialog({ postId, image, onSubmit, onClose }) {
-  const { data: c, isLoading, error, refetch } = useCreative(image.creativeSlug);
-  const schema = c?.inputSchema ?? null;
-  const [saved, setSaved] = useState(undefined); // undefined: đang tải, null: không còn thông tin cũ
-  const [values, setValues] = useState(null);
-  const [submitted, setSubmitted] = useState(false);
-
-  useEffect(() => {
-    getImageInputs(postId, image).then(
-      (res) => setSaved(res.values),
-      () => setSaved(null),
-    );
-  }, [postId, image]);
-  // Có form của mẫu và đã biết thông tin cũ thì điền vào form (thiếu trường nào lấy mặc định)
-  useEffect(() => {
-    if (schema && saved !== undefined && values === null) setValues({ ...initialValues(schema), ...(saved ?? {}) });
-  }, [schema, saved, values]);
-
-  useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = overflow;
-    };
-  }, [onClose]);
-
-  const errors = schema && values && submitted ? validateValues(schema, values) : {};
-  const price = c?.price ?? image.price ?? 0;
-
-  const submit = () => {
-    setSubmitted(true);
-    if (Object.keys(validateValues(schema, values)).length) return;
-    onSubmit({ schema, values });
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="edit-inputs-title"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl bg-surface-container-lowest shadow-xl sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-3 border-b border-surface-container px-4 py-3">
-          <CoverImage src={image.thumbUrl ?? image.url} alt="" className="size-10 shrink-0 rounded-lg" />
-          <div className="min-w-0 flex-1">
-            <h2 id="edit-inputs-title" className="text-base font-bold text-on-surface">
-              Sửa nguyên liệu
-            </h2>
-            <p className="truncate text-xs text-on-surface-variant">Mẫu: {c?.title ?? image.creativeTitle ?? '...'}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Đóng"
-            className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container"
-          >
-            <Icon name="close" />
-          </button>
-        </div>
-
-        <div className="flex-1 space-y-3 overflow-y-auto p-4">
-          {error ? (
-            <ErrorState error={error} onRetry={refetch} />
-          ) : isLoading || !values ? (
-            <div className="space-y-3">
-              <Skeleton className="h-24" />
-              <Skeleton className="h-10" />
-              <Skeleton className="h-10" />
-            </div>
-          ) : (
-            <>
-              {saved === null && (
-                <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  <Icon name="info" className="text-base" />
-                  Không còn thông tin đã nhập lần trước, hãy nhập lại.
-                </p>
-              )}
-              <DynamicForm
-                compact
-                fields={schema}
-                values={values}
-                errors={errors}
-                aspectRatios={c.options?.aspect_ratios ?? []}
-                onChange={(key, v) => setValues((prev) => ({ ...prev, [key]: v }))}
-              />
-            </>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 border-t border-surface-container p-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-11 items-center rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container"
-          >
-            Huỷ
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={!values}
-            className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
-          >
-            <Icon name="refresh" className="text-lg" />
-            Tạo lại ảnh · {price > 0 ? formatVnd(price) : 'Miễn phí'}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -448,10 +281,8 @@ function AddImagesDialog({ exclude, max, onAdd, onClose }) {
   );
 }
 
-/** Đang tạo ảnh: AI đang tạo ảnh từ các mẫu đã chọn, xong thì bài chờ người dùng gửi sang TikTok. */
+/** Đang chuẩn bị: ảnh đã có, A51 đang viết sẵn tiêu đề / nội dung (chỉ khi bật AI viết nội dung). */
 function GeneratingPanel({ post }) {
-  const done = post.images.filter((i) => !isImageBusy(i)).length;
-  const steps = [['images', `Tạo ${post.images.length} ảnh từ mẫu đã chọn (xong ${done}/${post.images.length})`]];
   return (
     <section className="space-y-5 p-4 lg:mx-auto lg:w-full lg:max-w-[640px] lg:py-10">
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-6 text-center">
@@ -459,22 +290,11 @@ function GeneratingPanel({ post }) {
           <Icon name="auto_awesome" className="animate-pulse text-3xl" />
         </span>
         <div>
-          <h2 className="text-base font-bold text-on-surface">AI đang tạo ảnh</h2>
+          <h2 className="text-base font-bold text-on-surface">Đang chuẩn bị bài đăng</h2>
           <p className="mt-1 text-xs text-on-surface-variant">
-            Bạn có thể rời trang này. Khi ảnh xong, bài chuyển sang <b>Chờ gửi</b> để bạn xem lại và gửi sang TikTok.
+            Bạn có thể rời trang này. Xong, bài chuyển sang <b>Chờ gửi</b> để bạn xem lại và gửi sang TikTok.
           </p>
         </div>
-        <ul className="w-full space-y-1.5 text-left">
-          {steps.map(([key, label]) => (
-            <li
-              key={key}
-              className="flex items-center gap-2 rounded-lg bg-surface-container-lowest px-3 py-2 text-xs font-semibold text-on-surface"
-            >
-              <Icon name="progress_activity" className="animate-spin text-base text-sky-700" />
-              {label}
-            </li>
-          ))}
-        </ul>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {post.images.map((t) =>
@@ -539,7 +359,7 @@ function PostPreview({ post }) {
 
 /**
  * Chờ gửi: ảnh đã xong, người dùng xem lại (tiêu đề, nội dung không bắt buộc) rồi gửi vào hộp thư TikTok.
- * onRefresh: tải lại bài (bắt đầu hỏi trạng thái ảnh).
+ * onRefresh: tải lại bài (sau khi gửi lỗi, để hiện last_error).
  */
 function ReviewForm({ post, onRefresh }) {
   const navigate = useNavigate();
@@ -550,23 +370,6 @@ function ReviewForm({ post, onRefresh }) {
   const [formError, setFormError] = useState(null);
   const [busy, setBusy] = useState(null); // 'publish' | 'delete'
   const [adding, setAdding] = useState(false);
-  const [requesting, setRequesting] = useState([]);
-  const [editingInputs, setEditingInputs] = useState(null);
-  // Khoá chống trừ tiền 2 lần khi bấm "Tạo lại" lại do lỗi mạng, theo id ảnh
-  const regenerateKeys = useRef({});
-
-  // Bài được tải lại (đang tạo lại ảnh): cập nhật ảnh trong form theo id, giữ thứ tự, ảnh đã gỡ và ảnh vừa thêm.
-  // Ảnh không đổi thì giữ object cũ để link ký số không đổi (ảnh không phải tải lại)
-  useEffect(() => {
-    const byId = new Map(post.images.map((i) => [i.id, i]));
-    setForm((f) => ({
-      ...f,
-      images: f.images.map((i) => {
-        const fresh = i.id ? byId.get(i.id) : null;
-        return fresh && (fresh.status !== i.status || fresh.outputId !== i.outputId || (!i.url && fresh.url)) ? fresh : i;
-      }),
-    }));
-  }, [post.images]);
 
   // ---- Tài khoản TikTok ----
   const [tiktok, setTiktok] = useState(undefined);
@@ -661,7 +464,7 @@ function ReviewForm({ post, onRefresh }) {
       return;
     }
     if (imagesNotReady) {
-      setFormError('Còn ảnh đang tạo hoặc bị lỗi: hãy chờ ảnh xong, tạo lại hoặc xoá ảnh lỗi trước khi gửi.');
+      setFormError('Còn ảnh chưa xong hoặc bị lỗi: hãy bỏ ảnh đó khỏi bài trước khi gửi.');
       return;
     }
     if (!validate()) return;
@@ -701,34 +504,7 @@ function ReviewForm({ post, onRefresh }) {
     setAdding(false);
   };
 
-  // Tạo lại một ảnh: chạy lại mẫu đã tạo ra ảnh đó (tính phí), ảnh mới thay vào đúng vị trí cũ.
-  // edit: { schema, values } từ popup "Sửa nguyên liệu" (popup đã hiện phí nên không hỏi lại)
-  const regenerate = async (img, edit) => {
-    if (!edit) {
-      const cost = img.price > 0 ? ` Phí ${formatVnd(img.price)}.` : '';
-      if (!window.confirm(`Tạo lại ảnh này${img.creativeTitle ? ` theo mẫu "${img.creativeTitle}"` : ''}?${cost}`)) return;
-    }
-    const keys = regenerateKeys.current;
-    keys[img.id] ??= newIdempotencyKey();
-    setRequesting((ids) => [...ids, img.id]);
-    setFormError(null);
-    try {
-      const fresh = await regenerateImage(post.id, img, keys[img.id], edit);
-      delete keys[img.id];
-      setForm((f) => ({ ...f, images: f.images.map((i) => (i.id === img.id ? fresh : i)) }));
-      // Đã trừ tiền -> tải lại số dư; tải lại bài để hỏi trạng thái ảnh tới khi xong
-      queryClient.invalidateQueries({ queryKey: ['me'] });
-      onRefresh();
-    } catch (err) {
-      // Máy chủ đã trả lỗi (không phải lỗi mạng): chưa bị trừ tiền, lần sau dùng khoá mới
-      if (err?.status) delete keys[img.id];
-      setFormError(err?.message || 'Không tạo lại được ảnh, vui lòng thử lại.');
-    } finally {
-      setRequesting((ids) => ids.filter((id) => id !== img.id));
-    }
-  };
-
-  const imagesNotReady = form.images.some((i) => i.status !== IMAGE_STATUS.COMPLETED) || requesting.length > 0;
+  const imagesNotReady = form.images.some((i) => i.status !== IMAGE_STATUS.COMPLETED);
 
   return (
     <form
@@ -736,17 +512,6 @@ function ReviewForm({ post, onRefresh }) {
       noValidate
       className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8 lg:py-6"
     >
-      {editingInputs && (
-        <EditInputsDialog
-          postId={post.id}
-          image={editingInputs}
-          onClose={() => setEditingInputs(null)}
-          onSubmit={(edit) => {
-            regenerate(editingInputs, edit);
-            setEditingInputs(null);
-          }}
-        />
-      )}
       {adding && (
         <AddImagesDialog
           exclude={form.images.map((i) => i.key)}
@@ -779,9 +544,6 @@ function ReviewForm({ post, onRefresh }) {
           editable
           onRemove={(key) => set('images')(form.images.filter((i) => i.key !== key))}
           onAdd={() => setAdding(true)}
-          onRegenerate={(img) => regenerate(img)}
-          onEditInputs={setEditingInputs}
-          requesting={requesting}
         />
         {errors.images && <p className="text-xs text-error">{errors.images}</p>}
       </div>
@@ -830,7 +592,7 @@ function ReviewForm({ post, onRefresh }) {
 
         {formError && <FormAlert>{formError}</FormAlert>}
         {imagesNotReady && !formError && (
-          <p className="text-xs text-amber-700">Còn ảnh đang tạo hoặc bị lỗi: hãy chờ ảnh xong, tạo lại hoặc xoá ảnh lỗi trước khi gửi.</p>
+          <p className="text-xs text-amber-700">Còn ảnh chưa xong hoặc bị lỗi: hãy bỏ ảnh đó khỏi bài trước khi gửi.</p>
         )}
 
         <div className="space-y-2">
@@ -887,15 +649,14 @@ export default function TikTokPostPage() {
   }, [id]);
   useEffect(load, [load]);
 
-  // Đang tạo ảnh / đang đăng / còn ảnh đang tạo lại: tự cập nhật tới khi xong
+  // Đang chuẩn bị / đang gửi: tự cập nhật tới khi xong
   const polling = needsPolling(post);
   useEffect(() => {
     if (!polling) return undefined;
     const timer = setInterval(() => getPost(id).then(setPost, () => {}), POLL_INTERVAL);
     return () => {
       clearInterval(timer);
-      // Xong: ảnh lỗi được hoàn tiền -> tải lại số dư; danh sách bài đổi trạng thái
-      queryClient.invalidateQueries({ queryKey: ['me'] });
+      // Xong: danh sách bài đổi trạng thái
       queryClient.invalidateQueries({ queryKey: ['tiktok', 'posts'] });
     };
   }, [polling, id, queryClient]);

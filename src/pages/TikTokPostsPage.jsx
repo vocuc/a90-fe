@@ -12,7 +12,7 @@ const formatTime = (iso) =>
   new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 
 const generating = (post) => post.status === POST_STATUS.GENERATING;
-const postTitle = (post) => (generating(post) ? 'Đang tạo ảnh...' : post.title?.trim() || 'Bài đăng ảnh');
+const postTitle = (post) => (generating(post) ? 'Đang chuẩn bị...' : post.title?.trim() || 'Bài đăng ảnh');
 const imageCount = (post) => post.imageCount;
 const coverUrl = (post) => post.coverUrl ?? null;
 

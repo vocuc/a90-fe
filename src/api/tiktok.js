@@ -1,10 +1,10 @@
 import client from './client';
-import { appendInputs } from './services';
 
 /*
  * ---- Đăng bài TikTok (cần đăng nhập) ----
  * Đặc tả: note/nghiep-vu-dang-bai-tiktik.txt (bài đăng), note/uy-quyen-tiktok.txt (ủy quyền OAuth).
- * Backend giữ access token TikTok, tạo ảnh và gọi Content Posting API ở chế độ Upload (MEDIA_UPLOAD, scope video.upload):
+ * Ảnh của bài lấy từ lô ảnh (src/api/batches.js) hoặc lịch sử tạo ảnh.
+ * Backend giữ access token TikTok, gọi Content Posting API ở chế độ Upload (MEDIA_UPLOAD, scope video.upload):
  * bài được gửi vào hộp thư TikTok của người dùng, người dùng mở app TikTok để hoàn tất và đăng. Tiêu đề, nội dung,
  * hashtag không bắt buộc, chỉ điền sẵn trong app; quyền xem, bình luận, nhạc do người dùng chọn trong app.
  *
@@ -14,9 +14,6 @@ import { appendInputs } from './services';
  * GET    /tiktok/posts?page=&per_page=&status=           -> { data: TikTokPost[], meta }
  * GET    /tiktok/posts/{id}                              -> { data: TikTokPost }
  * POST   /tiktok/posts/from-images                       -> 201 { data: TikTokPost }
- * POST   /tiktok/posts/from-creatives (multipart)        -> 201 { data: TikTokPost }
- * GET    /tiktok/posts/{id}/images/{imageId}/inputs      -> { data: { creative, inputs } }
- * POST   /tiktok/posts/{id}/images/{imageId}/regenerate  -> 202 { data: TikTokPostImage }
  * POST   /tiktok/posts/{id}/publish                      -> { data: TikTokPost }
  * DELETE /tiktok/posts/{id}                              -> 204
  */
@@ -54,8 +51,6 @@ export const isImageBusy = (img) => img.status === IMAGE_STATUS.QUEUED || img.st
 export const newIdempotencyKey = () =>
   globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-const UPLOAD_TIMEOUT = 60_000;
-
 // ---- Ủy quyền TikTok ----
 
 /**
@@ -86,7 +81,7 @@ export const OAUTH_RESULT_MESSAGES = {
 
 const mapCreative = (c) => (c ? { creativeId: c.id, creativeSlug: c.slug, creativeTitle: c.title, price: c.price_per_image ?? 0 } : {});
 
-const mapImage = (img) => ({
+export const mapImage = (img) => ({
   // id ảnh trong bài, giữ nguyên khi tạo lại; ảnh vừa thêm ở bước duyệt (chưa lưu) có id null
   id: img.id,
   // Khoá theo ảnh gốc trong lịch sử tạo ảnh, dùng để không chọn trùng
@@ -108,6 +103,7 @@ const mapPost = (p) => ({
   id: p.id,
   status: p.status,
   source: p.source,
+  imageBatchId: p.image_batch_id ?? null,
   title: p.title ?? '',
   content: p.content ?? '',
   hashtags: p.hashtags ?? [],
@@ -132,94 +128,17 @@ export const listPosts = ({ page = 1, limit = 20, status } = {}) =>
 export const getPost = (id) => client.get(`/tiktok/posts/${id}`).then(({ data }) => mapPost(data));
 
 /**
- * Tạo bài từ ảnh đã có trên A51 (không tính phí): bài chờ người dùng gửi sang TikTok.
- * images: [{ generationId, outputId }] theo thứ tự, ảnh đầu làm ảnh bìa.
+ * Tạo bài từ ảnh của một lô hoặc ảnh đã có trên A51 (không tính phí): bài chờ người dùng gửi sang TikTok.
+ * images: [{ generationId, outputId }] theo thứ tự, ảnh đầu làm ảnh bìa. batchId: lô tạo ra bài (nút "Đăng TikTok" của lô).
  */
-export const createPostFromImages = (images, idempotencyKey) =>
+export const createPostFromImages = (images, idempotencyKey, batchId = null) =>
   client
     .post('/tiktok/posts/from-images', {
       images: images.map((i) => ({ generation_id: i.generationId, output_id: i.outputId })),
+      image_batch_id: batchId ?? undefined,
       idempotency_key: idempotencyKey,
     })
     .then(({ data }) => mapPost(data));
-
-/*
- * Giá trị form (DynamicForm) -> inputs gửi đi. Trường ảnh trong form là mảng gồm File (ảnh mới tải lên) hoặc
- * ảnh đã lưu { fileId, url, name } (lấy từ getImageInputs). Ảnh đã lưu gửi bằng keep_files[key][]=fileId.
- * Backend chỉ hỗ trợ trường ảnh 1 file (type image); image_set chưa hỗ trợ nên bỏ qua.
- */
-const isFile = (v) => typeof Blob !== 'undefined' && v instanceof Blob;
-
-const splitInputs = (schema, values) => {
-  const inputs = {};
-  const keepFiles = {};
-  schema.forEach((f) => {
-    const value = values[f.key];
-    if (f.type === 'image_set') return;
-    if (f.type === 'image' || f.type === 'image_list') {
-      const list = value ?? [];
-      const files = list.filter(isFile);
-      const kept = list.filter((v) => !isFile(v) && v?.fileId).map((v) => v.fileId);
-      if (files.length) inputs[f.key] = f.type === 'image' ? files[0] : files;
-      else if (kept.length) keepFiles[f.key] = kept;
-      return;
-    }
-    inputs[f.key] = value;
-  });
-  return { inputs, keepFiles };
-};
-
-/**
- * Tạo bài với ảnh mới: bài tạo ngay ở trạng thái generating (đã trừ tiền), mỗi mẫu tạo 1 ảnh ở nền; ảnh xong thì bài chờ đăng.
- * items: [{ creativeId (số), schema (input_schema), values (giá trị form) }]
- */
-export function createPostFromCreatives(items, idempotencyKey) {
-  const form = new FormData();
-  items.forEach(({ creativeId, schema, values }, i) => {
-    form.append(`items[${i}][creative_id]`, creativeId);
-    appendInputs(form, splitInputs(schema, values).inputs, `items[${i}][inputs]`);
-  });
-  form.append('idempotency_key', idempotencyKey);
-  return client
-    .post('/tiktok/posts/from-creatives', form, { timeout: UPLOAD_TIMEOUT })
-    .then(({ data }) => mapPost(data));
-}
-
-/**
- * Nguyên liệu đã dùng để tạo ảnh, đổi sang giá trị form: trường ảnh -> [{ fileId, url, name }].
- * Trả { creative, values } ; values = null khi không còn nguyên liệu (file đã bị xoá theo chính sách lưu trữ).
- */
-export const getImageInputs = (postId, image) =>
-  client.get(`/tiktok/posts/${postId}/images/${image.id}/inputs`).then(({ data }) => ({
-    creative: data.creative,
-    values: data.inputs
-      ? Object.fromEntries(
-          Object.entries(data.inputs).map(([key, v]) => [
-            key,
-            Array.isArray(v) && v.some((x) => x && typeof x === 'object' && 'file_id' in x)
-              ? v.map((x) => ({ fileId: x.file_id, url: x.url, name: x.name }))
-              : v,
-          ]),
-        )
-      : null,
-  }));
-
-/**
- * Tạo lại một ảnh của bài (tính phí như lần tạo đầu). Ảnh mới thay vào đúng vị trí cũ (cùng id), status queued:
- * trang tự hỏi lại bài tới khi ảnh xong.
- * edit: { schema, values } khi người dùng sửa nguyên liệu; bỏ trống = dùng lại nguyên liệu cũ.
- */
-export function regenerateImage(postId, image, idempotencyKey, edit) {
-  const url = `/tiktok/posts/${postId}/images/${image.id}/regenerate`;
-  if (!edit) return client.post(url, { idempotency_key: idempotencyKey }).then(({ data }) => mapImage(data));
-
-  const { inputs, keepFiles } = splitInputs(edit.schema, edit.values);
-  const form = new FormData();
-  appendInputs(form, inputs);
-  Object.entries(keepFiles).forEach(([key, ids]) => ids.forEach((id) => form.append(`keep_files[${key}][]`, id)));
-  form.append('idempotency_key', idempotencyKey);
-  return client.post(url, form, { timeout: UPLOAD_TIMEOUT }).then(({ data }) => mapImage(data));
-}
 
 /**
  * Gửi sang TikTok: lưu toàn bộ chỉnh sửa trên trang rồi tải ảnh vào hộp thư TikTok của người dùng, bài chuyển sang publishing.

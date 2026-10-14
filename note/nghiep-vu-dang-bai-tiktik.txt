@@ -1,6 +1,10 @@
 NGHIỆP VỤ ĐĂNG BÀI TIKTOK - ĐẶC TẢ BACKEND (ĐÃ LÀM XONG)
 =========================================================
 
+CẬP NHẬT 2026-10-14 (4): TÁCH "TẠO ẢNH THEO LÔ" RA KHỎI BÀI ĐĂNG - XEM note/tach-lo-anh-dang-tiktok.txt.
+Phần tạo ảnh mới (from-creatives), tạo lại / sửa nguyên liệu ảnh (5.4, 5.6, 5.7) đã chuyển sang /image-batches.
+Bài TikTok chỉ còn tạo bằng from-images (từ lô hoặc ảnh đã có). Các mục bên dưới nói về phần đó là bản cũ.
+
 CẬP NHẬT 2026-10-14: Backend đã làm xong toàn bộ API trong tài liệu này. Tài liệu đã sửa theo đúng những gì
 backend trả về. Frontend thay thân các hàm giả lập trong src/api/tiktok.js bằng lời gọi API thật (mục 10 liệt kê
 từng hàm). Phần ủy quyền chi tiết: note/uy-quyen-tiktok.txt.
