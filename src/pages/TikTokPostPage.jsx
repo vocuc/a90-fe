@@ -611,16 +611,25 @@ function ReviewForm({ post, onRefresh }) {
   }, []);
   useEffect(loadTiktok, [loadTiktok]);
 
-  const creator = tiktok?.connected ? tiktok.creator : null;
-  const privacyOptions = creator?.privacy_level_options ?? [];
-  const canPost = !!creator && creator.can_post !== false;
+  // Đã ủy quyền theo connected; creator có thể thiếu (backend không lấy được creator_info) -> vẫn cho đăng,
+  // backend kiểm tra lại creator_info lúc đăng
+  const connected = !!tiktok?.connected;
+  const creator = connected ? (tiktok.creator ?? null) : null;
+  const privacyOptions = !connected
+    ? []
+    : creator?.privacy_level_options?.length
+      ? creator.privacy_level_options
+      : Object.keys(PRIVACY_LABELS);
+  const canPost = connected && creator?.can_post !== false;
   const commentDisabled = !!creator?.comment_disabled;
 
   // Quyền riêng tư đang chọn không có trong lựa chọn của tài khoản (vd. app chưa duyệt chỉ cho SELF_ONLY): bắt chọn lại
+  const privacyKey = privacyOptions.join(',');
   useEffect(() => {
-    if (!creator) return;
-    setForm((f) => (f.privacyLevel && !creator.privacy_level_options.includes(f.privacyLevel) ? { ...f, privacyLevel: '' } : f));
-  }, [creator]);
+    if (!privacyKey) return;
+    const options = privacyKey.split(',');
+    setForm((f) => (f.privacyLevel && !options.includes(f.privacyLevel) ? { ...f, privacyLevel: '' } : f));
+  }, [privacyKey]);
 
   const authorize = async () => {
     setAuthorizing(true);
@@ -691,12 +700,12 @@ function ReviewForm({ post, onRefresh }) {
     ev.preventDefault();
     setFormError(null);
     // Nút đăng luôn bấm được: chưa đủ điều kiện thì báo lý do thay vì khoá nút
-    if (!creator) {
+    if (!connected) {
       setFormError(tiktok === undefined ? 'Đang kiểm tra tài khoản TikTok, vui lòng chờ.' : 'Hãy ủy quyền tài khoản TikTok trước khi đăng.');
       return;
     }
     if (!canPost) {
-      setFormError(creator.cannot_post_reason?.message || 'Tài khoản TikTok này tạm thời không đăng được bài.');
+      setFormError(creator?.cannot_post_reason?.message || 'Tài khoản TikTok này tạm thời không đăng được bài.');
       return;
     }
     if (imagesNotReady) {
