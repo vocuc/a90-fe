@@ -623,12 +623,14 @@ function ReviewForm({ post, onRefresh }) {
   const canPost = connected && creator?.can_post !== false;
   const commentDisabled = !!creator?.comment_disabled;
 
-  // Quyền riêng tư đang chọn không có trong lựa chọn của tài khoản (vd. app chưa duyệt chỉ cho SELF_ONLY): bắt chọn lại
+  // Mặc định "Mọi người"; quyền đang chọn không có trong lựa chọn của tài khoản (vd. app chưa duyệt chỉ cho SELF_ONLY)
+  // thì về "Mọi người" nếu có, không có thì bắt chọn lại
   const privacyKey = privacyOptions.join(',');
   useEffect(() => {
     if (!privacyKey) return;
     const options = privacyKey.split(',');
-    setForm((f) => (f.privacyLevel && !options.includes(f.privacyLevel) ? { ...f, privacyLevel: '' } : f));
+    const fallback = options.includes('PUBLIC_TO_EVERYONE') ? 'PUBLIC_TO_EVERYONE' : '';
+    setForm((f) => (options.includes(f.privacyLevel) ? f : { ...f, privacyLevel: fallback }));
   }, [privacyKey]);
 
   const authorize = async () => {
