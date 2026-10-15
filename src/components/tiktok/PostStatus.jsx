@@ -9,13 +9,14 @@ export const POST_STATUS_INFO = {
     className: 'bg-sky-50 text-sky-700',
   },
   [POST_STATUS.PENDING_REVIEW]: { label: 'Chờ gửi', icon: 'edit_note', className: 'bg-amber-50 text-amber-700' },
+  [POST_STATUS.QUEUED]: { label: 'Chờ đăng', icon: 'schedule', className: 'bg-primary-fixed/40 text-primary' },
   [POST_STATUS.PUBLISHING]: {
-    label: 'Đang gửi',
+    label: 'Đang đăng',
     icon: 'progress_activity',
     spin: true,
     className: 'bg-primary-fixed/60 text-primary',
   },
-  [POST_STATUS.PUBLISHED]: { label: 'Đã gửi TikTok', icon: 'check_circle', fill: true, className: 'bg-emerald-50 text-emerald-700' },
+  [POST_STATUS.PUBLISHED]: { label: 'Đã lưu nháp TikTok', icon: 'check_circle', fill: true, className: 'bg-emerald-50 text-emerald-700' },
 };
 
 export function PostStatusBadge({ status }) {

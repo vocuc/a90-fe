@@ -2,19 +2,15 @@ import client from './client';
 
 /*
  * ---- Đăng bài TikTok (cần đăng nhập) ----
- * Đặc tả: note/nghiep-vu-dang-bai-tiktik.txt (bài đăng), note/uy-quyen-tiktok.txt (ủy quyền OAuth).
+ * Đặc tả: note/dang-tiktok-qua-worker.txt (bản mới nhất), note/nghiep-vu-dang-bai-tiktik.txt (bài đăng).
  * Ảnh của bài lấy từ lô ảnh (src/api/batches.js) hoặc lịch sử tạo ảnh.
- * Backend giữ access token TikTok, gọi Content Posting API ở chế độ Upload (MEDIA_UPLOAD, scope video.upload):
- * bài được gửi vào hộp thư TikTok của người dùng, người dùng mở app TikTok để hoàn tất và đăng. Tiêu đề, nội dung,
- * hashtag không bắt buộc, chỉ điền sẵn trong app; quyền xem, bình luận, nhạc do người dùng chọn trong app.
+ * Không dùng API TikTok: bấm đăng thì backend tạo job tiktok_publish, worker (FlowKit) giữ tài khoản TikTok
+ * của A51 nhận job, mở TikTok Studio và LƯU NHÁP bài. Người dùng không chọn / không cần kết nối tài khoản TikTok.
  *
- * GET    /tiktok/account                                 -> { data: { connected, reason, account, creator } }
- * POST   /tiktok/oauth/authorize { redirect }            -> { data: { url } }
- * DELETE /tiktok/account                                 -> 204
  * GET    /tiktok/posts?page=&per_page=&status=           -> { data: TikTokPost[], meta }
  * GET    /tiktok/posts/{id}                              -> { data: TikTokPost }
  * POST   /tiktok/posts/from-images                       -> 201 { data: TikTokPost }
- * POST   /tiktok/posts/{id}/publish                      -> { data: TikTokPost }
+ * POST   /tiktok/posts/{id}/publish                      -> { data: TikTokPost }   (bài sang queued)
  * DELETE /tiktok/posts/{id}                              -> 204
  */
 
@@ -26,17 +22,22 @@ export const HASHTAG_MAX = 10;
 
 /*
  * Trạng thái bài đăng:
- *   generating      Đang tạo ảnh: AI tạo ảnh (chỉ khi chọn tạo ảnh mới)
- *   pending_review  Chờ gửi: ảnh đã xong, chờ người dùng bấm gửi sang TikTok
- *   publishing      Đang gửi: đã gửi lên TikTok, chờ TikTok phản hồi
- *   published       Đã gửi vào hộp thư TikTok, người dùng mở app TikTok để đăng
+ *   generating      Đang chuẩn bị: A51 viết sẵn nội dung (chỉ khi bật AI viết nội dung)
+ *   pending_review  Chờ gửi: chờ người dùng bấm đăng (lần đăng trước lỗi thì có last_error)
+ *   queued          Chờ đăng: đã tạo job, chờ worker nhận (không hết hạn). Khoá: không sửa, không xoá
+ *   publishing      Đang đăng: worker đang lưu nháp lên TikTok. Khoá: không sửa, không xoá
+ *   published       Đã lưu nháp TikTok: A51 dừng theo dõi, nhân viên A51 tự đăng nháp trên TikTok
  */
 export const POST_STATUS = {
   GENERATING: 'generating',
   PENDING_REVIEW: 'pending_review',
+  QUEUED: 'queued',
   PUBLISHING: 'publishing',
   PUBLISHED: 'published',
 };
+
+// Đã bấm đăng, đang chờ / đang được worker xử lý
+export const isPostLocked = (post) => post.status === POST_STATUS.QUEUED || post.status === POST_STATUS.PUBLISHING;
 
 // Trạng thái ảnh trong bài
 export const IMAGE_STATUS = {
@@ -50,32 +51,6 @@ export const isImageBusy = (img) => img.status === IMAGE_STATUS.QUEUED || img.st
 /** Khoá chống tạo trùng: tạo 1 lần cho mỗi lần bấm, bấm lại do lỗi mạng thì dùng lại khoá cũ. */
 export const newIdempotencyKey = () =>
   globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-// ---- Ủy quyền TikTok ----
-
-/**
- * Trạng thái ủy quyền + thông tin creator (backend lấy mới từ TikTok mỗi lần gọi). Giữ nguyên snake_case:
- * { connected, reason: not_connected|expired|revoked|scope_missing|null, account, creator }.
- * TikTok lỗi -> 502 code TIKTOK_UNAVAILABLE.
- */
-export const getCreatorInfo = () => client.get('/tiktok/account').then(({ data }) => data);
-
-/** Lấy URL ủy quyền rồi chuyển sang TikTok; xong TikTok đưa về {redirect}?tiktok=connected|error&reason=... */
-export async function authorizeTikTok(redirect) {
-  const { data } = await client.post('/tiktok/oauth/authorize', { redirect });
-  window.location.href = data.url;
-}
-
-export const disconnectTikTok = () => client.delete('/tiktok/account');
-
-// Thông báo khi TikTok đưa người dùng quay về trang (?tiktok=connected | error&reason=...)
-export const OAUTH_RESULT_MESSAGES = {
-  connected: 'Đã kết nối tài khoản TikTok.',
-  access_denied: 'Bạn đã huỷ ủy quyền TikTok.',
-  scope_missing: 'Cần cho phép quyền tải nội dung lên để A51 gửi bài sang TikTok. Vui lòng ủy quyền lại.',
-  state_invalid: 'Phiên ủy quyền đã hết hạn, vui lòng thử lại.',
-  server_error: 'Không kết nối được TikTok, vui lòng thử lại sau.',
-};
 
 // ---- Bài đăng ----
 
@@ -111,7 +86,6 @@ const mapPost = (p) => ({
   coverUrl: p.cover_url,
   images: (p.images ?? []).map(mapImage),
   lastError: p.last_error,
-  tiktokUsername: p.tiktok_username,
   createdAt: p.created_at,
   publishedAt: p.published_at,
 });
@@ -141,8 +115,8 @@ export const createPostFromImages = (images, idempotencyKey, batchId = null) =>
     .then(({ data }) => mapPost(data));
 
 /**
- * Gửi sang TikTok: lưu toàn bộ chỉnh sửa trên trang rồi tải ảnh vào hộp thư TikTok của người dùng, bài chuyển sang publishing.
- * Tiêu đề, nội dung, hashtag không bắt buộc (điền sẵn trong app TikTok). Gửi lỗi thì chỉnh sửa vẫn được lưu và bài có last_error.
+ * Đăng TikTok: lưu toàn bộ chỉnh sửa trên trang rồi tạo job cho worker, bài chuyển sang queued (khoá tới khi worker xong).
+ * Tiêu đề, nội dung, hashtag không bắt buộc. Worker lỗi thì bài về pending_review với last_error chung, người dùng đăng lại.
  */
 export const publishPost = (id, form) =>
   client

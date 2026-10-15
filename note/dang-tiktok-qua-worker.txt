@@ -1,0 +1,109 @@
+ĐĂNG TIKTOK QUA FLOWWORKER (KHÔNG DÙNG API TIKTOK) - THẢO LUẬN
+================================================================
+
+CHỐT NGHIỆP VỤ (2026-10-15)
+===========================
+
+Cách hiểu 2 câu trả lời:
+- Câu 14: job KHÔNG gắn tài khoản. Worker nào (đang giữ tài khoản TikTok) nhận job trước thì bài vào tài
+  khoản của worker đó. Người dùng không chọn, không thấy tài khoản. Backend ghi lại bài đã vào tài khoản nào
+  (để admin biết vào đâu đăng nháp).
+- Câu 21: đã thử tay, TikTok Studio bản web lưu nháp được bài ảnh.
+
+1. LUỒNG
+--------
+Tạo bài (từ lô / ảnh đã có) -> sửa tiêu đề, nội dung, hashtag, ảnh -> bấm "Đăng lên TikTok"
+-> backend lưu chỉnh sửa, tạo job tiktok_publish, bài sang queued
+-> worker TikTok nhận job (bài sang publishing), tải ảnh, mở TikTok Studio, điền nội dung, LƯU NHÁP
+-> worker báo completed: bài sang published ("Đã lưu nháp TikTok"), A51 dừng theo dõi tại đây.
+   Admin / nhân viên tự vào TikTok đăng nháp, không cập nhật lại A51.
+-> worker báo failed / quá lease: bài về pending_review + last_error, người dùng tự bấm đăng lại.
+   Không tự giao lại cho worker khác.
+
+2. TRẠNG THÁI BÀI
+-----------------
+  pending_review  Chờ gửi              chưa bấm đăng (hoặc lần đăng trước lỗi, có last_error)
+  queued          Chờ đăng             đã có job, chưa worker nào nhận. Chờ mãi đến khi có worker (không hết hạn)
+  publishing      Đang đăng            worker đã nhận job
+  published       Đã lưu nháp TikTok   worker lưu nháp xong (published_at = lúc đó)
+  (generating giữ cho trường hợp bật AI viết nội dung, như hiện tại)
+
+- queued / publishing: khoá hoàn toàn, không sửa, không huỷ, không xoá (409).
+- Lỗi chỉ có MỘT thông báo chung: last_error = { code: "TIKTOK_PUBLISH_FAILED",
+  message: "Đăng thất bại, vui lòng thử lại." }. Mã lỗi chi tiết của worker backend chỉ lưu log cho admin.
+- Không tính phí, không giới hạn số bài, không có link bài TikTok.
+
+3. BACKEND
+----------
+a) Bỏ toàn bộ TikTok API: OAuth (GET/DELETE /tiktok/account, POST /tiktok/oauth/authorize, callback),
+   webhook, Content Posting API, cột tiktok_publish_id; /auth/me bỏ trường tiktok.
+b) Bảng mới tiktok_accounts (id, name, username, is_active), admin thêm / sửa / tắt ở trang admin.
+   Admin gắn tài khoản cho từng worker (worker token). Worker chưa gắn tài khoản / tài khoản bị tắt thì không
+   nhận được job tiktok_publish.
+c) POST /tiktok/posts/{id}/publish: body như cũ { title, content, hashtags, images }. Chỉ nhận khi bài đang
+   pending_review (khác -> 409). Lưu chỉnh sửa, tạo job, bài sang queued. Trả { data: TikTokPost }.
+d) Job (GET /jobs, worker gửi ?types=tiktok_publish):
+     { "id": 130, "type": "tiktok_publish",
+       "request": { "post_id": 55, "images": ["https://... (link ký số, theo thứ tự, ảnh đầu là bìa)"],
+                    "title": "...", "content": "...", "hashtags": ["a51", ...] } }
+   Link ảnh phải còn hạn đủ lâu cho worker tải (link ký số hiện ~15 phút: cấp lúc worker nhận job).
+   Khi worker nhận: bài -> publishing, ghi tiktok_account_id = tài khoản của worker.
+e) POST /jobs/{id}: completed (không cần file) -> published; failed (error_code, error_message) -> pending_review
+   + last_error chung. Quá lease -> failed luôn, không giao lại.
+f) TikTokPost: bỏ tiktok_username; thêm trạng thái queued. Admin xem được tiktok_account của bài.
+
+4. FRONTEND (src/api/tiktok.js, TikTokPostPage, TikTokPostsPage, PostStatus)
+----------
+- Bỏ ủy quyền: getCreatorInfo, authorizeTikTok, disconnectTikTok, OAUTH_RESULT_MESSAGES, OAuthResultNotice,
+  khung tài khoản TikTok trên trang bài. Nút "Đăng lên TikTok" bấm được không cần kết nối.
+- POST_STATUS thêm QUEUED; nhãn: Chờ gửi / Chờ đăng / Đang đăng / Đã lưu nháp TikTok.
+- queued + publishing: khoá form, ẩn xoá, polling như publishing.
+- Bỏ chữ "hộp thư TikTok", "mở app TikTok để đăng"; thay bằng "A51 sẽ lưu bài vào nháp TikTok".
+
+5. FLOWKIT
+----------
+Worker mới (vd tiktok_worker.py) dùng chung claim_job / submit với ImageGenerate.py, GET /jobs?types=tiktok_publish.
+Chrome profile riêng đã đăng nhập sẵn tài khoản TikTok của worker. Tải ảnh -> TikTok Studio -> chọn ảnh, điền
+tiêu đề / nội dung + hashtag -> Lưu nháp -> báo completed. Lỗi (đăng xuất, captcha, upload lỗi...) -> failed
+với error_code riêng để admin xem log.
+
+FRONTEND ĐÃ SỬA (2026-10-15)
+----------------------------
+- src/api/tiktok.js: bỏ getCreatorInfo / authorizeTikTok / disconnectTikTok / OAUTH_RESULT_MESSAGES; thêm
+  POST_STATUS.QUEUED và isPostLocked; bỏ tiktokUsername.
+- Xoá src/components/tiktok/OAuthResultNotice.jsx.
+- PostStatus: Chờ gửi / Chờ đăng / Đang đăng / Đã lưu nháp TikTok.
+- TikTokPostPage: bỏ khung tài khoản TikTok, nút "Đăng TikTok" không cần kết nối; queued / publishing / published
+  chỉ xem (không sửa, không xoá), tự polling 3 giây. TikTokPostsPage: polling cả queued.
+
+BACKEND ĐÃ SỬA (2026-10-15) - D:\OSPanel\home\a90.local
+-------------------------------------------------------
+Khác so với mục 3 / 5 ở trên: worker đăng bài dùng API RIÊNG /publish-jobs (giống /content-jobs đang có),
+không dùng chung GET /jobs?types=..., để worker tạo ảnh hiện tại không bị ảnh hưởng.
+
+- Bỏ: OAuth (/tiktok/account, /tiktok/oauth/*), webhook, TikTokPublisher / Client / TokenManager,
+  lệnh tiktok:refresh-tokens, config services.tiktok, disk s3_tiktok, /auth/me bỏ trường tiktok.
+- Migration 2026_10_15_100000: xoá bảng tiktok_accounts cũ (token ủy quyền), tạo lại tiktok_accounts
+  (name, username, worker_id unique, is_active); tiktok_posts bỏ tiktok_open_id / username / publish_id / post_id /
+  post_url; bảng mới tiktok_publish_jobs. Bài publishing cũ -> pending_review, inbox_delivered -> published.
+- Admin: menu "Tài khoản TikTok" (/admin/tiktok-accounts): thêm / sửa / bật tắt / xoá, chọn worker giữ tài khoản
+  (1 worker 1 tài khoản), xem bài đã lưu nháp gần đây. Tạo worker: php artisan workers:create {tên}.
+- POST /tiktok/posts/{id}/publish: title không bắt buộc. pending_review -> queued + tạo job. Khác -> 409 POST_NOT_EDITABLE.
+- Xoá bài queued / publishing / published -> 409 POST_NOT_DELETABLE.
+
+API cho worker (header Authorization: Bearer <token worker>):
+  GET  /api/v1/publish-jobs
+       204: chưa có job
+       409 TIKTOK_ACCOUNT_NOT_ASSIGNED: worker chưa được gắn tài khoản hoặc tài khoản đang tắt
+       200: { "data": { "id": 130, "type": "tiktok_publish", "request": {
+               "post_id": 55, "title": "...", "content": "...", "hashtags": ["a51"],
+               "description": "content\n#a51 ...",        // điền thẳng vào ô mô tả TikTok
+               "images": ["https://... link ký số, tạo lúc nhận job, ảnh đầu là bìa"],
+               "account": { "id": 1, "name": "A51 Official", "username": "a51.vn" } } } }
+       Nhận job: bài -> publishing. Phải trả kết quả trong 15 phút (ai90.worker.publish_lease_minutes).
+  POST /api/v1/publish-jobs/{id}
+       { "status": "completed" }                                    -> bài published (Đã lưu nháp TikTok)
+       { "status": "failed", "error_code": "TIKTOK_CAPTCHA", "error_message": "..." }
+                                                                    -> bài pending_review + last_error chung
+       409 JOB_NOT_ASSIGNED: job đã quá hạn (tiktok:sweep đã cho thất bại) hoặc không phải của worker này.
+  Không giao lại job lỗi / quá hạn. Job chờ không hết hạn.

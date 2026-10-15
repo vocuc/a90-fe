@@ -5,8 +5,7 @@ import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { PostStatusBadge } from '../components/tiktok/PostStatus';
-import OAuthResultNotice from '../components/tiktok/OAuthResultNotice';
-import { POST_STATUS, listPosts } from '../api/tiktok';
+import { POST_STATUS, isPostLocked, listPosts } from '../api/tiktok';
 
 const formatTime = (iso) =>
   new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -16,8 +15,8 @@ const postTitle = (post) => (generating(post) ? 'Đang chuẩn bị...' : post.t
 const imageCount = (post) => post.imageCount;
 const coverUrl = (post) => post.coverUrl ?? null;
 
-// Bài chờ gửi cần người dùng làm tiếp (xem lại rồi gửi sang TikTok): nút gọi hành động thay cho "Xem"
-const actionLabel = (post) => (post.status === POST_STATUS.PENDING_REVIEW ? 'Gửi TikTok' : 'Xem');
+// Bài chờ gửi cần người dùng làm tiếp (xem lại rồi đăng TikTok): nút gọi hành động thay cho "Xem"
+const actionLabel = (post) => (post.status === POST_STATUS.PENDING_REVIEW ? 'Đăng TikTok' : 'Xem');
 
 function Cover({ post, className = '' }) {
   return (
@@ -146,7 +145,7 @@ function PostTable({ posts }) {
 
 const PAGE_SIZE = 20;
 const POLL_INTERVAL = 5000;
-const isRunning = (p) => p.status === POST_STATUS.GENERATING || p.status === POST_STATUS.PUBLISHING;
+const isRunning = (p) => p.status === POST_STATUS.GENERATING || isPostLocked(p);
 
 /** /tiktok: bước 1, danh sách bài đăng TikTok. */
 export default function TikTokPostsPage() {
@@ -159,7 +158,7 @@ export default function TikTokPostsPage() {
     queryFn: ({ pageParam }) => listPosts({ page: pageParam, limit: PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
-    // Còn bài đang tạo ảnh / đang đăng thì tự cập nhật trạng thái mỗi 5 giây
+    // Còn bài đang chuẩn bị / chờ đăng / đang đăng thì tự cập nhật trạng thái mỗi 5 giây
     refetchInterval: (q) => (q.state.data?.pages.some((p) => p.items.some(isRunning)) ? POLL_INTERVAL : false),
   });
   const posts = data ? data.pages.flatMap((p) => p.items) : null;
@@ -187,12 +186,11 @@ export default function TikTokPostsPage() {
         </Link>
       </header>
 
-      <OAuthResultNotice />
       <section className="space-y-3 p-4 lg:py-6">
         {pendingCount > 0 && (
           <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
             <Icon name="edit_note" className="text-base" />
-            Có {pendingCount} bài đã có ảnh, đang chờ bạn xem lại và gửi sang TikTok.
+            Có {pendingCount} bài đang chờ bạn xem lại và đăng TikTok.
           </p>
         )}
         {error ? (
