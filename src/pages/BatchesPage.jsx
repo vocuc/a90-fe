@@ -52,27 +52,27 @@ function BatchCard({ batch }) {
           <Link to={`/batches/${batch.id}`} className="text-sm font-bold text-on-surface after:absolute after:inset-0 after:rounded-2xl">
             Lô #{batch.id}
           </Link>
-          <div className="flex shrink-0 flex-col items-end gap-1">
+          <span className="shrink-0">
             <BatchStatusBadge batch={batch} />
-            <button
-              type="button"
-              onClick={remove}
-              disabled={deleting || generating}
-              title={generating ? 'Chờ ảnh tạo xong rồi mới xoá được lô' : 'Xoá lô'}
-              className="relative z-10 flex h-7 items-center gap-0.5 rounded-lg px-2 text-[11px] font-bold text-error hover:bg-error-container/40 disabled:opacity-50"
-            >
-              <Icon name={deleting ? 'progress_activity' : 'delete'} className={`text-sm ${deleting ? 'animate-spin' : ''}`} />
-              Xoá lô
-            </button>
-          </div>
+          </span>
         </div>
         <p className="text-xs text-on-surface-variant">{formatTime(batch.createdAt)}</p>
-        <p className="flex flex-wrap gap-x-3 text-xs text-on-surface-variant">
+        <p className="flex flex-wrap gap-x-3 pr-8 text-xs text-on-surface-variant">
           <span>{batch.imageCount} ảnh</span>
           {batch.failedCount > 0 && <span className="text-error">{batch.failedCount} ảnh lỗi</span>}
           {batch.postCount > 0 && <span className="text-primary">Đã tạo {batch.postCount} bài TikTok</span>}
         </p>
       </div>
+      <button
+        type="button"
+        onClick={remove}
+        disabled={deleting || generating}
+        aria-label={`Xoá lô #${batch.id}`}
+        title={generating ? 'Chờ ảnh tạo xong rồi mới xoá được lô' : 'Xoá lô'}
+        className="absolute bottom-2 right-2 z-10 flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40 disabled:opacity-50"
+      >
+        <Icon name={deleting ? 'progress_activity' : 'delete'} className={`text-lg ${deleting ? 'animate-spin' : ''}`} />
+      </button>
     </div>
   );
 }

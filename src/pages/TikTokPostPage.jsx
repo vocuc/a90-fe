@@ -44,9 +44,45 @@ const formErrorsFrom = (errors) =>
     return acc;
   }, {});
 
-/** Ảnh của bài: ảnh đầu là ảnh bìa. editable: cho xoá ảnh và thêm ảnh từ A51. */
-function ImageStrip({ images, editable, onRemove, onAdd }) {
+// Kiểu dữ liệu kéo thả để đổi thứ tự ảnh (bỏ qua file kéo từ máy vào)
+const MOVE_MIME = 'application/x-a51-post-image';
+
+const STRIP_BTN =
+  'flex h-8 items-center justify-center gap-1 rounded-lg border border-outline-variant/50 text-[11px] font-bold text-on-surface-variant disabled:opacity-40';
+
+/**
+ * Ảnh của bài: ảnh đầu là ảnh bìa. editable: cho xoá ảnh, thêm ảnh từ A51 và đổi thứ tự
+ * (nút trái / phải / đặt làm bìa, máy tính kéo thả được). onMove(from, to): chuyển ảnh ở vị trí from sang to.
+ */
+function ImageStrip({ images, editable, onRemove, onAdd, onMove }) {
   const [viewing, setViewing] = useState(null);
+  // Vị trí đang kéo tới, null = không kéo
+  const [dropIndex, setDropIndex] = useState(null);
+  const sortable = editable && images.length > 1;
+
+  const dragProps = (i) =>
+    sortable
+      ? {
+          draggable: true,
+          onDragStart: (e) => {
+            e.dataTransfer.setData(MOVE_MIME, String(i));
+            e.dataTransfer.effectAllowed = 'move';
+          },
+          onDragOver: (e) => {
+            if (![...e.dataTransfer.types].includes(MOVE_MIME)) return;
+            e.preventDefault();
+            if (dropIndex !== i) setDropIndex(i);
+          },
+          onDrop: (e) => {
+            e.preventDefault();
+            setDropIndex(null);
+            const from = Number(e.dataTransfer.getData(MOVE_MIME));
+            if (Number.isInteger(from) && from !== i) onMove(from, i);
+          },
+          onDragEnd: () => setDropIndex(null),
+        }
+      : {};
+
   return (
     <section className="space-y-2">
       <ImageViewer src={viewing} alt="Ảnh bài đăng" onClose={() => setViewing(null)} />
@@ -56,13 +92,20 @@ function ImageStrip({ images, editable, onRemove, onAdd }) {
           {images.length}/{PHOTO_MAX_COUNT} · ảnh đầu làm ảnh bìa
         </span>
       </div>
+      {sortable && (
+        <p className="hidden text-xs text-on-surface-variant lg:block">Kéo thả ảnh để đổi thứ tự.</p>
+      )}
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {images.map((img, i) => {
           const busy = isImageBusy(img);
           const failed = img.status === IMAGE_STATUS.FAILED;
           return (
-            <li key={img.key} className="space-y-1.5">
-              <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-surface-container">
+            <li key={img.key} className="space-y-1.5" {...dragProps(i)}>
+              <div
+                className={`relative aspect-[3/4] overflow-hidden rounded-xl bg-surface-container ${
+                  dropIndex === i ? 'ring-2 ring-primary-container ring-offset-2' : ''
+                } ${sortable ? 'lg:cursor-grab' : ''}`}
+              >
                 {img.url ? (
                   <button
                     type="button"
@@ -91,15 +134,49 @@ function ImageStrip({ images, editable, onRemove, onAdd }) {
                   </span>
                 )}
               </div>
-              {editable && images.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => onRemove(img.key)}
-                  className="flex h-8 w-full items-center justify-center gap-1 rounded-lg border border-outline-variant/50 text-[11px] font-bold text-on-surface-variant hover:border-error hover:text-error"
-                >
-                  <Icon name="delete" className="text-sm" />
-                  Bỏ khỏi bài
-                </button>
+              {sortable && (
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => onMove(i, i - 1)}
+                    disabled={i === 0}
+                    aria-label={`Đưa ảnh ${i + 1} lên trước`}
+                    title="Lên trước"
+                    className={`${STRIP_BTN} w-8 shrink-0 hover:border-primary-container hover:text-primary`}
+                  >
+                    <Icon name="chevron_left" className="text-base" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onMove(i, i + 1)}
+                    disabled={i === images.length - 1}
+                    aria-label={`Đưa ảnh ${i + 1} ra sau`}
+                    title="Ra sau"
+                    className={`${STRIP_BTN} w-8 shrink-0 hover:border-primary-container hover:text-primary`}
+                  >
+                    <Icon name="chevron_right" className="text-base" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onMove(i, 0)}
+                    disabled={i === 0}
+                    aria-label={`Đặt ảnh ${i + 1} làm ảnh bìa`}
+                    title="Đặt làm ảnh bìa"
+                    className={`${STRIP_BTN} w-8 shrink-0 hover:border-primary-container hover:text-primary`}
+                  >
+                    <Icon name="star" className="text-base" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(img.key)}
+                    aria-label={`Bỏ ảnh ${i + 1} khỏi bài`}
+                    title="Bỏ khỏi bài"
+                    className={`${STRIP_BTN} min-w-0 flex-1 hover:border-error hover:text-error`}
+                  >
+                    <Icon name="delete" className="text-sm" />
+                    <span className="truncate">Bỏ</span>
+                  </button>
+                </div>
               )}
             </li>
           );
@@ -353,6 +430,13 @@ function ReviewForm({ post, onRefresh }) {
     setAdding(false);
   };
 
+  const moveImage = (from, to) => {
+    if (to < 0 || to >= form.images.length || to === from) return;
+    const next = [...form.images];
+    next.splice(to, 0, ...next.splice(from, 1));
+    set('images')(next);
+  };
+
   const imagesNotReady = form.images.some((i) => i.status !== IMAGE_STATUS.COMPLETED);
 
   return (
@@ -384,6 +468,7 @@ function ReviewForm({ post, onRefresh }) {
           editable
           onRemove={(key) => set('images')(form.images.filter((i) => i.key !== key))}
           onAdd={() => setAdding(true)}
+          onMove={moveImage}
         />
         {errors.images && <p className="text-xs text-error">{errors.images}</p>}
       </div>
