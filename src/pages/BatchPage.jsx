@@ -11,6 +11,7 @@ import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { FormAlert } from '../components/common/Form';
 import { BatchStatusBadge } from '../components/batch/BatchStatus';
 import EditInputsDialog from '../components/batch/EditInputsDialog';
+import CropImageDialog from '../components/batch/CropImageDialog';
 import { deleteBatch, deleteBatchImage, getBatch, regenerateBatchImage } from '../api/batches';
 import { IMAGE_STATUS, PHOTO_MAX_COUNT, createPostFromImages, isImageBusy, newIdempotencyKey } from '../api/tiktok';
 import { formatVnd } from '../utils/format';
@@ -139,8 +140,9 @@ export default function BatchPage() {
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/batches', { replace: true }));
 
   const [requesting, setRequesting] = useState([]);
-  const [viewing, setViewing] = useState(null);
+  const [viewing, setViewing] = useState(null); // ảnh đang xem
   const [editing, setEditing] = useState(null);
+  const [cropping, setCropping] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(null); // 'post' | 'delete' | id ảnh đang xoá
   // null: chế độ thường; mảng: đang chọn ảnh để đăng TikTok (theo thứ tự chọn)
@@ -277,7 +279,39 @@ export default function BatchPage() {
         )}
       </header>
 
-      <ImageViewer src={viewing} alt="Ảnh trong lô" onClose={() => setViewing(null)} />
+      <ImageViewer
+        src={viewing?.url}
+        alt="Ảnh trong lô"
+        onClose={() => setViewing(null)}
+        actions={
+          viewing &&
+          !isBusy(viewing) && (
+            <button
+              type="button"
+              onClick={() => {
+                setCropping(viewing);
+                setViewing(null);
+              }}
+              className="flex h-10 items-center gap-1 rounded-full bg-black/50 px-4 text-sm font-bold text-white transition-colors hover:bg-black/70"
+            >
+              <Icon name="crop" className="text-xl" />
+              Cắt ảnh
+            </button>
+          )
+        }
+      />
+      {cropping && (
+        <CropImageDialog
+          batchId={batch.id}
+          image={cropping}
+          onClose={() => setCropping(null)}
+          onSaved={(fresh) => {
+            queryClient.setQueryData(['batches', id], (b) => b && { ...b, images: b.images.map((i) => (i.id === fresh.id ? fresh : i)) });
+            queryClient.invalidateQueries({ queryKey: ['batches'] });
+            setCropping(null);
+          }}
+        />
+      )}
       {editing && (
         <EditInputsDialog
           batchId={batch.id}
@@ -336,7 +370,7 @@ export default function BatchPage() {
                   order={selecting ? selected.findIndex((s) => s.id === img.id) : -1}
                   canSelect={selecting && selected.length < PHOTO_MAX_COUNT}
                   onToggle={() => toggleSelect(img)}
-                  onView={() => setViewing(img.url)}
+                  onView={() => setViewing(img)}
                   onEdit={() => setEditing(img)}
                   onRegenerate={() => regenerate(img)}
                   // Lô luôn còn ít nhất 1 ảnh; muốn bỏ hết thì xoá cả lô

@@ -15,6 +15,7 @@ import { mapImage } from './tiktok';
  * GET    /image-batches/{id}/images/{imageId}/inputs            -> { data: { creative, inputs } }
  * POST   /image-batches/{id}/images/{imageId}/regenerate        -> 202 { data: Image }
  * DELETE /image-batches/{id}/images/{imageId}                   -> 204
+ * POST   /image-batches/{id}/images/{imageId}/crop (multipart)  -> 200 { data: Image }
  */
 
 export const BATCH_STATUS = {
@@ -122,6 +123,18 @@ export function regenerateBatchImage(batchId, image, idempotencyKey, edit) {
   Object.entries(keepFiles).forEach(([key, ids]) => ids.forEach((id) => form.append(`keep_files[${key}][]`, id)));
   form.append('idempotency_key', idempotencyKey);
   return client.post(url, form, { timeout: UPLOAD_TIMEOUT }).then(({ data }) => mapImage(data));
+}
+
+/**
+ * Thay ảnh của lô bằng ảnh đã cắt trên trình duyệt (không tính phí). file: Blob JPEG.
+ * Máy chủ lưu file mới và trả ảnh với image_url / thumb_url mới (khác url cũ để trình duyệt không dùng ảnh cache).
+ */
+export function cropBatchImage(batchId, image, file) {
+  const form = new FormData();
+  form.append('image', file, `crop_${image.id}.jpg`);
+  return client
+    .post(`/image-batches/${batchId}/images/${image.id}/crop`, form, { timeout: UPLOAD_TIMEOUT })
+    .then(({ data }) => mapImage(data));
 }
 
 /** Xoá một ảnh khỏi lô (ảnh vẫn còn trong lịch sử tạo ảnh). Lô phải còn ít nhất 1 ảnh. */
