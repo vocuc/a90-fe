@@ -3,6 +3,8 @@
  *
  * Field: { key, label, type, description, required, default_value, validation, options,
  *          prompt_mapping: { role }, visibility_rule: { field, operator, value } | null, enabled, slots? }
+ * Nguyên liệu ẩn (hidden_image): thêm asset_id (ảnh Creator đã tải lên) + asset_url (chỉ để xem lại);
+ * người mua không thấy, ảnh luôn được gửi kèm tới model.
  * sort_order lấy theo thứ tự trong mảng khi xuất JSON.
  * Backend vẫn phải validate lại toàn bộ; kiểm tra ở đây chỉ để Creator thấy lỗi sớm.
  */
@@ -24,7 +26,10 @@ export const MIME_LABEL = { 'image/jpeg': 'JPG', 'image/png': 'PNG', 'image/webp
 export const KEY_PATTERN = /^[a-z][a-z0-9_]{1,49}$/;
 
 // Loại trường backend xử lý được khi tạo ảnh (CreativeTemplate::TYPES)
-export const SUPPORTED_TYPES = ['image', 'text', 'textarea', 'number', 'select', 'radio', 'multi_select', 'toggle', 'aspect_ratio'];
+export const SUPPORTED_TYPES = ['image', 'text', 'textarea', 'number', 'select', 'radio', 'multi_select', 'toggle', 'aspect_ratio', 'hidden_image'];
+
+// Số nguyên liệu ẩn tối đa khi chưa tải được cấu hình của admin (backend: generation.max_hidden_images)
+export const DEFAULT_MAX_HIDDEN_IMAGES = 5;
 
 // Link video hướng dẫn: chỉ nhận TikTok (tiktok.com và các tên miền con như www., m., vt., vm.)
 export const isTiktokUrl = (value) => {
@@ -50,6 +55,7 @@ export const FIELD_TYPES = {
   radio: { label: 'Nút chọn', icon: 'radio_button_checked', hint: 'Chọn một, hiển thị trực quan', group: 'choice' },
   toggle: { label: 'Bật/tắt', icon: 'toggle_on', hint: 'Tùy chọn có/không', group: 'choice' },
   aspect_ratio: { label: 'Tỉ lệ khung hình', icon: 'aspect_ratio', hint: 'Người mua bấm chọn tỉ lệ ảnh', group: 'choice' },
+  hidden_image: { label: 'Nguyên liệu ẩn', icon: 'visibility_off', hint: 'Ảnh bạn tải lên, người mua không thấy, luôn gửi kèm tới AI', group: 'hidden' },
 };
 
 // Tỉ lệ khung hình Creator có thể cho người mua chọn
@@ -60,6 +66,12 @@ export const ASPECT_RATIOS = ['1:1', '9:16', '16:9', '3:4', '4:3', '2:3', '3:2',
 const ratioOption = (r) => ({ value: r, label: r });
 
 export const isImageType = (type) => FIELD_TYPES[type]?.group === 'image';
+export const isHiddenType = (type) => type === 'hidden_image';
+// Ảnh gửi kèm tới model (người mua tải hoặc nguyên liệu ẩn): không chèn vào prompt như chữ
+const isAttachmentType = (type) => isImageType(type) || isHiddenType(type);
+
+/** Các trường người mua thấy (bỏ nguyên liệu ẩn). */
+export const buyerFields = (fields) => fields.filter((f) => !isHiddenType(f.type));
 export const hasOptions = (type) => ['select', 'multi_select', 'radio', 'aspect_ratio'].includes(type);
 
 // Vai trò ảnh khi gửi tới model (Phụ lục B). keywords: dùng để cảnh báo prompt chưa hướng dẫn cách dùng ảnh
@@ -131,6 +143,7 @@ const BASE_KEY = {
   radio: 'option',
   toggle: 'toggle',
   aspect_ratio: 'aspect_ratio',
+  hidden_image: 'asset',
 };
 
 let uid = 0;
@@ -159,6 +172,12 @@ export function createField(type, fields = []) {
       { key: 'main', label: 'Ảnh chính', role: 'primary_product', required: true },
       { key: 'reference', label: 'Ảnh tham chiếu', role: 'style_reference', required: false },
     ];
+    delete field.prompt_mapping;
+  }
+  if (type === 'hidden_image') {
+    field.required = false;
+    field.asset_id = null;
+    field.asset_url = null;
     delete field.prompt_mapping;
   }
   return field;
@@ -234,15 +253,23 @@ export function buildRequestJson(template, values, model) {
   const { fields, prompt_text } = template;
   const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
   const out = {};
-  imageAttachments(fields.filter((f) => isFieldVisible(f, values, byKey))).forEach((a) => {
-    const [fieldKey, slotKey] = a.key.split('.');
-    const raw = values[fieldKey];
-    const urls = ((slotKey ? raw?.[slotKey] : raw) ?? []).map((file) => `(URL sau khi tải lên: ${file.name})`);
-    out[requestKey(a.key)] = a.field.type === 'image_list' ? urls : (urls[0] ?? null);
+  fields.forEach((f) => {
+    // Nguyên liệu ẩn: ảnh Creator đã tải lên, luôn gửi kèm
+    if (isHiddenType(f.type)) {
+      out[requestKey(f.key)] = f.asset_id ? '(URL ảnh nguyên liệu ẩn)' : null;
+      return;
+    }
+    if (!isFieldVisible(f, values, byKey)) return;
+    imageAttachments([f]).forEach((a) => {
+      const [fieldKey, slotKey] = a.key.split('.');
+      const raw = values[fieldKey];
+      const urls = ((slotKey ? raw?.[slotKey] : raw) ?? []).map((file) => `(URL sau khi tải lên: ${file.name})`);
+      out[requestKey(a.key)] = a.field.type === 'image_list' ? urls : (urls[0] ?? null);
+    });
   });
   const text = (prompt_text ?? '').replace(VARIABLE_PATTERN, (_, key) => {
     const field = byKey[key];
-    if (!field || isImageType(field.type) || !isFieldVisible(field, values, byKey)) return '';
+    if (!field || isAttachmentType(field.type) || !isFieldVisible(field, values, byKey)) return '';
     return displayValue(field, values[key]).trim();
   });
   out.prompt = text.replace(/\n{3,}/g, '\n\n').trim();
@@ -283,8 +310,9 @@ export function isFieldVisible(field, values, byKey) {
 /**
  * Trả { errors: { [path]: msg }, issues: [{ level: 'error'|'warning', message, fieldId? }] }.
  * path: 'title', 'prompt_text', `${_id}.key`, `${_id}.options`...
+ * maxHiddenImages: số nguyên liệu ẩn tối đa admin cho phép.
  */
-export function validateTemplate(template) {
+export function validateTemplate(template, { maxHiddenImages = DEFAULT_MAX_HIDDEN_IMAGES } = {}) {
   const { fields, prompt_text } = template;
   const errors = {};
   const issues = [];
@@ -298,6 +326,9 @@ export function validateTemplate(template) {
   if (fields.filter((f) => f.type === 'aspect_ratio').length > 1) add('error', 'Chỉ được có 1 trường tỉ lệ khung hình.');
   if (!fields.some((f) => f.enabled && isImageType(f.type)))
     add('warning', 'Template chưa có trường ảnh nào — người mua sẽ không gửi được ảnh sản phẩm.');
+  const hiddenCount = fields.filter((f) => isHiddenType(f.type)).length;
+  if (hiddenCount > maxHiddenImages)
+    add('error', maxHiddenImages > 0 ? `Tối đa ${maxHiddenImages} nguyên liệu ẩn.` : 'Hiện chưa cho phép dùng nguyên liệu ẩn.');
 
   const keyCount = fields.reduce((m, f) => m.set(f.key, (m.get(f.key) ?? 0) + 1), new Map());
   const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
@@ -315,6 +346,8 @@ export function validateTemplate(template) {
       add('error', `${name}: tên trường chỉ gồm chữ thường không dấu, số, dấu _ và bắt đầu bằng chữ (2–50 ký tự).`, f._id, p('key'));
     else if (keyCount.get(f.key) > 1) add('error', `Tên trường "${f.key}" bị trùng.`, f._id, p('key'));
     if (!f.label.trim()) add('error', `Trường #${index + 1}: chưa nhập label hiển thị.`, f._id, p('label'));
+
+    if (isHiddenType(f.type) && !f.asset_id) add('error', `${name}: chưa tải ảnh nguyên liệu.`, f._id, p('asset_id'));
 
     if (isImageType(f.type)) {
       if (!v.allowed_types?.length) add('error', `${name}: chọn ít nhất 1 định dạng ảnh.`, f._id, p('allowed_types'));
@@ -360,7 +393,7 @@ export function validateTemplate(template) {
         add('error', `${name}: điều kiện hiển thị trỏ tới trường không hợp lệ.`, f._id, p('visibility'));
       else if (sourceIndex > index)
         add('error', `${name}: trường điều kiện phải nằm phía trên.`, f._id, p('visibility'));
-      else if (isImageType(source.type))
+      else if (isAttachmentType(source.type))
         add('error', `${name}: không dùng trường ảnh làm điều kiện.`, f._id, p('visibility'));
       else if (operatorNeedsValue(rule.operator) && !String(rule.value ?? '').trim())
         add('error', `${name}: chưa chọn giá trị cho điều kiện hiển thị.`, f._id, p('visibility'));
@@ -394,14 +427,14 @@ export function validateTemplate(template) {
   used.forEach((key) => {
     const field = byKey[key];
     if (!field) add('error', `Prompt dùng biến {{${key}}} chưa khai báo trong Template.`, null, 'prompt_text');
-    else if (isImageType(field.type))
+    else if (isAttachmentType(field.type))
       add('error', `{{${key}}} là trường ảnh — ảnh được gửi dạng image part, không chèn vào prompt như chữ.`, field._id, 'prompt_text');
     else if (!field.enabled) add('warning', `Prompt dùng {{${key}}} nhưng trường này đang tắt.`, field._id);
   });
   // Trường chỉ dùng làm điều kiện hiển thị thì không cần có trong prompt
   const ruleSources = new Set(fields.map((f) => f.visibility_rule?.field).filter(Boolean));
   fields.forEach((f) => {
-    if (!f.enabled || isImageType(f.type) || used.includes(f.key) || ruleSources.has(f.key)) return;
+    if (!f.enabled || isAttachmentType(f.type) || used.includes(f.key) || ruleSources.has(f.key)) return;
     add('warning', `Trường "${f.label}" chưa được dùng trong prompt (thêm {{${f.key}}}).`, f._id);
   });
 
@@ -423,8 +456,12 @@ const cleanField = ({ _id, ...f }, index) => {
   };
   if (hasOptions(f.type)) out.options = f.options.map((o) => ({ value: o.value.trim(), label: o.label.trim() }));
   if (f.type === 'image_set') out.slots = f.slots;
-  else out.prompt_mapping = f.prompt_mapping;
-  if (!isImageType(f.type) && !isEmptyValue(f.default_value)) out.default_value = f.default_value;
+  else if (isHiddenType(f.type)) {
+    out.asset_id = f.asset_id ?? null;
+    // Chỉ để xem lại trong nháp, backend bỏ qua
+    out.asset_url = f.asset_url ?? null;
+  } else out.prompt_mapping = f.prompt_mapping;
+  if (!isAttachmentType(f.type) && !isEmptyValue(f.default_value)) out.default_value = f.default_value;
   if (f.visibility_rule?.field) out.visibility_rule = f.visibility_rule;
   return out;
 };
@@ -446,7 +483,7 @@ export const slugify = (s) =>
 export function toPayload(template) {
   const fields = template.fields;
   const variables = fields
-    .filter((f) => !isImageType(f.type))
+    .filter((f) => !isAttachmentType(f.type))
     .map((f) => ({
       key: f.key,
       type: f.type === 'number' ? 'number' : hasOptions(f.type) || f.type === 'toggle' ? 'enum' : 'text',

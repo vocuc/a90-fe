@@ -124,6 +124,13 @@ export const useUpdateCreative = () =>
 export const useAiModels = (enabled) =>
   useQuery({ queryKey: ['ai-models'], queryFn: aiModelApi.list, enabled, staleTime: 10 * 60_000 });
 
+// Giới hạn Template Builder do admin cấu hình (số nguyên liệu ẩn tối đa...)
+export const useTemplateLimits = () =>
+  useQuery({ queryKey: ['creator', 'template-limits'], queryFn: creatorApi.getTemplateLimits, staleTime: 10 * 60_000 });
+
+// Tải ảnh nguyên liệu ẩn (chưa gắn Creative; lưu Creative thì backend gắn vào)
+export const useUploadCreativeAsset = () => useMutation({ mutationFn: creatorApi.uploadCreativeAsset });
+
 // data URL của ảnh đại diện (đọc trong trình duyệt) -> File để tải lên
 const dataUrlToFile = async (dataUrl) => {
   const blob = await (await fetch(dataUrl)).blob();

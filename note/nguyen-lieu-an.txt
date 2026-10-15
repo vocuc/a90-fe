@@ -1,0 +1,36 @@
+NGUYÊN LIỆU ẨN TRONG TEMPLATE BUILDER
+Ngày: 15/10/2026
+
+YÊU CẦU (đã chốt)
+- Creator tải lên ảnh nguyên liệu (logo, nền, mẫu dáng...). Người mua không nhìn thấy.
+  Creator tự đặt tên và chọn số lượng.
+- Chỉ nhận ảnh. Là một thành phần kéo thả trong form ("Nguyên liệu ẩn").
+- Ảnh luôn được gửi kèm tới AI.
+- Số lượng tối đa do admin cấu hình, mặc định 5.
+
+DỮ LIỆU
+- Trường trong input_schema: { key, label, type: 'hidden_image', asset_id }.
+  GET /creator/creatives/{id} trả thêm asset_url (link ký số, chỉ Creator thấy).
+- Bảng ai_creative_assets (creator_id, creative_id null tới khi lưu Creative, path).
+- generations.asset_paths: lưu ảnh nguyên liệu tại thời điểm tạo ảnh để "tạo lại" dùng đúng ảnh cũ.
+  Không trả cho người mua (input_images chỉ là ảnh người mua tải lên).
+
+API
+- GET  /creator/template-limits -> { max_hidden_images, input_max_size_kb }
+- POST /creator/creative-assets  multipart image -> { id, url }
+  Chọn ảnh là tải lên ngay; lưu Creative thì backend gắn ảnh vào Creative.
+- Khi lưu Creative, asset_id phải là ảnh của chính Creator: chưa gắn Creative nào, hoặc thuộc Creative đang sửa.
+- Admin: Cấu hình -> "Số nguyên liệu ẩn tối đa / Creative" (generation.max_hidden_images, 0–10, 0 = tắt).
+
+GỬI TỚI WORKER
+- Mỗi nguyên liệu là một khoá camelCase trong request, giống ảnh người mua (brand_logo -> brandLogo).
+- Các khoá xếp theo thứ tự trường trong form.
+- {{key}} của nguyên liệu ẩn không được chèn vào prompt (giống trường ảnh).
+
+LỌC KHỎI NGƯỜI MUA
+- GET /creatives/{slug}: input_schema đã bỏ hidden_image.
+- Form tạo ảnh và form sửa nguyên liệu trong lô ảnh chỉ dùng các trường người mua thấy.
+- DynamicForm cũng bỏ các trường này (tab Xem trước).
+
+CÒN LẠI
+- Ảnh nguyên liệu không còn dùng hoặc tải lên rồi bỏ: chưa có lệnh dọn. Ảnh được giữ lại vì lượt tạo ảnh cũ có thể còn dùng.

@@ -16,8 +16,11 @@ import {
   useCreatorProfile,
   usePublishCreative,
   useSaveTemplateCreative,
+  useTemplateLimits,
 } from '../hooks/creatorQueries';
 import {
+  DEFAULT_MAX_HIDDEN_IMAGES,
+  MAX_FILE_MB,
   buildRequestJson,
   createField,
   emptyTemplate,
@@ -168,7 +171,8 @@ function PreviewTab({ template }) {
           {JSON.stringify(request, null, 4)}
         </pre>
         <p className="text-[11px] text-on-surface-variant">
-          Ảnh chỉ có URL thật sau khi được tải lên lúc người mua tạo ảnh; bản thử ghi tên file thay cho URL.
+          Ảnh chỉ có URL thật sau khi được tải lên lúc người mua tạo ảnh; bản thử ghi tên file thay cho URL. Nguyên liệu ẩn luôn được
+          gửi kèm dù người mua không thấy.
         </p>
       </Panel>
     </div>
@@ -219,6 +223,9 @@ function Builder({ creative: loaded }) {
   // Trạng thái hiện tại: lấy từ kết quả đăng bán gần nhất, không chờ tải lại Creative
   const [status, setStatus] = useState(loaded?.status ?? null);
   const statusError = publish.error;
+  const limits = useTemplateLimits();
+  const maxHiddenImages = limits.data?.max_hidden_images ?? DEFAULT_MAX_HIDDEN_IMAGES;
+  const maxImageKb = limits.data?.input_max_size_kb ?? MAX_FILE_MB * 1024;
 
   // Tạo mới: tự lưu nháp trên trình duyệt
   useEffect(() => {
@@ -242,7 +249,10 @@ function Builder({ creative: loaded }) {
     }
   }, [cover, isEdit]);
 
-  const { errors, issues } = useMemo(() => (template ? validateTemplate(template) : { errors: {}, issues: [] }), [template]);
+  const { errors, issues } = useMemo(
+    () => (template ? validateTemplate(template, { maxHiddenImages }) : { errors: {}, issues: [] }),
+    [template, maxHiddenImages],
+  );
   const errorIssues = issues.filter((i) => i.level === 'error');
   const errorCount = errorIssues.length;
 
@@ -463,6 +473,8 @@ function Builder({ creative: loaded }) {
                 onChange={updateField}
                 onRemove={removeField}
                 onMove={moveField}
+                maxHiddenImages={maxHiddenImages}
+                maxImageKb={maxImageKb}
               />
               <button
                 type="button"

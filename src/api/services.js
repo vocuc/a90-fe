@@ -165,6 +165,10 @@ export const hashtagApi = {
  * PUT  /creator/creatives/{id}  (các trường như POST, gửi trường nào sửa trường đó)
  * POST /creator/creatives/{id}/images  multipart image (jpg/png/webp, <= 10MB, tối đa 10 ảnh) -> 201 { data: { id, url, sort_order } }
  * DELETE /creator/creatives/{id}/images/{imageId}  (Creative đang bán phải còn ít nhất 1 ảnh -> 409 INVALID_STATE)
+ * GET  /creator/template-limits  -> { data: { max_hidden_images (admin cấu hình), input_max_size_kb } }
+ * POST /creator/creative-assets  multipart image -> 201 { data: { id, url } }
+ *   Nguyên liệu ẩn: tải ảnh trước, gửi asset_id trong trường { type: 'hidden_image', key, label, asset_id } của input_schema.
+ *   Người mua không thấy trường này; ảnh luôn được gửi kèm tới model. GET /creator/creatives/{id} trả thêm asset_url.
  * POST /creator/creatives/{id}/publish  (chỉ draft|paused) -> { data: creative }
  * POST /creator/creatives/{id}/pause    (chỉ published) -> { data: creative } (trạng thái paused)
  *
@@ -206,6 +210,8 @@ export const creatorApi = {
   createCreative: requireRealBackend((body) => client.post('/creator/creatives', body).then(({ data }) => data)),
   updateCreative: requireRealBackend((id, body) => client.put(`/creator/creatives/${id}`, body).then(({ data }) => data)),
   uploadCreativeImage: requireRealBackend((id, file) => uploadImage(`/creator/creatives/${id}/images`, file)),
+  getTemplateLimits: requireRealBackend(() => client.get('/creator/template-limits').then(({ data }) => data)),
+  uploadCreativeAsset: requireRealBackend((file) => uploadImage('/creator/creative-assets', file)),
   deleteCreativeImage: requireRealBackend((id, imageId) => client.delete(`/creator/creatives/${id}/images/${imageId}`)),
   // Ảnh đầu tiên là ảnh đại diện
   reorderCreativeImages: requireRealBackend((id, imageIds) =>

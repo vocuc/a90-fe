@@ -1,19 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from '../common/Icon';
 import { borderCls, inputCls } from './inputs';
-import { ASPECT_RATIOS, MIME_LABEL, hasOptions, isFieldVisible, isImageType } from './templateSchema';
+import { ASPECT_RATIOS, MIME_LABEL, buyerFields, hasOptions, isFieldVisible, isImageType } from './templateSchema';
 
 /*
  * Dynamic Form Renderer (§4): render form người mua từ Template schema.
  * values: { [key]: value }; trường ảnh lưu File[], image_set lưu { [slotKey]: File[] }.
  * Trường ảnh có thể chứa ảnh đã lưu trên máy chủ { fileId, url, name } thay cho File (sửa nguyên liệu bài TikTok).
+ * Nguyên liệu ẩn (hidden_image) của Creator không hiện trong form.
  */
 
 const isFile = (f) => f instanceof Blob;
 
 export const initialValues = (fields) =>
   Object.fromEntries(
-    fields.map((f) => {
+    buyerFields(fields).map((f) => {
       if (f.type === 'image_set') return [f.key, {}];
       if (isImageType(f.type)) return [f.key, []];
       if (f.type === 'multi_select') return [f.key, Array.isArray(f.default_value) ? f.default_value : []];
@@ -38,7 +39,7 @@ const checkFiles = (files, v, { required, min, max }) => {
 export function validateValues(fields, values) {
   const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
   const errors = {};
-  fields.forEach((f) => {
+  buyerFields(fields).forEach((f) => {
     if (!isFieldVisible(f, values, byKey)) return;
     const v = f.validation ?? {};
     const value = values[f.key];
@@ -308,7 +309,7 @@ const WIDE_TYPES = ['image_list', 'image_set', 'textarea', 'radio', 'multi_selec
  */
 export default function DynamicForm({ fields, values, onChange, errors = {}, aspectRatios, compact = false }) {
   const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
-  const visible = fields.filter((f) => isFieldVisible(f, values, byKey));
+  const visible = buyerFields(fields).filter((f) => isFieldVisible(f, values, byKey));
 
   if (!visible.length) {
     return <p className="py-6 text-center text-xs text-on-surface-variant">Form chưa có trường nào đang hiển thị.</p>;

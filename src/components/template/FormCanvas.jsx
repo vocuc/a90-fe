@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from '../common/Icon';
 import { Switch, borderCls, inputCls } from './inputs';
-import { ASPECT_RATIOS, FIELD_TYPES, MAX_FIELDS, hasOptions, isImageType } from './templateSchema';
+import HiddenAssetUpload from './HiddenAssetUpload';
+import { ASPECT_RATIOS, FIELD_TYPES, MAX_FIELDS, hasOptions, isHiddenType, isImageType } from './templateSchema';
 
 /*
  * Khung kéo thả: kéo thành phần từ thanh công cụ vào form, mỗi ô nhập trực tiếp key, label (và option nếu là select).
  * Trên điện thoại không kéo thả được -> bấm vào thành phần để thêm xuống cuối.
+ * Nguyên liệu ẩn: Creator tự tải ảnh, người mua không thấy; số lượng tối đa do admin cấu hình.
  */
 
-const PALETTE = ['image'];
+const PALETTE = ['image', 'hidden_image'];
 const TYPE_MIME = 'application/x-ai90-field-type';
 const MOVE_MIME = 'application/x-ai90-field-id';
 
@@ -29,12 +31,12 @@ const typedKey = (v) => {
   return key && /[\s_-]$/.test(v) ? `${key}_`.slice(0, 50) : key;
 };
 
-function Palette({ onAdd, disabled, fields }) {
+function Palette({ onAdd, disabled, hiddenFull }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {PALETTE.map((type) => {
         const t = FIELD_TYPES[type];
-        const off = disabled;
+        const off = disabled || (isHiddenType(type) && hiddenFull);
         return (
           <button
             key={type}
@@ -164,7 +166,7 @@ function BuyerHint({ type }) {
   return null;
 }
 
-function FieldCard({ field, index, total, errors, selected, onSelect, onChange, onRemove, onMove, dragProps }) {
+function FieldCard({ field, index, total, errors, selected, onSelect, onChange, onRemove, onMove, dragProps, maxImageKb }) {
   const ref = useRef(null);
   const err = (k) => errors[`${field._id}.${k}`];
   const t = FIELD_TYPES[field.type];
@@ -175,6 +177,7 @@ function FieldCard({ field, index, total, errors, selected, onSelect, onChange, 
 
   // Tên trường tỉ lệ khung hình cố định là aspect_ratio
   const fixedKey = field.type === 'aspect_ratio';
+  const hidden = isHiddenType(field.type);
   // Trường vừa kéo vào: tên trường tự theo label cho tới khi Creator tự sửa
   const setLabel = (label) => onChange({ ...field, label, ...(field._autoKey && !fixedKey ? { key: toKey(label) } : {}) });
 
@@ -199,7 +202,10 @@ function FieldCard({ field, index, total, errors, selected, onSelect, onChange, 
           <Icon name="drag_indicator" className="text-xl" />
         </span>
         <Icon name={t.icon} className="text-lg text-primary" />
-        <span className="flex-1 text-xs font-bold text-on-surface">{t.label}</span>
+        <span className="flex-1 text-xs font-bold text-on-surface">
+          {t.label}
+          {hidden && <span className="ml-1.5 rounded-full bg-surface-container px-1.5 py-0.5 text-[10px] font-semibold text-on-surface-variant">Người mua không thấy</span>}
+        </span>
         <button
           type="button"
           onClick={() => onMove(index - 1)}
@@ -234,11 +240,11 @@ function FieldCard({ field, index, total, errors, selected, onSelect, onChange, 
       <div className="space-y-2.5">
         <div className="grid gap-2 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-on-surface">Label hiển thị</label>
+            <label className="mb-1 block text-xs font-semibold text-on-surface">{hidden ? 'Tên nguyên liệu' : 'Label hiển thị'}</label>
             <input
               value={field.label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="Ví dụ: Ảnh sản phẩm"
+              placeholder={hidden ? 'Ví dụ: Logo thương hiệu' : 'Ví dụ: Ảnh sản phẩm'}
               maxLength={100}
               className={`${inputCls} ${borderCls(err('label'))}`}
             />
@@ -261,8 +267,9 @@ function FieldCard({ field, index, total, errors, selected, onSelect, onChange, 
         {field.type === 'aspect_ratio' && <RatioPicker field={field} onChange={onChange} error={err('options')} />}
         {hasOptions(field.type) && field.type !== 'aspect_ratio' && <OptionList options={field.options} onChange={(options) => onChange({ ...field, options })} error={err('options')} />}
         <BuyerHint type={field.type} />
+        {hidden && <HiddenAssetUpload field={field} onChange={onChange} error={err('asset_id')} maxKb={maxImageKb} />}
 
-        {field.type !== 'toggle' && !fixedKey && (
+        {field.type !== 'toggle' && !fixedKey && !hidden && (
           <Switch label="Bắt buộc" checked={field.required} onChange={(required) => onChange({ ...field, required })} />
         )}
       </div>
@@ -273,10 +280,13 @@ function FieldCard({ field, index, total, errors, selected, onSelect, onChange, 
 // Vạch báo vị trí sẽ thả
 const Indicator = ({ show }) => <div className={`h-1 rounded-full transition-colors ${show ? 'bg-primary-container' : 'bg-transparent'}`} />;
 
-export default function FormCanvas({ fields, errors, selectedId, onSelect, onAdd, onChange, onRemove, onMove }) {
+/** maxHiddenImages: số nguyên liệu ẩn tối đa (admin cấu hình); maxImageKb: dung lượng ảnh tối đa. */
+export default function FormCanvas({ fields, errors, selectedId, onSelect, onAdd, onChange, onRemove, onMove, maxHiddenImages, maxImageKb }) {
   // Vị trí sẽ chèn khi thả (0..fields.length), null = không kéo
   const [dropIndex, setDropIndex] = useState(null);
   const full = fields.length >= MAX_FIELDS;
+  const hiddenCount = fields.filter((f) => isHiddenType(f.type)).length;
+  const hiddenFull = hiddenCount >= maxHiddenImages;
 
   const isFieldDrag = (e) => [...e.dataTransfer.types].some((t) => t === TYPE_MIME || t === MOVE_MIME);
 
@@ -294,7 +304,7 @@ export default function FormCanvas({ fields, errors, selectedId, onSelect, onAdd
     setDropIndex(null);
     const type = e.dataTransfer.getData(TYPE_MIME);
     if (type) {
-      if (!full) onAdd(type, at);
+      if (!full && !(isHiddenType(type) && hiddenFull)) onAdd(type, at);
       return;
     }
     const id = e.dataTransfer.getData(MOVE_MIME);
@@ -310,7 +320,10 @@ export default function FormCanvas({ fields, errors, selectedId, onSelect, onAdd
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-outline">
           Nguyên liệu — kéo vào form bên dưới ({fields.length}/{MAX_FIELDS})
         </p>
-        <Palette onAdd={(type) => onAdd(type, fields.length)} disabled={full} fields={fields} />
+        <Palette onAdd={(type) => onAdd(type, fields.length)} disabled={full} hiddenFull={hiddenFull} />
+        <p className="mt-2 text-[11px] text-on-surface-variant">
+          Nguyên liệu ẩn: {hiddenCount}/{maxHiddenImages} — ảnh bạn tải lên (logo, nền, mẫu dáng...), người mua không thấy, luôn được gửi kèm tới AI.
+        </p>
       </div>
 
       <div
@@ -348,6 +361,7 @@ export default function FormCanvas({ fields, errors, selectedId, onSelect, onAdd
                   onChange={onChange}
                   onRemove={() => onRemove(f._id)}
                   onMove={(to) => onMove(i, to)}
+                  maxImageKb={maxImageKb}
                   dragProps={{
                     onDragStart: (e) => {
                       e.dataTransfer.setData(MOVE_MIME, f._id);
