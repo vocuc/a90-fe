@@ -1,11 +1,12 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { BatchStatusBadge } from '../components/batch/BatchStatus';
-import { BATCH_STATUS, listBatches } from '../api/batches';
+import { BATCH_STATUS, deleteBatch, listBatches } from '../api/batches';
 
 const PAGE_SIZE = 20;
 const POLL_INTERVAL = 5000;
@@ -14,12 +15,25 @@ const formatTime = (iso) =>
   new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 
 function BatchCard({ batch }) {
+  const queryClient = useQueryClient();
+  const [deleting, setDeleting] = useState(false);
   const generating = batch.status === BATCH_STATUS.GENERATING;
+
+  const remove = async () => {
+    if (!window.confirm(`Xoá lô #${batch.id}? Ảnh vẫn còn trong lịch sử tạo ảnh, bài TikTok đã tạo không đổi.`)) return;
+    setDeleting(true);
+    try {
+      await deleteBatch(batch.id);
+      await queryClient.invalidateQueries({ queryKey: ['batches'] });
+    } catch (err) {
+      window.alert(err?.message || 'Không xoá được lô, vui lòng thử lại.');
+      setDeleting(false);
+    }
+  };
+
   return (
-    <Link
-      to={`/batches/${batch.id}`}
-      className="flex gap-3 rounded-2xl border border-outline-variant/40 p-3 transition-colors hover:bg-surface-container-low"
-    >
+    // Cả thẻ bấm được để mở lô (lớp after của Link phủ thẻ), nút xoá nằm trên lớp đó
+    <div className="relative flex gap-3 rounded-2xl border border-outline-variant/40 p-3 transition-colors hover:bg-surface-container-low">
       <div className="relative size-20 shrink-0 overflow-hidden rounded-xl bg-surface-container">
         {generating && !batch.coverUrl ? (
           <span className="flex size-full animate-pulse items-center justify-center text-sky-600">
@@ -35,8 +49,22 @@ function BatchCard({ batch }) {
       </div>
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-bold text-on-surface">Lô #{batch.id}</p>
-          <BatchStatusBadge batch={batch} />
+          <Link to={`/batches/${batch.id}`} className="text-sm font-bold text-on-surface after:absolute after:inset-0 after:rounded-2xl">
+            Lô #{batch.id}
+          </Link>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <BatchStatusBadge batch={batch} />
+            <button
+              type="button"
+              onClick={remove}
+              disabled={deleting || generating}
+              title={generating ? 'Chờ ảnh tạo xong rồi mới xoá được lô' : 'Xoá lô'}
+              className="relative z-10 flex h-7 items-center gap-0.5 rounded-lg px-2 text-[11px] font-bold text-error hover:bg-error-container/40 disabled:opacity-50"
+            >
+              <Icon name={deleting ? 'progress_activity' : 'delete'} className={`text-sm ${deleting ? 'animate-spin' : ''}`} />
+              Xoá lô
+            </button>
+          </div>
         </div>
         <p className="text-xs text-on-surface-variant">{formatTime(batch.createdAt)}</p>
         <p className="flex flex-wrap gap-x-3 text-xs text-on-surface-variant">
@@ -45,7 +73,7 @@ function BatchCard({ batch }) {
           {batch.postCount > 0 && <span className="text-primary">Đã tạo {batch.postCount} bài TikTok</span>}
         </p>
       </div>
-    </Link>
+    </div>
   );
 }
 

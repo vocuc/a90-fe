@@ -12,7 +12,7 @@ import { FormAlert } from '../components/common/Form';
 import { BatchStatusBadge } from '../components/batch/BatchStatus';
 import EditInputsDialog from '../components/batch/EditInputsDialog';
 import CropImageDialog from '../components/batch/CropImageDialog';
-import { deleteBatch, deleteBatchImage, getBatch, regenerateBatchImage } from '../api/batches';
+import { deleteBatchImage, getBatch, regenerateBatchImage } from '../api/batches';
 import { IMAGE_STATUS, PHOTO_MAX_COUNT, createPostFromImages, isImageBusy, newIdempotencyKey } from '../api/tiktok';
 import { formatVnd } from '../utils/format';
 
@@ -144,7 +144,7 @@ export default function BatchPage() {
   const [editing, setEditing] = useState(null);
   const [cropping, setCropping] = useState(null);
   const [error, setError] = useState(null);
-  const [busy, setBusy] = useState(null); // 'post' | 'delete' | id ảnh đang xoá
+  const [busy, setBusy] = useState(null); // 'post' | id ảnh đang xoá
   // null: chế độ thường; mảng: đang chọn ảnh để đăng TikTok (theo thứ tự chọn)
   const [selected, setSelected] = useState(null);
   const postKey = useIdempotencyKey();
@@ -208,20 +208,6 @@ export default function BatchPage() {
     } catch (err) {
       setError(err?.message || 'Không xoá được ảnh, vui lòng thử lại.');
     } finally {
-      setBusy(null);
-    }
-  };
-
-  const removeBatch = async () => {
-    if (!window.confirm('Xoá lô ảnh này? Ảnh vẫn còn trong lịch sử tạo ảnh, bài TikTok đã tạo không đổi.')) return;
-    setBusy('delete');
-    setError(null);
-    try {
-      await deleteBatch(batch.id);
-      queryClient.invalidateQueries({ queryKey: ['batches'] });
-      navigate('/batches', { replace: true });
-    } catch (err) {
-      setError(err?.message || 'Không xoá được lô, vui lòng thử lại.');
       setBusy(null);
     }
   };
@@ -378,19 +364,6 @@ export default function BatchPage() {
                 />
               ))}
             </ul>
-
-            {!selecting && (
-              <button
-                type="button"
-                onClick={removeBatch}
-                disabled={!!busy || generating}
-                title={generating ? 'Chờ ảnh tạo xong rồi mới xoá được lô' : undefined}
-                className="mx-auto flex h-10 items-center gap-1 rounded-xl px-4 text-sm font-bold text-error hover:bg-error-container/40 disabled:opacity-50"
-              >
-                <Icon name="delete" className="text-lg" />
-                Xoá lô
-              </button>
-            )}
           </section>
 
           {selecting ? (
