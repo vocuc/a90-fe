@@ -126,8 +126,8 @@ export function regenerateBatchImage(batchId, image, idempotencyKey, edit) {
 }
 
 /**
- * Thay ảnh của lô bằng ảnh đã cắt trên trình duyệt (không tính phí). file: Blob JPEG.
- * Máy chủ lưu file mới và trả ảnh với image_url / thumb_url mới (khác url cũ để trình duyệt không dùng ảnh cache).
+ * "Cắt ảnh": ảnh đã cắt trên trình duyệt ghi đè ảnh gốc (không tính phí, đổi cả ảnh trong lịch sử tạo ảnh và bài TikTok dùng ảnh này). file: Blob JPEG.
+ * Máy chủ trả ảnh với image_url / thumb_url mới (file mới, url khác nên trình duyệt không dùng ảnh cache).
  */
 export function cropBatchImage(batchId, image, file) {
   const form = new FormData();
