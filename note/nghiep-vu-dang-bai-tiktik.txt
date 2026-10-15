@@ -1,6 +1,12 @@
 NGHIỆP VỤ ĐĂNG BÀI TIKTOK - ĐẶC TẢ BACKEND (ĐÃ LÀM XONG)
 =========================================================
 
+CẬP NHẬT 2026-10-15 (5): ĐĂNG TIKTOK QUA WORKER, BỎ HẲN API TIKTOK - XEM note/dang-tiktok-qua-worker.txt.
+Bấm đăng -> bài "Chờ đăng" (queued) -> worker giữ tài khoản TikTok của A51 nhận job ("Đang đăng") -> worker LƯU NHÁP
+trên TikTok Studio -> "Đã lưu nháp TikTok" (published). Nhân viên A51 tự vào TikTok đăng nháp. Ủy quyền OAuth,
+hộp thư TikTok, webhook (mục 4, 5.8, 9 và note/uy-quyen-tiktok.txt) đã bỏ. Nghiệp vụ worker: note/dang-tiktok-qua-worker.txt.
+
+
 CẬP NHẬT 2026-10-14 (4): TÁCH "TẠO ẢNH THEO LÔ" RA KHỎI BÀI ĐĂNG - XEM note/tach-lo-anh-dang-tiktok.txt.
 Phần tạo ảnh mới (from-creatives), tạo lại / sửa nguyên liệu ảnh (5.4, 5.6, 5.7) đã chuyển sang /image-batches.
 Bài TikTok chỉ còn tạo bằng from-images (từ lô hoặc ảnh đã có). Các mục bên dưới nói về phần đó là bản cũ.
