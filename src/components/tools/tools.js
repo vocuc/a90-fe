@@ -110,18 +110,18 @@ export const TOOLS = [
     // Có trang riêng (to), không mở trong ToolDetailPage
     slug: 'tao-anh-theo-lo',
     title: 'Tạo ảnh theo lô',
-    description: 'Chọn nhiều mẫu AI Creative, tạo nhiều ảnh một lần rồi đăng TikTok',
+    description: 'Chọn nhiều mẫu AI Creative, tạo nhiều ảnh một lần rồi đăng bài',
     type: 'link',
     to: '/batches',
     icon: 'burst_mode',
   },
   {
     // Có trang riêng (to), không mở trong ToolDetailPage
-    slug: 'dang-tiktok',
-    title: 'Đăng TikTok',
-    description: 'Đăng ảnh đã tạo trên A51 lên tài khoản TikTok',
+    slug: 'dang-bai',
+    title: 'Đăng bài',
+    description: 'Đăng ảnh đã tạo trên A51 lên TikTok, Facebook, Instagram',
     type: 'link',
-    to: '/tiktok',
+    to: '/posts',
     icon: 'upload',
   },
 ];

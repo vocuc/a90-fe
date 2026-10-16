@@ -51,7 +51,7 @@ export default function A51ImagePicker({ selected, onChange, max, exclude = [] }
   if (!images.length) {
     return (
       <EmptyState icon="photo_library" message="Bạn chưa có ảnh nào trên A51.">
-        <Link to="/tiktok/new?source=new" replace className="text-sm font-bold text-primary hover:underline">
+        <Link to="/posts/new?source=new" replace className="text-sm font-bold text-primary hover:underline">
           Tạo ảnh mới
         </Link>
       </EmptyState>

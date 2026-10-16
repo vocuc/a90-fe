@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { newIdempotencyKey } from '../api/tiktok';
+import { newIdempotencyKey } from '../api/social';
 
 /*
  * Khoá chống tạo trùng cho mỗi lần bấm tạo (lô ảnh, bài đăng). Lỗi mạng (không có status) thì giữ khoá để bấm lại

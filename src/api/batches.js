@@ -1,12 +1,12 @@
 import client from './client';
 import { appendInputs } from './services';
-import { mapImage } from './tiktok';
+import { mapImage } from './social';
 
 /*
  * ---- Tạo ảnh theo lô (cần đăng nhập) ----
  * Đặc tả: note/tach-lo-anh-dang-tiktok.txt. Lô tạo một lần từ nhiều mẫu (mỗi mẫu một lần, nhập nguyên liệu một lần,
- * tạo N ảnh). Sau đó chỉ tạo lại / sửa nguyên liệu / xoá từng ảnh, hoặc xoá cả lô. Nút "Đăng TikTok" của lô tạo bài
- * bằng createPostFromImages (src/api/tiktok.js); lô và bài độc lập.
+ * tạo N ảnh). Sau đó chỉ tạo lại / sửa nguyên liệu / xoá từng ảnh, hoặc xoá cả lô. Nút "Tạo bài đăng" của lô tạo bài
+ * bằng createPostFromImages (src/api/social.js); lô và bài độc lập.
  *
  * GET    /image-batches?page=&per_page=                         -> { data: ImageBatch[] (không có images), meta }
  * GET    /image-batches/{id}                                    -> { data: ImageBatch }
@@ -110,7 +110,7 @@ export const getBatchImageInputs = (batchId, image) =>
 
 /**
  * Tạo lại một ảnh của lô (tính phí như lần tạo đầu). Ảnh mới thay vào đúng vị trí cũ (cùng id), status queued:
- * trang tự hỏi lại lô tới khi ảnh xong. Bài TikTok đã tạo từ lô không đổi.
+ * trang tự hỏi lại lô tới khi ảnh xong. Bài đăng đã tạo từ lô không đổi.
  * edit: { schema, values } khi người dùng sửa nguyên liệu; bỏ trống = dùng lại nguyên liệu cũ.
  */
 export function regenerateBatchImage(batchId, image, idempotencyKey, edit) {
@@ -126,7 +126,7 @@ export function regenerateBatchImage(batchId, image, idempotencyKey, edit) {
 }
 
 /**
- * "Cắt ảnh": ảnh đã cắt trên trình duyệt ghi đè ảnh gốc (không tính phí, đổi cả ảnh trong lịch sử tạo ảnh và bài TikTok dùng ảnh này). file: Blob JPEG.
+ * "Cắt ảnh": ảnh đã cắt trên trình duyệt ghi đè ảnh gốc (không tính phí, đổi cả ảnh trong lịch sử tạo ảnh và bài đăng dùng ảnh này). file: Blob JPEG.
  * Máy chủ trả ảnh với image_url / thumb_url mới (file mới, url khác nên trình duyệt không dùng ảnh cache).
  */
 export function cropBatchImage(batchId, image, file) {
@@ -140,5 +140,5 @@ export function cropBatchImage(batchId, image, file) {
 /** Xoá một ảnh khỏi lô (ảnh vẫn còn trong lịch sử tạo ảnh). Lô phải còn ít nhất 1 ảnh. */
 export const deleteBatchImage = (batchId, image) => client.delete(`/image-batches/${batchId}/images/${image.id}`);
 
-/** Xoá lô khi không còn ảnh đang tạo. Bài TikTok đã tạo và ảnh trong lịch sử tạo ảnh vẫn giữ. */
+/** Xoá lô khi không còn ảnh đang tạo. Bài đăng đã tạo và ảnh trong lịch sử tạo ảnh vẫn giữ. */
 export const deleteBatch = (id) => client.delete(`/image-batches/${id}`);

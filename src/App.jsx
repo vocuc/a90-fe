@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import PageColumn from './components/layout/PageColumn';
 import RequireAuth from './components/auth/RequireAuth';
@@ -22,12 +22,18 @@ import TermsOfServicePage from './pages/TermsOfServicePage';
 import TemplateBuilderPage from './pages/TemplateBuilderPage';
 import SupportPage from './pages/SupportPage';
 import TopUpPage from './pages/TopUpPage';
-import TikTokPostPage from './pages/TikTokPostPage';
-import TikTokPostsPage from './pages/TikTokPostsPage';
-import TikTokNewPage from './pages/TikTokNewPage';
+import SocialPostPage from './pages/SocialPostPage';
+import SocialPostsPage from './pages/SocialPostsPage';
+import SocialNewPage from './pages/SocialNewPage';
 import BatchesPage from './pages/BatchesPage';
 import BatchNewPage from './pages/BatchNewPage';
 import BatchPage from './pages/BatchPage';
+
+/** Link bài đăng cũ /tiktok/post/:id -> /posts/:id. */
+function LegacyTikTokPostRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/posts/${id}`} replace />;
+}
 
 export default function App() {
   return (
@@ -52,12 +58,16 @@ export default function App() {
           <Route path="batches" element={<BatchesPage />} />
           <Route path="batches/new" element={<BatchNewPage />} />
           <Route path="batches/:id" element={<BatchPage />} />
-          {/* TikTok (note/nghiep-vu-dang-bai-tiktik.txt). Trang rộng, tự chia cột trên desktop */}
-          <Route path="tiktok" element={<TikTokPostsPage />} />
-          <Route path="tiktok/new" element={<TikTokNewPage />} />
-          <Route path="tiktok/post/:id" element={<TikTokPostPage />} />
+          {/* Đăng bài TikTok / Facebook / Instagram (note/dang-bai-da-nen-tang.txt). Trang rộng, tự chia cột trên desktop */}
+          <Route path="posts" element={<SocialPostsPage />} />
+          <Route path="posts/new" element={<SocialNewPage />} />
+          <Route path="posts/:id" element={<SocialPostPage />} />
+          {/* Link cũ /tiktok/... */}
+          <Route path="tiktok" element={<Navigate to="/posts" replace />} />
+          <Route path="tiktok/new" element={<Navigate to="/posts/new" replace />} />
+          <Route path="tiktok/post/:id" element={<LegacyTikTokPostRedirect />} />
           {/* Trang đăng bài cũ không có id: về danh sách */}
-          <Route path="tiktok/post" element={<Navigate to="/tiktok" replace />} />
+          <Route path="tiktok/post" element={<Navigate to="/posts" replace />} />
           {/* Tab Người bán đã gộp vào trang Tài khoản */}
           <Route path="seller" element={<Navigate to="/account" replace />} />
           <Route path="seller/prompts/new" element={<Navigate to="/seller/products/new" replace />} />

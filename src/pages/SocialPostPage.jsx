@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import CoverImage from '../components/common/CoverImage';
@@ -8,21 +8,24 @@ import ImageViewer from '../components/common/ImageViewer';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { FormAlert, SubmitButton, TextArea, TextField } from '../components/common/Form';
 import HashtagInput from '../components/template/HashtagInput';
-import A51ImagePicker from '../components/tiktok/A51ImagePicker';
-import { PostStatusBadge } from '../components/tiktok/PostStatus';
+import A51ImagePicker from '../components/social/A51ImagePicker';
+import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
 import {
   HASHTAG_MAX,
   IMAGE_STATUS,
   PHOTO_DESCRIPTION_MAX,
   PHOTO_MAX_COUNT,
   PHOTO_TITLE_MAX,
+  PLATFORMS,
+  PLATFORM_STATUS,
   POST_STATUS,
   deletePost,
+  getAccounts,
   getPost,
   isImageBusy,
   isPostLocked,
   publishPost,
-} from '../api/tiktok';
+} from '../api/social';
 
 // Đang chuẩn bị / chờ đăng / đang đăng: hỏi lại mỗi 3 giây
 const POLL_INTERVAL = 3000;
@@ -31,18 +34,166 @@ const needsPolling = (post) => !!post && (post.status === POST_STATUS.GENERATING
 const EDIT_FIELDS = ['images', 'title', 'content', 'hashtags'];
 const pickEdit = (post) => Object.fromEntries(EDIT_FIELDS.map((k) => [k, post[k]]));
 
-// Nội dung gửi TikTok = content + "\n" + dòng hashtag, tổng không quá 4000 ký tự
+// Nội dung gửi lên nền tảng = content + "\n" + dòng hashtag, tổng không quá descriptionMax của nền tảng
 const captionLength = (content, hashtags) =>
   content.length + (hashtags.length ? 1 + hashtags.map((t) => `#${t}`).join(' ').length : 0);
 
 // Lỗi theo trường của API gửi bài (snake_case, images.N) -> trường của form
-const FIELD_FROM_API = { title: 'title', content: 'content', hashtags: 'hashtags', images: 'images' };
+const FIELD_FROM_API = { title: 'title', content: 'content', hashtags: 'hashtags', images: 'images', platforms: 'platforms' };
 const formErrorsFrom = (errors) =>
   Object.entries(errors ?? {}).reduce((acc, [field, msg]) => {
     const key = FIELD_FROM_API[field.split('.')[0]];
     if (key && !acc[key]) acc[key] = msg;
     return acc;
   }, {});
+
+// Nền tảng đã đăng xong của bài: không đăng lại (tránh bài trùng)
+const publishedPlatforms = (post) => post.platforms.filter((p) => p.status === PLATFORM_STATUS.PUBLISHED).map((p) => p.platform);
+const failedPlatforms = (post) => post.platforms.filter((p) => p.status === PLATFORM_STATUS.FAILED).map((p) => p.platform);
+
+// Cách đăng của từng nền tảng, hiện trong popup chọn nền tảng
+const PLATFORM_NOTE = {
+  tiktok: 'Lưu vào nháp TikTok',
+  facebook: 'Đăng thẳng lên trang / nhóm',
+  instagram: 'Đăng thẳng, tối đa 10 ảnh',
+};
+
+/**
+ * Popup "Đăng lên đâu?": bấm Đăng bài thì chọn TikTok / Facebook / Instagram (một, vài hoặc cả 3) rồi mới tạo job.
+ * Lần trước có nền tảng lỗi thì chọn sẵn các nền tảng lỗi; nền tảng đã đăng xong hiện "Đã đăng" và không chọn được.
+ * imageCount / caption: để báo ngay nền tảng nào vượt giới hạn (vd Instagram 10 ảnh, 2200 ký tự).
+ */
+function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, onConfirm, onClose }) {
+  const done = publishedPlatforms(post);
+  const available = PLATFORMS.filter((p) => !done.includes(p.value));
+  const [selected, setSelected] = useState(() => failedPlatforms(post));
+  const toggle = (value) => setSelected((cur) => (cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value]));
+  const allSelected = available.length > 0 && available.every((p) => selected.includes(p.value));
+
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && !busy && onClose();
+    window.addEventListener('keydown', onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = overflow;
+    };
+  }, [busy, onClose]);
+
+  // Lý do nền tảng không đăng được bài này (vượt giới hạn ảnh / ký tự)
+  const limitError = (p) =>
+    imageCount > p.maxImages
+      ? `Tối đa ${p.maxImages} ảnh (bài có ${imageCount})`
+      : captionLen > p.descriptionMax
+        ? `Nội dung + hashtag tối đa ${p.descriptionMax} ký tự`
+        : null;
+  const chosen = PLATFORMS.filter((p) => selected.includes(p.value));
+  const blocked = chosen.filter(limitError);
+  const unassigned = chosen.filter((p) => !accounts.some((a) => a.platform === p.value));
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="publish-dialog-title"
+      onClick={() => !busy && onClose()}
+    >
+      <div
+        className="flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-surface-container-lowest shadow-xl sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 border-b border-surface-container px-4 py-3">
+          <h2 id="publish-dialog-title" className="flex-1 text-base font-bold text-on-surface">
+            Đăng lên đâu?
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            aria-label="Đóng"
+            className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container disabled:opacity-50"
+          >
+            <Icon name="close" />
+          </button>
+        </div>
+
+        <div className="space-y-3 p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-on-surface-variant">Chọn một hoặc nhiều nền tảng.</p>
+            {available.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setSelected(allSelected ? [] : available.map((p) => p.value))}
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                {allSelected ? 'Bỏ chọn tất cả' : `Chọn cả ${available.length}`}
+              </button>
+            )}
+          </div>
+
+          <ul className="space-y-2">
+            {PLATFORMS.map((p) => {
+              const isDone = done.includes(p.value);
+              const checked = isDone || selected.includes(p.value);
+              const limit = !isDone && limitError(p);
+              return (
+                <li key={p.value}>
+                  <label
+                    className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${
+                      isDone
+                        ? 'cursor-default border-emerald-200 bg-emerald-50/60'
+                        : checked
+                          ? 'cursor-pointer border-primary-container bg-primary-fixed/30'
+                          : 'cursor-pointer border-outline-variant/60 hover:border-primary-container'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="size-5 rounded border-outline-variant text-primary focus:ring-primary-container disabled:opacity-50"
+                      checked={checked}
+                      disabled={isDone || busy}
+                      onChange={() => toggle(p.value)}
+                    />
+                    <Icon name={p.icon} className={`text-2xl ${checked ? 'text-primary' : 'text-outline'}`} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-bold text-on-surface">{p.label}</span>
+                      <span className={`block text-xs ${limit && checked ? 'text-error' : 'text-on-surface-variant'}`}>
+                        {isDone ? `${p.doneLabel} — không đăng lại` : limit || PLATFORM_NOTE[p.value]}
+                      </span>
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+
+          {unassigned.length > 0 && (
+            <p className="text-xs text-amber-700">
+              Chưa có tài khoản {unassigned.map((p) => p.label).join(', ')}: bài sẽ chờ tới khi A51 gắn tài khoản cho bạn.
+            </p>
+          )}
+          <p className="text-xs text-on-surface-variant">Sau khi đăng, bài bị khoá: không sửa hoặc xoá được tới khi đăng xong.</p>
+          {error && <FormAlert>{error}</FormAlert>}
+        </div>
+
+        <div className="border-t border-surface-container p-3">
+          <SubmitButton
+            type="button"
+            loading={busy}
+            loadingText="Đang gửi..."
+            disabled={busy || !chosen.length || blocked.length > 0}
+            onClick={() => onConfirm(chosen.map((p) => p.value))}
+          >
+            <Icon name="send" className="text-lg" />
+            {chosen.length ? `Đăng lên ${chosen.map((p) => p.label).join(', ')}` : 'Chọn nền tảng để đăng'}
+          </SubmitButton>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Kiểu dữ liệu kéo thả để đổi thứ tự ảnh (bỏ qua file kéo từ máy vào)
 const MOVE_MIME = 'application/x-a51-post-image';
@@ -267,7 +418,7 @@ function GeneratingPanel({ post }) {
         <div>
           <h2 className="text-base font-bold text-on-surface">Đang chuẩn bị bài đăng</h2>
           <p className="mt-1 text-xs text-on-surface-variant">
-            Bạn có thể rời trang này. Xong, bài chuyển sang <b>Chờ gửi</b> để bạn xem lại và đăng TikTok.
+            Bạn có thể rời trang này. Xong, bài chuyển sang <b>Chờ gửi</b> để bạn xem lại và đăng bài.
           </p>
         </div>
       </div>
@@ -281,7 +432,7 @@ function GeneratingPanel({ post }) {
         )}
       </div>
       <Link
-        to="/tiktok"
+        to="/posts"
         className="flex h-11 items-center justify-center gap-1 rounded-xl border border-outline-variant/60 text-sm font-bold text-on-surface hover:bg-surface-container"
       >
         <Icon name="list" className="text-lg" />
@@ -291,7 +442,7 @@ function GeneratingPanel({ post }) {
   );
 }
 
-/** Chờ đăng / Đang đăng / Đã lưu nháp TikTok: chỉ xem, không sửa, không xoá. */
+/** Chờ đăng / Đang đăng / Đã đăng: chỉ xem, không sửa, không xoá. Trạng thái từng nền tảng ở đầu cột phải. */
 function PostPreview({ post }) {
   return (
     <div className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8 lg:py-6">
@@ -308,15 +459,16 @@ function PostPreview({ post }) {
         ) : post.status === POST_STATUS.PUBLISHING ? (
           <p className="flex items-center gap-2 rounded-xl bg-primary-fixed/40 px-3 py-2 text-xs font-semibold text-primary">
             <Icon name="progress_activity" className="animate-spin text-base" />
-            Đang lưu bài vào nháp TikTok...
+            Đang đăng bài...
           </p>
         ) : (
           <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
             <Icon name="check_circle" fill className="text-base" />
-            Đã lưu nháp TikTok
+            Đã đăng xong
             {post.publishedAt ? ` lúc ${new Date(post.publishedAt).toLocaleString('vi-VN')}` : ''}
           </p>
         )}
+        <PlatformStatusList platforms={post.platforms} />
         <div>
           <p className="text-xs font-semibold text-outline">Tiêu đề</p>
           <p className="text-sm font-bold text-on-surface">{post.title || '—'}</p>
@@ -338,13 +490,18 @@ function PostPreview({ post }) {
 }
 
 /**
- * Chờ gửi: ảnh đã xong, người dùng xem lại (tiêu đề, nội dung không bắt buộc) rồi bấm đăng: A51 lưu bài vào nháp TikTok.
+ * Chờ gửi: ảnh đã xong, người dùng xem lại (tiêu đề, nội dung không bắt buộc) rồi bấm "Đăng bài": popup chọn
+ * TikTok / Facebook / Instagram (một, vài hoặc cả 3), xác nhận mới tạo job. TikTok: lưu nháp; Facebook / Instagram: đăng thẳng.
  * onRefresh: tải lại bài (sau khi đăng lỗi, để hiện last_error).
  */
 function ReviewForm({ post, onRefresh }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [form, setForm] = useState(() => pickEdit(post));
+  // Tài khoản admin đã gắn: popup báo nền tảng nào chưa có tài khoản (lỗi tải: coi như chưa có)
+  const accountsQuery = useQuery({ queryKey: ['social', 'accounts'], queryFn: getAccounts, staleTime: 60_000 });
+  const done = publishedPlatforms(post);
+  const [choosing, setChoosing] = useState(false);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
   const [busy, setBusy] = useState(null); // 'publish' | 'delete'
@@ -371,11 +528,12 @@ function ReviewForm({ post, onRefresh }) {
     if (!window.confirm('Xoá bài đăng này? Ảnh vẫn còn trong lịch sử tạo ảnh.')) return;
     run('delete', async () => {
       await deletePost(post.id);
-      queryClient.invalidateQueries({ queryKey: ['tiktok', 'posts'] });
-      navigate('/tiktok', { replace: true });
+      queryClient.invalidateQueries({ queryKey: ['social', 'posts'] });
+      navigate('/posts', { replace: true });
     });
   };
 
+  // Giới hạn riêng từng nền tảng kiểm tra trong popup chọn nền tảng
   const validate = () => {
     const e = {};
     if (!form.images.length) e.images = 'Bài đăng cần ít nhất một ảnh.';
@@ -396,19 +554,23 @@ function ReviewForm({ post, onRefresh }) {
       return;
     }
     if (!validate()) return;
+    setChoosing(true);
+  };
+
+  // Đã chọn nền tảng trong popup: lưu chỉnh sửa + tạo 1 job / nền tảng
+  const publish = (platforms) =>
     run('publish', async () => {
       try {
-        await publishPost(post.id, form);
+        await publishPost(post.id, { ...form, platforms });
       } catch (err) {
         setErrors(formErrorsFrom(err?.errors));
         // Đăng lỗi: backend vẫn lưu chỉnh sửa và đặt last_error
         onRefresh();
         throw err;
       }
-      queryClient.invalidateQueries({ queryKey: ['tiktok', 'posts'] });
-      navigate('/tiktok', { replace: true });
+      queryClient.invalidateQueries({ queryKey: ['social', 'posts'] });
+      navigate('/posts', { replace: true });
     });
-  };
 
   const addImages = (picked) => {
     set('images')([
@@ -445,6 +607,21 @@ function ReviewForm({ post, onRefresh }) {
       noValidate
       className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8 lg:py-6"
     >
+      {choosing && (
+        <PublishDialog
+          post={post}
+          accounts={accountsQuery.data ?? []}
+          imageCount={form.images.length}
+          captionLen={captionLength(form.content, form.hashtags)}
+          busy={busy === 'publish'}
+          error={formError}
+          onConfirm={publish}
+          onClose={() => {
+            setChoosing(false);
+            setFormError(null);
+          }}
+        />
+      )}
       {adding && (
         <AddImagesDialog
           exclude={form.images.map((i) => i.key)}
@@ -463,6 +640,7 @@ function ReviewForm({ post, onRefresh }) {
             </span>
           </p>
         )}
+        {post.platforms.length > 0 && <PlatformStatusList platforms={post.platforms} />}
         <ImageStrip
           images={form.images}
           editable
@@ -510,33 +688,33 @@ function ReviewForm({ post, onRefresh }) {
         <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs leading-relaxed text-on-surface-variant">
           <Icon name="info" className="text-base" />
           <span>
-            A51 sẽ lưu bài vào <b>nháp TikTok</b>. Sau khi bấm đăng, bài bị khoá: không sửa hoặc xoá được tới khi đăng xong.
+            Bấm <b>Đăng bài</b> để chọn đăng lên TikTok (lưu nháp), Facebook, Instagram hoặc cả 3. Sau khi đăng, bài bị khoá:
+            không sửa hoặc xoá được tới khi đăng xong.
           </span>
         </p>
 
-        {formError && <FormAlert>{formError}</FormAlert>}
+        {formError && !choosing && <FormAlert>{formError}</FormAlert>}
         {imagesNotReady && !formError && (
           <p className="text-xs text-amber-700">Còn ảnh chưa xong hoặc bị lỗi: hãy bỏ ảnh đó khỏi bài trước khi đăng.</p>
         )}
 
         <div className="space-y-2">
-          <SubmitButton
-            loading={busy === 'publish'}
-            loadingText="Đang gửi..."
-            disabled={!!busy}
-          >
+          <SubmitButton loading={busy === 'publish'} loadingText="Đang gửi..." disabled={!!busy}>
             <Icon name="send" className="text-lg" />
-            Đăng TikTok
+            {done.length ? 'Đăng lại' : 'Đăng bài'}
           </SubmitButton>
-          <button
-            type="button"
-            onClick={remove}
-            disabled={!!busy}
-            className="flex h-11 w-full items-center justify-center gap-1 rounded-xl text-sm font-bold text-error hover:bg-error-container/40 disabled:opacity-60"
-          >
-            <Icon name="delete" className="text-lg" />
-            Xoá bài đăng
-          </button>
+          {/* Đã đăng lên nền tảng nào đó: không xoá được trên A51 */}
+          {!done.length && (
+            <button
+              type="button"
+              onClick={remove}
+              disabled={!!busy}
+              className="flex h-11 w-full items-center justify-center gap-1 rounded-xl text-sm font-bold text-error hover:bg-error-container/40 disabled:opacity-60"
+            >
+              <Icon name="delete" className="text-lg" />
+              Xoá bài đăng
+            </button>
+          )}
         </div>
       </div>
     </form>
@@ -555,13 +733,13 @@ function VideoComingSoon() {
   );
 }
 
-/** /tiktok/post/:id: xem lại bài rồi đăng (lưu nháp) lên TikTok. */
-export default function TikTokPostPage() {
-  useSeo({ title: 'Bài đăng TikTok', noindex: true });
+/** /posts/:id: xem lại bài rồi đăng lên TikTok (lưu nháp) / Facebook / Instagram. */
+export default function SocialPostPage() {
+  useSeo({ title: 'Bài đăng', noindex: true });
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/tiktok', { replace: true }));
+  const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/posts', { replace: true }));
 
   const [post, setPost] = useState(null);
   const [error, setError] = useState(null);
@@ -581,7 +759,7 @@ export default function TikTokPostPage() {
     return () => {
       clearInterval(timer);
       // Xong: danh sách bài đổi trạng thái
-      queryClient.invalidateQueries({ queryKey: ['tiktok', 'posts'] });
+      queryClient.invalidateQueries({ queryKey: ['social', 'posts'] });
     };
   }, [polling, id, queryClient]);
 
@@ -596,7 +774,7 @@ export default function TikTokPostPage() {
         >
           <Icon name="arrow_back" />
         </button>
-        <h1 className="flex-1 truncate text-base font-bold text-on-surface">Bài đăng TikTok</h1>
+        <h1 className="flex-1 truncate text-base font-bold text-on-surface">Bài đăng</h1>
         {post && (
           <span className="mr-2">
             <PostStatusBadge status={post.status} />

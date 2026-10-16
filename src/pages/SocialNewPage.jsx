@@ -5,22 +5,22 @@ import useSeo from '../hooks/useSeo';
 import useIdempotencyKey from '../hooks/useIdempotencyKey';
 import Icon from '../components/common/Icon';
 import ActionBar from '../components/common/ActionBar';
-import A51ImagePicker from '../components/tiktok/A51ImagePicker';
-import { PHOTO_MAX_COUNT, createPostFromImages } from '../api/tiktok';
+import A51ImagePicker from '../components/social/A51ImagePicker';
+import { PHOTO_MAX_COUNT, createPostFromImages } from '../api/social';
 
 /**
- * /tiktok/new: tạo bài từ ảnh đã có trên A51 (lịch sử tạo ảnh), sang trang bài để điền tiêu đề, nội dung và gửi.
- * Tạo ảnh mới nằm ở "Tạo ảnh theo lô" (/batches), mỗi lô có nút "Đăng TikTok" riêng.
+ * /posts/new: tạo bài từ ảnh đã có trên A51 (lịch sử tạo ảnh), sang trang bài để điền tiêu đề, nội dung và gửi.
+ * Tạo ảnh mới nằm ở "Tạo ảnh theo lô" (/batches), mỗi lô có nút "Tạo bài đăng" riêng.
  */
-export default function TikTokNewPage() {
-  useSeo({ title: 'Tạo bài đăng TikTok', noindex: true });
+export default function SocialNewPage() {
+  useSeo({ title: 'Tạo bài đăng', noindex: true });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const idem = useIdempotencyKey();
   const [selected, setSelected] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/tiktok', { replace: true }));
+  const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/posts', { replace: true }));
 
   const submit = async () => {
     setLoading(true);
@@ -28,8 +28,8 @@ export default function TikTokNewPage() {
     try {
       const post = await createPostFromImages(selected, idem.key.current);
       idem.renew();
-      queryClient.invalidateQueries({ queryKey: ['tiktok', 'posts'] });
-      navigate(`/tiktok/post/${post.id}`, { replace: true });
+      queryClient.invalidateQueries({ queryKey: ['social', 'posts'] });
+      navigate(`/posts/${post.id}`, { replace: true });
     } catch (err) {
       idem.renewAfter(err);
       setError(err?.message || 'Không tạo được bài đăng, vui lòng thử lại.');

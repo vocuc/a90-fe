@@ -13,13 +13,13 @@ import { BatchStatusBadge } from '../components/batch/BatchStatus';
 import EditInputsDialog from '../components/batch/EditInputsDialog';
 import CropImageDialog from '../components/batch/CropImageDialog';
 import { deleteBatchImage, getBatch, regenerateBatchImage } from '../api/batches';
-import { IMAGE_STATUS, PHOTO_MAX_COUNT, createPostFromImages, isImageBusy, newIdempotencyKey } from '../api/tiktok';
+import { IMAGE_STATUS, PHOTO_MAX_COUNT, createPostFromImages, isImageBusy, newIdempotencyKey } from '../api/social';
 import { formatVnd } from '../utils/format';
 
 const POLL_INTERVAL = 3000;
 
 /**
- * Một ảnh của lô. Chế độ thường: xem, sửa nguyên liệu, tạo lại, xoá. Chế độ chọn ảnh để đăng TikTok:
+ * Một ảnh của lô. Chế độ thường: xem, sửa nguyên liệu, tạo lại, xoá. Chế độ chọn ảnh để tạo bài đăng:
  * bấm vào ảnh để chọn / bỏ chọn (chỉ ảnh đã xong), số thứ tự chọn = thứ tự trong bài.
  */
 function BatchImage({ img, index, busy, selecting, order, canSelect, onToggle, onView, onEdit, onRegenerate, onRemove }) {
@@ -128,7 +128,7 @@ function BatchImage({ img, index, busy, selecting, order, canSelect, onToggle, o
 }
 
 /**
- * /batches/:id: ảnh của lô (tạo lại, sửa nguyên liệu, xoá từng ảnh) và nút "Đăng TikTok":
+ * /batches/:id: ảnh của lô (tạo lại, sửa nguyên liệu, xoá từng ảnh) và nút "Tạo bài đăng":
  * chọn ảnh (mặc định chọn hết ảnh đã xong, tối đa 35) rồi tạo bài, sang trang bài để điền nội dung và gửi.
  * Đăng được nhiều lần, mỗi lần một bài mới; lô và bài độc lập.
  */
@@ -145,7 +145,7 @@ export default function BatchPage() {
   const [cropping, setCropping] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(null); // 'post' | id ảnh đang xoá
-  // null: chế độ thường; mảng: đang chọn ảnh để đăng TikTok (theo thứ tự chọn)
+  // null: chế độ thường; mảng: đang chọn ảnh để tạo bài đăng (theo thứ tự chọn)
   const [selected, setSelected] = useState(null);
   const postKey = useIdempotencyKey();
   // Khoá chống trừ tiền 2 lần khi bấm "Tạo lại" lại do lỗi mạng, theo id ảnh
@@ -198,7 +198,7 @@ export default function BatchPage() {
   };
 
   const removeImage = async (img) => {
-    if (!window.confirm('Xoá ảnh này khỏi lô? Ảnh vẫn còn trong lịch sử tạo ảnh, bài TikTok đã tạo không đổi.')) return;
+    if (!window.confirm('Xoá ảnh này khỏi lô? Ảnh vẫn còn trong lịch sử tạo ảnh, bài đăng đã tạo không đổi.')) return;
     setBusy(img.id);
     setError(null);
     try {
@@ -212,7 +212,7 @@ export default function BatchPage() {
     }
   };
 
-  // "Đăng TikTok": chọn sẵn các ảnh đã xong theo thứ tự trong lô, tối đa 35
+  // "Tạo bài đăng": chọn sẵn các ảnh đã xong theo thứ tự trong lô, tối đa 35
   const startSelecting = () => {
     setError(null);
     setSelected(completed.slice(0, PHOTO_MAX_COUNT));
@@ -232,9 +232,9 @@ export default function BatchPage() {
     try {
       const post = await createPostFromImages(selected, postKey.key.current, batch.id);
       postKey.renew();
-      queryClient.invalidateQueries({ queryKey: ['tiktok', 'posts'] });
+      queryClient.invalidateQueries({ queryKey: ['social', 'posts'] });
       queryClient.invalidateQueries({ queryKey: ['batches'] });
-      navigate(`/tiktok/post/${post.id}`);
+      navigate(`/posts/${post.id}`);
     } catch (err) {
       postKey.renewAfter(err);
       setError(err?.message || 'Không tạo được bài đăng, vui lòng thử lại.');
@@ -256,7 +256,7 @@ export default function BatchPage() {
           <Icon name={selecting ? 'close' : 'arrow_back'} />
         </button>
         <h1 className="flex-1 truncate text-base font-bold text-on-surface">
-          {selecting ? 'Chọn ảnh đăng TikTok' : `Lô ảnh #${id}`}
+          {selecting ? 'Chọn ảnh cho bài đăng' : `Lô ảnh #${id}`}
         </h1>
         {batch && !selecting && (
           <span className="mr-2">
@@ -335,8 +335,8 @@ export default function BatchPage() {
                 </span>
                 {batch.failedCount > 0 && <span className="text-error">{batch.failedCount} ảnh lỗi (đã hoàn tiền)</span>}
                 {batch.postCount > 0 && (
-                  <Link to="/tiktok" className="font-semibold text-primary hover:underline">
-                    Đã tạo {batch.postCount} bài TikTok
+                  <Link to="/posts" className="font-semibold text-primary hover:underline">
+                    Đã tạo {batch.postCount} bài đăng
                   </Link>
                 )}
                 {generating && <span>Bạn có thể rời trang này, ảnh vẫn được tạo tiếp.</span>}
@@ -402,7 +402,7 @@ export default function BatchPage() {
               }
               disabled={!completed.length}
               onSubmit={startSelecting}
-              label="Đăng TikTok"
+              label="Tạo bài đăng"
               icon="send"
             />
           )}

@@ -4,8 +4,8 @@ import useSeo from '../hooks/useSeo';
 import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
-import { PostStatusBadge } from '../components/tiktok/PostStatus';
-import { POST_STATUS, isPostLocked, listPosts } from '../api/tiktok';
+import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
+import { POST_STATUS, isPostLocked, listPosts } from '../api/social';
 
 const formatTime = (iso) =>
   new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -15,8 +15,8 @@ const postTitle = (post) => (generating(post) ? 'Đang chuẩn bị...' : post.t
 const imageCount = (post) => post.imageCount;
 const coverUrl = (post) => post.coverUrl ?? null;
 
-// Bài chờ gửi cần người dùng làm tiếp (xem lại rồi đăng TikTok): nút gọi hành động thay cho "Xem"
-const actionLabel = (post) => (post.status === POST_STATUS.PENDING_REVIEW ? 'Đăng TikTok' : 'Xem');
+// Bài chờ gửi cần người dùng làm tiếp (xem lại rồi đăng): nút gọi hành động thay cho "Xem"
+const actionLabel = (post) => (post.status === POST_STATUS.PENDING_REVIEW ? (post.platforms.length ? 'Đăng lại' : 'Đăng bài') : 'Xem');
 
 function Cover({ post, className = '' }) {
   return (
@@ -54,7 +54,7 @@ function PostCards({ posts }) {
       {posts.map((post) => (
         <li key={post.id}>
           <Link
-            to={`/tiktok/post/${post.id}`}
+            to={`/posts/${post.id}`}
             className={`flex gap-3 rounded-2xl border p-3 transition-colors hover:bg-surface-container-low ${
               post.status === POST_STATUS.PENDING_REVIEW ? 'border-amber-200' : 'border-outline-variant/40'
             }`}
@@ -64,6 +64,7 @@ function PostCards({ posts }) {
               <p className={`line-clamp-1 text-sm font-bold ${generating(post) ? 'text-outline' : 'text-on-surface'}`}>{postTitle(post)}</p>
               {post.content && <p className="line-clamp-2 text-xs text-on-surface-variant">{post.content}</p>}
               <Hashtags tags={post.hashtags} />
+              <PlatformStatusList platforms={post.platforms} />
               <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-1">
                 <PostStatusBadge status={post.status} />
                 <span className="text-[11px] text-outline">{formatTime(post.createdAt)}</span>
@@ -96,7 +97,7 @@ function PostTable({ posts }) {
           {posts.map((post) => (
             <tr
               key={post.id}
-              onClick={() => navigate(`/tiktok/post/${post.id}`)}
+              onClick={() => navigate(`/posts/${post.id}`)}
               className="cursor-pointer align-top hover:bg-surface-container-low/60"
             >
               <td className="px-4 py-3">
@@ -120,11 +121,14 @@ function PostTable({ posts }) {
                 </div>
               </td>
               <td className="px-4 py-3">
-                <PostStatusBadge status={post.status} />
+                <div className="space-y-1.5">
+                  <PostStatusBadge status={post.status} />
+                  <PlatformStatusList platforms={post.platforms} className="max-w-[240px]" />
+                </div>
               </td>
               <td className="px-4 py-3 text-right">
                 <Link
-                  to={`/tiktok/post/${post.id}`}
+                  to={`/posts/${post.id}`}
                   onClick={(e) => e.stopPropagation()}
                   className={`inline-flex h-8 items-center whitespace-nowrap rounded-lg px-3 text-xs font-bold ${
                     post.status === POST_STATUS.PENDING_REVIEW
@@ -147,14 +151,14 @@ const PAGE_SIZE = 20;
 const POLL_INTERVAL = 5000;
 const isRunning = (p) => p.status === POST_STATUS.GENERATING || isPostLocked(p);
 
-/** /tiktok: bước 1, danh sách bài đăng TikTok. */
-export default function TikTokPostsPage() {
-  useSeo({ title: 'Đăng TikTok', noindex: true });
+/** /posts: bước 1, danh sách bài đăng (TikTok / Facebook / Instagram). */
+export default function SocialPostsPage() {
+  useSeo({ title: 'Đăng bài', noindex: true });
   const navigate = useNavigate();
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/tools'));
 
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['tiktok', 'posts'],
+    queryKey: ['social', 'posts'],
     queryFn: ({ pageParam }) => listPosts({ page: pageParam, limit: PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
@@ -178,7 +182,7 @@ export default function TikTokPostsPage() {
         </button>
         <h1 className="flex-1 text-base font-bold text-on-surface">Danh sách bài đăng</h1>
         <Link
-          to="/tiktok/new"
+          to="/posts/new"
           className="mr-2 flex h-8 items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary"
         >
           <Icon name="add" className="text-base" />
@@ -190,7 +194,7 @@ export default function TikTokPostsPage() {
         {pendingCount > 0 && (
           <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
             <Icon name="edit_note" className="text-base" />
-            Có {pendingCount} bài đang chờ bạn xem lại và đăng TikTok.
+            Có {pendingCount} bài đang chờ bạn xem lại và đăng.
           </p>
         )}
         {error ? (
@@ -204,7 +208,7 @@ export default function TikTokPostsPage() {
         ) : !posts.length ? (
           <EmptyState icon="video_library" message="Chưa có bài đăng nào.">
             <Link
-              to="/tiktok/new"
+              to="/posts/new"
               className="mt-2 flex h-10 items-center gap-1 rounded-xl bg-primary-container px-4 text-sm font-bold text-on-primary hover:bg-primary"
             >
               <Icon name="add" className="text-lg" />

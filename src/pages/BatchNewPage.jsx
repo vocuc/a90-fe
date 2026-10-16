@@ -15,7 +15,7 @@ import { formatVnd } from '../utils/format';
 /**
  * /batches/new: tạo lô ảnh, 2 bước (?step=inputs là bước 2, nút quay lại của trình duyệt về bước 1):
  * 1. chọn mẫu (mỗi mẫu một lần); 2. nhập thông tin và số ảnh cho từng mẫu. Xong thì tạo lô ngay (đã trừ tiền),
- * ảnh được tạo ở nền; về danh sách lô để theo dõi trạng thái, bấm vào lô để xem, tạo lại ảnh và đăng TikTok.
+ * ảnh được tạo ở nền; về danh sách lô để theo dõi trạng thái, bấm vào lô để xem, tạo lại ảnh và tạo bài đăng.
  */
 export default function BatchNewPage() {
   useSeo({ title: 'Tạo lô ảnh', noindex: true });

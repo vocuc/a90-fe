@@ -1,0 +1,107 @@
+NGHIỆP VỤ ĐĂNG BÀI LÊN NHIỀU NỀN TẢNG (TIKTOK / FACEBOOK / INSTAGRAM) QUA WORKER
+==============================================================================
+
+Ngày: 2026-10-16. Thay cho phần "1 bài = 1 job TikTok" trong note/dang-tiktok-qua-worker.txt (các mục khác của note
+đó, như vòng lặp worker, chèn logo, mã lỗi TikTok, vẫn đúng cho worker TikTok).
+Backend: D:\OSPanel\home\a90.local (migration 2026_10_16_100000_rename_tiktok_tables_to_social).
+Worker: D:\FlowKit (mỗi nền tảng một worker, dùng chung phần gọi API).
+
+
+1. TỔNG QUAN
+------------
+
+Bài đăng không còn gắn với TikTok: nội dung chung (tiêu đề, nội dung, hashtag, ảnh) đăng lên một hoặc nhiều nền tảng.
+Bấm "Đăng" tạo 1 JOB / NỀN TẢNG đã chọn. Mỗi worker giữ 1 tài khoản của 1 nền tảng và chỉ nhận job của nền tảng đó.
+  - TikTok: worker LƯU NHÁP trên TikTok Studio (như cũ), nhân viên A51 tự đăng nháp.
+  - Facebook: worker đăng thẳng vào trang / nhóm / trang cá nhân admin khai báo (target_url).
+  - Instagram: worker đăng thẳng.
+
+Đổi tên (bỏ chữ TikTok):
+  tiktok_posts        -> social_posts         (+ tiktok_status, facebook_status, instagram_status)
+  tiktok_post_images  -> social_post_images
+  tiktok_content_jobs -> social_content_jobs
+  tiktok_accounts     -> publish_accounts     (+ platform, target_url). Không dùng tên social_accounts vì bảng đó
+                                              đã dùng cho đăng nhập Google.
+  tiktok_publish_jobs -> social_publish_jobs  (+ platform, post_url)
+  API người dùng /api/v1/tiktok/posts -> /api/v1/social/posts. API worker giữ nguyên /api/v1/publish-jobs.
+  Trang admin "Tài khoản TikTok" -> "Tài khoản đăng bài" (/admin/publish-accounts).
+  Frontend /tiktok -> /posts (link cũ /tiktok/... tự chuyển sang link mới).
+  Lệnh tiktok:sweep -> social:sweep. Biến môi trường TIKTOK_AI_CONTENT -> SOCIAL_AI_CONTENT (tên cũ vẫn đọc được).
+
+
+2. TRẠNG THÁI
+-------------
+
+Mỗi nền tảng một cột trong social_posts: tiktok_status / facebook_status / instagram_status.
+  null        bài không đăng lên nền tảng này
+  queued      đã bấm đăng, chờ worker của nền tảng nhận (không hết hạn)
+  publishing  worker đang đăng
+  published   worker đã đăng xong (TikTok: đã lưu nháp)
+  failed      worker báo lỗi / quá 15 phút
+
+social_posts.status (trạng thái chung) tính lại mỗi khi một cột nền tảng đổi:
+  còn nền tảng publishing             -> publishing   (khoá: không sửa, không xoá)
+  còn nền tảng queued                 -> queued       (khoá)
+  mọi nền tảng đã chọn đều published  -> published   (published_at = lúc xong nền tảng cuối)
+  xong hết, có nền tảng failed        -> pending_review, last_error =
+      { code: "PUBLISH_FAILED", message: "Đăng lên Facebook thất bại, vui lòng thử lại.", platforms: ["facebook"] }
+Mã lỗi chi tiết (error_code / error_message của worker) chỉ lưu ở social_publish_jobs cho admin.
+Bảng job giữ lịch sử từng lần thử: 1 nền tảng đăng lại 3 lần = 3 dòng job, 1 cột trạng thái.
+
+
+3. TÀI KHOẢN ĐĂNG BÀI (ADMIN)
+-----------------------------
+
+Admin -> "Tài khoản đăng bài" -> Thêm: nền tảng, tên gợi nhớ, username, link nơi đăng (bắt buộc với Facebook),
+email tài khoản A51, worker, bật/tắt.
+  - Mỗi tài khoản A51 có tối đa 1 tài khoản / nền tảng (unique user_id + platform).
+  - Mỗi worker giữ 1 tài khoản (unique worker_id), nên worker chỉ đăng 1 nền tảng.
+  - Tạo worker: php artisan workers:create {tên} -> token (chỉ hiện 1 lần).
+
+
+4. NGƯỜI DÙNG BẤM ĐĂNG
+----------------------
+
+GET  /api/v1/social/accounts   -> { data: [{ platform, label, name, username, is_active }] }
+     Nền tảng admin đã gắn tài khoản cho người dùng: trang bài chọn sẵn các nền tảng này.
+
+POST /api/v1/social/posts/{id}/publish
+  Body như cũ (title, content, hashtags, images) + platforms: ["tiktok", "facebook", "instagram"] (BẮT BUỘC, >= 1).
+  - Frontend: bấm "Đăng bài" -> popup "Đăng lên đâu?" chọn TikTok / Facebook / Instagram (một, vài hoặc "Chọn cả 3"),
+    bấm xác nhận mới gọi API (tạo job). Không chọn sẵn, trừ khi đăng lại: chọn sẵn các nền tảng lỗi lần trước.
+    Popup báo ngay nền tảng vượt giới hạn (khoá nút đăng) và nền tảng chưa có tài khoản.
+  - Thiếu / rỗng platforms: 422 "Chọn ít nhất một nền tảng để đăng."
+  - Chọn nền tảng chưa có tài khoản: vẫn tạo job, job chờ tới khi admin gắn worker.
+  - Nền tảng đã published không đăng lại (422 platforms) để tránh bài trùng.
+  - Giới hạn riêng từng nền tảng (422 images / content, thông báo ghi tên nền tảng):
+        TikTok     35 ảnh, nội dung + hashtag <= 4000 ký tự
+        Facebook   35 ảnh, <= 63206 ký tự
+        Instagram  10 ảnh, <= 2200 ký tự
+  - Nền tảng đã đăng xong hiện "Đã đăng" trong popup và không chọn được.
+
+Bài trả về thêm:
+  "platforms": { "tiktok": { "status": "published", "post_url": null, "error": null, "finished_at": "..." },
+                 "facebook": { "status": "failed", "post_url": null, "error": "Đăng thất bại, vui lòng thử lại.", ... } }
+  (lấy từ job gần nhất của từng nền tảng; chỉ có nền tảng đã chọn).
+Xoá bài: chỉ khi pending_review VÀ chưa đăng xong nền tảng nào.
+
+
+5. API WORKER (GIỮ ĐƯỜNG DẪN CŨ)
+--------------------------------
+
+GET /api/v1/publish-jobs   nhận job chờ cũ nhất của NỀN TẢNG worker đang giữ, của tài khoản A51 được gắn.
+  200: { "data": { "id": 130, "type": "facebook_publish",
+                   "request": { "post_id", "platform": "facebook", "title", "content", "hashtags", "description",
+                                "images": [...], "account": { "id", "name", "username", "target_url" } } } }
+       type = "{platform}_publish". description = nội dung + dòng hashtag, dán thẳng vào ô nội dung.
+  204: chưa có job.
+  409 ACCOUNT_NOT_ASSIGNED: worker chưa được gắn tài khoản đăng bài nào.
+  409 {PLATFORM}_ACCOUNT_NOT_ASSIGNED (TIKTOK_ / FACEBOOK_ / INSTAGRAM_): tài khoản của worker đang tắt hoặc chưa gắn
+      tài khoản A51. (Worker chỉ cần kiểm tra code kết thúc bằng ACCOUNT_NOT_ASSIGNED.)
+  401: token sai / worker tắt.
+
+POST /api/v1/publish-jobs/{id}   báo kết quả trong 15 phút (như cũ)
+  Thành công: { "status": "completed", "post_url": "https://..." }   (post_url không bắt buộc)
+  Lỗi:        { "status": "failed", "error_code": "FACEBOOK_UPLOAD_FAILED", "error_message": "..." }
+  409 JOB_NOT_ASSIGNED: job đã quá hạn / không phải của worker này.
+Job lỗi / quá hạn không giao lại; quá hạn -> WORKER_TIMEOUT (server tự đặt), nền tảng đó failed.

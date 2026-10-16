@@ -20,7 +20,7 @@ function BatchCard({ batch }) {
   const generating = batch.status === BATCH_STATUS.GENERATING;
 
   const remove = async () => {
-    if (!window.confirm(`Xoá lô #${batch.id}? Ảnh vẫn còn trong lịch sử tạo ảnh, bài TikTok đã tạo không đổi.`)) return;
+    if (!window.confirm(`Xoá lô #${batch.id}? Ảnh vẫn còn trong lịch sử tạo ảnh, bài đăng đã tạo không đổi.`)) return;
     setDeleting(true);
     try {
       await deleteBatch(batch.id);
@@ -60,7 +60,7 @@ function BatchCard({ batch }) {
         <p className="flex flex-wrap gap-x-3 pr-8 text-xs text-on-surface-variant">
           <span>{batch.imageCount} ảnh</span>
           {batch.failedCount > 0 && <span className="text-error">{batch.failedCount} ảnh lỗi</span>}
-          {batch.postCount > 0 && <span className="text-primary">Đã tạo {batch.postCount} bài TikTok</span>}
+          {batch.postCount > 0 && <span className="text-primary">Đã tạo {batch.postCount} bài đăng</span>}
         </p>
       </div>
       <button
