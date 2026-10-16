@@ -4,7 +4,7 @@ import Icon from '../components/common/Icon';
 import { Skeleton } from '../components/common/Feedback';
 import { useMe } from '../hooks/queries';
 import { formatVnd } from '../utils/format';
-import { ZALO_LINK, ZALO_QR } from '../utils/contact';
+import { ZALO_LINK } from '../utils/contact';
 
 function Step({ number, title, children }) {
   return (
@@ -52,8 +52,8 @@ export default function TopUpPage() {
             Chụp màn hình giao dịch thành công và gửi cho admin qua Zalo kèm email tài khoản. Số dư sẽ được cộng sau khi admin xác nhận.
           </p>
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-outline-variant/40 p-4 lg:flex-row lg:items-start">
-            <a href={ZALO_QR} target="_blank" rel="noopener" className="shrink-0" aria-label="Mở ảnh mã QR Zalo">
-              <img src={ZALO_QR} alt="Mã QR Zalo admin A51" loading="lazy" className="w-44 rounded-xl" />
+            <a href="/image/anh-qr-zalo-2.jpg" target="_blank" rel="noopener" className="shrink-0" aria-label="Mở ảnh mã QR Zalo">
+              <img src="/image/anh-qr-zalo-2.jpg" alt="Mã QR Zalo admin A51" loading="lazy" className="w-44 rounded-xl" />
             </a>
             <div className="w-full space-y-3 text-center lg:text-left">
               <p className="text-sm text-on-surface-variant">
