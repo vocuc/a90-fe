@@ -4,6 +4,7 @@ import Icon from '../components/common/Icon';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import ShopInfoForm from '../components/store/ShopInfoForm';
 import ShopImages from '../components/store/ShopImages';
+import GhnSettings from '../components/store/GhnSettings';
 import { useCreatorProfile } from '../hooks/creatorQueries';
 
 function Section({ title, subtitle, children }) {
@@ -61,6 +62,10 @@ export default function StoreSettingsPage() {
 
             <Section title="Thông tin cửa hàng" subtitle="Hiển thị trên trang shop và các AI Creative của bạn.">
               <ShopInfoForm profile={profile} />
+            </Section>
+
+            <Section title="Kết nối GHN" subtitle="Dùng để tạo đơn Giao Hàng Nhanh từ ảnh chụp đoạn chat với khách.">
+              <GhnSettings />
             </Section>
           </>
         )}

@@ -1,0 +1,149 @@
+TÍNH NĂNG: TẠO ĐƠN GHN TỪ ẢNH CHỤP MÀN HÌNH
+Tài liệu GHN: https://developer.ghn.vn/en/docs/getting-started/overview
+API tạo đơn: POST /shiip/public-api/v2/shipping-order/create
+
+==================================================
+1. LUỒNG MUỐN THỰC HIỆN
+==================================================
+Bước 1. ngươi dùng upload hình ảnh nên để tạo đơn hàng cho phép upload nhiều ảnh một đơn người dùng sẽ chọn địa chỉ cũ hay mới
+
+Bước 2. Api dọc hình ảnh phân tích hình ảnh vào tạo thành dữ liệu có cấu trúc như sau:
+- Tên khách hàng
+- Tên sản phẩm để mặc định là Hàng hóa dịch vụ
+- Số điện thoại
+- Tiền hàng
+- Tiền ship (cái này lấy được sau khi tạo đơn bên đơn vị vận chuyển)
+- Địa chỉ
+- khối lượng để mặc định là 2KG
+
+Bước 3. Gọi api của đơn vị vận chuyển để lấy thông tin tỉnh thành quận huyện
+
+Bước 4. tạo đơn nháp trên a51.
+
+Bước 5. người dùng xem lại đơn chỉnh sửa và bấm tạo đơn sang đơn vị vận chuyển tương ứng
+
+Yêu cầu người dùng có quyền xem lại đơn hàng và chỉnh sửa bằng tay thông qua API của đơn vị vận chuyển
+
+==================================================
+2. TRẢ LỜI CÁC CÂU CẦN CHỐT
+==================================================
+1. Ảnh thường là gì (chat Zalo, tin nhắn, phiếu viết tay)? Một ảnh có nhiều đơn không?
+   -> ảnh chát giữa người bán và người mua một đơn hàng có thể có 1 hoặc nhiều ảnh
+
+2. Token GHN: mỗi shop tự nhập Token + ShopId, hay dùng tài khoản chung của nền tảng?
+   -> Shop tự nhập trong phần quản lý cửa hàng của a51
+
+3. Sản phẩm: khớp với SellerProductsPage để tự điền giá/khối lượng, hay chỉ ghi chữ?
+   -> không cần điền giá và khối lượng, chỉ tiền tổng tiền được ghi trong ảnh.
+
+4. Mỗi lần AI đọc ảnh có trừ credit không?
+   -> không
+
+5. Phạm vi bản đầu: chỉ tạo đơn, hay làm luôn hủy đơn / in vận đơn / theo dõi trạng thái?
+   -> chỉ tạo đơn
+
+6. Ai trả phí ship? Ghi chú giao hàng?
+   -> Mỗi đơn shop tự chọn ai trả ship trước khi bấm tạo đơn (mặc định: khách trả ship).
+      Ghi chú giao hàng mặc định: cho xem hàng, không cho thử (CHOXEMHANGKHONGTHU).
+
+==================================================
+3. ĐẶC TẢ API FE <-> BE (bản nháp, BE Laravel tiền tố /api/v1, cần đăng nhập)
+==================================================
+Token GHN chỉ lưu ở BE, FE không bao giờ gọi thẳng GHN.
+Lỗi dữ liệu theo chuẩn hiện tại: 422 { message, errors: { field: [msg] } }.
+
+---- 3.1. Cài đặt GHN (trang StoreSettingsPage) ----
+GET /creator/shipping/ghn-settings
+    -> { data: { shop_id, has_token, token_last4 } }        (chưa cài -> shop_id: null, has_token: false)
+PUT /creator/shipping/ghn-settings { token, shop_id }
+    BE gọi thử GHN để kiểm tra token + shop_id đúng rồi mới lưu.
+    -> { data: { shop_id, has_token: true, token_last4 } }
+    Sai token/shop_id -> 422 { errors: { token: [...] } }
+Địa chỉ lấy hàng: dùng địa chỉ đã đăng ký của ShopId bên GHN, a51 không lưu.
+
+---- 3.2. Danh mục địa chỉ (BE gọi GHN, có cache) ----
+address_type: old (tỉnh -> quận -> phường) | new (tỉnh -> phường)
+GET /shipping/ghn/provinces?address_type=        -> { data: [{ id, name }] }
+GET /shipping/ghn/districts?province_id=         -> { data: [{ id, name }] }   (chỉ dùng khi old)
+GET /shipping/ghn/wards?district_id=             -> { data: [{ code, name }] } (old)
+GET /shipping/ghn/wards?province_id=&address_type=new -> { data: [{ code, name }] } (new)
+
+---- 3.3. Tải ảnh, AI đọc, tạo đơn nháp (Bước 1-4) ----
+POST /creator/shipping-orders/parse  multipart { images[] (1..10 ảnh, jpg/png/webp, <= 10MB/ảnh), address_type }
+    BE: lưu ảnh -> AI đọc -> khớp địa chỉ với danh mục GHN -> tạo đơn nháp. Không trừ credit.
+    -> 201 { data: ShippingOrder (status: draft) }
+    AI không đọc được gì -> vẫn tạo nháp, các trường để trống cho người dùng tự nhập.
+    Chưa cài GHN -> 400 GHN_SETTINGS_REQUIRED
+
+---- 3.3b. AI đọc ảnh: BE gọi thẳng API Claude Haiku 5.5 (KHÔNG qua worker) ----
+Không tạo job, không dùng worker FlowKit. BE gọi API ngay trong request parse, đọc xong mới trả 201 (đồng bộ),
+FE chỉ cần hiện loading tới khi có kết quả (timeout phía FE >= 60s).
+- Model: claude-haiku-5-5 (Anthropic Messages API, POST https://api.anthropic.com/v1/messages, SDK PHP chính thức).
+  API key chỉ để ở BE (.env ANTHROPIC_API_KEY), FE không bao giờ gọi thẳng.
+- 1 lần gọi / 1 đơn: gửi TẤT CẢ ảnh của đơn trong cùng 1 message (khối image base64, theo thứ tự tải lên)
+  + 1 khối text hướng dẫn: đây là ảnh chat giữa người bán và người mua, trích thông tin người nhận của 1 đơn.
+- Ép kết quả dạng JSON bằng structured outputs (output_config.format = json_schema), schema:
+    { to_name, to_phone, street, ward, district, province, raw_address,
+      cod_amount (số nguyên VND, null nếu không thấy), note,
+      low_confidence_fields: [to_name | to_phone | address | cod_amount | note] }
+  BE tự đặt item_name = "Hàng hóa dịch vụ", weight = 2000, required_note = CHOXEMHANGKHONGTHU.
+- output_config.effort = "low" (việc trích xuất đơn giản, nhanh và rẻ). max_tokens = 4000 (gồm cả phần suy nghĩ).
+  Ảnh lưu bản tối ưu (WebP, cạnh dài <= 2400px) và gửi chính bản đó cho AI.
+- Sau khi có ward / district / province: BE tự khớp với danh mục GHN (mục 3.2) theo address_type (so tên đã bỏ dấu,
+  bỏ tiền tố tỉnh/quận/phường, Q1/P.5/TP. HCM, và tên phụ GHN trả về). Không khớp đúng 1 mục -> để trống id/code đó
+  (và các cấp dưới) và thêm trường vào low_confidence_fields.
+- Lỗi khi gọi AI (hết thời gian, 429/5xx sau khi SDK tự thử lại, stop_reason = refusal, JSON hỏng)
+  -> KHÔNG báo lỗi cho người dùng: vẫn tạo nháp với các trường trống (giống "AI không đọc được gì"), ghi log ở BE.
+- Không trừ credit (như mục 2.4).
+
+ShippingOrder:
+{
+  id, code (mã đơn a51 = client_order_code, vd A51-12), status: draft | submitted | failed,
+  address_type: old | new,
+  to_name, to_phone,
+  to_address,                       (số nhà, đường - phần chữ)
+  to_province_id, to_district_id (null nếu new), to_ward_code,
+  to_province_name, to_district_name, to_ward_name,   (tên theo danh mục GHN; GHN tạo đơn theo TÊN + is_new_to_address)
+  raw_address,                      (địa chỉ nguyên văn AI đọc được, để người dùng đối chiếu)
+  item_name,                        (mặc định "Hàng hóa dịch vụ")
+  cod_amount,                       (tiền hàng = tổng tiền ghi trong ảnh, VND)
+  weight,                           (gram, mặc định 2000)
+  required_note,                    (mặc định CHOXEMHANGKHONGTHU)
+  payment_type_id,                  (1 = shop trả ship, 2 = khách trả ship; null khi còn nháp)
+  note,
+  low_confidence_fields: [...],     (các trường AI không chắc -> FE tô vàng)
+  images: [{ id, url }],
+  ghn_order_code, shipping_fee, expected_delivery_time,   (có sau khi gửi GHN thành công)
+  error_message,                    (lý do GHN từ chối, khi status = failed)
+  created_at, submitted_at
+}
+
+---- 3.4. Xem lại và sửa đơn nháp (Bước 5) ----
+GET    /creator/shipping-orders?status=&page=&per_page=  -> { data: ShippingOrder[], meta: { current_page, last_page, per_page, total } }
+GET    /creator/shipping-orders/{id}                     -> { data: ShippingOrder }
+PUT    /creator/shipping-orders/{id}   (gửi trường nào sửa trường đó; chỉ khi draft | failed, khác -> 409 INVALID_STATE)
+       Tỉnh / quận / phường gửi theo id / code, BE lấy tên từ danh mục GHN (sai -> 422). Đổi cấp trên mà không gửi
+       cấp dưới -> cấp dưới bị xoá. Đổi address_type -> xoá cả 3. Trường đã sửa được bỏ khỏi low_confidence_fields.
+DELETE /creator/shipping-orders/{id}   (xóa nháp; chỉ khi draft | failed)
+
+---- 3.5. Gửi đơn sang GHN ----
+POST /creator/shipping-orders/{id}/submit { payment_type_id }   (mặc định khách trả ship = 2, shop có thể đổi)
+    BE kiểm tra đủ trường -> gọi GHN /v2/shipping-order/create với client_order_code = mã đơn a51
+    (bấm 2 lần không tạo trùng đơn bên GHN).
+    Thành công -> { data: ShippingOrder (status: submitted, ghn_order_code, shipping_fee, expected_delivery_time) }
+    Thiếu trường (tên, SĐT, số nhà, tỉnh, quận khi old, phường) -> 422 { errors: { field: [msg] } }, chưa gọi GHN.
+    GHN từ chối -> 422 { message (lời báo của GHN), code: GHN_ERROR }, đơn chuyển status failed, sửa rồi gửi lại được.
+    Đã gửi rồi -> 409 INVALID_STATE
+
+---- 3.6. Trang FE (đã làm, nhánh feature/ghn-shipping-orders ở cả FE và BE) ----
+Lối vào: Công cụ -> "Tạo đơn GHN từ ảnh" (/shipping-orders), Tài khoản -> "Đơn GHN".
+Route: /shipping-orders, /shipping-orders/new, /shipping-orders/:id. API: src/api/shipping.js.
+BE: app/Services/Shipping (GhnClient, GhnCatalog, ClaudeShippingOrderReader, ShippingOrderService),
+    app/Http/Controllers/Api/V1/Shipping, tests/Feature/ShippingOrderTest.php. .env: ANTHROPIC_API_KEY, GHN_BASE_URL.
+- StoreSettingsPage: thêm khối "Kết nối GHN" (Token, ShopId).
+- ShippingOrderNewPage: chọn địa chỉ cũ/mới (mặc định: địa chỉ cũ) + tải nhiều ảnh -> gọi parse -> chuyển sang trang sửa nháp.
+- ShippingOrderPage: ảnh bên trái, form bên phải (trường AI không chắc tô vàng), chọn ai trả ship, nút "Tạo đơn GHN".
+- ShippingOrdersPage: danh sách đơn (nháp / đã gửi / lỗi), mã đơn GHN, phí ship.
+
+---- 3.7. Để sau (ngoài phạm vi bản đầu) ----
+Hủy đơn, sửa đơn sau khi đã gửi GHN, in vận đơn, webhook theo dõi trạng thái, xem trước phí ship.

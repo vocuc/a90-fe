@@ -124,6 +124,15 @@ export const TOOLS = [
     to: '/posts',
     icon: 'upload',
   },
+  {
+    // Có trang riêng (to), không mở trong ToolDetailPage
+    slug: 'tao-don-ghn',
+    title: 'Tạo đơn GHN từ ảnh',
+    description: 'Tải ảnh chat với khách, AI điền sẵn đơn Giao Hàng Nhanh',
+    type: 'link',
+    to: '/shipping-orders',
+    icon: 'local_shipping',
+  },
 ];
 
 export const findTool = (slug) => TOOLS.find((t) => t.slug === slug && !t.to);

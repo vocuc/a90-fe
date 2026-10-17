@@ -28,6 +28,9 @@ import SocialNewPage from './pages/SocialNewPage';
 import BatchesPage from './pages/BatchesPage';
 import BatchNewPage from './pages/BatchNewPage';
 import BatchPage from './pages/BatchPage';
+import ShippingOrdersPage from './pages/ShippingOrdersPage';
+import ShippingOrderNewPage from './pages/ShippingOrderNewPage';
+import ShippingOrderPage from './pages/ShippingOrderPage';
 
 /** Link bài đăng cũ /tiktok/post/:id -> /posts/:id. */
 function LegacyTikTokPostRedirect() {
@@ -62,6 +65,10 @@ export default function App() {
           <Route path="posts" element={<SocialPostsPage />} />
           <Route path="posts/new" element={<SocialNewPage />} />
           <Route path="posts/:id" element={<SocialPostPage />} />
+          {/* Tạo đơn GHN từ ảnh chat (note/tao-don-ghn-tu-anh.txt). Cần hồ sơ người bán + kết nối GHN */}
+          <Route path="shipping-orders" element={<ShippingOrdersPage />} />
+          <Route path="shipping-orders/new" element={<ShippingOrderNewPage />} />
+          <Route path="shipping-orders/:id" element={<ShippingOrderPage />} />
           {/* Link cũ /tiktok/... */}
           <Route path="tiktok" element={<Navigate to="/posts" replace />} />
           <Route path="tiktok/new" element={<Navigate to="/posts/new" replace />} />
