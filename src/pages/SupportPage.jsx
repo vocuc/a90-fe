@@ -45,8 +45,8 @@ const TOPICS = [
     icon: 'storefront',
     title: 'Dành cho người bán',
     faqs: [
-      ['Làm sao để mở cửa hàng?', 'Vào Tài khoản → Quản lý cửa hàng, điền tên cửa hàng, ảnh đại diện và ảnh bìa. Sau khi tạo cửa hàng, mục Quản lý sản phẩm sẽ được mở khoá.'],
-      ['Làm sao để đăng mẫu AI Creative?', 'Vào Tài khoản → Quản lý sản phẩm → tạo sản phẩm mới. Trình tạo mẫu cho phép bạn soạn prompt, thiết kế biểu mẫu cho người mua và tải ảnh minh hoạ.'],
+      ['Làm sao để mở cửa hàng?', 'Vào Tài khoản → Quản lý cửa hàng, điền tên cửa hàng, ảnh đại diện và ảnh bìa. Sau khi tạo cửa hàng, mục Quản lý Creative sẽ được mở khoá.'],
+      ['Làm sao để đăng mẫu AI Creative?', 'Vào Tài khoản → Quản lý Creative → tạo Creative mới. Trình tạo mẫu cho phép bạn soạn prompt, thiết kế biểu mẫu cho người mua và tải ảnh minh hoạ.'],
       ['Mẫu của tôi có bị kiểm duyệt không?', 'Có. Mẫu phải do bạn tự tạo hoặc có quyền phân phối hợp pháp, ảnh minh hoạ phải phản ánh đúng kết quả. Mẫu vi phạm có thể bị ẩn hoặc gỡ.'],
     ],
   },

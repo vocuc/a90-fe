@@ -43,7 +43,7 @@ function ProductCard({ creative }) {
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-xl border border-outline-variant/30 bg-surface-container-lowest">
       <Link
-        to={`/seller/products/${id}/edit`}
+        to={`/seller/creatives/${id}/edit`}
         aria-label={`Sửa ${title}`}
         className="flex flex-1 flex-col transition-colors hover:bg-surface-container-low"
       >
@@ -110,7 +110,7 @@ function ProductCard({ creative }) {
 }
 
 export default function SellerProductsPage() {
-  useSeo({ title: 'Sản phẩm của tôi', noindex: true });
+  useSeo({ title: 'Creative của tôi', noindex: true });
   const [params, setParams] = useSearchParams();
   const status = TAB_VALUES.includes(params.get('status')) ? params.get('status') : '';
   const tabScrollRef = useHorizontalScroll();
@@ -147,11 +147,11 @@ export default function SellerProductsPage() {
           <Link to="/account" aria-label="Quay lại" className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container">
             <Icon name="arrow_back" />
           </Link>
-          <h1 className="flex-1 text-base font-bold text-on-surface">Quản lý sản phẩm</h1>
+          <h1 className="flex-1 text-base font-bold text-on-surface">Quản lý Creative</h1>
           {isFetching && !isLoading && !isFetchingNextPage && <Icon name="progress_activity" className="animate-spin text-lg text-outline" />}
           {hasProfile && (
             <Link
-              to="/seller/products/new"
+              to="/seller/creatives/new"
               className="mr-2 flex h-8 items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary"
             >
               <Icon name="add" className="text-base" />
@@ -185,7 +185,7 @@ export default function SellerProductsPage() {
         ) : !hasProfile ? (
           <div className="flex flex-col items-center gap-3 py-10 text-center">
             <Icon name="storefront" className="text-4xl text-outline" />
-            <p className="text-sm text-on-surface-variant">Bạn cần tạo cửa hàng trước khi quản lý sản phẩm.</p>
+            <p className="text-sm text-on-surface-variant">Bạn cần tạo cửa hàng trước khi quản lý Creative.</p>
             <Link to="/seller/settings" className="text-sm font-bold text-primary hover:underline">
               Tạo cửa hàng
             </Link>
@@ -205,18 +205,18 @@ export default function SellerProductsPage() {
           >
             {!status && (
               <Link
-                to="/seller/products/new"
+                to="/seller/creatives/new"
                 className="mt-2 flex h-10 items-center gap-1 rounded-xl bg-primary-container px-4 text-sm font-bold text-on-primary hover:bg-primary"
               >
                 <Icon name="add" className="text-lg" />
-                Tạo sản phẩm
+                Tạo Creative
               </Link>
             )}
           </EmptyState>
         ) : (
           <>
             <p className="mb-2 text-xs text-on-surface-variant">{data.pages[0].total} AI Creative</p>
-            {/* 2 sản phẩm mỗi hàng (desktop 4–5), thẻ cùng hàng cao bằng nhau */}
+            {/* 2 Creative mỗi hàng (desktop 4–5), thẻ cùng hàng cao bằng nhau */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
               {items.map((c) => (
                 <ProductCard key={c.id} creative={c} />

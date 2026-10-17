@@ -33,7 +33,7 @@ import {
 } from '../components/template/templateSchema';
 
 /*
- * /seller/products/new (tạo) và /seller/products/:id/edit (sửa): Creator thiết kế form người mua + Prompt Template.
+ * /seller/creatives/new (tạo) và /seller/creatives/:id/edit (sửa): Creator thiết kế form người mua + Prompt Template.
  * Tạo mới tự lưu nháp vào localStorage tới khi tạo xong; sửa thì đọc/ghi thẳng Creative trên backend.
  */
 
@@ -179,7 +179,7 @@ function PreviewTab({ template }) {
   );
 }
 
-/** Badge trạng thái + nút Đăng bán (tạm dừng ở trang Quản lý sản phẩm); đăng bán dùng nội dung đã lưu trên backend. */
+/** Badge trạng thái + nút Đăng bán (tạm dừng ở trang Quản lý Creative); đăng bán dùng nội dung đã lưu trên backend. */
 function StatusControl({ id, status, publish, onChange }) {
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
 
@@ -256,7 +256,7 @@ function Builder({ creative: loaded }) {
   const errorIssues = issues.filter((i) => i.level === 'error');
   const errorCount = errorIssues.length;
 
-  // Nút Tạo sản phẩm: còn lỗi thì liệt kê lỗi dưới nút; hợp lệ thì lưu lên backend
+  // Nút Tạo Creative: còn lỗi thì liệt kê lỗi dưới nút; hợp lệ thì lưu lên backend
   const [showErrors, setShowErrors] = useState(false);
   // Lỗi backend trả về (422) hoặc lỗi tải ảnh đại diện
   const [serverErrors, setServerErrors] = useState([]);
@@ -273,7 +273,7 @@ function Builder({ creative: loaded }) {
         onSuccess: ({ creative: saved, coverError }) => {
           if (coverError) {
             setSavedCreative(saved);
-            setServerErrors([`Đã lưu sản phẩm nhưng chưa tải được ảnh đại diện: ${coverError} Bấm lưu lại để thử lại.`]);
+            setServerErrors([`Đã lưu Creative nhưng chưa tải được ảnh đại diện: ${coverError} Bấm lưu lại để thử lại.`]);
             return;
           }
           if (!isEdit) {
@@ -284,7 +284,7 @@ function Builder({ creative: loaded }) {
               // Không xoá được nháp cũng không sao
             }
           }
-          navigate('/seller/products', { replace: true });
+          navigate('/seller/creatives', { replace: true });
         },
         onError: (err) => setServerErrors(err.errors ? [...new Set(Object.values(err.errors))] : [err.message]),
       },
@@ -365,8 +365,8 @@ function Builder({ creative: loaded }) {
       <header className="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface-container-lowest/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2">
           <Link
-            to="/seller/products"
-            aria-label="Về danh sách sản phẩm"
+            to="/seller/creatives"
+            aria-label="Về danh sách Creative"
             className="flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-surface-container"
           >
             <Icon name="arrow_back" />
@@ -376,8 +376,8 @@ function Builder({ creative: loaded }) {
             <p className="px-2 text-[10px] text-outline">
               {isEdit
                 ? status === 'published'
-                  ? 'Sản phẩm đang bán: thay đổi có hiệu lực ngay khi lưu'
-                  : 'Sửa sản phẩm · lưu thay đổi trước khi đăng bán'
+                  ? 'Creative đang bán: thay đổi có hiệu lực ngay khi lưu'
+                  : 'Sửa Creative · lưu thay đổi trước khi đăng bán'
                 : savedAt
                   ? `Đã lưu nháp trên trình duyệt lúc ${savedAt.toLocaleTimeString('vi-VN')}`
                   : 'Chưa lưu được nháp'}
@@ -483,11 +483,11 @@ function Builder({ creative: loaded }) {
                 className="mt-3 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:opacity-90 disabled:opacity-60"
               >
                 <Icon name={creative ? 'save' : 'add_circle'} className="text-lg" />
-                {saveCreative.isPending ? 'Đang lưu...' : creative ? 'Lưu thay đổi' : 'Tạo sản phẩm'}
+                {saveCreative.isPending ? 'Đang lưu...' : creative ? 'Lưu thay đổi' : 'Tạo Creative'}
               </button>
               {!isEdit && !savedCreative && (
                 <p className="mt-2 text-center text-[11px] text-on-surface-variant">
-                  Sản phẩm được lưu dạng nháp. Đăng bán ở trang Quản lý sản phẩm.
+                  Creative được lưu dạng nháp. Đăng bán ở trang Quản lý Creative.
                 </p>
               )}
               {serverErrors.length > 0 && (
@@ -530,7 +530,7 @@ function Builder({ creative: loaded }) {
 export default function TemplateBuilderPage() {
   const { id } = useParams();
   const isEdit = id != null;
-  useSeo({ title: isEdit ? 'Sửa sản phẩm' : 'Tạo sản phẩm', noindex: true });
+  useSeo({ title: isEdit ? 'Sửa Creative' : 'Tạo Creative', noindex: true });
   const { hasProfile, meLoaded } = useCreatorProfile();
   const creative = useCreatorCreative(id, hasProfile && isEdit);
 
@@ -548,7 +548,7 @@ export default function TemplateBuilderPage() {
           ) : !hasProfile ? (
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <Icon name="storefront" className="text-4xl text-outline" />
-              <p className="text-sm text-on-surface-variant">Bạn cần tạo cửa hàng trước khi {isEdit ? 'quản lý' : 'tạo'} sản phẩm.</p>
+              <p className="text-sm text-on-surface-variant">Bạn cần tạo cửa hàng trước khi {isEdit ? 'quản lý' : 'tạo'} Creative.</p>
               <Link to="/seller/settings" className="text-sm font-bold text-primary hover:underline">
                 Tạo cửa hàng
               </Link>

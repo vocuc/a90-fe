@@ -31,11 +31,11 @@ export default function AccountPage() {
   const { data: wallet, isLoading: walletLoading } = useCreatorWallet();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Backend chỉ cho quản lý sản phẩm khi đã có profile người bán (middleware "creator")
+  // Backend chỉ cho quản lý Creative khi đã có profile người bán (middleware "creator")
   const menu = [
     { to: '/account/history', icon: 'receipt_long', title: 'Lịch sử mua hàng' },
     { to: '/seller/settings', icon: 'tune', title: 'Quản lý cửa hàng' },
-    { to: '/seller/products', icon: 'inventory_2', title: 'Quản lý sản phẩm', disabled: !me?.creatorProfile },
+    { to: '/seller/creatives', icon: 'inventory_2', title: 'Quản lý Creative', disabled: !me?.creatorProfile },
     { to: '/shipping-orders', icon: 'local_shipping', title: 'Đơn GHN', disabled: !me?.creatorProfile },
     { to: '/support', icon: 'support_agent', title: 'Trung tâm hỗ trợ' },
     { to: '/terms', icon: 'gavel', title: 'Điều khoản sử dụng' },

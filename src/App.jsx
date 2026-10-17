@@ -38,6 +38,11 @@ function LegacyTikTokPostRedirect() {
   return <Navigate to={`/posts/${id}`} replace />;
 }
 
+function LegacyProductEditRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/seller/creatives/${id}/edit`} replace />;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -56,7 +61,7 @@ export default function App() {
           <Route path="*" element={<PlaceholderPage title="Không tìm thấy trang" icon="error" />} />
         </Route>
         <Route element={<RequireAuth />}>
-          <Route path="seller/products" element={<SellerProductsPage />} />
+          <Route path="seller/creatives" element={<SellerProductsPage />} />
           {/* Tạo ảnh theo lô (note/tach-lo-anh-dang-tiktok.txt). Trang rộng, tự chia cột trên desktop */}
           <Route path="batches" element={<BatchesPage />} />
           <Route path="batches/new" element={<BatchNewPage />} />
@@ -77,7 +82,7 @@ export default function App() {
           <Route path="tiktok/post" element={<Navigate to="/posts" replace />} />
           {/* Tab Người bán đã gộp vào trang Tài khoản */}
           <Route path="seller" element={<Navigate to="/account" replace />} />
-          <Route path="seller/prompts/new" element={<Navigate to="/seller/products/new" replace />} />
+          <Route path="seller/prompts/new" element={<Navigate to="/seller/creatives/new" replace />} />
           {/* Đường dẫn /store cũ: trang người bán đã gộp vào Tài khoản */}
           <Route path="store/*" element={<Navigate to="/account" replace />} />
           {/* Trang Cá nhân cũ đã đổi thành Tài khoản */}
@@ -101,12 +106,16 @@ export default function App() {
           <Route path="support" element={<SupportPage />} />
         </Route>
       </Route>
-      {/* Tạo/sửa sản phẩm bằng Template Builder: toàn màn hình, ngoài AppLayout */}
+      {/* Tạo/sửa Creative bằng Template Builder: toàn màn hình, ngoài AppLayout */}
       <Route element={<RequireAuth />}>
-        <Route path="seller/products/new" element={<TemplateBuilderPage />} />
-        <Route path="seller/products/:id/edit" element={<TemplateBuilderPage />} />
+        <Route path="seller/creatives/new" element={<TemplateBuilderPage />} />
+        <Route path="seller/creatives/:id/edit" element={<TemplateBuilderPage />} />
       </Route>
-      <Route path="template-builder" element={<Navigate to="/seller/products/new" replace />} />
+      <Route path="template-builder" element={<Navigate to="/seller/creatives/new" replace />} />
+      {/* Link cũ /seller/products/... (Quản lý sản phẩm đã đổi thành Quản lý Creative) */}
+      <Route path="seller/products" element={<Navigate to="/seller/creatives" replace />} />
+      <Route path="seller/products/new" element={<Navigate to="/seller/creatives/new" replace />} />
+      <Route path="seller/products/:id/edit" element={<LegacyProductEditRedirect />} />
     </Routes>
   );
 }
