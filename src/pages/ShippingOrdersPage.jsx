@@ -21,6 +21,8 @@ const FILTERS = [
 const formatTime = (iso) =>
   new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 
+const POLL_INTERVAL = 5000;
+
 const receiver = (o) => [o.toName, o.toPhone].filter(Boolean).join(' · ') || 'Chưa có người nhận';
 const address = (o) => [o.toAddress, o.toWardName, o.toDistrictName, o.toProvinceName].filter(Boolean).join(', ');
 
@@ -36,6 +38,9 @@ export default function ShippingOrdersPage() {
     queryFn: ({ pageParam }) => listOrders({ page: pageParam, limit: PAGE_SIZE, status }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
+    // Còn đơn AI đang đọc ảnh thì tự cập nhật mỗi 5 giây
+    refetchInterval: (q) =>
+      q.state.data?.pages.some((p) => p.items.some((o) => o.status === ORDER_STATUS.READING)) ? POLL_INTERVAL : false,
   });
   const orders = data ? data.pages.flatMap((p) => p.items) : null;
 

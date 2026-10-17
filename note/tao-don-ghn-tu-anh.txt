@@ -70,14 +70,17 @@ GET /shipping/ghn/wards?province_id=&address_type=new -> { data: [{ code, name }
 
 ---- 3.3. Tải ảnh, AI đọc, tạo đơn nháp (Bước 1-4) ----
 POST /creator/shipping-orders/parse  multipart { images[] (1..10 ảnh, jpg/png/webp, <= 10MB/ảnh), address_type }
-    BE: lưu ảnh -> AI đọc -> khớp địa chỉ với danh mục GHN -> tạo đơn nháp. Không trừ credit.
-    -> 201 { data: ShippingOrder (status: draft) }
-    AI không đọc được gì -> vẫn tạo nháp, các trường để trống cho người dùng tự nhập.
+    BE: lưu ảnh -> tạo đơn status reading -> trả 201 NGAY (không chờ AI) -> job ReadShippingOrderImages chạy ngầm:
+        AI đọc -> khớp địa chỉ với danh mục GHN -> đơn chuyển status draft. Không trừ credit.
+    -> 201 { data: ShippingOrder (status: reading, các trường người nhận còn trống) }
+    FE: chuyển sang trang đơn, GET lại mỗi 3s tới khi hết reading (danh sách đơn: mỗi 5s). Đơn reading không sửa /
+        gửi được (409 INVALID_STATE), chỉ xoá được.
+    AI không đọc được gì / job hết lượt thử -> vẫn thành nháp, các trường để trống cho người dùng tự nhập.
     Chưa cài GHN -> 400 GHN_SETTINGS_REQUIRED
 
----- 3.3b. AI đọc ảnh: BE gọi thẳng API Claude Haiku 5.5 (KHÔNG qua worker) ----
-Không tạo job, không dùng worker FlowKit. BE gọi API ngay trong request parse, đọc xong mới trả 201 (đồng bộ),
-FE chỉ cần hiện loading tới khi có kết quả (timeout phía FE >= 60s).
+---- 3.3b. AI đọc ảnh: job Laravel queue gọi API Claude Haiku 5.5 (không dùng worker FlowKit) ----
+Job ReadShippingOrderImages chạy trên `php artisan queue:work` sẵn có (timeout 180s, thử 2 lần).
+Request parse chỉ lưu ảnh + tạo đơn reading rồi trả về, người dùng không phải chờ AI.
 - Model: claude-haiku-5-5 (Anthropic Messages API, POST https://api.anthropic.com/v1/messages, SDK PHP chính thức).
   API key chỉ để ở BE (.env ANTHROPIC_API_KEY), FE không bao giờ gọi thẳng.
 - 1 lần gọi / 1 đơn: gửi TẤT CẢ ảnh của đơn trong cùng 1 message (khối image base64, theo thứ tự tải lên)
@@ -98,7 +101,7 @@ FE chỉ cần hiện loading tới khi có kết quả (timeout phía FE >= 60s
 
 ShippingOrder:
 {
-  id, code (mã đơn a51 = client_order_code, vd A51-12), status: draft | submitted | failed,
+  id, code (mã đơn a51 = client_order_code, vd A51-12), status: reading | draft | submitted | failed,
   address_type: old | new,
   to_name, to_phone,
   to_address,                       (số nhà, đường - phần chữ)
@@ -106,7 +109,7 @@ ShippingOrder:
   to_province_name, to_district_name, to_ward_name,   (tên theo danh mục GHN; GHN tạo đơn theo TÊN + is_new_to_address)
   raw_address,                      (địa chỉ nguyên văn AI đọc được, để người dùng đối chiếu)
   item_name,                        (mặc định "Hàng hóa dịch vụ")
-  cod_amount,                       (tiền hàng = tổng tiền ghi trong ảnh, VND)
+  cod_amount,                       (tiền hàng ghi trong ảnh, VND, KHÔNG gồm phí ship)
   weight,                           (gram, mặc định 2000)
   required_note,                    (mặc định CHOXEMHANGKHONGTHU)
   payment_type_id,                  (1 = shop trả ship, 2 = khách trả ship; null khi còn nháp)

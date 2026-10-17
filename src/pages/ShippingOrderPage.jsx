@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
@@ -29,6 +29,8 @@ import {
 } from '../api/shipping';
 
 // Các trường form sửa được (cùng tên với FIELD_NAMES trong api/shipping.js)
+const POLL_INTERVAL = 3000;
+
 const FORM_FIELDS = [
   'addressType',
   'toName',
@@ -219,13 +221,43 @@ function SubmittedSummary({ order }) {
   );
 }
 
+/** AI đang đọc ảnh ở job chạy ngầm: trang tự cập nhật khi xong, người dùng có thể rời trang. */
+function ReadingState({ count }) {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-10 text-center">
+      <Icon name="progress_activity" className="animate-spin text-3xl text-sky-700" />
+      <p className="text-sm font-bold text-sky-900">AI đang đọc {count} ảnh...</p>
+      <p className="max-w-sm text-xs text-sky-800">
+        Thường mất dưới 1 phút. Bạn có thể rời trang hoặc tạo đơn khác, đơn này sẽ chuyển sang nháp trong danh sách Đơn GHN khi
+        đọc xong.
+      </p>
+      <Link to="/shipping-orders/new" className="text-xs font-bold text-primary hover:underline">
+        Tạo đơn khác
+      </Link>
+    </div>
+  );
+}
+
 /** /shipping-orders/:id: ảnh bên trái, form bên phải (trường AI không chắc tô vàng), chọn ai trả ship, "Tạo đơn GHN". */
 export default function ShippingOrderPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const queryKey = ['shipping', 'orders', 'detail', String(id)];
-  const { data: order, error, refetch } = useQuery({ queryKey, queryFn: () => getOrder(id) });
+  const { data: order, error, refetch } = useQuery({
+    queryKey,
+    queryFn: () => getOrder(id),
+    // AI đọc ảnh ở job chạy ngầm: hỏi lại tới khi đơn thành nháp
+    refetchInterval: (q) => (q.state.data?.status === ORDER_STATUS.READING ? POLL_INTERVAL : false),
+  });
+  const reading = order?.status === ORDER_STATUS.READING;
+
+  // Vừa đọc xong: danh sách đơn cũng cần cập nhật
+  const wasReading = useRef(false);
+  useEffect(() => {
+    if (wasReading.current && !reading) queryClient.invalidateQueries({ queryKey: ['shipping', 'orders', 'list'] });
+    wasReading.current = reading;
+  }, [reading, queryClient]);
   useSeo({ title: order ? `Đơn ${order.code}` : 'Đơn GHN', noindex: true });
 
   const [form, setForm] = useState(null);
@@ -326,6 +358,8 @@ export default function ShippingOrderPage() {
   };
 
   const editable = order && isOrderEditable(order);
+  // Đơn đang đọc ảnh cũng xoá được (tải nhầm ảnh)
+  const deletable = editable || reading;
   const disabled = !!busy;
 
   return (
@@ -341,7 +375,7 @@ export default function ShippingOrderPage() {
         </button>
         <h1 className="min-w-0 flex-1 truncate text-base font-bold text-on-surface">{order ? `Đơn ${order.code}` : 'Đơn GHN'}</h1>
         {order && <OrderStatusBadge status={order.status} />}
-        {editable && (
+        {deletable && (
           <button
             type="button"
             onClick={remove}
@@ -368,7 +402,9 @@ export default function ShippingOrderPage() {
           <OrderImages images={order.images} />
 
           <div className="space-y-4">
-            {order.status === ORDER_STATUS.SUBMITTED ? (
+            {reading ? (
+              <ReadingState count={order.images.length} />
+            ) : order.status === ORDER_STATUS.SUBMITTED ? (
               <SubmittedSummary order={order} />
             ) : (
               <>
@@ -454,7 +490,7 @@ export default function ShippingOrderPage() {
                       icon="payments"
                       inputMode="numeric"
                       disabled={disabled}
-                      hint="Tổng tiền khách trả khi nhận hàng. 0 nếu khách đã chuyển khoản."
+                      hint="Tiền hàng thu khi giao, không gồm phí ship. 0 nếu khách đã chuyển khoản."
                       value={formatMoney(form.codAmount)}
                       error={errors.codAmount}
                       onChange={(e) => setField('codAmount', Math.min(Number(digits(e.target.value) || 0), MAX_COD))}

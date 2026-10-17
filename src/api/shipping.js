@@ -3,7 +3,8 @@ import client from './client';
 /*
  * ---- Tạo đơn GHN từ ảnh chụp màn hình (cần đăng nhập + hồ sơ người bán) ----
  * Đặc tả: note/tao-don-ghn-tu-anh.txt. Token GHN chỉ lưu ở backend, FE không bao giờ gọi thẳng GHN.
- * AI đọc ảnh: backend gọi thẳng Claude API trong request parse (đồng bộ, không qua worker), không trừ credit.
+ * AI đọc ảnh: request parse chỉ lưu ảnh rồi trả đơn status reading ngay; job chạy ngầm gọi Claude API rồi chuyển
+ * đơn sang draft (FE hỏi lại GET đơn tới khi hết reading). Không trừ credit.
  *
  * GET    /creator/shipping/ghn-settings                 -> { data: { shop_id, has_token, token_last4 } }
  * PUT    /creator/shipping/ghn-settings                 -> như trên (422 errors.token / errors.shop_id khi sai)
@@ -11,10 +12,10 @@ import client from './client';
  * GET    /shipping/ghn/districts?province_id=           -> { data: [{ id, name }] }   (chỉ địa chỉ cũ)
  * GET    /shipping/ghn/wards?district_id=               -> { data: [{ code, name }] } (địa chỉ cũ)
  * GET    /shipping/ghn/wards?province_id=&address_type=new
- * POST   /creator/shipping-orders/parse                 -> 201 { data: ShippingOrder }  (multipart images[], address_type)
+ * POST   /creator/shipping-orders/parse                 -> 201 { data: ShippingOrder (status reading) }  (multipart images[], address_type)
  * GET    /creator/shipping-orders?status=&page=&per_page=
  * GET    /creator/shipping-orders/{id}
- * PUT    /creator/shipping-orders/{id}                  (gửi trường nào sửa trường đó; chỉ khi draft | failed)
+ * PUT    /creator/shipping-orders/{id}                  (gửi trường nào sửa trường đó; chỉ khi draft | failed, reading -> 409)
  * DELETE /creator/shipping-orders/{id}
  * POST   /creator/shipping-orders/{id}/submit           { payment_type_id } -> đơn submitted | 422 GHN_ERROR (đơn failed)
  */
@@ -26,11 +27,11 @@ export const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 export const MAX_WEIGHT = 19999;
 export const MAX_COD = 50_000_000;
 
-// AI đọc nhiều ảnh mất vài chục giây: không dùng timeout 15s mặc định
+// Tải lên tới 10 ảnh 10MB: không dùng timeout 15s mặc định
 const PARSE_TIMEOUT = 120_000;
 
-export const ORDER_STATUS = { DRAFT: 'draft', SUBMITTED: 'submitted', FAILED: 'failed' };
-export const isOrderEditable = (order) => order.status !== ORDER_STATUS.SUBMITTED;
+export const ORDER_STATUS = { READING: 'reading', DRAFT: 'draft', SUBMITTED: 'submitted', FAILED: 'failed' };
+export const isOrderEditable = (order) => order.status === ORDER_STATUS.DRAFT || order.status === ORDER_STATUS.FAILED;
 
 export const ADDRESS_TYPES = [
   { value: 'old', label: 'Địa chỉ cũ', hint: 'Tỉnh → Quận/Huyện → Phường/Xã' },
@@ -140,7 +141,7 @@ export const listOrders = ({ page = 1, limit = 20, status } = {}) =>
 
 export const getOrder = (id) => client.get(`/creator/shipping-orders/${id}`).then(({ data }) => mapOrder(data));
 
-/** Tải 1-10 ảnh chat của một đơn: AI đọc rồi trả đơn nháp (AI không đọc được thì các trường để trống). */
+/** Tải 1-10 ảnh chat của một đơn: trả ngay đơn status reading, AI đọc ngầm rồi chuyển nháp (đọc không được thì để trống). */
 export const parseOrder = (files, addressType) => {
   const body = new FormData();
   files.forEach((file) => body.append('images[]', file));

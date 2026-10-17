@@ -177,7 +177,7 @@ export default function ShippingOrderNewPage() {
       <ActionBar
         summary={
           loading ? (
-            'AI đang đọc ảnh, có thể mất tới 1 phút...'
+            'Đang tải ảnh lên...'
           ) : images.length ? (
             <>
               Đã chọn <b className="text-on-surface">{images.length}</b>/{MAX_IMAGES} ảnh
@@ -192,7 +192,7 @@ export default function ShippingOrderNewPage() {
         onSubmit={submit}
         label="Đọc ảnh & tạo đơn nháp"
         icon="document_scanner"
-        loadingText="Đang đọc ảnh..."
+        loadingText="Đang tải ảnh..."
       />
     </>
   );
