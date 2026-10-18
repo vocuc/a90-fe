@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import Icon from '../components/common/Icon';
 import CoverImage from '../components/common/CoverImage';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
-import { PAUSABLE, PUBLISHABLE, STATUS_BADGE } from '../components/creative/creativeStatus';
+import { PAUSABLE, PUBLISHABLE, STATUS_BADGE, VISIBILITY_BADGE } from '../components/creative/creativeStatus';
 import { useCreatorCreatives, useCreatorProfile, usePauseCreative, usePublishCreative } from '../hooks/creatorQueries';
 import useHorizontalScroll from '../hooks/useHorizontalScroll';
 import { formatCount, formatVnd } from '../utils/format';
@@ -28,8 +28,9 @@ const PAGE_SIZE = 20;
 function ProductCard({ creative }) {
   const publish = usePublishCreative();
   const pause = usePauseCreative();
-  const { id, title, cover_url, price_per_image, status, pause_reason, is_hidden, usage_count } = creative;
+  const { id, title, cover_url, price_per_image, status, pause_reason, is_hidden, is_public, usage_count } = creative;
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
+  const visibility = VISIBILITY_BADGE[is_public ? 'public' : 'private'];
   const canPublish = PUBLISHABLE.includes(status);
   // Mỗi trạng thái chỉ có một nút: đăng bán (nháp/tạm dừng) hoặc tạm dừng (đang bán)
   const action = canPublish ? publish : pause;
@@ -51,6 +52,10 @@ function ProductCard({ creative }) {
           <CoverImage src={cover_url} alt={title} className="h-full w-full" />
           <div className="absolute left-2 top-2 flex flex-wrap gap-1">
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge.cls}`}>{badge.label}</span>
+            <span className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${visibility.cls}`}>
+              <Icon name={visibility.icon} className="text-[12px]" />
+              {visibility.label}
+            </span>
             {is_hidden && (
               <span className="rounded-full bg-error-container px-2 py-0.5 text-[10px] font-bold text-on-error-container">
                 Bị ẩn

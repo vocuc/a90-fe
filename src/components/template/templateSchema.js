@@ -214,6 +214,8 @@ export const emptyTemplate = () => ({
   description: '',
   video_url: '',
   hashtags: [],
+  // Mặc định private: chỉ Creator thấy, chưa hiện trên marketplace
+  is_public: false,
 });
 
 // ---------------- Prompt ----------------
@@ -504,6 +506,7 @@ export function toPayload(template) {
     description: (template.description ?? '').trim(),
     video_url: (template.video_url ?? '').trim(),
     hashtags: template.hashtags ?? [],
+    is_public: !!template.is_public,
     prompt_template: {
       prompt_text: template.prompt_text,
       variables,
@@ -562,6 +565,7 @@ export function fromPayload(data) {
     description: String(data?.description ?? data?.usage_guide ?? ''),
     video_url: String(data?.video_url ?? ''),
     hashtags: Array.isArray(data?.hashtags) ? data.hashtags.map(String) : [],
+    is_public: data?.is_public === true,
   };
 }
 
@@ -578,6 +582,7 @@ export function toCreativePayload(template) {
     description: trimmed(template.description),
     video_url: trimmed(template.video_url),
     hashtags: template.hashtags ?? [],
+    is_public: !!template.is_public,
     input_schema: toPayload(template).schema_json.fields,
     prompt_template: template.prompt_text,
   };
@@ -594,6 +599,7 @@ export function fromCreative(creative) {
     description: creative.description ?? '',
     video_url: creative.video_url ?? '',
     hashtags: creative.hashtags?.map((h) => h.name) ?? [],
+    is_public: creative.is_public === true,
   };
 
   const template = fromPayload({ schema_json: { name: creative.title, fields: config.input_schema ?? [] } });

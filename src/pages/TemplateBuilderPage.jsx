@@ -9,7 +9,7 @@ import PromptEditor from '../components/template/PromptEditor';
 import DynamicForm, { initialValues, validateValues } from '../components/template/DynamicForm';
 import { PRESETS } from '../components/template/presets';
 import { Input } from '../components/template/inputs';
-import { PUBLISHABLE, STATUS_BADGE } from '../components/creative/creativeStatus';
+import { PUBLISHABLE, STATUS_BADGE, VISIBILITY_BADGE } from '../components/creative/creativeStatus';
 import {
   useAiModels,
   useCreatorCreative,
@@ -201,6 +201,36 @@ function StatusControl({ id, status, publish, onChange }) {
         </button>
       )}
     </div>
+  );
+}
+
+/** Công tắc public/private của Creative; mặc định private. */
+function VisibilityToggle({ value, onChange }) {
+  const badge = VISIBILITY_BADGE[value ? 'public' : 'private'];
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={value}
+      onClick={() => onChange(!value)}
+      className="flex w-full items-center gap-3 rounded-xl border border-outline-variant/50 p-3 text-left hover:border-primary-container"
+    >
+      <Icon name={badge.icon} className={`text-xl ${value ? 'text-emerald-700' : 'text-outline'}`} />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-bold text-on-surface">{badge.label}</span>
+        <span className="block text-[11px] text-on-surface-variant">
+          {value ? 'Mọi người thấy Creative trên marketplace.' : 'Chỉ bạn thấy, Creative không hiện trên marketplace.'}
+        </span>
+      </span>
+      <span
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${value ? 'bg-primary-container' : 'bg-outline-variant'}`}
+      >
+        <span
+          className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-all ${value ? 'left-[22px]' : 'left-0.5'}`}
+        />
+      </span>
+    </button>
   );
 }
 
@@ -441,6 +471,9 @@ function Builder({ creative: loaded }) {
                 {!coverSaved && (
                   <p className="text-[11px] text-amber-800">Ảnh quá lớn để lưu nháp trên trình duyệt, tải lại trang sẽ mất ảnh.</p>
                 )}
+              </Panel>
+              <Panel title="Chế độ hiển thị">
+                <VisibilityToggle value={!!template.is_public} onChange={(is_public) => set({ is_public })} />
               </Panel>
               <Panel title="Video hướng dẫn">
                 <Input
