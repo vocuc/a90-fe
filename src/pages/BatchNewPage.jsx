@@ -42,7 +42,8 @@ export default function BatchNewPage() {
   const step = params.get('step') === 'inputs' && picked.length ? 'inputs' : 'pick';
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/batches', { replace: true }));
 
-  // Chi tiết từng mẫu (danh sách mẫu không kèm form nhập liệu); dùng chung cache với trang chi tiết mẫu
+  // Chi tiết từng mẫu (danh sách mẫu không kèm form nhập liệu); dùng chung cache với trang chi tiết mẫu.
+  // Mẫu riêng tư của chính mình cũng mở được qua GET /creatives/{slug} (đã đăng nhập)
   const details = useQueries({
     queries: picked.map((c) => ({ queryKey: ['creative', c.id], queryFn: () => creativeApi.getById(c.id), enabled: step === 'inputs' })),
   });

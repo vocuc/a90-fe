@@ -150,7 +150,8 @@ export const hashtagApi = {
  *
  * GET    /ai-models                    -> { data: [{ id, name, code, provider: { id, code, name }, supported_aspect_ratios }] }
  *
- * GET /creator/creatives?status=&page=&per_page=  (Creative của chính creator, mới sửa trước)
+ * GET /creator/creatives?status=&q=&visibility=public|private&page=&per_page=  (Creative của chính creator, mới sửa trước;
+ *   q tìm theo tên)
  *   -> { data: [{ id, slug, title, price_per_image, status: draft|published|paused,
  *                 pause_reason: manual|no_valid_api_key|null, is_hidden, usage_count, rating_avg, cover_url,
  *                 published_at, created_at, updated_at }], meta: { current_page, last_page, per_page, total } }
@@ -198,8 +199,8 @@ export const creatorApi = {
   uploadAvatar: requireRealBackend((file) => uploadImage('/creator/profile/avatar', file)),
   uploadCover: requireRealBackend((file) => uploadImage('/creator/profile/cover', file)),
 
-  listCreatives: requireRealBackend(({ status, page, limit } = {}) =>
-    client.get('/creator/creatives', { params: { status, page, per_page: limit } }).then(({ data, meta }) => ({
+  listCreatives: requireRealBackend(({ status, q, visibility, page, limit } = {}) =>
+    client.get('/creator/creatives', { params: { status, q, visibility, page, per_page: limit } }).then(({ data, meta }) => ({
       items: data,
       total: meta.total,
       page: meta.current_page,
@@ -225,6 +226,9 @@ export const creatorApi = {
   ),
   getWallet: requireRealBackend(() => client.get('/creator/wallet').then(({ data }) => data)),
 };
+
+/** Item của GET /creator/creatives -> dạng như danh sách marketplace, thêm own / isPublic / status. */
+export const mapOwnCreative = (c) => ({ ...mapCreative(c), own: true, isPublic: c.is_public === true, status: c.status });
 
 export const aiModelApi = {
   list: requireRealBackend(() => client.get('/ai-models').then(({ data }) => data)),

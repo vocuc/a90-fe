@@ -1,18 +1,133 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import CoverImage from '../common/CoverImage';
 import Icon from '../common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../common/Feedback';
 import CategoryStrip from '../home/CategoryStrip';
 import HashtagStrip from '../home/HashtagStrip';
-import { useInfiniteCreatives } from '../../hooks/queries';
+import { STATUS_BADGE, VISIBILITY_BADGE } from '../creative/creativeStatus';
+import { useInfiniteCreatives, useMe } from '../../hooks/queries';
+import { useCreatorCreatives } from '../../hooks/creatorQueries';
+import { mapOwnCreative } from '../../api/services';
 import { formatVnd } from '../../utils/format';
 import { hashtagSlug } from '../../utils/hashtag';
 
-/**
- * Chọn mẫu AI Creative: tìm theo tên / ngành hàng / hashtag, chọn một hoặc nhiều mẫu (mỗi mẫu một lần).
- * max: số mẫu tối đa, bỏ trống = không giới hạn. hint: dòng gợi ý khi chưa chọn mẫu nào.
- */
-export default function CreativePicker({ picked, onToggle, max = Infinity, hint = 'Chọn một hoặc nhiều mẫu.' }) {
+// Chỉ mẫu đã đăng bán mới tạo ảnh được
+const usable = (c) => !c.own || c.status === 'published';
+
+const VISIBILITY_FILTERS = [
+  { value: '', label: 'Tất cả' },
+  { value: 'private', label: 'Riêng tư' },
+  { value: 'public', label: 'Công khai' },
+];
+
+function VisibilityBadge({ creative, className = '' }) {
+  const v = VISIBILITY_BADGE[creative.isPublic ? 'public' : 'private'];
+  return (
+    <span className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${v.cls} ${className}`}>
+      <Icon name={v.icon} className="text-[12px]" />
+      {v.label}
+    </span>
+  );
+}
+
+/** Lưới thẻ mẫu (chọn / bỏ chọn) và nút tải thêm, dùng chung cho Kho mẫu và Mẫu của tôi. */
+function CreativeGrid({ creatives, isPicked, full, onToggle, hasNextPage, isFetchingNextPage, fetchNextPage, moreLabel }) {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+        {creatives.map((c) => {
+          const on = isPicked(c);
+          const ok = usable(c);
+          const status = c.own && !ok ? (STATUS_BADGE[c.status] ?? STATUS_BADGE.draft) : null;
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onToggle(c)}
+              disabled={!on && (full || !ok)}
+              aria-pressed={on}
+              className={`flex flex-col overflow-hidden rounded-2xl border text-left transition-all disabled:opacity-40 ${
+                on ? 'border-primary-container ring-2 ring-primary-container' : 'border-outline-variant/40 hover:border-primary-container'
+              }`}
+            >
+              <span className="relative block aspect-square w-full bg-surface-container">
+                <CoverImage src={c.imageUrl} alt={c.title} className="size-full" />
+                {c.own && (
+                  <span className="absolute left-2 top-2 flex flex-wrap gap-1">
+                    <VisibilityBadge creative={c} />
+                    {status && <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${status.cls}`}>{status.label}</span>}
+                  </span>
+                )}
+                <span
+                  className={`absolute right-2 top-2 flex size-6 items-center justify-center rounded-full border-2 ${
+                    on ? 'border-primary-container bg-primary-container text-on-primary' : 'border-white bg-black/20'
+                  }`}
+                >
+                  {on && <Icon name="check" className="text-sm" />}
+                </span>
+              </span>
+              <span className="block p-2">
+                <span className="block truncate text-xs font-bold text-on-surface">{c.title}</span>
+                <span className="block text-[11px] font-semibold text-primary">
+                  {status ? (
+                    <span className="font-normal text-outline">Đăng bán để dùng</span>
+                  ) : c.price > 0 ? (
+                    `${formatVnd(c.price)}/ảnh`
+                  ) : (
+                    'Miễn phí'
+                  )}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {hasNextPage && (
+        <button
+          type="button"
+          onClick={() => fetchNextPage()}
+          disabled={isFetchingNextPage}
+          className="mx-auto flex h-9 items-center gap-1 rounded-lg px-4 text-sm font-bold text-primary hover:bg-surface-container disabled:opacity-60"
+        >
+          {isFetchingNextPage && <Icon name="progress_activity" className="animate-spin text-base" />}
+          {moreLabel}
+        </button>
+      )}
+    </>
+  );
+}
+
+function GridSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <Skeleton key={i} className="aspect-[4/5]" />
+      ))}
+    </div>
+  );
+}
+
+function SearchBox({ value, onChange, placeholder, label, icon = 'search', busy }) {
+  return (
+    <div className="flex h-11 min-w-0 flex-1 items-center rounded-xl bg-surface-container-low px-3 focus-within:ring-2 focus-within:ring-primary-container/30">
+      <Icon name={icon} className="mr-2 text-[22px] text-outline" />
+      <input
+        type="search"
+        maxLength={100}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={label}
+        className="w-full border-none bg-transparent p-0 text-sm font-medium text-on-surface placeholder:text-outline focus:outline-none focus:ring-0"
+      />
+      {busy && <Icon name="progress_activity" className="animate-spin text-lg text-outline" />}
+    </div>
+  );
+}
+
+/** Tab Kho mẫu: mẫu công khai trên marketplace, tìm theo tên / ngành hàng / hashtag. */
+function MarketplaceTab(props) {
   // Bộ lọc mẫu: tên mẫu (q), ngành hàng (category), hashtag. Gõ "#abc" vào ô tìm kiếm = lọc hashtag abc
   const [input, setInput] = useState('');
   const [q, setQ] = useState('');
@@ -60,8 +175,162 @@ export default function CreativePicker({ picked, onToggle, max = Infinity, hint 
   } = useInfiniteCreatives({ q: q || undefined, category: category || undefined, hashtag: hashtag.slug || undefined, limit: 20 });
   const creatives = data?.pages.flatMap((p) => p.items) ?? [];
 
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        <SearchBox
+          value={input}
+          onChange={setInput}
+          icon={input.trim().startsWith('#') ? 'tag' : 'search'}
+          placeholder="Tìm theo tên mẫu hoặc #hashtag"
+          label="Tìm AI Creative theo tên hoặc hashtag"
+          busy={isFetching && !isFetchingNextPage}
+        />
+        {hasFilter && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="flex h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl px-3 text-xs font-bold text-primary hover:bg-surface-container"
+          >
+            <Icon name="filter_alt_off" className="text-lg" />
+            Xoá lọc
+          </button>
+        )}
+      </div>
+
+      {/* Dải ngành hàng và hashtag có sẵn lề ngang 16px: kéo ra sát mép để cuộn hết chiều rộng */}
+      <div className="-mx-4">
+        <p className="px-4 pt-1 text-xs font-semibold text-on-surface-variant">Ngành hàng</p>
+        <div className="-mt-2">
+          <CategoryStrip active={category} onSelect={setCategory} />
+        </div>
+        <p className="px-4 pb-2 text-xs font-semibold text-on-surface-variant">Hashtag phổ biến</p>
+        <HashtagStrip active={hashtag.slug} activeName={hashtag.name} onSelect={pickHashtag} />
+      </div>
+
+      {listError ? (
+        <ErrorState error={listError} onRetry={refetch} />
+      ) : isLoading ? (
+        <GridSkeleton />
+      ) : !creatives.length ? (
+        <EmptyState message="Không tìm thấy mẫu phù hợp." />
+      ) : (
+        <CreativeGrid
+          {...props}
+          creatives={creatives}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          fetchNextPage={fetchNextPage}
+          moreLabel="Xem thêm mẫu"
+        />
+      )}
+    </>
+  );
+}
+
+/** Tab Mẫu của tôi: Creative của chính creator (GET /creator/creatives), gồm cả mẫu riêng tư không có trên marketplace. */
+function MineTab(props) {
+  const [input, setInput] = useState('');
+  const [q, setQ] = useState('');
+  const [visibility, setVisibility] = useState('');
+
+  // Gõ xong 300ms mới tìm
+  useEffect(() => {
+    const t = setTimeout(() => setQ(input.trim()), 300);
+    return () => clearTimeout(t);
+  }, [input]);
+
+  const { data, isLoading, isFetching, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useCreatorCreatives(
+    { q: q || undefined, visibility: visibility || undefined, limit: 20 },
+    true,
+  );
+  const creatives = useMemo(() => data?.pages.flatMap((p) => p.items.map(mapOwnCreative)) ?? [], [data]);
+  const hasFilter = Boolean(q || visibility);
+
+  if (error) return <ErrorState error={error} onRetry={refetch} />;
+  if (isLoading && !hasFilter) return <GridSkeleton />;
+  if (!creatives.length && !hasFilter && !isFetching)
+    return (
+      <EmptyState icon="palette" message="Bạn chưa có mẫu AI Creative nào.">
+        <Link to="/seller/creatives/new" className="mt-2 inline-block text-sm font-bold text-primary">
+          Tạo mẫu đầu tiên
+        </Link>
+      </EmptyState>
+    );
+
+  return (
+    <>
+      <SearchBox
+        value={input}
+        onChange={setInput}
+        placeholder="Tìm trong mẫu của bạn"
+        label="Tìm trong mẫu của bạn theo tên"
+        busy={isFetching && !isFetchingNextPage}
+      />
+      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
+        {VISIBILITY_FILTERS.map((f) => (
+          <button
+            key={f.value}
+            type="button"
+            onClick={() => setVisibility(f.value)}
+            aria-pressed={visibility === f.value}
+            className={`flex h-8 shrink-0 items-center gap-1 rounded-full border px-3 text-xs font-bold transition-colors ${
+              visibility === f.value
+                ? 'border-primary-container bg-primary-container text-on-primary'
+                : 'border-outline-variant/60 text-on-surface-variant hover:bg-surface-container'
+            }`}
+          >
+            {f.value && <Icon name={VISIBILITY_BADGE[f.value].icon} className="text-sm" />}
+            {f.label}
+          </button>
+        ))}
+      </div>
+      {isLoading ? (
+        <GridSkeleton />
+      ) : !creatives.length ? (
+        <EmptyState message="Không có mẫu phù hợp." />
+      ) : (
+        <CreativeGrid
+          {...props}
+          creatives={creatives}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          fetchNextPage={fetchNextPage}
+          moreLabel="Tải thêm mẫu của tôi"
+        />
+      )}
+      {creatives.length > 0 && !hasNextPage && (
+        <p className="text-center text-[11px] text-outline">Mẫu nháp hoặc tạm dừng cần đăng bán để tạo ảnh.</p>
+      )}
+    </>
+  );
+}
+
+/**
+ * Chọn mẫu AI Creative: tab Kho mẫu (marketplace) và Mẫu của tôi (chỉ creator, gồm mẫu riêng tư), chọn một hoặc nhiều
+ * mẫu (mỗi mẫu một lần, trộn được hai tab). Tab đang mở lưu ở ?src=mine.
+ * max: số mẫu tối đa, bỏ trống = không giới hạn. hint: dòng gợi ý khi chưa chọn mẫu nào.
+ */
+export default function CreativePicker({ picked, onToggle, max = Infinity, hint = 'Chọn một hoặc nhiều mẫu.' }) {
+  const { data: me } = useMe();
+  const isCreator = !!me?.creatorProfile;
+  const [params, setParams] = useSearchParams();
+  const tab = isCreator && params.get('src') === 'mine' ? 'mine' : 'market';
+  const setTab = (t) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (t === 'mine') next.set('src', 'mine');
+        else next.delete('src');
+        return next;
+      },
+      { replace: true },
+    );
+
   const isPicked = (c) => picked.some((p) => p.id === c.id);
   const full = picked.length >= max;
+  const gridProps = { isPicked, full, onToggle };
+  const mineCount = picked.filter((c) => c.own).length;
 
   return (
     <div className="p-4 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-8 lg:py-6">
@@ -80,7 +349,15 @@ export default function CreativePicker({ picked, onToggle, max = Infinity, hint 
               <li key={c.id} className="flex w-48 shrink-0 items-center gap-2 rounded-xl border border-outline-variant/40 p-1.5 lg:w-auto">
                 <CoverImage src={c.imageUrl} alt="" className="size-10 shrink-0 rounded-lg" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-semibold text-on-surface">{c.title}</span>
+                  <span className="flex items-center gap-1 text-xs font-semibold text-on-surface">
+                    <span className="truncate">{c.title}</span>
+                    {c.own && !c.isPublic && (
+                      <>
+                        <Icon name="lock" className="shrink-0 text-[13px] text-outline" />
+                        <span className="sr-only">Riêng tư</span>
+                      </>
+                    )}
+                  </span>
                   <span className="block text-[11px] text-outline">{c.price > 0 ? formatVnd(c.price) : 'Miễn phí'}</span>
                 </span>
                 <button
@@ -101,104 +378,34 @@ export default function CreativePicker({ picked, onToggle, max = Infinity, hint 
 
       {/* Trái (desktop) / dưới (mobile): tìm và chọn mẫu */}
       <section className="mt-6 space-y-3 lg:order-1 lg:mt-0">
-        <h2 className="text-sm font-bold text-on-surface">Chọn mẫu AI Creative</h2>
-        <div className="flex items-center gap-2">
-          <div className="flex h-11 min-w-0 flex-1 items-center rounded-xl bg-surface-container-low px-3 focus-within:ring-2 focus-within:ring-primary-container/30">
-            <Icon name={input.trim().startsWith('#') ? 'tag' : 'search'} className="mr-2 text-[22px] text-outline" />
-            <input
-              type="search"
-              maxLength={100}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Tìm theo tên mẫu hoặc #hashtag"
-              aria-label="Tìm AI Creative theo tên hoặc hashtag"
-              className="w-full border-none bg-transparent p-0 text-sm font-medium text-on-surface placeholder:text-outline focus:outline-none focus:ring-0"
-            />
-            {isFetching && !isFetchingNextPage && <Icon name="progress_activity" className="animate-spin text-lg text-outline" />}
-          </div>
-          {hasFilter && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="flex h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl px-3 text-xs font-bold text-primary hover:bg-surface-container"
-            >
-              <Icon name="filter_alt_off" className="text-lg" />
-              Xoá lọc
-            </button>
-          )}
-        </div>
-
-        {/* Dải ngành hàng và hashtag có sẵn lề ngang 16px: kéo ra sát mép để cuộn hết chiều rộng */}
-        <div className="-mx-4">
-          <p className="px-4 pt-1 text-xs font-semibold text-on-surface-variant">Ngành hàng</p>
-          <div className="-mt-2">
-            <CategoryStrip active={category} onSelect={setCategory} />
-          </div>
-          <p className="px-4 pb-2 text-xs font-semibold text-on-surface-variant">Hashtag phổ biến</p>
-          <HashtagStrip active={hashtag.slug} activeName={hashtag.name} onSelect={pickHashtag} />
-        </div>
-
-        {listError ? (
-          <ErrorState error={listError} onRetry={refetch} />
-        ) : isLoading ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-[4/5]" />
+        {isCreator ? (
+          <div role="tablist" aria-label="Nguồn mẫu" className="flex gap-1 rounded-xl bg-surface-container-low p-1">
+            {[
+              { value: 'market', label: 'Kho mẫu', icon: 'storefront' },
+              { value: 'mine', label: 'Mẫu của tôi', icon: 'lock' },
+            ].map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.value}
+                onClick={() => setTab(t.value)}
+                className={`flex h-9 flex-1 items-center justify-center gap-1 rounded-lg text-sm font-bold transition-colors ${
+                  tab === t.value ? 'bg-surface-container-lowest text-on-surface shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                <Icon name={t.icon} className="text-lg" />
+                {t.label}
+                {t.value === 'mine' && mineCount > 0 && (
+                  <span className="rounded-full bg-primary-container px-1.5 text-[10px] text-on-primary">{mineCount}</span>
+                )}
+              </button>
             ))}
           </div>
-        ) : !creatives.length ? (
-          <EmptyState message="Không tìm thấy mẫu phù hợp." />
         ) : (
-          <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-              {creatives.map((c) => {
-                const on = isPicked(c);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => onToggle(c)}
-                    disabled={!on && full}
-                    aria-pressed={on}
-                    className={`flex flex-col overflow-hidden rounded-2xl border text-left transition-all disabled:opacity-40 ${
-                      on
-                        ? 'border-primary-container ring-2 ring-primary-container'
-                        : 'border-outline-variant/40 hover:border-primary-container'
-                    }`}
-                  >
-                    <span className="relative block aspect-square w-full bg-surface-container">
-                      <CoverImage src={c.imageUrl} alt={c.title} className="size-full" />
-                      <span
-                        className={`absolute right-2 top-2 flex size-6 items-center justify-center rounded-full border-2 ${
-                          on ? 'border-primary-container bg-primary-container text-on-primary' : 'border-white bg-black/20'
-                        }`}
-                      >
-                        {on && <Icon name="check" className="text-sm" />}
-                      </span>
-                    </span>
-                    <span className="block p-2">
-                      <span className="block truncate text-xs font-bold text-on-surface">{c.title}</span>
-                      <span className="block text-[11px] font-semibold text-primary">
-                        {c.price > 0 ? `${formatVnd(c.price)}/ảnh` : 'Miễn phí'}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {hasNextPage && (
-              <button
-                type="button"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="mx-auto flex h-9 items-center gap-1 rounded-lg px-4 text-sm font-bold text-primary hover:bg-surface-container disabled:opacity-60"
-              >
-                {isFetchingNextPage && <Icon name="progress_activity" className="animate-spin text-base" />}
-                Xem thêm mẫu
-              </button>
-            )}
-          </>
+          <h2 className="text-sm font-bold text-on-surface">Chọn mẫu AI Creative</h2>
         )}
+        {tab === 'mine' ? <MineTab {...gridProps} /> : <MarketplaceTab {...gridProps} />}
       </section>
     </div>
   );
