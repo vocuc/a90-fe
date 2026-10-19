@@ -14,6 +14,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const redirect = safeRedirect(params.get('redirect'));
+  // ?add=1: đang đăng nhập thì vẫn cho đăng nhập thêm tài khoản khác (chuyển tài khoản)
+  const adding = params.get('add') === '1';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +25,7 @@ export default function LoginPage() {
     onSuccess: () => navigate(redirect, { replace: true }),
   });
 
-  if (isAuthenticated && !mutation.isPending && !mutation.isSuccess) {
+  if (isAuthenticated && !adding && !mutation.isPending && !mutation.isSuccess) {
     return <Navigate to={redirect} replace />;
   }
 
@@ -34,15 +36,17 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      title="Đăng nhập A51"
-      subtitle="Tiếp tục tạo hình ảnh chuyên nghiệp bằng AI."
+      title={adding ? 'Thêm tài khoản' : 'Đăng nhập A51'}
+      subtitle={adding ? 'Đăng nhập tài khoản khác để chuyển qua lại nhanh.' : 'Tiếp tục tạo hình ảnh chuyên nghiệp bằng AI.'}
       footer={
-        <>
-          Chưa có tài khoản?{' '}
-          <Link to={`/register?redirect=${encodeURIComponent(redirect)}`} className="font-bold text-primary hover:underline">
-            Đăng ký ngay
-          </Link>
-        </>
+        !adding && (
+          <>
+            Chưa có tài khoản?{' '}
+            <Link to={`/register?redirect=${encodeURIComponent(redirect)}`} className="font-bold text-primary hover:underline">
+              Đăng ký ngay
+            </Link>
+          </>
+        )
       }
     >
       <div className="mt-8">
