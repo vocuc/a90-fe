@@ -47,7 +47,7 @@ function CreativeGrid({ creatives, isPicked, full, onToggle, hasNextPage, isFetc
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 xl:grid-cols-4">
         {creatives.map((c) => {
           const on = isPicked(c);
           const ok = usable(c);
@@ -63,8 +63,9 @@ function CreativeGrid({ creatives, isPicked, full, onToggle, hasNextPage, isFetc
                 on ? 'border-primary-container ring-2 ring-primary-container' : 'border-outline-variant/40 hover:border-primary-container'
               }`}
             >
-              <span className="relative block aspect-square w-full bg-surface-container">
-                <CoverImage src={c.imageUrl} alt={c.title} className="size-full" />
+              {/* Ảnh giữ tỷ lệ gốc */}
+              <span className="relative block w-full bg-surface-container">
+                <CoverImage src={c.imageUrl} alt={c.title} className="block h-auto min-h-24 w-full" />
                 {c.own && (
                   <span className="absolute left-2 top-2 flex flex-wrap gap-1">
                     <VisibilityBadge creative={c} />
@@ -318,19 +319,19 @@ function MineTab(props) {
 
 /**
  * Chọn mẫu AI Creative: tab Kho mẫu (marketplace) và Mẫu của tôi (chỉ creator, gồm mẫu riêng tư), chọn một hoặc nhiều
- * mẫu (mỗi mẫu một lần, trộn được hai tab). Tab đang mở lưu ở ?src=mine.
+ * mẫu (mỗi mẫu một lần, trộn được hai tab). Creator mặc định mở Mẫu của tôi, tab Kho mẫu lưu ở ?src=market.
  * max: số mẫu tối đa, bỏ trống = không giới hạn. hint: dòng gợi ý khi chưa chọn mẫu nào.
  */
 export default function CreativePicker({ picked, onToggle, max = Infinity, hint = 'Chọn một hoặc nhiều mẫu.' }) {
   const { data: me } = useMe();
   const isCreator = !!me?.creatorProfile;
   const [params, setParams] = useSearchParams();
-  const tab = isCreator && params.get('src') === 'mine' ? 'mine' : 'market';
+  const tab = isCreator && params.get('src') !== 'market' ? 'mine' : 'market';
   const setTab = (t) =>
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        if (t === 'mine') next.set('src', 'mine');
+        if (t === 'market') next.set('src', 'market');
         else next.delete('src');
         return next;
       },
