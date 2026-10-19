@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import CoverImage from '../common/CoverImage';
 import Icon from '../common/Icon';
@@ -31,8 +31,20 @@ function VisibilityBadge({ creative, className = '' }) {
   );
 }
 
-/** Lưới thẻ mẫu (chọn / bỏ chọn) và nút tải thêm, dùng chung cho Kho mẫu và Mẫu của tôi. */
-function CreativeGrid({ creatives, isPicked, full, onToggle, hasNextPage, isFetchingNextPage, fetchNextPage, moreLabel }) {
+/** Lưới thẻ mẫu (chọn / bỏ chọn), cuộn tới cuối thì tự tải thêm; dùng chung cho Kho mẫu và Mẫu của tôi. */
+function CreativeGrid({ creatives, isPicked, full, onToggle, hasNextPage, isFetchingNextPage, isPlaceholderData, fetchNextPage, loadingLabel }) {
+  // Cuộn gần tới cuối lưới thì tự tải trang tiếp, hết trang thì thôi
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasNextPage || isFetchingNextPage || isPlaceholderData) return undefined;
+    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && fetchNextPage(), {
+      rootMargin: '300px',
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, isPlaceholderData, fetchNextPage]);
+
   return (
     <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
@@ -83,16 +95,12 @@ function CreativeGrid({ creatives, isPicked, full, onToggle, hasNextPage, isFetc
           );
         })}
       </div>
-      {hasNextPage && (
-        <button
-          type="button"
-          onClick={() => fetchNextPage()}
-          disabled={isFetchingNextPage}
-          className="mx-auto flex h-9 items-center gap-1 rounded-lg px-4 text-sm font-bold text-primary hover:bg-surface-container disabled:opacity-60"
-        >
-          {isFetchingNextPage && <Icon name="progress_activity" className="animate-spin text-base" />}
-          {moreLabel}
-        </button>
+      {hasNextPage && !isPlaceholderData && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
+      {isFetchingNextPage && (
+        <p className="flex items-center justify-center gap-1 text-sm text-on-surface-variant">
+          <Icon name="progress_activity" className="animate-spin text-base" />
+          {loadingLabel}
+        </p>
       )}
     </>
   );
@@ -172,6 +180,7 @@ function MarketplaceTab(props) {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isPlaceholderData,
   } = useInfiniteCreatives({ q: q || undefined, category: category || undefined, hashtag: hashtag.slug || undefined, limit: 20 });
   const creatives = data?.pages.flatMap((p) => p.items) ?? [];
 
@@ -220,8 +229,9 @@ function MarketplaceTab(props) {
           creatives={creatives}
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
+          isPlaceholderData={isPlaceholderData}
           fetchNextPage={fetchNextPage}
-          moreLabel="Xem thêm mẫu"
+          loadingLabel="Đang tải thêm mẫu..."
         />
       )}
     </>
@@ -296,7 +306,7 @@ function MineTab(props) {
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
           fetchNextPage={fetchNextPage}
-          moreLabel="Tải thêm mẫu của tôi"
+          loadingLabel="Đang tải thêm mẫu của tôi..."
         />
       )}
       {creatives.length > 0 && !hasNextPage && (
