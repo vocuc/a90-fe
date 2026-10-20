@@ -19,12 +19,16 @@ import {
   PLATFORMS,
   PLATFORM_STATUS,
   POST_STATUS,
+  TIKTOK_CONNECT_MESSAGES,
+  authorizeTikTok,
   deletePost,
+  doneLabelOf,
   getAccounts,
   getPost,
   isImageBusy,
   isPostLocked,
   publishPost,
+  tiktokConnectionOf,
 } from '../api/social';
 
 // Đang chuẩn bị / chờ đăng / đang đăng: hỏi lại mỗi 3 giây
@@ -51,11 +55,33 @@ const formErrorsFrom = (errors) =>
 const publishedPlatforms = (post) => post.platforms.filter((p) => p.status === PLATFORM_STATUS.PUBLISHED).map((p) => p.platform);
 const failedPlatforms = (post) => post.platforms.filter((p) => p.status === PLATFORM_STATUS.FAILED).map((p) => p.platform);
 
-// Cách đăng của từng nền tảng, hiện trong popup chọn nền tảng
+// Cách đăng của từng nền tảng, hiện trong popup chọn nền tảng (TikTok tuỳ đã tự kết nối hay chưa: tiktokNote)
 const PLATFORM_NOTE = {
   tiktok: 'Lưu vào nháp TikTok',
   facebook: 'Đăng thẳng lên trang / nhóm',
   instagram: 'Đăng thẳng, tối đa 10 ảnh',
+};
+
+/*
+ * Chỉnh sửa chưa đăng được giữ lại khi người dùng sang TikTok kết nối rồi quay về trang bài (sessionStorage,
+ * đọc một lần). Lỗi / chặn bộ nhớ thì bỏ qua: chỉ mất chỉnh sửa chưa đăng.
+ */
+const draftKey = (postId) => `a51_post_draft_${postId}`;
+const saveDraft = (postId, form) => {
+  try {
+    sessionStorage.setItem(draftKey(postId), JSON.stringify(form));
+  } catch {
+    // bỏ qua
+  }
+};
+const takeDraft = (postId) => {
+  try {
+    const raw = sessionStorage.getItem(draftKey(postId));
+    sessionStorage.removeItem(draftKey(postId));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 };
 
 /**
@@ -63,10 +89,14 @@ const PLATFORM_NOTE = {
  * Lần trước có nền tảng lỗi thì chọn sẵn các nền tảng lỗi; nền tảng đã đăng xong hiện "Đã đăng" và không chọn được.
  * imageCount / caption: để báo ngay nền tảng nào vượt giới hạn (vd Instagram 10 ảnh, 2200 ký tự).
  */
-function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, onConfirm, onClose }) {
+function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, onConfirm, onClose, onConnectTikTok }) {
   const done = publishedPlatforms(post);
-  const available = PLATFORMS.filter((p) => !done.includes(p.value));
-  const [selected, setSelected] = useState(() => failedPlatforms(post));
+  // TikTok tự kết nối (đăng qua API, ảnh vào hộp thư TikTok); mất kết nối thì không chọn được tới khi kết nối lại
+  const tiktok = tiktokConnectionOf(accounts);
+  const tiktokLost = !!tiktok && tiktok.connection?.status !== 'active';
+  const available = PLATFORMS.filter((p) => !done.includes(p.value) && !(p.value === 'tiktok' && tiktokLost));
+  const [selected, setSelected] = useState(() => failedPlatforms(post).filter((v) => available.some((p) => p.value === v)));
+  const [connecting, setConnecting] = useState(false);
   const toggle = (value) => setSelected((cur) => (cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value]));
   const allSelected = available.length > 0 && available.every((p) => selected.includes(p.value));
 
@@ -91,6 +121,20 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
   const chosen = PLATFORMS.filter((p) => selected.includes(p.value));
   const blocked = chosen.filter(limitError);
   const unassigned = chosen.filter((p) => !accounts.some((a) => a.platform === p.value));
+  const tiktokWorker = accounts.some((a) => a.platform === 'tiktok' && a.driver === 'worker');
+  const tiktokNote = tiktok
+    ? `Gửi vào hộp thư TikTok${tiktok.username ? ` @${tiktok.username}` : ''}`
+    : tiktokWorker
+      ? 'Lưu vào nháp TikTok của A51'
+      : PLATFORM_NOTE.tiktok;
+  const connectTikTok = async () => {
+    setConnecting(true);
+    try {
+      await onConnectTikTok();
+    } catch {
+      setConnecting(false);
+    }
+  };
 
   return (
     <div
@@ -138,6 +182,8 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
               const isDone = done.includes(p.value);
               const checked = isDone || selected.includes(p.value);
               const limit = !isDone && limitError(p);
+              const lost = p.value === 'tiktok' && tiktokLost && !isDone;
+              const doneDriver = post.platforms.find((x) => x.platform === p.value)?.driver;
               return (
                 <li key={p.value}>
                   <label
@@ -153,22 +199,45 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
                       type="checkbox"
                       className="size-5 rounded border-outline-variant text-primary focus:ring-primary-container disabled:opacity-50"
                       checked={checked}
-                      disabled={isDone || busy}
+                      disabled={isDone || lost || busy}
                       onChange={() => toggle(p.value)}
                     />
                     <Icon name={p.icon} className={`text-2xl ${checked ? 'text-primary' : 'text-outline'}`} />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-bold text-on-surface">{p.label}</span>
                       <span className={`block text-xs ${limit && checked ? 'text-error' : 'text-on-surface-variant'}`}>
-                        {isDone ? `${p.doneLabel} — không đăng lại` : limit || PLATFORM_NOTE[p.value]}
+                        {isDone
+                          ? `${doneLabelOf(p.value, doneDriver)} — không đăng lại`
+                          : limit || (p.value === 'tiktok' ? tiktokNote : PLATFORM_NOTE[p.value])}
                       </span>
                     </span>
                   </label>
+                  {p.value === 'tiktok' && !isDone && (!tiktok || lost) && (
+                    <div className="mt-1 flex items-center justify-between gap-2 px-1">
+                      <span className={`text-[11px] ${lost ? 'text-error' : 'text-on-surface-variant'}`}>
+                        {lost
+                          ? (TIKTOK_CONNECT_MESSAGES[tiktok.connection?.status] ?? TIKTOK_CONNECT_MESSAGES.expired)
+                          : 'Kết nối TikTok của bạn để gửi bài thẳng vào hộp thư TikTok.'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={connectTikTok}
+                        disabled={busy || connecting}
+                        className="flex shrink-0 items-center gap-1 text-xs font-bold text-primary hover:underline disabled:opacity-60"
+                      >
+                        {connecting && <Icon name="progress_activity" className="animate-spin text-sm" />}
+                        {lost ? 'Kết nối lại' : 'Kết nối TikTok'}
+                      </button>
+                    </div>
+                  )}
                 </li>
               );
             })}
           </ul>
 
+          {chosen.some((p) => p.value === 'tiktok') && tiktok && !tiktokLost && (
+            <p className="text-xs text-on-surface-variant">TikTok: mở app TikTok, vào Hộp thư để hoàn tất đăng bài.</p>
+          )}
           {unassigned.length > 0 && (
             <p className="text-xs text-amber-700">
               Chưa có tài khoản {unassigned.map((p) => p.label).join(', ')}: bài sẽ chờ tới khi A51 gắn tài khoản cho bạn.
@@ -497,7 +566,8 @@ function PostPreview({ post }) {
 function ReviewForm({ post, onRefresh }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState(() => pickEdit(post));
+  // Quay về từ màn hình kết nối TikTok: lấy lại chỉnh sửa chưa đăng
+  const [form, setForm] = useState(() => takeDraft(post.id) ?? pickEdit(post));
   // Tài khoản admin đã gắn: popup báo nền tảng nào chưa có tài khoản (lỗi tải: coi như chưa có)
   const accountsQuery = useQuery({ queryKey: ['social', 'accounts'], queryFn: getAccounts, staleTime: 60_000 });
   const done = publishedPlatforms(post);
@@ -564,6 +634,8 @@ function ReviewForm({ post, onRefresh }) {
         await publishPost(post.id, { ...form, platforms });
       } catch (err) {
         setErrors(formErrorsFrom(err?.errors));
+        // Mất kết nối TikTok: tải lại tài khoản để popup hiện nút "Kết nối lại"
+        if (err?.code === 'TIKTOK_NOT_CONNECTED') queryClient.invalidateQueries({ queryKey: ['social', 'accounts'] });
         // Đăng lỗi: backend vẫn lưu chỉnh sửa và đặt last_error
         onRefresh();
         throw err;
@@ -616,6 +688,10 @@ function ReviewForm({ post, onRefresh }) {
           busy={busy === 'publish'}
           error={formError}
           onConfirm={publish}
+          onConnectTikTok={() => {
+            saveDraft(post.id, form);
+            return authorizeTikTok(`/posts/${post.id}`);
+          }}
           onClose={() => {
             setChoosing(false);
             setFormError(null);
@@ -640,7 +716,7 @@ function ReviewForm({ post, onRefresh }) {
             </span>
           </p>
         )}
-        {post.platforms.length > 0 && <PlatformStatusList platforms={post.platforms} />}
+        {post.platforms.length > 0 && <PlatformStatusList platforms={post.platforms} showErrors />}
         <ImageStrip
           images={form.images}
           editable
@@ -688,8 +764,8 @@ function ReviewForm({ post, onRefresh }) {
         <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs leading-relaxed text-on-surface-variant">
           <Icon name="info" className="text-base" />
           <span>
-            Bấm <b>Đăng bài</b> để chọn đăng lên TikTok (lưu nháp), Facebook, Instagram hoặc cả 3. Sau khi đăng, bài bị khoá:
-            không sửa hoặc xoá được tới khi đăng xong.
+            Bấm <b>Đăng bài</b> để chọn đăng lên TikTok, Facebook, Instagram hoặc cả 3. TikTok: đã kết nối TikTok của bạn thì
+            bài vào hộp thư TikTok, chưa thì lưu nháp. Sau khi đăng, bài bị khoá: không sửa hoặc xoá được tới khi đăng xong.
           </span>
         </p>
 

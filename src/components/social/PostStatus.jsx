@@ -1,5 +1,5 @@
 import Icon from '../common/Icon';
-import { PLATFORM_STATUS, POST_STATUS, platformInfo } from '../../api/social';
+import { DRIVER, PLATFORM_STATUS, POST_STATUS, doneLabelOf, platformInfo } from '../../api/social';
 
 export const POST_STATUS_INFO = {
   [POST_STATUS.GENERATING]: {
@@ -43,15 +43,21 @@ const PLATFORM_STATUS_INFO = {
   [PLATFORM_STATUS.FAILED]: { label: 'Lỗi', icon: 'error', className: 'border-error/30 bg-error-container/40 text-on-error-container' },
 };
 
-/** Trạng thái bài trên từng nền tảng đã chọn: "TikTok · Đã lưu nháp", "Facebook · Lỗi"... */
-export function PlatformStatusList({ platforms, className = '' }) {
+/**
+ * Trạng thái bài trên từng nền tảng đã chọn: "TikTok · Đã lưu nháp", "TikTok · Đã gửi vào hộp thư", "Facebook · Lỗi"...
+ * showErrors: hiện thêm lỗi cụ thể khi gửi TikTok qua API (hết lượt, mất kết nối...); lỗi worker chỉ là thông báo chung.
+ */
+export function PlatformStatusList({ platforms, className = '', showErrors = false }) {
   if (!platforms?.length) return null;
-  return (
+  const apiErrors = showErrors
+    ? platforms.filter((p) => p.status === PLATFORM_STATUS.FAILED && p.driver === DRIVER.API && p.error)
+    : [];
+  const list = (
     <ul className={`flex flex-wrap gap-1 ${className}`}>
       {platforms.map((p) => {
         const info = platformInfo(p.platform);
         const s = PLATFORM_STATUS_INFO[p.status] ?? PLATFORM_STATUS_INFO[PLATFORM_STATUS.QUEUED];
-        const label = p.status === PLATFORM_STATUS.PUBLISHED ? info.doneLabel : s.label;
+        const label = p.status === PLATFORM_STATUS.PUBLISHED ? doneLabelOf(p.platform, p.driver) : s.label;
         const chip = (
           <>
             <Icon name={s.icon} fill={s.fill} className={`text-sm ${s.spin ? 'animate-spin' : ''}`} />
@@ -82,5 +88,16 @@ export function PlatformStatusList({ platforms, className = '' }) {
         );
       })}
     </ul>
+  );
+  if (!apiErrors.length) return list;
+  return (
+    <div className="space-y-1">
+      {list}
+      {apiErrors.map((p) => (
+        <p key={p.platform} className="text-xs text-error">
+          {platformInfo(p.platform).label}: {p.error}
+        </p>
+      ))}
+    </div>
   );
 }

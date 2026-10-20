@@ -1,217 +1,158 @@
 NGHIỆP VỤ ĐĂNG TIKTOK QUA API (NGƯỜI DÙNG TỰ KẾT NỐI) - CHẠY SONG SONG VỚI WORKER
 ==================================================================================
 
-Ngày: 2026-10-20. CHƯA LÀM (backend và frontend đều cần sửa).
+Ngày: 2026-10-20. ĐÃ LÀM (backend D:\OSPanel\home\a90.local + frontend), chưa chạy thử với TikTok thật.
 Bổ sung cho note/dang-bai-da-nen-tang.txt (job / nền tảng, trạng thái) và note/dang-tiktok-qua-worker.txt (worker).
-Code cũ dùng lại được: backend commit d9d73aa đã xoá TikTokClient, TikTokTokenManager, TikTokPublisher (đã là
-MEDIA_UPLOAD + prepareImage đổi PNG -> JPG), TikTokWebhookService, TikTok/AccountController, RefreshTikTokTokens,
-tests/Concerns/InteractsWithTikTok.php -> lấy lại bằng git show d9d73aa^:<đường dẫn> rồi sửa theo note này.
 
 Đã chốt:
   - Người dùng A51 TỰ KẾT NỐI tài khoản TikTok của mình (OAuth, Login Kit), mỗi người tối đa 1 tài khoản.
   - Gửi lên HỘP THƯ TikTok (post_mode MEDIA_UPLOAD, scope video.upload), KHÔNG đăng thẳng: người dùng mở app TikTok,
-    chọn quyền xem / nhạc / sửa caption rồi tự đăng. Không cần audit Direct Post, không phải làm UX Direct Post
-    (chọn quyền xem, công tắc quảng cáo, xác nhận nhạc).
+    chọn quyền xem / nhạc / sửa caption rồi tự đăng. Không cần audit Direct Post.
   - GIỮ CẢ HAI cách đăng TikTok: worker (tài khoản TikTok của A51 do admin gắn) và API (tài khoản người dùng tự kết nối).
-    Facebook / Instagram vẫn chỉ qua worker.
+    Người dùng đã kết nối thì MẶC ĐỊNH dùng API, không dùng worker. Facebook / Instagram vẫn chỉ qua worker.
+  - Logo shop chèn lúc tạo ảnh (note/logo-tao-anh.txt), không chèn lúc đăng.
+
+Link đăng ký trên TikTok Developer Portal:
+  Redirect URI (Login Kit):     https://a51.vn/mxh/tiktok/author     (trang frontend, nhận code + state)
+  Webhook Callback URL:         https://a51.vn/mxh/tiktok/callback
+    -> Webhook là POST từ máy chủ TikTok, phải tới backend: web server của a51.vn chuyển tiếp (proxy)
+       /mxh/tiktok/callback sang {BACKEND}/api/v1/social/tiktok/webhook, giữ nguyên body và header TikTok-Signature.
+       (Hoặc đổi Callback URL trên Portal thành thẳng {BACKEND}/api/v1/social/tiktok/webhook.)
 
 
 1. TỔNG QUAN
 ------------
 
-Mỗi tài khoản đăng bài (publish_accounts) có thêm driver:
-  worker  admin gắn (như hiện tại): worker FlowKit lưu nháp trên TikTok Studio của tài khoản A51.
-  api     người dùng tự kết nối: backend giữ token, tự gọi Content Posting API. Không có worker_id.
+publish_accounts.driver:
+  worker  admin gắn (như cũ): worker FlowKit lưu nháp trên TikTok Studio của tài khoản A51.
+  api     người dùng tự kết nối: backend giữ token (mã hoá), tự gọi Content Posting API. Không có worker_id.
+Một tài khoản A51 có tối đa 1 dòng / nền tảng / driver (TikTok có thể có cả dòng worker và dòng api).
 
-Một tài khoản A51, nền tảng TikTok, có thể có cùng lúc 1 dòng worker và 1 dòng api.
-Bấm đăng TikTok thì CHỌN driver như sau (chọn lúc tạo job, lưu vào job, đổi kết nối sau đó không ảnh hưởng job cũ):
-  - Có dòng api (kể cả đang expired / revoked)  -> api. Token không dùng được -> 409 TIKTOK_NOT_CONNECTED (mục 5),
-                                                    KHÔNG tự chuyển sang worker (tránh đăng nhầm vào tài khoản A51).
-  - Không có dòng api, có dòng worker           -> worker (như hiện tại).
-  - Không có cả hai                             -> như hiện tại: tạo job worker, chờ admin gắn.
-                                                   (Frontend gợi ý "Kết nối TikTok" trước khi đăng, mục 7.)
-Người dùng huỷ kết nối (xoá dòng api) -> lần đăng sau quay lại dùng worker nếu admin đã gắn.
+Bấm đăng TikTok thì chọn driver (lưu vào job lúc tạo, đổi kết nối sau đó không ảnh hưởng job cũ):
+  - Có dòng api, đang dùng được            -> api.
+  - Có dòng api nhưng mất kết nối           -> 409 TIKTOK_NOT_CONNECTED, từ chối CẢ yêu cầu (không tạo job nền tảng nào,
+                                              không lưu chỉnh sửa). KHÔNG tự chuyển sang worker (tránh đăng nhầm vào
+                                              tài khoản A51).
+  - Không có dòng api                       -> worker (như cũ; chưa gắn worker thì job chờ admin gắn).
+Huỷ kết nối = xoá dòng api -> lần đăng sau quay lại worker nếu admin đã gắn.
 
 Luồng api:
-  Bấm "Đăng bài" chọn TikTok  -> job (driver api) queued, tiktok_status queued; đẩy queue job PublishTikTokViaApi
-  Queue job chạy              -> publishing: chuẩn bị ảnh (mục 6), gọi content/init, lưu publish_id vào job
-  Webhook post.publish.inbox_delivered (hoặc status/fetch = SEND_TO_USER_INBOX)
-                              -> job completed, tiktok_status published ("Đã gửi vào hộp thư TikTok")
-  content/init lỗi / webhook post.publish.failed / quá hạn
-                              -> job failed, tiktok_status failed. Bài tính lại status như cũ.
-Không có link bài (người dùng đăng trong app, có thể không đăng): post_url luôn null với driver api.
+  Bấm "Đăng bài" chọn TikTok -> job (driver api) queued -> queue job PublishTikTokViaApi
+  Queue job chạy             -> processing, tiktok_status publishing: chuẩn bị ảnh, gọi content/init, lưu publish_id
+                                (social_publish_jobs.external_id)
+  Webhook post.publish.inbox_delivered / complete / publicly_available, hoặc status/fetch SEND_TO_USER_INBOX / PUBLISH_COMPLETE
+                             -> job completed, tiktok_status published ("Đã gửi vào hộp thư")
+  content/init lỗi / webhook post.publish.failed / status FAILED / quá 60 phút
+                             -> job failed, tiktok_status failed. Bài tính lại status như cũ.
+Không có link bài (người dùng đăng trong app): post_url luôn null với driver api.
 
 
-2. DỮ LIỆU (BACKEND)
---------------------
+2. DỮ LIỆU (BACKEND, migration 2026_10_20_110000_add_tiktok_api_to_publish_accounts_table)
+-----------------------------------------------------------------------------------------
 
-publish_accounts:
-  + driver               worker | api, mặc định worker (dòng cũ = worker)
-  worker_id              nullable (dòng api không có worker)
-  + open_id, scope
-  + access_token, refresh_token     mã hoá (cast encrypted), KHÔNG BAO GIỜ trả cho frontend
-  + access_expires_at, refresh_expires_at
-  + avatar_url           cache từ user/info, chỉ để hiện
-  + connection_status    active | expired | revoked (chỉ dòng api; dòng worker null)
-  + last_error, connected_at, last_refreshed_at
-  name / username: dòng api lấy display_name / username từ user/info. is_active: dòng api luôn true.
-  unique(user_id, platform) -> unique(user_id, platform, driver). Dòng api chỉ có platform = tiktok.
-  Một tài khoản TikTok (open_id) được nhiều tài khoản A51 cùng kết nối, mỗi người một token.
+publish_accounts: + driver, open_id, scope, access_token, access_token_expires_at, refresh_token, refresh_token_expires_at
+  (token cast encrypted, không trả ra API), avatar_url, connection_status (active | expired | revoked), last_error,
+  connected_at, last_refreshed_at. unique(user_id, platform) -> unique(user_id, platform, driver).
+  Dòng api: name = display_name TikTok (hoặc username), username = username TikTok, is_active luôn true.
+social_publish_jobs: + driver, external_id (publish_id, index), checked_at (lần hỏi status/fetch gần nhất).
+GET /publish-jobs của worker chỉ nhận job driver worker.
 
-social_publish_jobs:
-  + driver               worker | api (chép từ publish_account lúc tạo job)
-  + external_id          publish_id của TikTok, index (webhook tra job theo cột này)
-  GET /publish-jobs của worker CHỈ nhận job driver = worker.
-
-Trang admin "Tài khoản đăng bài": hiện cả dòng api (cột "Cách đăng": Worker / API, trạng thái kết nối), chỉ xem,
-không sửa token. Admin xoá dòng api = huỷ kết nối giúp người dùng (như mục 4.4).
+Admin "Tài khoản đăng bài": dòng api hiện nhãn "API - người dùng tự kết nối" + Đang kết nối / Mất kết nối,
+KHÔNG có nút Sửa / Bật tắt / Xoá (người dùng tự huỷ kết nối ở trang Tài khoản).
 
 
-3. ỦY QUYỀN (OAuth) - như note/uy-quyen-tiktok.txt mục 2, đổi đường dẫn và nơi lưu
--------------------------------------------------------------------------------
+3. KẾT NỐI (OAuth)
+------------------
 
-Scope: user.info.basic, video.upload. Người dùng bỏ tích video.upload -> không lưu, reason scope_missing.
-Không gọi creator_info/query (API của Direct Post).
+Scope: user.info.basic, user.info.profile (lấy @username), video.upload. Bỏ tích video.upload -> scope_missing.
 
-  [Frontend] bấm "Kết nối TikTok"  -> POST /social/tiktok/oauth/authorize { redirect: "/posts/123" } -> { url }
-             window.location.href = url
-  [TikTok]   đồng ý                 -> 302 {BACKEND}/api/v1/social/tiktok/oauth/callback?code=&state=
-  [Backend]  kiểm tra state (1 lần, 10 phút) -> đổi code lấy token -> kiểm tra scope -> user/info
-             -> tạo / cập nhật dòng publish_accounts (user_id, platform tiktok, driver api)
-             -> 302 {FRONTEND_URL}{redirect}?tiktok=connected  (hoặc ?tiktok=error&reason=...)
-  Kết nối lại bằng tài khoản TikTok khác: thay dòng api cũ (thu hồi token cũ). Còn job api queued / publishing thì
-  authorize trả 409 TIKTOK_PUBLISHING_IN_PROGRESS (như huỷ kết nối), để job đang chạy không mất token giữa chừng.
-  redirect: đường dẫn tương đối bắt đầu bằng "/", sai -> "/posts".
-  reason lỗi: access_denied | scope_missing | state_invalid | server_error (thông báo như uy-quyen-tiktok.txt mục 2,
-  "đăng bài" đổi thành "gửi bài": scope_missing = "Cần cho phép quyền tải nội dung lên để A51 gửi bài sang TikTok.
-  Vui lòng kết nối lại.").
+  [Frontend] bấm "Kết nối TikTok" -> POST /social/tiktok/oauth/authorize { redirect: "/posts/123" } -> { url }
+             (trang bài: lưu chỉnh sửa chưa đăng vào sessionStorage để quay về không mất) -> window.location.href = url
+  [TikTok]   người dùng đồng ý -> 302 https://a51.vn/mxh/tiktok/author?code=...&state=...  (từ chối: ?error=access_denied)
+  [Frontend] trang /mxh/tiktok/author (cần đăng nhập) -> POST /social/tiktok/oauth/callback { code, state, error }
+  [Backend]  kiểm tra state (1 lần, 10 phút, ĐÚNG người dùng đã bấm) -> đổi code lấy token -> kiểm tra scope
+             -> user/info -> tạo / cập nhật dòng api -> { status: "connected", reason: null, redirect: "/posts/123" }
+  [Frontend] hiện "Đã kết nối tài khoản TikTok.", 1,5 giây sau tự về redirect (hoặc bấm "Tiếp tục").
+             Lỗi: hiện thông báo + "Quay lại" / "Thử lại".
 
-Token (lấy lại TikTokTokenManager): access token còn < 5 phút -> làm mới trước khi gọi, khoá theo tài khoản.
-Lệnh hằng ngày làm mới refresh token còn < 30 ngày, quá hạn -> connection_status expired.
+reason lỗi: access_denied | scope_missing | state_invalid (redirect luôn "/posts") | server_error.
+redirect: đường dẫn tương đối bắt đầu bằng "/", sai -> "/posts".
+Kết nối lại bằng tài khoản TikTok khác: thay dòng api cũ (thu hồi token cũ).
+Còn job api queued / processing: authorize và huỷ kết nối trả 409 TIKTOK_PUBLISHING_IN_PROGRESS.
+
+Token: còn < 5 phút thì làm mới trước khi gọi (khoá theo tài khoản); TikTok báo token sai thì làm mới và thử lại 1 lần,
+vẫn sai -> expired. Lệnh tiktok:refresh-tokens hằng ngày 03:30: làm mới refresh token còn < 30 ngày, quá hạn -> expired.
 Webhook authorization.removed -> revoked.
 
 
-4. API NGƯỜI DÙNG
------------------
+4. API NGƯỜI DÙNG (đều cần đăng nhập, trừ webhook)
+-------------------------------------------------
 
-4.1 GET /social/accounts   (đã có) mỗi phần tử thêm:
-    {
-      "platform": "tiktok", "label": "TikTok", "name": "Shop Hoa", "username": "shophoa", "is_active": true,
-      "driver": "api",                          // worker | api
-      "connection": {                           // chỉ khi driver = api, worker: null
-        "status": "active",                     // active | expired | revoked | scope_missing
-        "avatar_url": "https://...",            // có thể null, link có hạn
-        "connected_at": "2026-10-20T09:00:00.000000Z"
-      }
-    }
-    Có cả dòng worker và api của TikTok -> CHỈ trả dòng api (dòng sẽ được dùng khi đăng, mục 1).
-    Không gọi TikTok (đọc từ DB), nên gọi thoải mái.
-
-4.2 POST /social/tiktok/oauth/authorize   { redirect } -> 200 { data: { url } }
-4.3 GET  /social/tiktok/oauth/callback    TikTok gọi, luôn 302 về frontend (mục 3)
-4.4 DELETE /social/tiktok/account         huỷ kết nối: thu hồi token ở TikTok, xoá dòng api -> 204
-    Còn job api queued / publishing -> 409 TIKTOK_PUBLISHING_IN_PROGRESS
-      "Đang có bài gửi lên TikTok, vui lòng chờ xong rồi huỷ kết nối."
-    Chưa kết nối -> vẫn 204.
-4.5 POST /social/tiktok/webhook           TikTok gọi (kiểm tra chữ ký TikTok-Signature), không cần đăng nhập
+4.1 GET /social/accounts   mỗi phần tử thêm:
+      "driver": "worker" | "api",
+      "connection": { "status": "active" | "expired" | "revoked" | "scope_missing", "avatar_url", "connected_at" }  // chỉ api
+    Có cả dòng worker và api của TikTok -> chỉ trả dòng api.
+4.2 POST /social/tiktok/oauth/authorize   { redirect } -> 200 { data: { url } }        (10 lần / phút / IP)
+4.3 POST /social/tiktok/oauth/callback    { code, state, error } -> 200 { data: { status, reason, redirect } }
+4.4 DELETE /social/tiktok/account         thu hồi token ở TikTok, xoá dòng api -> 204 (chưa kết nối vẫn 204)
+4.5 POST /social/tiktok/webhook           TikTok gọi, kiểm tra TikTok-Signature (HMAC-SHA256 client_secret, lệch <= 300 giây).
+                                          Chữ ký sai 401; không thấy job của publish_id 404 (để TikTok gửi lại).
+4.6 SocialPost.platforms.tiktok thêm "driver". error: driver api thì là thông báo CỤ THỂ (mục 6), worker vẫn là thông báo chung.
 
 
-5. BẤM ĐĂNG (POST /social/posts/{id}/publish - body không đổi)
--------------------------------------------------------------
+5. GỬI BÀI (TikTokApiPublisher, queue job PublishTikTokViaApi: 4 lần thử, chờ 30 giây / 2 phút / 5 phút)
+----------------------------------------------------------------------------------------------------
 
-Chọn TikTok và driver = api (mục 1):
-  - connection_status khác active -> 409 TIKTOK_NOT_CONNECTED, context { reason: expired | revoked | scope_missing },
-    message "Mất kết nối TikTok, vui lòng kết nối lại rồi đăng." TOÀN BỘ yêu cầu bị từ chối (không tạo job nền tảng
-    nào, chỉnh sửa không lưu) để người dùng kết nối lại rồi bấm đăng một lần.
-  - Giới hạn TikTok giữ như cũ: 35 ảnh, nội dung + hashtag <= 4000, title <= 90.
-  - Tạo job driver api, publish_account_id = dòng api, rồi dispatch PublishTikTokViaApi(job) SAU khi transaction xong.
+1. queued -> processing (hạn 60 phút). Thử lại khi TikTok tạm lỗi: job processing chưa có publish_id thì gửi tiếp.
+2. Ảnh: JPG / WEBP giữ nguyên, PNG -> JPG 90. Đặt lên disk s3_tiktok (TIKTOK_MEDIA_BUCKET) ở tiktok/{job_id}/{uuid}.jpg,
+   link CÔNG KHAI {TIKTOK_MEDIA_URL}/... (tên miền đã xác minh với TikTok). Xoá thư mục khi job có kết quả.
+3. content/init: { post_info: { title, description } (rỗng thì bỏ), source_info: { PULL_FROM_URL, photo_cover_index 0,
+   photo_images }, post_mode: MEDIA_UPLOAD, media_type: PHOTO }.
+4. Lỗi: mạng / 5xx / rate_limit_exceeded / internal_error -> queue thử lại, hết lượt -> TIKTOK_UNAVAILABLE.
+   scope_not_authorized / mất token -> TIKTOK_NOT_CONNECTED (kết nối chuyển expired). Lỗi khác -> failed ngay.
+5. social:sweep (mỗi phút): job api processing có publish_id, chưa hỏi trong 5 phút -> status/fetch; sau đó job quá
+   60 phút -> TIKTOK_TIMEOUT. Webhook và status/fetch cùng báo thì chỉ đổi trạng thái 1 lần.
 
-post.platforms.tiktok thêm "driver": "worker" | "api" (frontend chọn nhãn, mục 7).
-post.platforms.tiktok.error: driver api thì là thông báo CỤ THỂ (mục 8) thay cho "Đăng thất bại, vui lòng thử lại.",
-vì lỗi do tài khoản của chính người dùng (hết lượt, mất kết nối...) người dùng cần biết để xử lý.
-
-
-6. QUEUE JOB PublishTikTokViaApi (lấy lại phần gọi TikTok của TikTokPublisher)
------------------------------------------------------------------------------
-
-1. Khoá job, chỉ chạy khi job queued (chạy lại không gửi 2 lần) -> publishing, tiktok_status publishing.
-2. Chuẩn bị ảnh (prepareImage cũ): JPG / WEBP giữ nguyên, PNG -> JPG chất lượng 90. Đặt lên disk của tên miền đã xác minh
-   với TikTok (TIKTOK_MEDIA_DISK / TIKTOK_MEDIA_URL), link CÔNG KHAI không ký số (TikTok kéo ảnh bất đồng bộ, link 15
-   phút có thể hết hạn trước). Đường dẫn khó đoán: tiktok/{Y/m/d}/{post_id}/{uuid}.jpg.
-   Xoá thư mục ảnh sau khi có kết quả (completed / failed); lệnh dọn hằng ngày xoá thư mục cũ hơn 7 ngày.
-   KHÔNG chèn logo: logo shop đã được chèn lúc tạo ảnh (note/logo-tao-anh.txt).
-3. content/init:
-     { post_info: { title, description }, source_info: { source: PULL_FROM_URL, photo_cover_index: 0, photo_images },
-       post_mode: MEDIA_UPLOAD, media_type: PHOTO }
-   title / description rỗng thì bỏ. Thành công -> lưu external_id = publish_id.
-4. Lỗi content/init:
-   - Mạng / 5xx / rate_limit_exceeded: queue thử lại 3 lần (30 giây, 2 phút, 5 phút), vẫn lỗi -> failed TIKTOK_UNAVAILABLE.
-   - Token không làm mới được / access_token_invalid / scope_not_authorized -> connection_status expired (hoặc
-     scope_missing), failed TIKTOK_NOT_CONNECTED.
-   - Lỗi khác -> failed ngay với mã ở mục 8.
-5. Kết quả: webhook post.publish.inbox_delivered -> completed; post.publish.failed -> failed (mã theo fail_reason).
-   Webhook không về: social:sweep với job api đang publishing có external_id, mỗi 5 phút gọi status/fetch:
-     SEND_TO_USER_INBOX -> completed; FAILED -> failed; còn PROCESSING_DOWNLOAD / PROCESSING_UPLOAD -> chờ tiếp.
-   Quá 60 phút kể từ lúc publishing (thay cho 15 phút của worker) -> failed TIKTOK_TIMEOUT.
-   Webhook và sweep cùng báo: job đã xong thì bỏ qua (không đổi trạng thái 2 lần).
-Sau mỗi lần job đổi trạng thái gọi syncStatus của bài như job worker.
+Queue: QUEUE_CONNECTION=database, cần chạy php artisan queue:work (như job đọc ảnh GHN).
 
 
-7. FRONTEND CẦN SỬA
--------------------
-
-a) src/api/social.js
-   - getAccounts: đọc thêm driver, connection { status, avatarUrl, connectedAt }.
-   - mapPlatforms: đọc thêm driver.
-   - Thêm authorizeTikTok(redirect) -> POST /social/tiktok/oauth/authorize rồi window.location.href = data.url;
-     disconnectTikTok() -> DELETE /social/tiktok/account.
-   - Nhãn đăng xong của TikTok theo driver: worker "Đã lưu nháp", api "Đã gửi vào hộp thư".
-b) Popup "Đăng lên đâu?" (SocialPostPage.jsx), dòng TikTok:
-   - driver api, active   -> "Gửi vào hộp thư TikTok @username" (thay PLATFORM_NOTE.tiktok).
-   - driver api, khác active -> "Mất kết nối @username" + nút "Kết nối lại", khoá chọn TikTok tới khi kết nối lại.
-   - driver worker        -> giữ "Lưu vào nháp TikTok" (tài khoản A51), kèm nút nhỏ "Dùng TikTok của bạn" (kết nối).
-   - chưa có tài khoản    -> nút "Kết nối TikTok" (vẫn cho chọn: job chờ admin gắn như hiện tại).
-   Nút kết nối gọi authorizeTikTok(đường dẫn hiện tại).
-c) Quay về từ TikTok: trang đọc ?tiktok=connected | error&reason=, hiện thông báo (mục 3), xoá tham số khỏi URL,
-   tải lại getAccounts.
-d) Trang Tài khoản: mục "TikTok của bạn": avatar, @username, trạng thái, nút "Kết nối" / "Kết nối lại" / "Huỷ kết nối".
-e) 409 TIKTOK_NOT_CONNECTED khi bấm đăng: hiện message, tải lại getAccounts để popup hiện "Kết nối lại".
-f) Hướng dẫn sau khi gửi (driver api): "Mở app TikTok -> Hộp thư để hoàn tất đăng bài."
-g) src/api/client.js đã dùng body.message cho lỗi có code (kể cả 429 / 502): không phải sửa.
-
-
-8. MÃ LỖI (job driver api, error_code trong social_publish_jobs; message hiện cho người dùng)
--------------------------------------------------------------------------------------------
+6. MÃ LỖI (social_publish_jobs.error_code; error_message = thông báo hiện cho người dùng)
+--------------------------------------------------------------------------------------
 
   TIKTOK_NOT_CONNECTED        "Mất kết nối TikTok, vui lòng kết nối lại rồi đăng."
-  TIKTOK_SPAM_LIMIT           spam_risk_too_many_posts: "Tài khoản TikTok đã đạt giới hạn gửi bài trong ngày, thử lại sau."
-  TIKTOK_USER_BANNED          spam_risk_user_banned_from_posting: "Tài khoản TikTok này đang bị hạn chế đăng bài."
-  TIKTOK_USER_CAP             reached_active_user_cap: "TikTok đang giới hạn số người dùng gửi bài qua A51, thử lại sau."
-  TIKTOK_PHOTO_PULL_FAILED    url_ownership_unverified / tải ảnh lỗi: "TikTok không tải được ảnh, vui lòng thử lại."
-                              (url_ownership_unverified là lỗi cấu hình: report() cho dev)
-  TIKTOK_INVALID_PARAMS       "Dữ liệu bài không hợp lệ với TikTok." (report() cho dev)
   TIKTOK_UNAVAILABLE          "Không kết nối được TikTok, vui lòng thử lại sau."
   TIKTOK_TIMEOUT              "TikTok xử lý quá lâu, vui lòng thử lại."
-  TIKTOK_FAILED               fail_reason khác của webhook / status: "Gửi bài sang TikTok thất bại, vui lòng thử lại."
-  Thông báo chung của bài (last_error) giữ như dang-bai-da-nen-tang.txt mục 2.
+  TIKTOK_<MÃ TIKTOK VIẾT HOA> lỗi TikTok trả về, vd:
+    TIKTOK_SPAM_RISK_TOO_MANY_POSTS      "Tài khoản TikTok đã đạt giới hạn gửi bài trong ngày, thử lại sau."
+    TIKTOK_SPAM_RISK_USER_BANNED_FROM_POSTING  "Tài khoản TikTok này đang bị hạn chế đăng bài."
+    TIKTOK_REACHED_ACTIVE_USER_CAP       "TikTok đang giới hạn số người dùng gửi bài qua A51, thử lại sau."
+    TIKTOK_PHOTO_PULL_FAILED / TIKTOK_URL_OWNERSHIP_UNVERIFIED  "TikTok không tải được ảnh, vui lòng thử lại."
+      (url_ownership_unverified, invalid_params: lỗi cấu hình phía A51, report() cho dev)
+    mã khác                              "Gửi bài sang TikTok thất bại, vui lòng thử lại."
 
 
-9. CẤU HÌNH (backend / devops)
-------------------------------
+7. FRONTEND (ĐÃ LÀM)
+--------------------
 
-- TikTok Developer Portal: Login Kit (Web) + Content Posting API bật Upload (KHÔNG cần Direct Post).
-  Scope user.info.basic, video.upload. App phải qua App Review của TikTok mới cho người dùng ngoài kết nối;
-  trước đó chỉ tài khoản được thêm vào Sandbox / target users dùng được.
-- Redirect URI: {BACKEND}/api/v1/social/tiktok/oauth/callback. Webhook: {BACKEND}/api/v1/social/tiktok/webhook
-  (authorization.removed, post.publish.inbox_delivered, post.publish.failed).
-- Xác minh tên miền / URL prefix chứa ảnh (TIKTOK_MEDIA_URL).
-- Env: TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URI, TIKTOK_MEDIA_DISK, TIKTOK_MEDIA_URL, FRONTEND_URL.
-- Queue worker Laravel phải chạy (PublishTikTokViaApi), schedule đã có social:sweep mỗi phút.
+- src/api/social.js: getAccounts đọc driver / connection; authorizeTikTok, tiktokCallback, disconnectTikTok;
+  doneLabelOf (TikTok api: "Đã gửi vào hộp thư"); TIKTOK_CONNECT_MESSAGES.
+- src/pages/TikTokAuthorPage.jsx: route /mxh/tiktok/author.
+- src/components/social/TikTokConnectionCard.jsx: "TikTok của bạn" ở trang Tài khoản (Kết nối / Kết nối lại / Huỷ kết nối).
+- Popup "Đăng lên đâu?" (SocialPostPage.jsx), dòng TikTok:
+    đã kết nối      "Gửi vào hộp thư TikTok @username" + nhắc mở app TikTok -> Hộp thư để hoàn tất
+    mất kết nối     thông báo + "Kết nối lại", không chọn được TikTok
+    tài khoản A51   "Lưu vào nháp TikTok của A51" + "Kết nối TikTok" (dùng TikTok của mình)
+    chưa có gì      "Lưu vào nháp TikTok" + "Kết nối TikTok"
+  409 TIKTOK_NOT_CONNECTED khi đăng: tải lại tài khoản để hiện "Kết nối lại".
+- Trang bài hiện lỗi cụ thể của TikTok API dưới danh sách trạng thái nền tảng.
 
 
-10. ĐÃ CHỐT
------------
+8. CẤU HÌNH (backend .env)
+--------------------------
 
-Ngày 2026-10-20:
-- Logo: chèn lúc tạo ảnh bằng ảnh đại diện shop (note/logo-tao-anh.txt), không chèn lúc đăng.
-- Người dùng đã ủy quyền TikTok thì MẶC ĐỊNH dùng api, không dùng worker (mục 1).
+TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URI=https://a51.vn/mxh/tiktok/author,
+TIKTOK_MEDIA_DISK=s3_tiktok, TIKTOK_MEDIA_BUCKET, TIKTOK_MEDIA_URL (vd https://media.a51.vn).
+Developer Portal: Login Kit (Web) + Content Posting API bật Upload; scope user.info.basic, user.info.profile, video.upload;
+xác minh tên miền / URL prefix của TIKTOK_MEDIA_URL; Webhooks: authorization.removed, post.publish.*.
+App phải qua App Review của TikTok mới cho người dùng ngoài kết nối; trước đó chỉ tài khoản Sandbox / target users.
+Client key hiện tại (bắt đầu bằng "sb") là key Sandbox.

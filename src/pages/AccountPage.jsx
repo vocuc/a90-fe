@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Avatar from '../components/common/Avatar';
 import AccountSwitcher from '../components/auth/AccountSwitcher';
+import TikTokConnectionCard from '../components/social/TikTokConnectionCard';
 import Icon from '../components/common/Icon';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { useAuth } from '../context/AuthContext';
@@ -118,6 +119,8 @@ export default function AccountPage() {
         )}
 
         {me && <AccountSwitcher currentId={me.id} />}
+
+        <TikTokConnectionCard />
 
         <nav className="divide-y divide-surface-container overflow-hidden rounded-2xl border border-outline-variant/40">
           {menu.map(({ to, icon, title, disabled }) => {

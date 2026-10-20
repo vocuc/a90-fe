@@ -4,10 +4,15 @@ import client from './client';
  * ---- Đăng bài lên TikTok / Facebook / Instagram (cần đăng nhập) ----
  * Đặc tả: note/dang-bai-da-nen-tang.txt (bản mới nhất), note/nghiep-vu-dang-bai-tiktik.txt (bài đăng).
  * Ảnh của bài lấy từ lô ảnh (src/api/batches.js) hoặc lịch sử tạo ảnh.
- * Không dùng API của các nền tảng: bấm đăng thì backend tạo 1 job / nền tảng đã chọn, mỗi worker (FlowKit) giữ
- * một tài khoản của một nền tảng (admin gắn cho tài khoản A51) nhận job và đăng bài (TikTok: LƯU NHÁP).
+ * Bấm đăng thì backend tạo 1 job / nền tảng đã chọn, mỗi worker (FlowKit) giữ một tài khoản của một nền tảng (admin gắn
+ * cho tài khoản A51) nhận job và đăng bài (TikTok: LƯU NHÁP).
+ * TikTok qua API (note/dang-tiktok-qua-api.txt): người dùng tự kết nối TikTok thì mặc định đăng qua API, không qua worker:
+ * ảnh vào hộp thư TikTok, người dùng mở app TikTok để đăng.
  *
- * GET    /social/accounts                                -> { data: PublishAccount[] }  (nền tảng admin đã gắn)
+ * GET    /social/accounts                                -> { data: PublishAccount[] }  (admin gắn / tự kết nối)
+ * POST   /social/tiktok/oauth/authorize { redirect }     -> { data: { url } }  (chuyển sang TikTok)
+ * POST   /social/tiktok/oauth/callback { code, state, error } -> { data: { status, reason, redirect } }
+ * DELETE /social/tiktok/account                          -> 204  (huỷ kết nối)
  * GET    /social/posts?page=&per_page=&status=           -> { data: SocialPost[], meta }
  * GET    /social/posts/{id}                              -> { data: SocialPost }
  * POST   /social/posts/from-images                       -> 201 { data: SocialPost }
@@ -31,6 +36,13 @@ export const PLATFORMS = [
   { value: 'instagram', label: 'Instagram', icon: 'photo_camera', maxImages: 10, descriptionMax: 2200, doneLabel: 'Đã đăng' },
 ];
 export const platformInfo = (value) => PLATFORMS.find((p) => p.value === value) ?? { value, label: value, icon: 'public', doneLabel: 'Đã đăng' };
+
+// Cách đăng: worker (admin gắn) | api (TikTok người dùng tự kết nối)
+export const DRIVER = { WORKER: 'worker', API: 'api' };
+
+/** Nhãn khi đăng xong theo cách đăng: TikTok qua API thì ảnh vào hộp thư TikTok. */
+export const doneLabelOf = (platform, driver) =>
+  platform === 'tiktok' && driver === DRIVER.API ? 'Đã gửi vào hộp thư' : platformInfo(platform).doneLabel;
 
 /*
  * Trạng thái chung của bài:
@@ -74,11 +86,51 @@ export const newIdempotencyKey = () =>
 
 // ---- Tài khoản đăng bài ----
 
-/** Nền tảng admin đã gắn tài khoản cho người dùng: trang đăng bài chọn sẵn các nền tảng này. */
+/**
+ * Tài khoản đăng bài của người dùng (admin gắn worker, hoặc TikTok tự kết nối; có cả hai thì chỉ có dòng tự kết nối).
+ * connection (chỉ driver api): { status: active | expired | revoked | scope_missing, avatarUrl, connectedAt }.
+ */
 export const getAccounts = () =>
   client.get('/social/accounts').then(({ data }) =>
-    data.map((a) => ({ platform: a.platform, label: a.label, name: a.name, username: a.username, isActive: a.is_active })),
+    data.map((a) => ({
+      platform: a.platform,
+      label: a.label,
+      name: a.name,
+      username: a.username,
+      isActive: a.is_active,
+      driver: a.driver ?? DRIVER.WORKER,
+      connection: a.connection
+        ? { status: a.connection.status, avatarUrl: a.connection.avatar_url ?? null, connectedAt: a.connection.connected_at }
+        : null,
+    })),
   );
+
+/** TikTok tự kết nối của người dùng (có thể đã mất kết nối), null nếu chưa kết nối. */
+export const tiktokConnectionOf = (accounts) =>
+  (accounts ?? []).find((a) => a.platform === 'tiktok' && a.driver === DRIVER.API) ?? null;
+
+/** Chuyển sang TikTok để người dùng đồng ý; TikTok trả về /mxh/tiktok/author, xong quay lại redirect. */
+export const authorizeTikTok = (redirect = window.location.pathname + window.location.search) =>
+  client.post('/social/tiktok/oauth/authorize', { redirect }).then(({ data }) => {
+    window.location.href = data.url;
+  });
+
+/** Trang /mxh/tiktok/author gửi tham số TikTok trả về: { status: connected | error, reason, redirect }. */
+export const tiktokCallback = ({ code, state, error }) =>
+  client.post('/social/tiktok/oauth/callback', { code, state, error }).then(({ data }) => data);
+
+export const disconnectTikTok = () => client.delete('/social/tiktok/account');
+
+/** Thông báo theo kết quả kết nối (reason của callback / connection.status). */
+export const TIKTOK_CONNECT_MESSAGES = {
+  connected: 'Đã kết nối tài khoản TikTok.',
+  access_denied: 'Bạn đã huỷ kết nối TikTok.',
+  scope_missing: 'Cần cho phép quyền tải nội dung lên để A51 gửi bài sang TikTok. Vui lòng kết nối lại.',
+  state_invalid: 'Phiên kết nối đã hết hạn, vui lòng thử lại.',
+  server_error: 'Không kết nối được TikTok, vui lòng thử lại sau.',
+  expired: 'Kết nối TikTok đã hết hạn, vui lòng kết nối lại.',
+  revoked: 'Kết nối TikTok đã bị gỡ, vui lòng kết nối lại.',
+};
 
 // ---- Bài đăng ----
 
@@ -102,11 +154,18 @@ export const mapImage = (img) => ({
   ...mapCreative(img.creative),
 });
 
-/** { tiktok: { status, ... } } -> [{ platform, status, postUrl, error, finishedAt }] theo thứ tự PLATFORMS. */
+/** { tiktok: { status, ... } } -> [{ platform, status, driver, postUrl, error, finishedAt }] theo thứ tự PLATFORMS. */
 const mapPlatforms = (platforms) =>
   PLATFORMS.filter((p) => platforms?.[p.value]).map((p) => {
     const s = platforms[p.value];
-    return { platform: p.value, status: s.status, postUrl: s.post_url ?? null, error: s.error ?? null, finishedAt: s.finished_at ?? null };
+    return {
+      platform: p.value,
+      status: s.status,
+      driver: s.driver ?? null,
+      postUrl: s.post_url ?? null,
+      error: s.error ?? null,
+      finishedAt: s.finished_at ?? null,
+    };
   });
 
 const mapPost = (p) => ({

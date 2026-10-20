@@ -25,6 +25,7 @@ import TopUpPage from './pages/TopUpPage';
 import SocialPostPage from './pages/SocialPostPage';
 import SocialPostsPage from './pages/SocialPostsPage';
 import SocialNewPage from './pages/SocialNewPage';
+import TikTokAuthorPage from './pages/TikTokAuthorPage';
 import BatchesPage from './pages/BatchesPage';
 import BatchNewPage from './pages/BatchNewPage';
 import BatchPage from './pages/BatchPage';
@@ -93,6 +94,8 @@ export default function App() {
             <Route path="account" element={<AccountPage />} />
             <Route path="account/history" element={<PurchaseHistoryPage />} />
             <Route path="account/topup" element={<TopUpPage />} />
+            {/* TikTok trả về sau khi người dùng đồng ý kết nối (Redirect URI của Login Kit, note/dang-tiktok-qua-api.txt) */}
+            <Route path="mxh/tiktok/author" element={<TikTokAuthorPage />} />
           </Route>
         </Route>
       </Route>
