@@ -1,6 +1,9 @@
 NGHIỆP VỤ ĐĂNG BÀI LÊN NHIỀU NỀN TẢNG (TIKTOK / FACEBOOK / INSTAGRAM) QUA WORKER
 ==============================================================================
 
+CẬP NHẬT 2026-10-20: TikTok có thêm cách đăng qua API (người dùng tự kết nối, gửi vào hộp thư), chạy song song với
+worker - xem note/dang-tiktok-qua-api.txt (CHƯA LÀM).
+
 Ngày: 2026-10-16. Thay cho phần "1 bài = 1 job TikTok" trong note/dang-tiktok-qua-worker.txt (các mục khác của note
 đó, như vòng lặp worker, chèn logo, mã lỗi TikTok, vẫn đúng cho worker TikTok).
 Backend: D:\OSPanel\home\a90.local (migration 2026_10_16_100000_rename_tiktok_tables_to_social).

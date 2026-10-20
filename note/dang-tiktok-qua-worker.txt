@@ -1,6 +1,9 @@
 NGHIỆP VỤ WORKER ĐĂNG BÀI TIKTOK (FLOWKIT - tiktok_worker.py)
 =============================================================
 
+CẬP NHẬT 2026-10-20: worker đăng bài KHÔNG chèn logo nữa (mục 2.4, 5.3 đã bỏ). Logo shop chèn lúc tạo ảnh,
+xem note/logo-tao-anh.txt.
+
 Ngày: 2026-10-15. Backend đã làm xong (D:\OSPanel\home\a90.local). Worker: D:\FlowKit\tiktok_worker.py
 (đã viết, CHƯA chạy thử với TikTok Studio thật).
 Liên quan: note/nghiep-vu-dang-bai-tiktik.txt (bài đăng), D:\FlowKit\ImageGenerate.py (worker tạo ảnh, cùng kiểu vòng lặp).

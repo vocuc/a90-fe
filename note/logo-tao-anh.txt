@@ -1,0 +1,75 @@
+LOGO SHOP: CHÈN VÀO ẢNH LÚC TẠO ẢNH (DÙNG ẢNH ĐẠI DIỆN CỦA SHOP)
+================================================================
+
+Ngày: 2026-10-20. Frontend đã sửa (trang tạo lô: src/components/batch/LogoCard.jsx, createBatch gửi insert_logo).
+Backend đã làm (migration 2026_10_20_100000_add_insert_logo_to_generations_table, ImageBatchController, WorkerJobController,
+test ImageBatchTest). Worker đã sửa: D:\FlowKit\web\ImageGenerate.py (add_logo), worker đăng bài web + android bỏ chèn logo.
+Thay cho việc chèn logo ở worker ĐĂNG BÀI (note/dang-tiktok-qua-worker.txt mục 2.4 và 5.3, logo cấu hình trên máy worker).
+
+
+1. NGHIỆP VỤ
+------------
+
+- Logo = ảnh đại diện của shop (creator_profiles.avatar_path), người dùng đã tải lên khi tạo hồ sơ shop
+  (Tài khoản -> Thiết lập cửa hàng, /seller/settings, POST /creator/profile/avatar). KHÔNG có ô tải logo riêng.
+  Đổi ảnh đại diện shop = đổi logo cho các ảnh tạo sau đó.
+- Trang "Nhập thông tin tạo ảnh" (bước 2 của tạo lô /batches/new) có ô "Logo shop":
+    + Đã có ảnh đại diện shop: hiện logo + công tắc "Chèn logo vào ảnh", mặc định BẬT.
+    + Chưa tạo shop: công tắc tắt; bấm bật thì công tắc giữ tắt và hiện "Bạn phải tạo shop để sử dụng tính năng này."
+      + link "Tạo shop" sang /seller/settings.
+    + Có shop nhưng chưa có ảnh đại diện: như trên, thông báo "Shop chưa có logo..." + link "Thêm logo".
+  Công tắc áp dụng cho CẢ LÔ (mọi mẫu, mọi ảnh). CHỈ có ở tạo lô: trang tạo ảnh lẻ (/create) KHÔNG có công tắc logo.
+- Logo chèn ở worker TẠO ẢNH: tạo ảnh xong, chèn logo, rồi mới tải ảnh lên server. Ảnh lưu trên A51 (lịch sử tạo ảnh,
+  lô, bài đăng) đã có logo sẵn. Không tính thêm phí.
+- Tạo lại / sửa nguyên liệu một ảnh của lô: giữ bật / tắt logo của ảnh cũ, dùng logo HIỆN TẠI của shop.
+- Cắt ảnh (crop) làm trên ảnh đã có logo: cắt sát góc dưới phải có thể mất logo (chấp nhận).
+- Worker đăng bài (TikTok / Facebook / Instagram, cả web lẫn android) ĐÃ BỎ bước chèn logo (flowkit/runner.py), tránh ảnh
+  có 2 logo. LOGO_PATH / logo/logo.jpg không còn dùng. Ảnh tạo TRƯỚC khi có tính năng này đăng lên sẽ không có logo. Đăng TikTok qua API (note/dang-tiktok-qua-api.txt) cũng không chèn.
+
+
+2. API NGƯỜI DÙNG
+-----------------
+
+- GET /auth/me: đã có creator_profile.avatar_url, frontend dùng luôn để hiện logo và biết đã có logo chưa.
+- POST /image-batches: thêm 1 trường của CẢ LÔ (không nằm trong items[]):
+    insert_logo=1 | 0        // không gửi = 0
+    insert_logo = 1 -> 422 errors["insert_logo"]:
+      chưa tạo shop:            "Bạn phải tạo shop để sử dụng tính năng này."
+      shop chưa có ảnh đại diện: "Shop chưa có logo. Hãy thêm ảnh đại diện shop để dùng tính năng này."
+    Lưu vào TỪNG generation của lô (cột generations.insert_logo, boolean, mặc định false).
+    Regenerate (tạo lại / sửa nguyên liệu) và POST /generations/{id}/retry chép insert_logo từ generation cũ.
+- POST /generations (tạo ảnh lẻ): KHÔNG có insert_logo (luôn false).
+
+
+3. API WORKER TẠO ẢNH (GET /api/v1/jobs)
+---------------------------------------
+
+LƯU Ý: worker dán NGUYÊN "request" vào Flow làm yêu cầu cho AI. Logo KHÔNG được nằm trong request (AI sẽ nhận link
+logo như một ảnh nguyên liệu). Thêm khoá "logo" NGANG HÀNG với request:
+
+  200 { "data": {
+          "id": 1011,
+          "request": { ...như cũ... },
+          "logo": { "url": "https://..." }     // null nếu insert_logo = false hoặc shop không còn ảnh đại diện
+        } }
+
+  url: link ký số ảnh đại diện HIỆN TẠI của shop chủ generation, tạo lúc nhận job, tải ngay.
+  POST /jobs/{id} giữ nguyên: ảnh gửi lên là ảnh ĐÃ chèn logo.
+
+
+4. WORKER TẠO ẢNH (ImageGenerate.py)
+-----------------------------------
+
+Sau bước tải ảnh 2K (run_flow), trước submit_completed:
+  - job["logo"] null -> gửi ảnh như cũ.
+  - Có logo: tải logo (lỗi -> failed LOGO_FAILED), chèn bằng flowkit/media.py apply_logo (góc dưới bên phải,
+    % theo cạnh ngắn, bo góc), ảnh lưu lại thành JPG. Vị trí / kích thước: biến môi trường IMAGE_LOGO_* hoặc LOGO_*
+    (WIDTH, HEIGHT, RADIUS, X, Y; mặc định 7, 7, 50, 2, 2) trong D:\FlowKit\web\.env, kiểm tra lúc khởi động
+    (load_logo_layout, sai -> dừng worker). File logo lấy từ job.
+    Ảnh đại diện thường là ảnh vuông không nền trong suốt: bo góc (RADIUS) giúp logo không bị thô.
+  - Chèn lỗi -> failed LOGO_FAILED (server hoàn tiền ảnh đó như các lỗi khác).
+  - Xoá file logo tạm sau mỗi job.
+
+
+(Ghi chú bảo mật: ImageGenerate.py đang để sẵn token worker thật làm giá trị mặc định của AI90_WORKER_TOKEN trong code,
+nên bỏ giá trị mặc định đó và đổi token.)

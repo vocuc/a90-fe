@@ -77,14 +77,16 @@ const splitInputs = (schema, values) => {
 /**
  * Tạo lô: trừ tổng phí ngay, ảnh tạo ở nền (status generating).
  * items: [{ creativeId (số), schema (input_schema), values (giá trị form), quantity }]
+ * insertLogo: chèn logo shop (ảnh đại diện) vào mọi ảnh của lô (note/logo-tao-anh.txt).
  */
-export function createBatch(items, idempotencyKey) {
+export function createBatch(items, idempotencyKey, insertLogo = false) {
   const form = new FormData();
   items.forEach(({ creativeId, schema, values, quantity }, i) => {
     form.append(`items[${i}][creative_id]`, creativeId);
     form.append(`items[${i}][quantity]`, quantity);
     appendInputs(form, splitInputs(schema, values).inputs, `items[${i}][inputs]`);
   });
+  form.append('insert_logo', insertLogo ? '1' : '0');
   form.append('idempotency_key', idempotencyKey);
   return client.post('/image-batches', form, { timeout: UPLOAD_TIMEOUT }).then(({ data }) => mapBatch(data));
 }

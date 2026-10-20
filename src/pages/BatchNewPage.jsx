@@ -8,6 +8,8 @@ import ActionBar from '../components/common/ActionBar';
 import { initialValues, validateValues } from '../components/template/DynamicForm';
 import CreativePicker from '../components/batch/CreativePicker';
 import CreativeInputCard from '../components/batch/CreativeInputCard';
+import LogoCard from '../components/batch/LogoCard';
+import { useMe } from '../hooks/queries';
 import { creativeApi } from '../api/services';
 import { createBatch } from '../api/batches';
 import { formatVnd } from '../utils/format';
@@ -38,6 +40,11 @@ export default function BatchNewPage() {
   const [error, setError] = useState(null);
   // Lỗi theo trường do máy chủ trả về: { [slug]: { [key]: msg } } (errors["items.1.inputs.product_image"])
   const [serverErrors, setServerErrors] = useState({});
+  // Logo shop = ảnh đại diện shop; có logo thì mặc định chèn
+  const { data: me } = useMe();
+  const logoUrl = me?.avatarUrl ?? null;
+  const [insertLogo, setInsertLogo] = useState(true);
+  const [logoError, setLogoError] = useState(null);
 
   const step = params.get('step') === 'inputs' && picked.length ? 'inputs' : 'pick';
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/batches', { replace: true }));
@@ -83,6 +90,7 @@ export default function BatchNewPage() {
     }
     setLoading(true);
     setServerErrors({});
+    setLogoError(null);
     try {
       await createBatch(
         rows.map((r) => ({
@@ -92,6 +100,7 @@ export default function BatchNewPage() {
           quantity: quantityOf(r.creative),
         })),
         idem.key.current,
+        !!logoUrl && insertLogo,
       );
       idem.renew();
       // Đã trừ tiền -> tải lại số dư
@@ -113,6 +122,7 @@ export default function BatchNewPage() {
         setServerErrors(byRow);
         setOpen((ids) => [...new Set([...ids, ...Object.keys(byRow)])]);
       }
+      if (err?.errors?.insert_logo) setLogoError([].concat(err.errors.insert_logo)[0]);
       setError(err?.message || 'Không tạo được lô ảnh, vui lòng thử lại.');
       setLoading(false);
     }
@@ -170,6 +180,16 @@ export default function BatchNewPage() {
             các ảnh khác nhau từ cùng thông tin đã nhập.
           </p>
         </div>
+        <LogoCard
+          hasShop={!!me?.creatorProfile}
+          logoUrl={logoUrl}
+          checked={insertLogo}
+          onChange={(v) => {
+            setInsertLogo(v);
+            setLogoError(null);
+          }}
+          error={logoError}
+        />
         <ul className="space-y-3">
           {rows.map((r) => (
             <CreativeInputCard
