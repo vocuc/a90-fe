@@ -5,11 +5,12 @@ import { mapBatch } from './batches';
  * ---- Tạo lô tự động (cần đăng nhập) ----
  * Đặc tả: note/auto-tao-lo.txt. Sản phẩm và nhóm creative chỉ dành cho Creator (middleware "creator", 403 khi chưa có shop).
  * Mỗi lô = 1 sản phẩm x các creative Đang bán của 1 nhóm, mỗi creative 1 ảnh; ảnh sản phẩm điền vào trường ảnh có
- * key = field_key. Sản phẩm ít lượt tự động nhất được tạo trước.
+ * key = field_key. Sản phẩm ít lượt tự động nhất được tạo trước. Sản phẩm chỉ ghép với nhóm có creative trùng ít nhất
+ * một hashtag (tạo cả nhóm); sản phẩm không có hashtag thì bỏ qua.
  *
  * GET    /creator/products?page=&per_page=        -> { data: Product[], meta }
- * POST   /creator/products (multipart)            name?, images[i][file], images[i][field_key] -> 201 { data: Product }
- * POST   /creator/products/{id} (multipart)       images[i][id] (giữ ảnh cũ) | images[i][file], images[i][field_key]
+ * POST   /creator/products (multipart)            name?, hashtags[]?, images[i][file], images[i][field_key] -> 201 { data: Product }
+ * POST   /creator/products/{id} (multipart)       như trên, images[i][id] (giữ ảnh cũ) thay cho file; không gửi hashtags = bỏ hết
  * DELETE /creator/products/{id}                   -> 204
  * GET    /creator/creative-groups                 -> { data: CreativeGroup[] } (cũ nhất trước = thứ tự tạo lô)
  * POST   /creator/creative-groups                 { name, creative_ids } -> 201 ; PUT /creator/creative-groups/{id}
@@ -40,6 +41,7 @@ const mapProduct = (p) => ({
   name: p.name,
   coverUrl: p.cover_url,
   images: p.images.map((i) => ({ id: i.id, url: i.url, fieldKey: i.field_key })),
+  hashtags: (p.hashtags ?? []).map((h) => h.name),
   autoBatchCount: p.auto_batch_count,
   createdAt: p.created_at,
 });
@@ -69,11 +71,12 @@ export const listProducts = ({ page = 1, limit = 20 } = {}) =>
 
 /**
  * Lưu sản phẩm. images: [{ id?, file?, fieldKey }] theo thứ tự hiển thị; ảnh đã lưu gửi id, ảnh mới gửi file.
- * id: sửa sản phẩm, bỏ trống: tạo mới.
+ * hashtags: tên không có #. id: sửa sản phẩm, bỏ trống: tạo mới.
  */
-export function saveProduct({ id, name, images }) {
+export function saveProduct({ id, name, hashtags = [], images }) {
   const form = new FormData();
   if (name) form.append('name', name);
+  hashtags.forEach((h) => form.append('hashtags[]', h));
   images.forEach((img, i) => {
     if (img.file) form.append(`images[${i}][file]`, img.file);
     else form.append(`images[${i}][id]`, img.id);

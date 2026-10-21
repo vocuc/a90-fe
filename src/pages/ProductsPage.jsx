@@ -33,6 +33,11 @@ function ProductCard({ product, onEdit }) {
       <CoverImage src={product.coverUrl} alt="" className="size-20 shrink-0 rounded-xl" />
       <div className="min-w-0 flex-1 space-y-1">
         <p className="truncate text-sm font-bold text-on-surface">{title}</p>
+        {product.hashtags.length ? (
+          <p className="truncate text-xs font-semibold text-primary">{product.hashtags.map((h) => `#${h}`).join(' ')}</p>
+        ) : (
+          <p className="text-xs text-amber-700">Chưa có hashtag, không được tạo tự động</p>
+        )}
         <div className="flex flex-wrap gap-1">
           {product.images.map((img) => (
             <span key={img.id} className="rounded bg-surface-container px-1.5 py-0.5 font-mono text-[11px] text-on-surface-variant">
@@ -135,7 +140,7 @@ export default function ProductsPage() {
                 <Link to="/seller/creative-groups" className="font-bold text-primary hover:underline">
                   nhóm creative
                 </Link>
-                . Sản phẩm ít lô nhất được tạo trước.
+                {' '}có creative trùng hashtag với sản phẩm. Sản phẩm ít lô nhất được tạo trước.
               </span>
             </p>
             {!products.length ? (

@@ -145,11 +145,11 @@ export default function AutoBatchDialog({ onDone, onClose }) {
               <Link to="/seller/items" className="font-bold text-primary hover:underline">
                 sản phẩm
               </Link>{' '}
-              (ảnh + key trường nguyên liệu) và{' '}
+              (ảnh + key trường nguyên liệu + hashtag) và{' '}
               <Link to="/seller/creative-groups" className="font-bold text-primary hover:underline">
                 nhóm creative
               </Link>{' '}
-              có creative Đang bán chứa trường ảnh trùng key.
+              có creative Đang bán chứa trường ảnh trùng key và trùng hashtag với sản phẩm.
             </p>
           </div>
         ) : (

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Dialog from '../common/Dialog';
 import Icon from '../common/Icon';
 import { TextField } from '../common/Form';
+import HashtagInput from '../template/HashtagInput';
 import { saveProduct } from '../../api/autoBatch';
 
 const KEY_PATTERN = /^[A-Za-z0-9_]+$/;
@@ -27,9 +28,11 @@ const validateRows = (rows) => {
 /**
  * Thêm / sửa sản phẩm (note/auto-tao-lo.txt): tên (không bắt buộc) + các ảnh, mỗi ảnh gắn key một trường ảnh trong
  * Creative của mình. Tạo lô tự động điền ảnh vào trường có key trùng, creative không có trường nào trùng thì bỏ qua.
+ * Hashtag: chỉ ghép với nhóm có creative trùng hashtag; không có hashtag thì sản phẩm không được tạo tự động.
  */
 export default function ProductFormDialog({ product, onSaved, onClose }) {
   const [name, setName] = useState(product?.name ?? '');
+  const [hashtags, setHashtags] = useState(product?.hashtags ?? []);
   const [rows, setRows] = useState(() => (product?.images ?? []).map((i) => newRow({ id: i.id, url: i.url, fieldKey: i.fieldKey })));
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -73,6 +76,7 @@ export default function ProductFormDialog({ product, onSaved, onClose }) {
       const saved = await saveProduct({
         id: product?.id,
         name: name.trim(),
+        hashtags,
         images: rows.map((r) => ({ id: r.id, file: r.file, fieldKey: r.fieldKey.trim() })),
       });
       onSaved(saved);
@@ -115,6 +119,17 @@ export default function ProductFormDialog({ product, onSaved, onClose }) {
         maxLength={255}
         onChange={(e) => setName(e.target.value)}
         placeholder="VD: Áo thun trắng"
+      />
+
+      <HashtagInput
+        value={hashtags}
+        onChange={setHashtags}
+        error={serverErrors.hashtags ?? Object.entries(serverErrors).find(([k]) => k.startsWith('hashtags.'))?.[1]}
+        hint={
+          hashtags.length
+            ? 'Tạo tự động chỉ dùng nhóm có creative trùng ít nhất một hashtag.'
+            : 'Chưa có hashtag: sản phẩm sẽ không được tạo tự động. Nhập hashtag trùng với creative của bạn.'
+        }
       />
 
       <div>

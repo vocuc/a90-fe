@@ -306,3 +306,21 @@ Backend (D:\OSPanel\home\a90.local):
   ImageBatchController::autoPreview / autoStore, tests/Feature/AutoBatchTest.php.
 Frontend: src/api/autoBatch.js, ProductsPage (/seller/items), CreativeGroupsPage (/seller/creative-groups),
   components/batch/AutoBatchDialog.jsx, components/product/*, components/common/Dialog.jsx.
+
+
+HASHTAG SẢN PHẨM (2026-10-21)
+=============================
+
+Người dùng chốt: sản phẩm có hashtag; tạo tự động chỉ ghép sản phẩm với nhóm có creative trùng hashtag.
+- Sản phẩm: hashtags[] (không bắt buộc, tối đa 10, cùng quy tắc và cùng bảng hashtags với creative, so trùng theo slug
+  không dấu / không phân biệt hoa thường). Sửa sản phẩm mà không gửi hashtags = bỏ hết.
+  Product thêm "hashtags": [ { name, slug } ].
+- Sản phẩm KHÔNG có hashtag -> bỏ qua khi tạo tự động (form và danh sách sản phẩm có cảnh báo).
+- Nhóm ghép với sản phẩm khi có ít nhất 1 creative DÙNG ĐƯỢC (Đang bán, đủ trường...) trùng ít nhất 1 hashtag
+  với sản phẩm; khi đó tạo CẢ NHÓM (mọi creative dùng được, kể cả creative không trùng hashtag).
+  Creative trùng hashtag mà đang tạm dừng thì không tính.
+- Thứ tự chọn (câu 17) giữ nguyên, chỉ xét các cặp khớp hashtag.
+
+Backend: migration 2026_10_21_110000_create_product_hashtag_table, Hashtag::syncPivot (dùng chung với
+CreativeService), Product::hashtags, ProductController, AutoBatchService::items.
+Frontend: ProductFormDialog (HashtagInput), ProductsPage, api/autoBatch.js.
