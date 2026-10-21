@@ -25,9 +25,18 @@ export const BATCH_STATUS = {
 
 const UPLOAD_TIMEOUT = 60_000;
 
-const mapBatch = (b) => ({
+export const BATCH_SOURCE = {
+  MANUAL: 'manual',
+  AUTO: 'auto',
+};
+
+// Lô tự động (note/auto-tao-lo.txt): product / group null khi lô tạo tay hoặc đã xoá sản phẩm / nhóm
+export const mapBatch = (b) => ({
   id: b.id,
   status: b.status,
+  source: b.source ?? BATCH_SOURCE.MANUAL,
+  product: b.product ? { id: b.product.id, name: b.product.name, coverUrl: b.product.cover_url } : null,
+  group: b.group ?? null,
   imageCount: b.image_count ?? 0,
   generatingCount: b.generating_count ?? 0,
   failedCount: b.failed_count ?? 0,

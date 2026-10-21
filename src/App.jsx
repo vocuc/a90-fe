@@ -29,6 +29,8 @@ import TikTokAuthorPage from './pages/TikTokAuthorPage';
 import BatchesPage from './pages/BatchesPage';
 import BatchNewPage from './pages/BatchNewPage';
 import BatchPage from './pages/BatchPage';
+import ProductsPage from './pages/ProductsPage';
+import CreativeGroupsPage from './pages/CreativeGroupsPage';
 import ShippingOrdersPage from './pages/ShippingOrdersPage';
 import ShippingOrderNewPage from './pages/ShippingOrderNewPage';
 import ShippingOrderPage from './pages/ShippingOrderPage';
@@ -63,6 +65,9 @@ export default function App() {
         </Route>
         <Route element={<RequireAuth />}>
           <Route path="seller/creatives" element={<SellerProductsPage />} />
+          {/* Tạo lô tự động (note/auto-tao-lo.txt). Không dùng seller/products: link cũ của Quản lý Creative */}
+          <Route path="seller/items" element={<ProductsPage />} />
+          <Route path="seller/creative-groups" element={<CreativeGroupsPage />} />
           {/* Tạo ảnh theo lô (note/tach-lo-anh-dang-tiktok.txt). Trang rộng, tự chia cột trên desktop */}
           <Route path="batches" element={<BatchesPage />} />
           <Route path="batches/new" element={<BatchNewPage />} />

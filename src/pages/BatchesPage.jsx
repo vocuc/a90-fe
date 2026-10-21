@@ -6,7 +6,10 @@ import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { BatchStatusBadge } from '../components/batch/BatchStatus';
-import { BATCH_STATUS, deleteBatch, listBatches } from '../api/batches';
+import AutoBatchDialog from '../components/batch/AutoBatchDialog';
+import { BATCH_SOURCE, BATCH_STATUS, deleteBatch, listBatches } from '../api/batches';
+import { AUTO_KEYS, AUTO_STOP } from '../api/autoBatch';
+import { formatVnd } from '../utils/format';
 
 const PAGE_SIZE = 20;
 const POLL_INTERVAL = 5000;
@@ -56,6 +59,14 @@ function BatchCard({ batch }) {
             <BatchStatusBadge batch={batch} />
           </span>
         </div>
+        {batch.source === BATCH_SOURCE.AUTO && (
+          <p className="flex min-w-0 items-center gap-1 pr-8 text-xs text-on-surface-variant">
+            <span className="shrink-0 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">Tự động</span>
+            <span className="truncate">
+              {[batch.product && (batch.product.name || `Sản phẩm #${batch.product.id}`), batch.group?.name].filter(Boolean).join(' · ')}
+            </span>
+          </p>
+        )}
         <p className="text-xs text-on-surface-variant">{formatTime(batch.createdAt)}</p>
         <p className="flex flex-wrap gap-x-3 pr-8 text-xs text-on-surface-variant">
           <span>{batch.imageCount} ảnh</span>
@@ -81,6 +92,10 @@ function BatchCard({ batch }) {
 export default function BatchesPage() {
   useSeo({ title: 'Tạo ảnh theo lô', noindex: true });
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [autoOpen, setAutoOpen] = useState(false);
+  // Kết quả lần "Tạo tự động" gần nhất: { created, requested, stopped, required }
+  const [autoResult, setAutoResult] = useState(null);
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/tools'));
 
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
@@ -105,6 +120,26 @@ export default function BatchesPage() {
     </Link>
   );
 
+  const autoButton = (
+    <button
+      type="button"
+      onClick={() => setAutoOpen(true)}
+      className="flex h-8 items-center gap-1 rounded-lg border border-primary-container px-3 text-xs font-bold text-primary hover:bg-primary-container/10"
+    >
+      <Icon name="auto_awesome" className="text-base" />
+      Tạo tự động
+    </button>
+  );
+
+  const onAutoDone = (result) => {
+    setAutoOpen(false);
+    setAutoResult({ created: result.batches.length, requested: result.requested, stopped: result.stopped, required: result.required });
+    // Đã trừ tiền -> tải lại số dư; lượt tự động của sản phẩm đổi
+    queryClient.invalidateQueries({ queryKey: ['me'] });
+    queryClient.invalidateQueries({ queryKey: ['batches'] });
+    queryClient.invalidateQueries({ queryKey: AUTO_KEYS.products });
+  };
+
   return (
     <>
       <header className="sticky top-[60px] z-30 flex items-center gap-2 border-b border-surface-container bg-surface-container-lowest/90 px-2 py-2 backdrop-blur-md">
@@ -117,10 +152,40 @@ export default function BatchesPage() {
           <Icon name="arrow_back" />
         </button>
         <h1 className="flex-1 text-base font-bold text-on-surface">Lô ảnh</h1>
-        <span className="mr-2">{createButton}</span>
+        <span className="mr-2 flex gap-2">
+          {autoButton}
+          {createButton}
+        </span>
       </header>
 
+      {autoOpen && <AutoBatchDialog onDone={onAutoDone} onClose={() => setAutoOpen(false)} />}
+
       <section className="space-y-3 p-4 lg:py-6">
+        {autoResult && (
+          <div
+            role="status"
+            className={`flex items-start gap-2 rounded-xl px-3 py-2 text-xs ${
+              autoResult.stopped ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'
+            }`}
+          >
+            <Icon name={autoResult.stopped ? 'info' : 'check_circle'} className="text-base" />
+            <p className="flex-1">
+              Đã tạo tự động {autoResult.created}/{autoResult.requested} lô, ảnh đang được tạo.
+              {autoResult.stopped === AUTO_STOP.INSUFFICIENT_CREDIT && (
+                <>
+                  {' '}Hết số dư, lô tiếp theo cần {formatVnd(autoResult.required)}.{' '}
+                  <Link to="/account/topup" className="font-bold text-primary hover:underline">
+                    Nạp ví
+                  </Link>
+                </>
+              )}
+              {autoResult.stopped === AUTO_STOP.NO_VALID_PAIR && ' Không còn sản phẩm và nhóm creative dùng được.'}
+            </p>
+            <button type="button" onClick={() => setAutoResult(null)} aria-label="Đóng thông báo">
+              <Icon name="close" className="text-base" />
+            </button>
+          </div>
+        )}
         {error ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : !batches ? (

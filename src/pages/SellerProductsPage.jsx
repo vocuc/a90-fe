@@ -28,7 +28,7 @@ const PAGE_SIZE = 20;
 function ProductCard({ creative }) {
   const publish = usePublishCreative();
   const pause = usePauseCreative();
-  const { id, title, cover_url, price_per_image, status, pause_reason, is_hidden, is_public, usage_count } = creative;
+  const { id, title, cover_url, price_per_image, status, pause_reason, is_hidden, is_public, usage_count, group } = creative;
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
   const visibility = VISIBILITY_BADGE[is_public ? 'public' : 'private'];
   const canPublish = PUBLISHABLE.includes(status);
@@ -66,6 +66,12 @@ function ProductCard({ creative }) {
         <div className="flex flex-1 flex-col p-2.5">
           <h3 className="mb-1 line-clamp-2 text-xs font-bold text-on-surface">{title}</h3>
           <p className="text-[11px] text-on-surface-variant">{formatCount(usage_count)} lượt tải về</p>
+          {group && (
+            <p className="mt-0.5 flex items-center gap-0.5 truncate text-[11px] text-on-surface-variant">
+              <Icon name="workspaces" className="text-[12px]" />
+              {group.name}
+            </p>
+          )}
           {status === 'paused' && pause_reason && (
             <p className="mt-0.5 text-[11px] text-error">{PAUSE_REASON[pause_reason] ?? pause_reason}</p>
           )}
@@ -154,6 +160,15 @@ export default function SellerProductsPage() {
           </Link>
           <h1 className="flex-1 text-base font-bold text-on-surface">Quản lý Creative</h1>
           {isFetching && !isLoading && !isFetchingNextPage && <Icon name="progress_activity" className="animate-spin text-lg text-outline" />}
+          {hasProfile && (
+            <Link
+              to="/seller/creative-groups"
+              className="flex h-8 items-center gap-1 rounded-lg border border-outline-variant/50 px-3 text-xs font-bold text-on-surface hover:border-primary-container"
+            >
+              <Icon name="workspaces" className="text-base" />
+              Nhóm creative
+            </Link>
+          )}
           {hasProfile && (
             <Link
               to="/seller/creatives/new"

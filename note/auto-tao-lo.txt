@@ -1,0 +1,308 @@
+TẠO LÔ TỰ ĐỘNG - THẢO LUẬN
+==========================
+
+Ngày: 2026-10-21. Tài liệu liên quan: note/tach-lo-anh-dang-tiktok.txt (API lô ảnh).
+Trả lời ngay dưới mỗi câu hỏi (dòng "TRẢ LỜI:").
+
+
+YÊU CẦU BAN ĐẦU
+---------------
+
+- Tạo tính năng quản lý sản phẩm cho phép người dùng tạo sản phẩm gồm các thông tin sau:
++ ảnh sản phẩm, ảnh này là ảnh cung cấp đầu vào của nguyên liệu trong creative
++ hashtag
+- Tạo nhóm creative, người dùng sẽ đặt một group ID cho mỗi creative, các creative cùng id là một cặp, id là người dùng tự điền vào.
+- Tạo lô tự động mỗi sản phẩm sẽ được tạo lần lượt theo từng nhóm creative luân phiên cho đến hết, mỗi ngày tạo tối đa 10 lô, số lượng tối đa được cấu hình trong admin.
+
+
+ĐÃ CHỐT
+-------
+
+(Cập nhật sau khi đọc trả lời 1-19.)
+
+- Chỉ dùng creative do chính người dùng tạo, trạng thái Đang bán (công khai + riêng tư). Trừ tiền theo giá bán
+  hiện tại như người mua khác.
+- Sản phẩm: tên (không bắt buộc) + nhiều ảnh, mỗi ảnh liên kết tới một key trường nguyên liệu (người dùng tự gõ key).
+  Bỏ hashtag.
+- Nhóm creative: thực thể có tên, có N creative, một creative chỉ nằm trong một nhóm.
+- Mỗi lô = 1 sản phẩm x các creative của 1 nhóm, mỗi creative 1 ảnh.
+- KHÔNG chạy theo lịch, không giới hạn / ngày, không cấu hình admin: người dùng bấm "Tạo tự động" (chỉ có ở
+  trang danh sách lô /batches), nhập số lô + công tắc chèn logo -> hệ thống chọn sản phẩm x nhóm, tạo ảnh, trừ tiền.
+- Thứ tự: quy tắc câu 17 (sản phẩm ít lô tự động nhất trước, rồi nhóm sản phẩm đó chạy ít nhất; bằng nhau thì
+  cái tạo trước). Hết vòng thì quay lại từ đầu.
+- Bỏ qua creative (không báo): không Đang bán / bị ẩn; không có trường nào trùng key đã liên kết;
+  còn trường bắt buộc không có giá trị (không liên kết, không có mặc định). Mọi creative bị bỏ qua -> không tạo lô,
+  không tính lượt, chọn cặp kế tiếp.
+- Không đủ tiền: tạo lần lượt tới khi hết tiền thì dừng, báo đã tạo được bao nhiêu lô.
+- Đếm lượt: số lần chạy tự động, xoá lô không giảm, lô tạo tay không tính.
+- Lô tạo tự động là lô bình thường (source = auto), xem / tạo lại / Đăng TikTok như lô tạo tay.
+
+
+CÂU HỎI CẦN CHỐT
+----------------
+
+1. Liên kết ảnh sản phẩm với trường nguyên liệu bằng cách nào?
+   Người dùng chỉ thấy nhãn trường (vd "Ảnh sản phẩm"), key (vd product_image) do Creator đặt, mỗi Creator
+   có thể đặt khác nhau.
+   a) Người dùng gõ tên trường tự do: dễ gõ sai, creative không có trường trùng tên thì không điền được
+   b) Chọn từ danh sách trường ảnh của các creative trong nhóm; lưu xong hệ thống báo creative nào
+      không có trường đó (đề xuất)
+
+   TRẢ LỜI: Vì luồng này chỉ hoạt động với những creative do chính người dùng tạo ra nên họ biết trên trường
+
+1b. Creative trong nhóm không có trường đã liên kết thì:
+   a) Bỏ qua creative đó, các creative khác trong nhóm vẫn tạo (đề xuất)
+   b) Bỏ qua cả lô
+   TRẢ LỜI: a
+
+2. Một sản phẩm có mấy ảnh?
+   a) 1 ảnh, liên kết 1 trường
+   b) Nhiều ảnh, mỗi ảnh liên kết một trường (vd ảnh chính -> product_image, ảnh mặt sau -> back_image)
+   TRẢ LỜI: b
+
+3. Các trường khác của creative (ô chữ, lựa chọn, tỉ lệ khung, trường ảnh khác) lấy giá trị từ đâu?
+   a) Giá trị mặc định của Creator; creative có trường bắt buộc mà không có mặc định thì không cho vào nhóm
+   b) Khi thêm creative vào nhóm, người dùng điền sẵn các trường đó một lần, nhóm lưu lại (đề xuất)
+   TRẢ LỜI: không có thì để trống
+
+4. Mỗi creative trong lô tạo mấy ảnh?
+   a) Luôn 1 ảnh
+   b) Đặt số lượng riêng cho từng creative trong nhóm
+   TRẢ LỜI: a
+
+5. Tiền (trừ tự động, không có người bấm):
+   5.1. Không đủ số dư thì:
+        a) Tạm dừng tự động, báo người dùng; nạp tiền và bật lại thì chạy tiếp đúng chỗ đang dừng (đề xuất)
+        b) Bỏ qua lô đó, hôm sau thử lại
+        TRẢ LỜI: a
+   5.2. Công tắc Bật / Tắt tự động, mặc định Tắt; khi bật hiện chi phí dự kiến mỗi ngày
+        (số lô x giá các creative trong nhóm) để người dùng xác nhận.
+        a) Đồng ý (đề xuất)
+        b) Không cần
+        TRẢ LỜI: b người dùng sẽ bấm tạo tự động thủ công thì hệ thống mới làm việc.
+   5.3. Creator tăng giá creative thì người dùng vẫn bị trừ theo giá mới.
+        a) Lưu giá lúc thêm creative vào nhóm; giá hiện tại cao hơn thì bỏ qua creative đó và báo (đề xuất)
+        b) Cứ trừ theo giá hiện tại
+        TRẢ LỜI: b
+   5.4. Creative bị tạm dừng / bị ẩn / chuyển riêng tư: bỏ qua creative đó và báo người dùng?
+        TRẢ LỜI: bỏ qua không cần báo
+
+6. Chạy lúc nào?
+   a) Một giờ cố định mỗi ngày (giờ Việt Nam), các lô xếp hàng chạy lần lượt (máy chủ giới hạn
+      10 lần tạo ảnh / phút) (đề xuất). Giờ chạy: ...
+   b) Rải đều trong ngày
+   TRẢ LỜI: Chạy khi người dùng bấm nút tạo tự động và điền số lượng lô muốn  tạo bỏ phần cấu hình số lượng đi
+
+7. Chèn logo shop (như lô tạo tay)?
+   a) Một công tắc chung cho cả chế độ tự động
+   b) Đặt riêng theo từng nhóm
+   c) Không chèn
+   TRẢ LỜI: khi người dùng bấm nút tạo tự động cho điền số lượng và một công tắc chèn logo
+
+8. Chạy hết mọi cặp sản phẩm x nhóm thì:
+   a) Dừng, báo người dùng
+   b) Quay lại từ đầu (P1G1, ...)
+   TRẢ LỜI: b
+
+9. Thêm sản phẩm / nhóm giữa chừng:
+   a) Sản phẩm mới chen vào lượt của nhóm đang chạy (các nhóm sau cũng có); nhóm mới xếp cuối (đề xuất)
+   b) Chỉ vào từ vòng sau
+   TRẢ LỜI: sản phẩm mới được ưu tiên tao trước lượt ưu tiên được tính theo số lô đã tạo của từng sản phẩm sản phẩm mới có số lượt tạo bằng 0 sẽ được ưu tiên
+
+10. Sản phẩm có tên không (để nhận ra trong danh sách / nhật ký)?
+    a) Có, bắt buộc
+    b) Có, không bắt buộc
+    c) Không, chỉ có ảnh
+    TRẢ LỜI: b
+
+11. Nhóm creative:
+    a) Thực thể có tên, người dùng tạo nhóm rồi thêm creative vào (đề xuất, tránh gõ sai "1" / "01")
+    b) Người dùng tự gõ group ID trên từng creative (như yêu cầu ban đầu)
+    TRẢ LỜI: a
+
+12. Người dùng thêm creative nào vào nhóm được?
+    a) Mọi creative đang bán công khai + creative riêng tư của chính mình (như khi tạo lô tay)
+    b) Khác (ghi rõ)
+    TRẢ LỜI: b
+
+13. Ghi chú / yêu cầu khác:
+    TRẢ LỜI:
+
+
+CÂU HỎI PHỤ (SAU KHI ĐỌC TRẢ LỜI)
+---------------------------------
+
+14. (Câu 3) "Không có thì để trống": trường BẮT BUỘC bị để trống thì máy chủ hiện từ chối (422), ảnh không tạo được.
+    a) Lô tự động bỏ qua kiểm tra bắt buộc, gửi trống cho AI; trường có giá trị mặc định (vd tỉ lệ khung)
+       thì dùng mặc định (đề xuất)
+    b) Bỏ qua creative đó (như 1b)
+    TRẢ LỜI: b
+
+15. (Câu 5.1) Không đủ tiền cho số lô người dùng nhập. Vì bấm tay nên tính trước được tổng tiền.
+    a) Hộp thoại hiện trước danh sách lô sẽ tạo + tổng tiền; không đủ tiền thì không tạo lô nào,
+       báo cần nạp thêm bao nhiêu (đề xuất)
+    b) Tạo lần lượt tới khi hết tiền thì dừng, báo đã tạo được bao nhiêu lô
+    TRẢ LỜI: b
+
+16. (Câu 12) "Chỉ creative của chính mình":
+    - Gồm những trạng thái nào: Đang bán (công khai + riêng tư)? Nháp? Tạm dừng thì bỏ qua (câu 5.4).
+    - Tạo ảnh bằng creative của chính mình thì có bị trừ tiền theo giá bán không, hay giá khác?
+    TRẢ LỜI: đang bán, có bị trừ tiền theo giá bán
+
+17. (Câu 4c + 8 + 9) Chốt quy tắc chọn lô, mỗi lô chọn lần lượt:
+    - Sản phẩm: ít lô tự động nhất; bằng nhau thì sản phẩm tạo trước.
+    - Nhóm cho sản phẩm đó: nhóm mà sản phẩm đó đã chạy ít nhất; bằng nhau thì nhóm tạo trước.
+    Ví dụ P1, P2, P3, nhóm G1, G2, tạo 6 lô: P1G1, P2G1, P3G1, P1G2, P2G2, P3G2 (đúng 4c), lô thứ 7 quay lại P1G1.
+    Thêm P4 lúc này: lô kế tiếp là P4G1. Thêm nhóm G3: mỗi sản phẩm chạy G3 ở lượt kế tiếp của nó.
+    a) Đồng ý
+    b) Khác (ghi rõ)
+    TRẢ LỜI:a
+
+18. Đếm "số lô đã tạo" của sản phẩm:
+    a) Đếm số lần đã chạy tự động; xoá lô không làm giảm; lô tạo tay không tính;
+       lô mà mọi creative đều bị bỏ qua thì không tạo, không tính, chọn lô kế tiếp (đề xuất)
+    b) Khác (ghi rõ)
+    TRẢ LỜI: a
+
+19. Nút "Tạo tự động" đặt ở đâu?
+    a) Trang danh sách lô (/batches), cạnh nút "Tạo lô"; trang Sản phẩm và trang Nhóm nằm trong
+       khu vực Creator (/seller/...) (đề xuất)
+    b) Khác (ghi rõ)
+    TRẢ LỜI: chỉ Trang danh sách lô mới có nút đó
+
+
+CÂU HỎI CÒN LẠI (NHỎ, CÓ SẴN MẶC ĐỊNH)
+-------------------------------------
+
+20. (Câu 19) Trang Sản phẩm và trang Nhóm creative vào từ đâu?
+    a) /products và /creative-groups, có 2 link "Sản phẩm" / "Nhóm creative" trên trang danh sách lô (đề xuất)
+    b) Trong khu vực Creator (/seller/...)
+    TRẢ LỜI: Trang sản phẩm để ở tab tài khoản dưới phần quản lý creative ghi là Quản lý sản phẩm, Nhóm creative ở trang danh sách creative
+21. Người dùng chưa phải Creator (không có creative nào):
+    a) Vẫn thấy nút "Tạo tự động", bấm vào báo "Cần có creative Đang bán của bạn" (đề xuất)
+    b) Ẩn nút và 2 link
+    TRẢ LỜI: a
+
+22. (Câu 15b) Hết tiền giữa chừng: lô là đơn vị nhỏ nhất (trừ tiền cả lô một lần như lô tạo tay), không đủ tiền
+    cho cả lô kế tiếp thì dừng, không tạo lô thiếu creative.
+    a) Đồng ý (đề xuất)
+    b) Tạo nốt các creative còn đủ tiền trong lô đó
+    TRẢ LỜI: a
+
+23. Hộp thoại "Tạo tự động" có hiện xem trước danh sách lô sẽ tạo + tổng tiền dự kiến (gọi API xem trước) không?
+    a) Có (đề xuất, người dùng biết trước sẽ tốn bao nhiêu)
+    b) Không, chỉ ô số lô + công tắc logo
+    TRẢ LỜI: a
+
+
+ĐẶC TẢ API (THEO TRẢ LỜI 1-23)
+==============================
+
+Sản phẩm và nhóm chỉ dành cho Creator: đặt dưới /creator (middleware "creator" như GET /creator/creatives).
+Sản phẩm / nhóm của người khác -> 404. /image-batches/auto chỉ cần đăng nhập; chưa phải Creator hoặc không có
+creative Đang bán -> 422 AUTO_NOTHING_TO_CREATE (frontend báo "Cần có creative Đang bán của bạn", câu 21).
+
+SẢN PHẨM
+--------
+Product:
+{
+  "id": 3,
+  "name": "Áo thun trắng",          // null được
+  "cover_url": "https://...",       // ảnh đầu tiên
+  "images": [ { "id": 10, "url": "https://...", "field_key": "product_image" }, ... ],
+  "auto_batch_count": 4,            // số lượt chạy tự động (câu 18)
+  "created_at": "..."
+}
+
+GET    /creator/products?page=&per_page=        mới nhất trước
+GET    /creator/products/{id}
+POST   /creator/products (multipart)            name?, images[i][file], images[i][field_key] -> 201 { data: Product }
+POST   /creator/products/{id} (multipart)       sửa: name?, images[i][id] (giữ ảnh cũ) hoặc images[i][file] (ảnh mới),
+                                        images[i][field_key]; ảnh cũ không gửi lại thì xoá -> 200 { data: Product }
+DELETE /creator/products/{id}                   lô đã tạo giữ nguyên (product = null) -> 204
+Kiểm tra: ít nhất 1 ảnh; field_key bắt buộc, dạng a-z 0-9 _, không trùng trong cùng sản phẩm
+(422 errors["images.1.field_key"]); ảnh như trường ảnh của creative (dung lượng, định dạng).
+
+NHÓM CREATIVE
+-------------
+CreativeGroup:
+{
+  "id": 5, "name": "Bộ ảnh nền trắng",
+  "creatives": [ { "id": 7, "slug": "...", "title": "...", "cover_url": "...", "price_per_image": 2000,
+                   "status": "published" }, ... ],
+  "created_at": "..."
+}
+
+GET    /creator/creative-groups                 cũ nhất trước (đúng thứ tự dùng ở câu 17), không phân trang
+POST   /creator/creative-groups                 { name, creative_ids: [] } -> 201 { data: CreativeGroup }
+PUT    /creator/creative-groups/{id}            { name, creative_ids: [] } -> 200
+DELETE /creator/creative-groups/{id}            -> 204
+Kiểm tra: name bắt buộc; creative phải của chính người dùng (mọi trạng thái, lúc chạy chỉ dùng Đang bán);
+creative đã ở nhóm khác -> 422 errors["creative_ids.2"] (kèm tên nhóm đang chứa).
+
+TẠO TỰ ĐỘNG
+-----------
+GET  /image-batches/auto/preview?count=X
+  -> { data: { batches: [ AutoPlan ], total_cost, balance } }
+     AutoPlan: { product { id, name, cover_url }, group { id, name }, creatives: [ { id, title, price_per_image } ],
+                 cost }   // creatives = các creative sẽ tạo, đã bỏ qua creative không hợp lệ
+     Ít hơn X phần tử khi không còn cặp nào hợp lệ.
+
+POST /image-batches/auto                { count (>= 1), insert_logo (0|1), idempotency_key (<= 80) }
+  -> 201 { data: { batches: [ ImageBatch ], requested: X,
+                   stopped: null | "insufficient_credit" | "no_valid_pair",
+                   required: 12000 } }   // required: tiền của lô kế tiếp khi stopped = insufficient_credit
+  Không tạo được lô nào vì thiếu tiền -> 402 INSUFFICIENT_CREDIT (context.required = tiền lô đầu).
+  Không có sản phẩm / nhóm / cặp hợp lệ nào -> 422 AUTO_NOTHING_TO_CREATE.
+  Throttle như POST /image-batches; ảnh vào hàng đợi tạo ảnh như lô thường.
+
+Cách chọn (backend, khoá theo người dùng để 2 request không chọn trùng):
+  Bảng auto_batch_counts (user_id, product_id, group_id, count).
+  Mỗi lô: xếp các cặp theo (tổng count của sản phẩm tăng dần, product.created_at, count của cặp tăng dần,
+  group.created_at), lấy cặp đầu tiên có ít nhất 1 creative hợp lệ; không còn cặp -> dừng no_valid_pair.
+  Đủ tiền thì tạo lô (trừ tiền cả lô), count + 1; không đủ -> dừng insufficient_credit.
+
+Điền nguyên liệu cho từng creative:
+  - Trường ảnh (type image, backend chỉ có loại này) có key trùng field_key của ảnh sản phẩm -> ảnh đó.
+  - Trường khác: giá trị mặc định của Creator, không có thì để trống.
+  - Còn trường bắt buộc trống -> bỏ qua creative. Nguyên liệu ẩn (hidden_image) tự gửi như thường.
+
+ImageBatch thêm:
+  "source": "manual" | "auto",
+  "product": { id, name, cover_url } | null,   // null với lô tạo tay hoặc sản phẩm đã xoá
+  "group":   { id, name } | null
+
+FRONTEND
+--------
+- /batches: nút "Tạo tự động" cạnh "Tạo lô" (chỉ ở trang này). Lô tự động có nhãn "Tự động"
+  + tên sản phẩm, tên nhóm (danh sách và chi tiết).
+- Hộp thoại "Tạo tự động": ô số lô, công tắc chèn logo (như BatchNewPage), danh sách xem trước (creative sẽ tạo
+  của từng lô) + tổng tiền + số dư; tạo xong báo "Đã tạo k / X lô" và lý do dừng (hết tiền -> link nạp tiền).
+- Trang tài khoản: thêm mục "Quản lý sản phẩm" ngay dưới "Quản lý Creative" (khoá khi chưa có profile người bán,
+  như Quản lý Creative) -> /seller/items: danh sách + form (tên, các ảnh, mỗi ảnh một ô key trường).
+  Không dùng /seller/products: đường dẫn cũ này đang chuyển hướng sang /seller/creatives (Quản lý Creative
+  trước đây tên là "Quản lý sản phẩm").
+- Trang danh sách creative (/seller/creatives): nút "Nhóm creative" -> /seller/creative-groups: danh sách + form
+  (tên, chọn creative của mình; creative đã ở nhóm khác thì hiện tên nhóm, không chọn được).
+  Thẻ creative hiện tên nhóm đang chứa (nếu có).
+
+
+ĐÃ LÀM (2026-10-21)
+===================
+
+Theo đặc tả trên, thêm / khác:
+- Số lô mỗi lần bấm: 1-100 (AutoBatchService::MAX_COUNT, chặn kỹ thuật vì một request tạo tuần tự từng lô).
+- Quy tắc câu 17 làm đúng nghĩa đen: sản phẩm mới (0 lượt) chạy liền các nhóm tới khi bằng lượt sản phẩm khác
+  (vd thêm P4 khi P1-P3 đã 2 lượt: P4G1, P4G2, rồi mới tới sản phẩm khác).
+- Creative có model AI đang tắt cũng bị bỏ qua (như creative tạm dừng).
+- Ảnh sản phẩm dùng thẳng làm ảnh đầu vào (không tải lại); file không xoá khi sửa / xoá sản phẩm để
+  "Tạo lại" / "Sửa nguyên liệu" ảnh cũ vẫn chạy. Sửa sản phẩm thì ảnh được ghi lại (id ảnh đổi).
+- GET /creator/creatives trả thêm group { id, name } | null.
+
+Backend (D:\OSPanel\home\a90.local):
+  migration 2026_10_21_100000_create_auto_batch_tables (products, product_images, creative_groups,
+  creative_group_items, auto_batch_counts, image_batches.source / product_id / creative_group_id),
+  AutoBatchService + AutoBatchPlanner, Creator\ProductController, Creator\CreativeGroupController,
+  ImageBatchController::autoPreview / autoStore, tests/Feature/AutoBatchTest.php.
+Frontend: src/api/autoBatch.js, ProductsPage (/seller/items), CreativeGroupsPage (/seller/creative-groups),
+  components/batch/AutoBatchDialog.jsx, components/product/*, components/common/Dialog.jsx.

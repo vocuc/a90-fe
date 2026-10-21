@@ -12,7 +12,7 @@ import { FormAlert } from '../components/common/Form';
 import { BatchStatusBadge } from '../components/batch/BatchStatus';
 import EditInputsDialog from '../components/batch/EditInputsDialog';
 import CropImageDialog from '../components/batch/CropImageDialog';
-import { deleteBatchImage, getBatch, regenerateBatchImage } from '../api/batches';
+import { BATCH_SOURCE, deleteBatchImage, getBatch, regenerateBatchImage } from '../api/batches';
 import { IMAGE_STATUS, PHOTO_MAX_COUNT, createPostFromImages, isImageBusy, newIdempotencyKey } from '../api/social';
 import { formatVnd } from '../utils/format';
 
@@ -255,9 +255,19 @@ export default function BatchPage() {
         >
           <Icon name={selecting ? 'close' : 'arrow_back'} />
         </button>
-        <h1 className="flex-1 truncate text-base font-bold text-on-surface">
-          {selecting ? 'Chọn ảnh cho bài đăng' : `Lô ảnh #${id}`}
-        </h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-base font-bold text-on-surface">{selecting ? 'Chọn ảnh cho bài đăng' : `Lô ảnh #${id}`}</h1>
+          {/* Lô tạo tự động (note/auto-tao-lo.txt): sản phẩm · nhóm đã dùng */}
+          {!selecting && batch?.source === BATCH_SOURCE.AUTO && (
+            <p className="truncate text-[11px] text-on-surface-variant">
+              Tự động
+              {[batch.product && (batch.product.name || `Sản phẩm #${batch.product.id}`), batch.group?.name]
+                .filter(Boolean)
+                .map((s) => ` · ${s}`)
+                .join('')}
+            </p>
+          )}
+        </div>
         {batch && !selecting && (
           <span className="mr-2">
             <BatchStatusBadge batch={batch} />

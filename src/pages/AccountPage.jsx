@@ -38,6 +38,8 @@ export default function AccountPage() {
     { to: '/account/history', icon: 'receipt_long', title: 'Lịch sử mua hàng' },
     { to: '/seller/settings', icon: 'tune', title: 'Quản lý cửa hàng' },
     { to: '/seller/creatives', icon: 'inventory_2', title: 'Quản lý Creative', disabled: !me?.creatorProfile },
+    // Sản phẩm cho tạo lô tự động (note/auto-tao-lo.txt)
+    { to: '/seller/items', icon: 'shopping_bag', title: 'Quản lý sản phẩm', disabled: !me?.creatorProfile },
     { to: '/shipping-orders', icon: 'local_shipping', title: 'Đơn GHN', disabled: !me?.creatorProfile },
     { to: '/support', icon: 'support_agent', title: 'Trung tâm hỗ trợ' },
     { to: '/terms', icon: 'gavel', title: 'Điều khoản sử dụng' },

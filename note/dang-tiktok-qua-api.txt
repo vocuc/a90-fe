@@ -104,7 +104,7 @@ Webhook authorization.removed -> revoked.
 ----------------------------------------------------------------------------------------------------
 
 1. queued -> processing (hạn 60 phút). Thử lại khi TikTok tạm lỗi: job processing chưa có publish_id thì gửi tiếp.
-2. Ảnh: JPG / WEBP giữ nguyên, PNG -> JPG 90. Đặt lên disk s3_tiktok (TIKTOK_MEDIA_BUCKET) ở tiktok/{job_id}/{uuid}.jpg,
+2. Ảnh: JPG / WEBP <= 1080p giữ nguyên; PNG hoặc ảnh lớn hơn 1080p (cạnh ngắn > 1080 / cạnh dài > 1920) -> JPG 90 thu nhỏ giữ tỉ lệ. Đặt lên disk s3_tiktok (TIKTOK_MEDIA_BUCKET) ở tiktok/{job_id}/{uuid}.jpg,
    link CÔNG KHAI {TIKTOK_MEDIA_URL}/... (tên miền đã xác minh với TikTok). Xoá thư mục khi job có kết quả.
 3. content/init: { post_info: { title, description } (rỗng thì bỏ), source_info: { PULL_FROM_URL, photo_cover_index 0,
    photo_images }, post_mode: MEDIA_UPLOAD, media_type: PHOTO }.
