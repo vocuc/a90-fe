@@ -28,7 +28,7 @@ const PAGE_SIZE = 20;
 function ProductCard({ creative }) {
   const publish = usePublishCreative();
   const pause = usePauseCreative();
-  const { id, title, cover_url, price_per_image, status, pause_reason, is_hidden, is_public, usage_count, group } = creative;
+  const { id, title, cover_url, price_per_image, status, pause_reason, is_hidden, is_public, usage_count, group, hashtags } = creative;
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
   const visibility = VISIBILITY_BADGE[is_public ? 'public' : 'private'];
   const canPublish = PUBLISHABLE.includes(status);
@@ -71,6 +71,18 @@ function ProductCard({ creative }) {
               <Icon name="workspaces" className="text-[12px]" />
               {group.name}
             </p>
+          )}
+          {hashtags?.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {hashtags.map((h) => (
+                <span
+                  key={h.slug}
+                  className="max-w-full truncate rounded-full bg-surface-container px-1.5 py-0.5 text-[10px] font-semibold text-primary"
+                >
+                  #{h.name}
+                </span>
+              ))}
+            </div>
           )}
           {status === 'paused' && pause_reason && (
             <p className="mt-0.5 text-[11px] text-error">{PAUSE_REASON[pause_reason] ?? pause_reason}</p>

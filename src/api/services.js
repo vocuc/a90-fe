@@ -153,7 +153,7 @@ export const hashtagApi = {
  * GET /creator/creatives?status=&q=&visibility=public|private&page=&per_page=  (Creative của chính creator, mới sửa trước;
  *   q tìm theo tên)
  *   -> { data: [{ id, slug, title, price_per_image, status: draft|published|paused,
- *                 pause_reason: manual|no_valid_api_key|null, is_hidden, usage_count, rating_avg, cover_url,
+ *                 pause_reason: manual|no_valid_api_key|null, is_hidden, usage_count, rating_avg, cover_url, hashtags: [{ name, slug }],
  *                 published_at, created_at, updated_at }], meta: { current_page, last_page, per_page, total } }
  * POST /creator/creatives  { title, description? (hướng dẫn sử dụng mẫu), category_id?, model_id, price_per_image,
  *                            video_url? (TikTok), input_schema: field[], prompt_template, max_outputs?,
