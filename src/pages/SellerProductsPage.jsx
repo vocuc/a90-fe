@@ -65,13 +65,15 @@ function ProductCard({ creative }) {
         </div>
         <div className="flex flex-1 flex-col p-2.5">
           <h3 className="mb-1 line-clamp-2 text-xs font-bold text-on-surface">{title}</h3>
-          <p className="text-[11px] text-on-surface-variant">{formatCount(usage_count)} lượt tải về</p>
-          {group && (
-            <p className="mt-0.5 flex items-center gap-0.5 truncate text-[11px] text-on-surface-variant">
-              <Icon name="workspaces" className="text-[12px]" />
-              {group.name}
-            </p>
-          )}
+          <div className="flex items-center gap-2 text-[11px] text-on-surface-variant">
+            {group && (
+              <p className="flex min-w-0 items-center gap-0.5">
+                <Icon name="workspaces" className="shrink-0 text-[12px]" />
+                <span className="truncate">{group.name}</span>
+              </p>
+            )}
+            <p className="ml-auto shrink-0">{formatCount(usage_count)} lượt tải về</p>
+          </div>
           {hashtags?.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {hashtags.map((h) => (
