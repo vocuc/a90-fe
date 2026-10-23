@@ -89,9 +89,12 @@ function ProductCard({ creative }) {
           {status === 'paused' && pause_reason && (
             <p className="mt-0.5 text-[11px] text-error">{PAUSE_REASON[pause_reason] ?? pause_reason}</p>
           )}
-          <p className="mt-auto border-t border-surface-container pt-2 text-xs font-bold text-primary">
-            {formatVnd(price_per_image)}
-          </p>
+          {/* pt-2 ở lớp ngoài: luôn chừa khoảng cách với hashtag / dòng phía trên dù thẻ đã đầy (mt-auto = 0) */}
+          <div className="mt-auto pt-2">
+            <p className="border-t border-surface-container pt-2 text-xs font-bold text-primary">
+              {formatVnd(price_per_image)}
+            </p>
+          </div>
         </div>
       </Link>
 
