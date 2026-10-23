@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import useSeo from '../hooks/useSeo';
 import { Link, useSearchParams } from 'react-router-dom';
 import Icon from '../components/common/Icon';
@@ -8,6 +8,7 @@ import { PAUSABLE, PUBLISHABLE, STATUS_BADGE, VISIBILITY_BADGE } from '../compon
 import { useCreatorCreatives, useCreatorProfile, usePauseCreative, usePublishCreative } from '../hooks/creatorQueries';
 import useHorizontalScroll from '../hooks/useHorizontalScroll';
 import { formatCount, formatVnd } from '../utils/format';
+import { hashtagSlug } from '../utils/hashtag';
 
 // Khớp tham số status của GET /creator/creatives ('' = tất cả)
 const TABS = [
@@ -141,13 +142,31 @@ export default function SellerProductsPage() {
   useSeo({ title: 'Creative của tôi', noindex: true });
   const [params, setParams] = useSearchParams();
   const status = TAB_VALUES.includes(params.get('status')) ? params.get('status') : '';
+  const hashtag = params.get('hashtag') ?? '';
   const tabScrollRef = useHorizontalScroll();
+
+  // Ô tìm kiếm lọc theo hashtag ("Chân dung", "#chandung" -> chandung), gõ xong 400ms mới lọc
+  const [input, setInput] = useState(hashtag);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const slug = hashtagSlug(input);
+      if (slug === hashtag) return;
+      const next = new URLSearchParams(params);
+      if (slug) next.set('hashtag', slug);
+      else next.delete('hashtag');
+      setParams(next, { replace: true });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [input]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // GET /creator/creatives cần profile người bán (403 khi chưa có)
   const { hasProfile, meLoaded } = useCreatorProfile();
   const { data, isLoading, isFetching, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useCreatorCreatives({ status: status || undefined, limit: PAGE_SIZE }, hasProfile);
-  const items = data?.pages.flatMap((p) => p.items) ?? [];
+    useCreatorCreatives({ status: status || undefined, hashtag: hashtag || undefined, limit: PAGE_SIZE }, hasProfile);
+  const pageItems = data?.pages.flatMap((p) => p.items) ?? [];
+  // Lọc thêm ở client phòng khi backend chưa hỗ trợ tham số hashtag
+  const items = hashtag ? pageItems.filter((c) => c.hashtags?.some((h) => h.slug === hashtag)) : pageItems;
+  const backendFiltered = items.length === pageItems.length;
 
   // Cuộn gần tới cuối danh sách thì tự tải trang tiếp, hết trang thì thôi
   const sentinelRef = useRef(null);
@@ -214,6 +233,32 @@ export default function SellerProductsPage() {
             ))}
           </div>
         )}
+        {hasProfile && (
+          <div className="px-4 pb-3">
+            <div className="flex h-10 items-center rounded-xl bg-surface-container-low px-3 focus-within:ring-2 focus-within:ring-primary-container/30">
+              <Icon name="tag" className="mr-2 text-[20px] text-outline" />
+              <input
+                type="search"
+                maxLength={100}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Tìm theo hashtag, ví dụ: chandung"
+                aria-label="Tìm Creative theo hashtag"
+                className="w-full border-none bg-transparent p-0 text-sm font-medium text-on-surface placeholder:text-outline focus:outline-none focus:ring-0"
+              />
+              {input && (
+                <button
+                  type="button"
+                  onClick={() => setInput('')}
+                  aria-label="Xoá tìm kiếm"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-outline hover:bg-surface-container"
+                >
+                  <Icon name="close" className="text-lg" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       <section className="p-4">
@@ -235,12 +280,18 @@ export default function SellerProductsPage() {
               <Skeleton key={i} className="aspect-[3/4]" />
             ))}
           </div>
-        ) : items.length === 0 ? (
+        ) : items.length === 0 && !hasNextPage ? (
           <EmptyState
             icon="inventory_2"
-            message={status ? 'Không có AI Creative nào ở trạng thái này.' : 'Bạn chưa tạo AI Creative nào.'}
+            message={
+              hashtag
+                ? `Không có AI Creative nào gắn #${input.replace(/^#+/, '').trim() || hashtag}.`
+                : status
+                  ? 'Không có AI Creative nào ở trạng thái này.'
+                  : 'Bạn chưa tạo AI Creative nào.'
+            }
           >
-            {!status && (
+            {!status && !hashtag && (
               <Link
                 to="/seller/creatives/new"
                 className="mt-2 flex h-10 items-center gap-1 rounded-xl bg-primary-container px-4 text-sm font-bold text-on-primary hover:bg-primary"
@@ -252,7 +303,9 @@ export default function SellerProductsPage() {
           </EmptyState>
         ) : (
           <>
-            <p className="mb-2 text-xs text-on-surface-variant">{data.pages[0].total} AI Creative</p>
+            <p className="mb-2 text-xs text-on-surface-variant">
+              {backendFiltered ? data.pages[0].total : `${items.length}${hasNextPage ? '+' : ''}`} AI Creative
+            </p>
             {/* 2 Creative mỗi hàng (desktop 4–5), thẻ cùng hàng cao bằng nhau */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
               {items.map((c) => (

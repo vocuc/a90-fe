@@ -150,8 +150,8 @@ export const hashtagApi = {
  *
  * GET    /ai-models                    -> { data: [{ id, name, code, provider: { id, code, name }, supported_aspect_ratios }] }
  *
- * GET /creator/creatives?status=&q=&visibility=public|private&page=&per_page=  (Creative của chính creator, mới sửa trước;
- *   q tìm theo tên)
+ * GET /creator/creatives?status=&q=&hashtag=&visibility=public|private&page=&per_page=  (Creative của chính creator, mới sửa trước;
+ *   q tìm theo tên, hashtag: slug)
  *   -> { data: [{ id, slug, title, price_per_image, status: draft|published|paused,
  *                 pause_reason: manual|no_valid_api_key|null, is_hidden, usage_count, rating_avg, cover_url, hashtags: [{ name, slug }],
  *                 published_at, created_at, updated_at }], meta: { current_page, last_page, per_page, total } }
@@ -199,8 +199,8 @@ export const creatorApi = {
   uploadAvatar: requireRealBackend((file) => uploadImage('/creator/profile/avatar', file)),
   uploadCover: requireRealBackend((file) => uploadImage('/creator/profile/cover', file)),
 
-  listCreatives: requireRealBackend(({ status, q, visibility, page, limit } = {}) =>
-    client.get('/creator/creatives', { params: { status, q, visibility, page, per_page: limit } }).then(({ data, meta }) => ({
+  listCreatives: requireRealBackend(({ status, q, hashtag, visibility, page, limit } = {}) =>
+    client.get('/creator/creatives', { params: { status, q, hashtag, visibility, page, per_page: limit } }).then(({ data, meta }) => ({
       items: data,
       total: meta.total,
       page: meta.current_page,
