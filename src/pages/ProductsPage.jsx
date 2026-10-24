@@ -29,8 +29,8 @@ function ProductCard({ product, onEdit }) {
   };
 
   return (
-    <div className="flex gap-3 rounded-2xl border border-outline-variant/40 p-3">
-      <CoverImage src={product.coverUrl} alt="" className="size-20 shrink-0 rounded-xl" />
+    <div className="relative flex gap-3 rounded-2xl border border-outline-variant/40 p-3 lg:flex-col">
+      <CoverImage src={product.coverUrl} alt="" className="size-20 shrink-0 rounded-xl lg:aspect-square lg:size-auto lg:w-full" />
       <div className="min-w-0 flex-1 space-y-1">
         <p className="truncate text-sm font-bold text-on-surface">{title}</p>
         {product.hashtags.length ? (
@@ -49,7 +49,7 @@ function ProductCard({ product, onEdit }) {
           {product.images.length} ảnh · Đã tạo tự động {product.autoBatchCount} lô
         </p>
       </div>
-      <div className="flex shrink-0 flex-col gap-1">
+      <div className="flex shrink-0 flex-col gap-1 lg:absolute lg:right-5 lg:top-5 lg:flex-row lg:rounded-lg lg:bg-surface-container-lowest/90 lg:shadow">
         <button
           type="button"
           onClick={onEdit}
@@ -122,9 +122,9 @@ export default function ProductsPage() {
         ) : error ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : !products ? (
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid gap-3 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28" />
+              <Skeleton key={i} className="h-28 lg:h-80" />
             ))}
           </div>
         ) : (
@@ -148,7 +148,7 @@ export default function ProductsPage() {
                 <div className="mt-2">{addButton}</div>
               </EmptyState>
             ) : (
-              <ul className="grid gap-3 lg:grid-cols-2">
+              <ul className="grid gap-3 lg:grid-cols-4">
                 {products.map((p) => (
                   <li key={p.id}>
                     <ProductCard product={p} onEdit={() => setEditing({ product: p })} />
