@@ -8,7 +8,7 @@ import ActionBar from '../components/common/ActionBar';
 import { initialValues, validateValues } from '../components/template/DynamicForm';
 import CreativePicker from '../components/batch/CreativePicker';
 import CreativeInputCard from '../components/batch/CreativeInputCard';
-import LogoCard from '../components/batch/LogoCard';
+import LogoCard, { batchLogoUrl } from '../components/batch/LogoCard';
 import { useMe } from '../hooks/queries';
 import { creativeApi } from '../api/services';
 import { createBatch } from '../api/batches';
@@ -40,9 +40,9 @@ export default function BatchNewPage() {
   const [error, setError] = useState(null);
   // Lỗi theo trường do máy chủ trả về: { [slug]: { [key]: msg } } (errors["items.1.inputs.product_image"])
   const [serverErrors, setServerErrors] = useState({});
-  // Logo shop = ảnh đại diện shop; có logo thì mặc định chèn
+  // Logo shop = ảnh đại diện shop (nhân viên của shop: logo tự tải lên); có logo thì mặc định chèn
   const { data: me } = useMe();
-  const logoUrl = me?.avatarUrl ?? null;
+  const logoUrl = batchLogoUrl(me);
   const [insertLogo, setInsertLogo] = useState(true);
   const [logoError, setLogoError] = useState(null);
 
@@ -182,6 +182,7 @@ export default function BatchNewPage() {
         </div>
         <LogoCard
           hasShop={!!me?.creatorProfile}
+          isStaff={!!me?.staffOf}
           logoUrl={logoUrl}
           checked={insertLogo}
           onChange={(v) => {

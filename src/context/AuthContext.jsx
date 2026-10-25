@@ -6,7 +6,7 @@ import { accountStorage, MAX_ACCOUNTS, tokenStorage, UNAUTHORIZED_EVENT } from '
 const AuthContext = createContext(null);
 
 // Các query gắn với người dùng, phải xoá khi đăng xuất
-const USER_QUERY_KEYS = [['me'], ['notifications'], ['creator'], ['ai-models'], ['generations']];
+const USER_QUERY_KEYS = [['me'], ['notifications'], ['creator'], ['staff'], ['ai-models'], ['generations']];
 const ME_HASH = JSON.stringify(['me']);
 
 // Chỉ lưu thông tin cần để hiển thị trong danh sách chuyển tài khoản

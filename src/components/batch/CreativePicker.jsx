@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import CoverImage from '../common/CoverImage';
 import Icon from '../common/Icon';
@@ -8,7 +9,7 @@ import HashtagStrip from '../home/HashtagStrip';
 import { STATUS_BADGE, VISIBILITY_BADGE } from '../creative/creativeStatus';
 import { useInfiniteCreatives, useMe } from '../../hooks/queries';
 import { useCreatorCreatives } from '../../hooks/creatorQueries';
-import { mapOwnCreative } from '../../api/services';
+import { mapOwnCreative, staffApi } from '../../api/services';
 import { formatVnd } from '../../utils/format';
 import { hashtagSlug } from '../../utils/hashtag';
 
@@ -318,15 +319,73 @@ function MineTab(props) {
 }
 
 /**
+ * Tab Mẫu của shop (nhân viên của shop, note/chia-se-tai-nguyen.txt): creative Đang bán của shop, gồm cả mẫu riêng tư.
+ * Nhân viên chỉ dùng để tạo ảnh (trừ ví của mình), không xem / sửa prompt.
+ */
+function ShopTab({ shopName, ...props }) {
+  const [input, setInput] = useState('');
+  const [q, setQ] = useState('');
+
+  // Gõ xong 300ms mới tìm
+  useEffect(() => {
+    const t = setTimeout(() => setQ(input.trim()), 300);
+    return () => clearTimeout(t);
+  }, [input]);
+
+  const { data, isLoading, isFetching, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isPlaceholderData } =
+    useInfiniteQuery({
+      queryKey: ['staff', 'shop-creatives', q],
+      queryFn: ({ pageParam }) => staffApi.listShopCreatives({ q: q || undefined, page: pageParam, limit: 20 }),
+      initialPageParam: 1,
+      getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
+      placeholderData: (prev) => prev,
+    });
+  const creatives = useMemo(() => data?.pages.flatMap((p) => p.items.map((c) => ({ ...c, shop: true }))) ?? [], [data]);
+
+  if (error) return <ErrorState error={error} onRetry={refetch} />;
+
+  return (
+    <>
+      <SearchBox
+        value={input}
+        onChange={setInput}
+        placeholder={`Tìm trong mẫu của shop ${shopName}`}
+        label="Tìm trong mẫu của shop theo tên"
+        busy={isFetching && !isFetchingNextPage}
+      />
+      {isLoading ? (
+        <GridSkeleton />
+      ) : !creatives.length ? (
+        <EmptyState icon="palette" message={q ? 'Không có mẫu phù hợp.' : 'Shop chưa có mẫu Đang bán nào.'} />
+      ) : (
+        <CreativeGrid
+          {...props}
+          creatives={creatives}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          isPlaceholderData={isPlaceholderData}
+          fetchNextPage={fetchNextPage}
+          loadingLabel="Đang tải thêm mẫu của shop..."
+        />
+      )}
+    </>
+  );
+}
+
+/**
  * Chọn mẫu AI Creative: tab Kho mẫu (marketplace) và Mẫu của tôi (chỉ creator, gồm mẫu riêng tư), chọn một hoặc nhiều
  * mẫu (mỗi mẫu một lần, trộn được hai tab). Creator mặc định mở Mẫu của tôi, tab Kho mẫu lưu ở ?src=market.
+ * Nhân viên của shop có tab Mẫu của shop thay cho Mẫu của tôi (mặc định mở).
  * max: số mẫu tối đa, bỏ trống = không giới hạn. hint: dòng gợi ý khi chưa chọn mẫu nào.
  */
 export default function CreativePicker({ picked, onToggle, max = Infinity, hint = 'Chọn một hoặc nhiều mẫu.' }) {
   const { data: me } = useMe();
   const isCreator = !!me?.creatorProfile;
+  const staffOf = me?.staffOf ?? null;
+  // Tab mẫu riêng: Mẫu của tôi (creator) hoặc Mẫu của shop (nhân viên)
+  const ownTab = isCreator ? 'mine' : staffOf ? 'shop' : null;
   const [params, setParams] = useSearchParams();
-  const tab = isCreator && params.get('src') !== 'market' ? 'mine' : 'market';
+  const tab = ownTab && params.get('src') !== 'market' ? ownTab : 'market';
   const setTab = (t) =>
     setParams(
       (prev) => {
@@ -341,7 +400,7 @@ export default function CreativePicker({ picked, onToggle, max = Infinity, hint 
   const isPicked = (c) => picked.some((p) => p.id === c.id);
   const full = picked.length >= max;
   const gridProps = { isPicked, full, onToggle };
-  const mineCount = picked.filter((c) => c.own).length;
+  const mineCount = picked.filter((c) => (ownTab === 'shop' ? c.shop : c.own)).length;
 
   return (
     <div className="p-4 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-8 lg:py-6">
@@ -389,11 +448,13 @@ export default function CreativePicker({ picked, onToggle, max = Infinity, hint 
 
       {/* Trái (desktop) / dưới (mobile): tìm và chọn mẫu */}
       <section className="mt-6 space-y-3 lg:order-1 lg:mt-0">
-        {isCreator ? (
+        {ownTab ? (
           <div role="tablist" aria-label="Nguồn mẫu" className="flex gap-1 rounded-xl bg-surface-container-low p-1">
             {[
               { value: 'market', label: 'Kho mẫu', icon: 'storefront' },
-              { value: 'mine', label: 'Mẫu của tôi', icon: 'lock' },
+              ownTab === 'shop'
+                ? { value: 'shop', label: 'Mẫu của shop', icon: 'store' }
+                : { value: 'mine', label: 'Mẫu của tôi', icon: 'lock' },
             ].map((t) => (
               <button
                 key={t.value}
@@ -407,7 +468,7 @@ export default function CreativePicker({ picked, onToggle, max = Infinity, hint 
               >
                 <Icon name={t.icon} className="text-lg" />
                 {t.label}
-                {t.value === 'mine' && mineCount > 0 && (
+                {t.value === ownTab && mineCount > 0 && (
                   <span className="rounded-full bg-primary-container px-1.5 text-[10px] text-on-primary">{mineCount}</span>
                 )}
               </button>
@@ -416,7 +477,13 @@ export default function CreativePicker({ picked, onToggle, max = Infinity, hint 
         ) : (
           <h2 className="text-sm font-bold text-on-surface">Chọn mẫu AI Creative</h2>
         )}
-        {tab === 'mine' ? <MineTab {...gridProps} /> : <MarketplaceTab {...gridProps} />}
+        {tab === 'mine' ? (
+          <MineTab {...gridProps} />
+        ) : tab === 'shop' ? (
+          <ShopTab {...gridProps} shopName={staffOf.shopName} />
+        ) : (
+          <MarketplaceTab {...gridProps} />
+        )}
       </section>
     </div>
   );

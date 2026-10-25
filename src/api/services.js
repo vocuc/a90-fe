@@ -10,7 +10,9 @@ import { mock } from './mock/handlers';
  * POST /auth/logout   (Bearer)                                           -> { message }
  * GET  /auth/me       (Bearer)                                           -> { data: user }
  *
- * user (UserResource): { id, name, email, role, credit_balance, creator_profile: { avatar_url, ... } | null, created_at }
+ * user (UserResource): { id, name, email, role, credit_balance, creator_profile: { avatar_url, ... } | null,
+ *   staff_of: { username, shop_name, avatar_url, verified } | null (shop đang làm nhân viên, note/chia-se-tai-nguyen.txt),
+ *   logo_url (logo nhân viên tự tải lên để chèn vào ảnh), created_at }
  * Lỗi dữ liệu: 422 { message, errors: { field: [msg] } }. Gửi quá nhiều lần: 429.
  *
  * ---- Marketplace (công khai) ----
@@ -80,6 +82,9 @@ const mapUser = (u) => ({
   credits: u.credit_balance ?? 0,
   avatarUrl: u.creator_profile?.avatar_url ?? null,
   creatorProfile: u.creator_profile ?? null,
+  // Nhân viên của shop (note/chia-se-tai-nguyen.txt): dùng sản phẩm / nhóm / creative của shop, không có shop riêng
+  staffOf: u.staff_of ? { shopName: u.staff_of.shop_name, username: u.staff_of.username, avatarUrl: u.staff_of.avatar_url } : null,
+  logoUrl: u.logo_url ?? null,
 });
 
 const mapSession = ({ data }) => ({ token: data.token, expiresAt: data.expires_at, user: mapUser(data.user) });
@@ -190,6 +195,20 @@ const uploadImage = (path, file) => {
   const form = new FormData();
   form.append('image', file);
   return client.post(path, form, { timeout: UPLOAD_TIMEOUT }).then(({ data }) => data);
+};
+
+/*
+ * ---- Nhân viên của shop (note/chia-se-tai-nguyen.txt), không phải nhân viên -> 403 NOT_STAFF ----
+ * DELETE /staff/shop                      rời shop -> 204
+ * POST   /staff/logo  multipart image     (jpg/png/webp, <= 5MB) -> { data: { logo_url } }; thay logo cũ
+ * GET    /staff/creatives?q=&page=&per_page=  creative Đang bán của shop (cả riêng tư) -> { data: CreativeCard[], meta }
+ */
+export const staffApi = {
+  leaveShop: requireRealBackend(() => client.delete('/staff/shop')),
+  uploadLogo: requireRealBackend((file) => uploadImage('/staff/logo', file)),
+  listShopCreatives: requireRealBackend(({ q, page, limit } = {}) =>
+    client.get('/staff/creatives', { params: { q, page, per_page: limit } }).then(mapPage),
+  ),
 };
 
 export const creatorApi = {

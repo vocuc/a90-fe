@@ -1,0 +1,273 @@
+CHIA SẺ TÀI NGUYÊN GIỮA CÁC TÀI KHOẢN - THẢO LUẬN
+=================================================
+
+Ngày: 2026-10-25. Tài liệu liên quan: note/auto-tao-lo.txt (sản phẩm, nhóm creative, tạo lô tự động).
+Trả lời ngay dưới mỗi câu hỏi (dòng "TRẢ LỜI:").
+
+
+YÊU CẦU BAN ĐẦU
+---------------
+
+- Một tài khoản a51 có thể chia sẻ tài nguyên cho nhiều tài khoản a51 khác, gồm: sản phẩm, nhóm creative, creative.
+- Mục tiêu: một tài khoản shop có nhiều nhân viên, mỗi nhân viên phụ trách một kênh TikTok, dùng tài nguyên của
+  shop để tạo ảnh xây kênh.
+
+
+HIỆN TRẠNG (ảnh hưởng tới thiết kế)
+-----------------------------------
+
+- Sản phẩm và nhóm creative chỉ dành cho Creator (middleware "creator", 403 khi chưa có shop).
+- Lô tự động chỉ dùng creative do chính người dùng tạo, trạng thái Đang bán (công khai + riêng tư).
+- Tự dùng creative của mình vẫn bị trừ tiền theo giá bán hiện tại như người mua khác.
+- Một creative chỉ nằm trong một nhóm. Lượt tự động đếm theo sản phẩm / nhóm để xếp thứ tự.
+- Kết nối TikTok, lô ảnh, ví tiền đều gắn với từng tài khoản.
+
+
+ĐÃ CHỐT
+-------
+
+(Cập nhật sau khi đọc trả lời 1-30. Vòng 2 đã sửa lại một số điểm vòng 1: câu 18 bỏ việc nhân viên có shop
+riêng, câu 21 đổi sang trừ ví nhân viên và bỏ hạn mức. Đã chốt hết câu hỏi.)
+
+Mô hình
+- Mô hình "Nhân viên của shop" (không chia sẻ từng món): chủ shop thêm nhân viên, nhân viên dùng tài nguyên
+  của shop (sản phẩm, nhóm creative, creative).
+- Mỗi nhân viên phụ trách một kênh TikTok, tự kết nối kênh trên tài khoản của mình.
+- Nhân viên là tài khoản a51 riêng. Chủ shop thêm bằng email, thêm là thành nhân viên ngay, không cần chấp nhận.
+- Một nhân viên chỉ thuộc một shop tại một thời điểm: shop khác thêm vào thì báo lỗi "đã thuộc shop khác".
+  Nhân viên tự bấm "Rời shop" được. Không giới hạn số nhân viên mỗi shop.
+- Đang là nhân viên thì KHÔNG được mở shop (nên không có tài nguyên riêng, không có nhân viên của mình,
+  không có chuỗi A -> B -> C).
+- Tài khoản đã có shop thì không thêm làm nhân viên được: báo lỗi "tài khoản đã có shop".
+- Rời shop / bị gỡ thì mở shop như bình thường.
+- Chưa làm thông báo trong app khi được thêm / bị gỡ.
+
+Quyền
+- Nhân viên thấy toàn bộ sản phẩm, nhóm creative, creative Đang bán (công khai + riêng tư) của shop.
+- Chỉ dùng: không thêm / sửa / xoá tài nguyên shop; không xem / sửa prompt, ảnh ẩn của creative.
+- Nhân viên dùng được sản phẩm / nhóm / lô tự động dù không có shop (middleware "creator" phải cho nhân viên
+  đọc tài nguyên shop chủ và tạo lô tự động).
+
+Tiền
+- Luôn trừ ví nhân viên, theo giá bán hiện tại (như người mua khác). Không có hạn mức, chủ shop không quản lý
+  chi tiêu của nhân viên.
+- Nhân viên như người mua thường: shop chủ nhận phần doanh thu creator (đến 70%) từ tiền nhân viên trả.
+
+Lô ảnh và lô tự động
+- Lô nằm ở tài khoản nhân viên. Chủ shop CHỈ XEM (không tạo lại / xoá / Đăng TikTok) các lô có dùng tài nguyên
+  shop, lọc theo nhân viên; gỡ nhân viên rồi vẫn xem được lô cũ.
+- Lô tự động chỉ ghép sản phẩm shop x nhóm shop.
+- Lượt tự động đếm riêng từng nhân viên: mỗi kênh tự xoay vòng đủ mọi cặp sản phẩm x nhóm.
+- Chèn logo: nhân viên không có shop nên tải logo lên ở ô Logo khi tạo lô. Lưu một logo cho tài khoản nhân viên
+  (db), lần sau tự hiện sẵn, đổi được ngay ở ô Logo; dùng cho cả lô tạo tay lẫn lô tự động. Chủ shop không đặt
+  sẵn logo cho nhân viên.
+- Thống kê theo nhân viên: làm sau.
+
+Gỡ nhân viên / xoá tài nguyên
+- Gỡ nhân viên / nhân viên rời shop: mất quyền dùng tài nguyên shop ngay; lô đã tạo vẫn ở tài khoản nhân viên,
+  không được tạo lại.
+- Chủ shop xoá sản phẩm / nhóm: lô của nhân viên hiện product / group = null.
+
+Giao diện
+- Chủ shop quản lý nhân viên ở trang "Nhân viên" riêng.
+- Nhân viên thấy sản phẩm / nhóm của shop chung trang Sản phẩm / Nhóm creative, có hiện chủ sở hữu là shop,
+  không sửa được.
+
+
+TRIỂN KHAI (2026-10-25)
+----------------------
+
+- Backend (a90.local): migration 2026_10_25_100000_create_shop_staff_table (bảng shop_staff, users.logo_path,
+  image_batches.shop_owner_id, lượt tự động đếm theo user: auto_batch_product_counts + auto_batch_counts.user_id).
+  Test: tests/Feature/ShopStaffTest.php.
+- API: đặc tả ở src/api/staff.js (chủ shop) và staffApi trong src/api/services.js (nhân viên).
+- Frontend: /seller/staff (Nhân viên), /seller/staff/batches/:id (chủ shop xem lô), tab "Mẫu của shop" khi tạo lô,
+  ô Logo cho nhân viên tải logo, thẻ "Nhân viên của shop" + Rời shop ở trang Tài khoản.
+
+
+CÂU HỎI CẦN CHỐT
+----------------
+
+1. Tài khoản nhân viên:
+   a) Tài khoản a51 riêng của nhân viên (tự đăng ký), chủ shop mời bằng email, nhân viên bấm chấp nhận (đề xuất)
+   b) Chủ shop tạo tài khoản con (email + mật khẩu) rồi giao cho nhân viên
+   TRẢ LỜI: Tài khoản riêng của nhân viên, shop chỉ cần add shop là thành nhân viên của shop.
+
+2. Một nhân viên được thuộc mấy shop?
+   a) Chỉ một shop tại một thời điểm (đề xuất, đơn giản hoá ví và quyền)
+   b) Nhiều shop
+   TRẢ LỜI:a
+
+3. Nhân viên thấy tài nguyên nào của shop?
+   a) Toàn bộ sản phẩm, nhóm creative, creative Đang bán của shop (đề xuất)
+   b) Chủ shop chọn sản phẩm / nhóm cho từng nhân viên (vd kênh A chỉ làm mỹ phẩm, kênh B chỉ làm đồ gia dụng)
+   TRẢ LỜI:a
+
+4. Nhân viên có được sửa tài nguyên của shop không?
+   a) Không, chỉ dùng; chỉ chủ shop thêm / sửa / xoá (đề xuất)
+   b) Có vai trò "Quản lý" được thêm / sửa sản phẩm và nhóm, nhân viên thường chỉ dùng
+   TRẢ LỜI:a
+
+5. Creative của shop: nhân viên chỉ dùng để tạo ảnh, không xem / sửa prompt và ảnh ẩn, kể cả creative riêng tư.
+   Đồng ý không?
+   TRẢ LỜI: đồng ý
+
+6. Tiền khi nhân viên tạo ảnh:
+   a) Trừ ví shop (tài nguyên của shop, phục vụ kênh của shop; nhân viên không cần nạp tiền) (đề xuất)
+   b) Trừ ví nhân viên
+   TRẢ LỜI: a
+
+6b. Nếu trừ ví shop: giá tính thế nào khi dùng creative của chính shop?
+   a) Giữ như hiện tại: trừ theo giá bán (shop tự trả cho mình, mất phí nền tảng)
+   b) Chỉ trừ chi phí model / phí nền tảng
+   TRẢ LỜI:a
+
+6c. Nếu trừ ví shop: có hạn mức chi tiêu cho từng nhân viên (theo ngày / tháng) không?
+   a) Có, chủ shop đặt hạn mức riêng từng nhân viên; hết hạn mức thì dừng như hết tiền (đề xuất)
+   b) Không
+   TRẢ LỜI:a  có, nhưng mặc định là không có hạn mức được dùng thoải mái nếu shop đặt hạn mức thì mới check hạn mức
+
+7. Kênh TikTok:
+   a) Nhân viên tự kết nối kênh TikTok trên tài khoản của mình (như hiện tại) (đề xuất)
+   b) Chủ shop kết nối nhiều kênh rồi giao kênh cho từng nhân viên
+   TRẢ LỜI:a
+
+8. Lô ảnh nhân viên tạo:
+   8.1. Thuộc về ai?
+        a) Nằm ở tài khoản nhân viên; chủ shop xem được lô của tất cả nhân viên (lọc theo nhân viên) (đề xuất)
+        b) Nằm ở tài khoản shop, nhân viên chỉ thấy lô mình tạo
+        TRẢ LỜI: a
+   8.2. Chủ shop có xem được thống kê theo nhân viên (số lô, số ảnh, tiền đã dùng, số bài đã đăng) không?
+        TRẢ LỜI: Phần này làm sau
+
+9. Tạo lô tự động của nhân viên (dùng sản phẩm + nhóm của shop):
+   9.1. Lượt tự động đếm thế nào?
+        a) Riêng từng nhân viên: mỗi kênh tự xoay vòng đủ mọi cặp sản phẩm x nhóm (đề xuất)
+        b) Chung cả shop: các kênh chia nhau các cặp, ít trùng nội dung giữa các kênh
+        TRẢ LỜI: a
+   9.2. Chèn logo: dùng logo của shop?
+        TRẢ LỜI: Tài khoản nhân viện tự tạo một shop riêng và dùng logo của shop nhân viên.
+
+10. Nhân viên có được tạo sản phẩm / nhóm / creative riêng (ngoài tài nguyên shop) không?
+    a) Không, chỉ dùng tài nguyên shop
+    b) Có, nếu nhân viên tự mở shop (Creator) như bình thường; tài nguyên riêng không chia cho shop
+    TRẢ LỜI: b
+
+11. Nhân viên có cần mở shop (Creator) mới dùng được tài nguyên shop không?
+    a) Không, tài khoản thường được thêm làm nhân viên là dùng được (đề xuất)
+    b) Có
+    TRẢ LỜI: b
+
+12. Gỡ nhân viên / nhân viên rời shop:
+    - Mất quyền dùng tài nguyên shop ngay; lần tạo lô sau không còn sản phẩm / nhóm của shop
+    - Lô đã tạo: vẫn nằm ở tài khoản nhân viên? Có được "tạo lại" (trừ tiền ví nào) không?
+    - Kênh TikTok vẫn là của nhân viên (theo câu 7)
+    TRẢ LỜI: Mất quyền dùng tài nguyên shop ngay, lần tạo lô sau không còn sản phẩm / nhóm của shop, Lô đã tạo vẫn nằm ở tài khoản nhân viên, không được tạo lại.
+
+13. Chủ shop xoá sản phẩm / nhóm: lô của nhân viên hiện product / group = null như hiện tại. Đồng ý không?
+    TRẢ LỜI: đồng ý
+
+14. Giới hạn số nhân viên mỗi shop?
+    a) Không giới hạn
+    b) Có, số tối đa (cấu hình trong admin): ...
+    TRẢ LỜI: a
+
+15. Giao diện:
+    15.1. Chủ shop quản lý nhân viên ở đâu (trang Cửa hàng / trang riêng "Nhân viên")?
+          TRẢ LỜI: trang nhận viên riêng
+    15.2. Nhân viên thấy sản phẩm / nhóm của shop ở đâu: chung trang Sản phẩm / Nhóm creative (nhãn
+          "Của shop ...") hay tab riêng?
+          TRẢ LỜI: chung trang Sản phẩm / Nhóm creative nhưng hiện chủ sở hữu là shop không sửa được
+
+
+CÂU HỎI VÒNG 2 (phát sinh từ trả lời 1-15)
+------------------------------------------
+
+16. Chủ shop thêm nhân viên bằng gì?
+    a) Email tài khoản của nhân viên (đề xuất)
+    b) Link / mã shop của nhân viên
+    TRẢ LỜI:a
+
+17. Thêm không cần chấp nhận + mỗi người chỉ thuộc một shop:
+    - Người đã là nhân viên shop A, shop B thêm vào thì báo lỗi "đã thuộc shop khác"?
+    - Shop lạ có thể thêm trước để "giữ chỗ", làm người đó không vào được shop thật. Cho nhân viên tự bấm
+      "Rời shop" không? (đề xuất: có)
+    - Có báo cho nhân viên khi được thêm / bị gỡ không?
+    TRẢ LỜI:
+      - Người đã là nhân viên shop A, shop B thêm vào thì báo lỗi "đã thuộc shop khác"
+      - Cho nhân viên tự bấm rời shop
+
+18. Nhân viên cũng là shop, vậy:
+    a) Tài khoản đang là nhân viên thì không được thêm nhân viên; tài khoản đang có nhân viên thì không được
+       làm nhân viên của shop khác (đề xuất, tránh chuỗi A -> B -> C)
+    b) Cho phép, nhưng tài nguyên không truyền tiếp (C chỉ thấy tài nguyên của B, không thấy của A)
+    TRẢ LỜI: sửa lại đã là nhân viên thì không được mở shop, khi tạo lô cho tài khoản đó tải logo nên và lưu vào db
+
+19. Trộn tài nguyên khi tạo lô tự động (nhân viên có cả tài nguyên riêng lẫn tài nguyên shop):
+    a) Chỉ ghép cùng chủ: sản phẩm shop x nhóm shop, sản phẩm riêng x nhóm riêng (đề xuất)
+    b) Ghép chéo được (sản phẩm riêng x nhóm shop và ngược lại)
+    TRẢ LỜI: a
+
+20. Trừ tiền ví nào, quy theo gì?
+    a) Theo chủ creative: creative của shop chủ -> ví shop chủ; creative của nhân viên -> ví nhân viên
+       (đề xuất, áp dụng cho cả lô tạo tay lẫn tự động)
+    b) Theo chủ nhóm / chủ sản phẩm của lô
+    TRẢ LỜI: a
+
+21. Nhân viên chọn creative của shop chủ khi tạo lô bằng tay (hoặc mua từ trang Khám phá nếu creative công khai):
+    a) Luôn trừ ví shop chủ (đề xuất)
+    b) Chỉ trừ ví shop khi tạo từ trang Sản phẩm / Nhóm / lô tự động; mua ở Khám phá thì trừ ví nhân viên
+    TRẢ LỜI: sửa lại luồng trừ tiền cho tao luôn luôn trừ từ ví nhân viên chủ shop cũng không cần quản lý hạn mức nữa
+
+22. Ví shop chủ không đủ tiền khi nhân viên tạo ảnh:
+    a) Dừng, báo nhân viên "ví shop không đủ" (không chuyển sang trừ ví nhân viên) (đề xuất)
+    b) Trừ tiếp vào ví nhân viên
+    TRẢ LỜI:
+
+23. Hạn mức chi tiêu tính theo chu kỳ nào?
+    a) Theo ngày (giờ Việt Nam)
+    b) Theo tháng
+    c) Chủ shop chọn ngày hoặc tháng cho từng nhân viên
+    TRẢ LỜI:
+
+24. Chủ shop xem lô của nhân viên:
+    a) Chỉ lô có dùng tài nguyên / ví shop (đề xuất, lô từ tài nguyên riêng của nhân viên là việc riêng)
+    b) Tất cả lô của nhân viên
+    Sau khi gỡ nhân viên, chủ shop còn xem được các lô cũ không?
+    TRẢ LỜI:a, sau khi gỡ nhân viên vẫn xem được lô cũ
+
+25. Chủ shop xem được lô thì có được làm gì thêm không (tạo lại, xoá, Đăng TikTok)?
+    a) Chỉ xem (đề xuất, kênh TikTok là của nhân viên)
+    b) Có quyền như nhân viên
+    TRẢ LỜI: a 
+
+
+CÂU HỎI VÒNG 3 (phát sinh từ trả lời 16-25)
+------------------------------------------
+
+(Câu 19, 20, 22, 23 không còn áp dụng: nhân viên không có tài nguyên riêng, luôn trừ ví nhân viên, bỏ hạn mức.)
+
+26. Tài khoản ĐÃ có shop thì có được thêm làm nhân viên không?
+    a) Không, báo lỗi "tài khoản đã có shop" (đề xuất, khớp với câu 18)
+    b) Có, shop của họ bị khoá / ẩn trong thời gian làm nhân viên
+    TRẢ LỜI: a
+
+27. Rời shop / bị gỡ thì được mở shop của mình như bình thường?
+    TRẢ LỜI: được mở như bình thường
+
+28. Tiền: nhân viên trả theo giá bán creative của shop chủ, nghĩa là shop chủ nhận đến 70% số tiền nhân viên
+    trả (nhân viên đang "mua" creative của shop chủ). Đúng ý không?
+    a) Đúng, giữ như người mua thường
+    b) Nhân viên dùng creative của shop chủ chỉ trả chi phí model / phí nền tảng, shop chủ không nhận tiền
+    TRẢ LỜI: a
+
+29. Logo của nhân viên:
+    a) Lưu một logo cho tài khoản, lần sau tự hiện sẵn, đổi được ngay ở ô Logo khi tạo lô (đề xuất); dùng cho
+       cả lô tạo tay lẫn lô tự động
+    b) Mỗi lần tạo lô tải logo mới
+    Chủ shop có được đặt sẵn logo cho nhân viên không (vd mặc định dùng logo shop chủ)?
+    TRẢ LỜI: a, chủ shop không cần đặt sẵn logo
+
+30. Có báo cho nhân viên khi được thêm vào shop / bị gỡ không (thông báo trong app)?
+    TRẢ LỜI: chưa cần làm cái này 
+    

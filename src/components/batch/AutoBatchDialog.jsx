@@ -5,7 +5,7 @@ import Dialog from '../common/Dialog';
 import CoverImage from '../common/CoverImage';
 import Icon from '../common/Icon';
 import { ErrorState, Skeleton } from '../common/Feedback';
-import LogoCard from './LogoCard';
+import LogoCard, { batchLogoUrl } from './LogoCard';
 import { useMe } from '../../hooks/queries';
 import useIdempotencyKey from '../../hooks/useIdempotencyKey';
 import { AUTO_MAX_COUNT, createAuto, previewAuto } from '../../api/autoBatch';
@@ -19,7 +19,7 @@ const PREVIEW_DELAY = 400;
  */
 export default function AutoBatchDialog({ onDone, onClose }) {
   const { data: me } = useMe();
-  const logoUrl = me?.avatarUrl ?? null;
+  const logoUrl = batchLogoUrl(me);
   const idem = useIdempotencyKey();
   const [input, setInput] = useState('1');
   const [count, setCount] = useState(1);
@@ -116,6 +116,7 @@ export default function AutoBatchDialog({ onDone, onClose }) {
 
       <LogoCard
         hasShop={!!me?.creatorProfile}
+        isStaff={!!me?.staffOf}
         logoUrl={logoUrl}
         checked={insertLogo}
         onChange={(v) => {

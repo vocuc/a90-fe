@@ -4,6 +4,8 @@ import { mapBatch } from './batches';
 /*
  * ---- Tạo lô tự động (cần đăng nhập) ----
  * Đặc tả: note/auto-tao-lo.txt. Sản phẩm và nhóm creative chỉ dành cho Creator (middleware "creator", 403 khi chưa có shop).
+ * Nhân viên của shop (note/chia-se-tai-nguyen.txt) xem được (GET) sản phẩm / nhóm của shop chủ (is_owner = false, không
+ * sửa / xoá) và tạo lô tự động bằng chúng; lượt tự động (auto_batch_count) đếm riêng từng người.
  * Mỗi lô = 1 sản phẩm x các creative Đang bán của 1 nhóm, mỗi creative 1 ảnh; ảnh sản phẩm điền vào trường ảnh có
  * key = field_key. Sản phẩm ít lượt tự động nhất được tạo trước. Sản phẩm chỉ ghép với nhóm có creative trùng ít nhất
  * một hashtag (tạo cả nhóm); sản phẩm không có hashtag thì bỏ qua.
@@ -43,6 +45,7 @@ const mapProduct = (p) => ({
   images: p.images.map((i) => ({ id: i.id, url: i.url, fieldKey: i.field_key })),
   hashtags: (p.hashtags ?? []).map((h) => h.name),
   autoBatchCount: p.auto_batch_count,
+  isOwner: p.is_owner ?? true,
   createdAt: p.created_at,
 });
 
@@ -58,6 +61,7 @@ const mapGroup = (g) => ({
     status: c.status,
     isHidden: c.is_hidden,
   })),
+  isOwner: g.is_owner ?? true,
   createdAt: g.created_at,
 });
 

@@ -11,7 +11,8 @@ import { AUTO_KEYS, deleteProduct, listProducts } from '../api/autoBatch';
 
 const PAGE_SIZE = 20;
 
-function ProductCard({ product, onEdit }) {
+/** shopName: sản phẩm của shop chủ (nhân viên chỉ xem, không sửa / xoá). */
+function ProductCard({ product, shopName, onEdit }) {
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
   const title = product.name || `Sản phẩm #${product.id}`;
@@ -33,6 +34,12 @@ function ProductCard({ product, onEdit }) {
       <CoverImage src={product.coverUrl} alt="" className="size-20 shrink-0 rounded-xl lg:aspect-square lg:size-auto lg:w-full" />
       <div className="min-w-0 flex-1 space-y-1">
         <p className="truncate text-sm font-bold text-on-surface">{title}</p>
+        {!product.isOwner && (
+          <p className="flex items-center gap-1 text-xs text-on-surface-variant">
+            <Icon name="storefront" className="text-sm" />
+            <span className="truncate">Của shop {shopName}</span>
+          </p>
+        )}
         {product.hashtags.length ? (
           <p className="truncate text-xs font-semibold text-primary">{product.hashtags.map((h) => `#${h}`).join(' ')}</p>
         ) : (
@@ -49,34 +56,39 @@ function ProductCard({ product, onEdit }) {
           {product.images.length} ảnh · Đã tạo tự động {product.autoBatchCount} lô
         </p>
       </div>
-      <div className="flex shrink-0 flex-col gap-1 lg:absolute lg:right-5 lg:top-5 lg:flex-row lg:rounded-lg lg:bg-surface-container-lowest/90 lg:shadow">
-        <button
-          type="button"
-          onClick={onEdit}
-          aria-label={`Sửa ${title}`}
-          className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
-        >
-          <Icon name="edit" className="text-lg" />
-        </button>
-        <button
-          type="button"
-          onClick={remove}
-          disabled={deleting}
-          aria-label={`Xoá ${title}`}
-          className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40 disabled:opacity-50"
-        >
-          <Icon name={deleting ? 'progress_activity' : 'delete'} className={`text-lg ${deleting ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
+      {product.isOwner && (
+        <div className="flex shrink-0 flex-col gap-1 lg:absolute lg:right-5 lg:top-5 lg:flex-row lg:rounded-lg lg:bg-surface-container-lowest/90 lg:shadow">
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Sửa ${title}`}
+            className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
+          >
+            <Icon name="edit" className="text-lg" />
+          </button>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={deleting}
+            aria-label={`Xoá ${title}`}
+            className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40 disabled:opacity-50"
+          >
+            <Icon name={deleting ? 'progress_activity' : 'delete'} className={`text-lg ${deleting ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-/** /seller/items: sản phẩm cho tạo lô tự động (note/auto-tao-lo.txt). Cần hồ sơ người bán. */
+/**
+ * /seller/items: sản phẩm cho tạo lô tự động (note/auto-tao-lo.txt). Cần hồ sơ người bán; nhân viên của shop
+ * (note/chia-se-tai-nguyen.txt) xem sản phẩm của shop chủ, không thêm / sửa / xoá.
+ */
 export default function ProductsPage() {
   useSeo({ title: 'Quản lý sản phẩm', noindex: true });
   const queryClient = useQueryClient();
-  const { hasProfile, meLoaded } = useCreatorProfile();
+  const { hasProfile, staffOf, meLoaded } = useCreatorProfile();
   // null: đóng, {}: thêm mới, { product }: sửa
   const [editing, setEditing] = useState(null);
 
@@ -85,7 +97,7 @@ export default function ProductsPage() {
     queryFn: ({ pageParam }) => listProducts({ page: pageParam, limit: PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
-    enabled: hasProfile,
+    enabled: hasProfile || !!staffOf,
   });
   const products = data ? data.pages.flatMap((p) => p.items) : null;
 
@@ -113,7 +125,7 @@ export default function ProductsPage() {
       <section className="space-y-3 p-4 lg:py-6">
         {!meLoaded ? (
           <Skeleton className="h-24 w-full" />
-        ) : !hasProfile ? (
+        ) : !hasProfile && !staffOf ? (
           <EmptyState icon="storefront" message="Bạn cần tạo cửa hàng trước khi quản lý sản phẩm.">
             <Link to="/seller/settings" className="text-sm font-bold text-primary hover:underline">
               Tạo cửa hàng
@@ -141,17 +153,18 @@ export default function ProductsPage() {
                   nhóm creative
                 </Link>
                 {' '}có creative trùng hashtag với sản phẩm. Sản phẩm ít lô nhất được tạo trước.
+                {staffOf && ` Đây là sản phẩm của shop ${staffOf.shopName}, bạn chỉ dùng để tạo lô, không sửa được.`}
               </span>
             </p>
             {!products.length ? (
-              <EmptyState icon="shopping_bag" message="Chưa có sản phẩm nào.">
-                <div className="mt-2">{addButton}</div>
+              <EmptyState icon="shopping_bag" message={staffOf ? 'Shop chưa có sản phẩm nào.' : 'Chưa có sản phẩm nào.'}>
+                {hasProfile && <div className="mt-2">{addButton}</div>}
               </EmptyState>
             ) : (
               <ul className="grid gap-3 lg:grid-cols-4">
                 {products.map((p) => (
                   <li key={p.id}>
-                    <ProductCard product={p} onEdit={() => setEditing({ product: p })} />
+                    <ProductCard product={p} shopName={staffOf?.shopName} onEdit={() => setEditing({ product: p })} />
                   </li>
                 ))}
               </ul>

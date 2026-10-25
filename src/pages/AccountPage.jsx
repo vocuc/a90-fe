@@ -1,5 +1,6 @@
 import useSeo from '../hooks/useSeo';
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import Avatar from '../components/common/Avatar';
 import AccountSwitcher from '../components/auth/AccountSwitcher';
@@ -9,10 +10,51 @@ import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { useAuth } from '../context/AuthContext';
 import { useMe } from '../hooks/queries';
 import { useCreatorWallet } from '../hooks/creatorQueries';
+import { staffApi } from '../api/services';
 import { formatVnd } from '../utils/format';
 
 // Khớp UserRole của backend
 const ROLE_LABEL = { user: 'Thành viên', admin: 'Quản trị viên' };
+
+/** Nhân viên của shop (note/chia-se-tai-nguyen.txt): shop đang làm + nút rời shop. */
+function StaffShopCard({ shopName }) {
+  const queryClient = useQueryClient();
+  const [leaving, setLeaving] = useState(false);
+
+  const leave = async () => {
+    if (!window.confirm(`Rời shop ${shopName}? Bạn sẽ không dùng được sản phẩm, nhóm creative và mẫu của shop nữa. Lô đã tạo vẫn giữ nguyên.`)) return;
+    setLeaving(true);
+    try {
+      await staffApi.leaveShop();
+      queryClient.removeQueries({ queryKey: ['creator'] });
+      queryClient.removeQueries({ queryKey: ['staff'] });
+      await queryClient.invalidateQueries({ queryKey: ['me'] });
+    } catch (err) {
+      window.alert(err?.message || 'Không rời shop được, vui lòng thử lại.');
+    } finally {
+      setLeaving(false);
+    }
+  };
+
+  return (
+    <section className="flex items-center gap-3 rounded-2xl border border-outline-variant/40 p-4">
+      <Icon name="badge" className="text-2xl text-primary" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold text-on-surface">Nhân viên của shop {shopName}</p>
+        <p className="text-xs text-on-surface-variant">Dùng sản phẩm, nhóm creative và mẫu của shop để tạo ảnh. Tiền trừ vào ví của bạn.</p>
+      </div>
+      <button
+        type="button"
+        onClick={leave}
+        disabled={leaving}
+        className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-error/40 px-3 text-xs font-bold text-error hover:bg-error-container/40 disabled:opacity-50"
+      >
+        {leaving && <Icon name="progress_activity" className="animate-spin text-base" />}
+        Rời shop
+      </button>
+    </section>
+  );
+}
 
 function InfoRow({ icon, label, children }) {
   return (
@@ -33,13 +75,18 @@ export default function AccountPage() {
   const { data: wallet, isLoading: walletLoading } = useCreatorWallet();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Backend chỉ cho quản lý Creative khi đã có profile người bán (middleware "creator")
+  // Backend chỉ cho quản lý Creative khi đã có profile người bán (middleware "creator"). Nhân viên của shop
+  // (note/chia-se-tai-nguyen.txt) không được mở shop riêng, chỉ xem sản phẩm / nhóm creative của shop chủ
+  const staffOf = me?.staffOf;
   const menu = [
     { to: '/account/history', icon: 'receipt_long', title: 'Lịch sử mua hàng' },
-    { to: '/seller/settings', icon: 'tune', title: 'Quản lý cửa hàng' },
+    { to: '/seller/settings', icon: 'tune', title: 'Quản lý cửa hàng', disabled: !!staffOf },
     { to: '/seller/creatives', icon: 'inventory_2', title: 'Quản lý Creative', disabled: !me?.creatorProfile },
     // Sản phẩm cho tạo lô tự động (note/auto-tao-lo.txt)
-    { to: '/seller/items', icon: 'shopping_bag', title: 'Quản lý sản phẩm', disabled: !me?.creatorProfile },
+    { to: '/seller/items', icon: 'shopping_bag', title: 'Quản lý sản phẩm', disabled: !me?.creatorProfile && !staffOf },
+    // Chủ shop vào nhóm creative từ trang Quản lý Creative; nhân viên không có trang đó
+    ...(staffOf ? [{ to: '/seller/creative-groups', icon: 'workspaces', title: 'Nhóm creative' }] : []),
+    ...(me?.creatorProfile ? [{ to: '/seller/staff', icon: 'groups', title: 'Nhân viên' }] : []),
     { to: '/shipping-orders', icon: 'local_shipping', title: 'Đơn GHN', disabled: !me?.creatorProfile },
     { to: '/support', icon: 'support_agent', title: 'Trung tâm hỗ trợ' },
     { to: '/terms', icon: 'gavel', title: 'Điều khoản sử dụng' },
@@ -111,7 +158,7 @@ export default function AccountPage() {
                 {isLoading ? (
                   <Skeleton className="h-4 w-20" />
                 ) : (
-                  (me.creatorProfile?.shop_name ?? 'Chưa tạo')
+                  (me.creatorProfile?.shop_name ?? (staffOf ? 'Không có (nhân viên)' : 'Chưa tạo'))
                 )}
               </InfoRow>
               {me?.creatorProfile && (
@@ -122,6 +169,8 @@ export default function AccountPage() {
             </section>
           </>
         )}
+
+        {staffOf && <StaffShopCard shopName={staffOf.shopName} />}
 
         <TikTokConnectionCard />
 

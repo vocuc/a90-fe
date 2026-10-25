@@ -8,7 +8,8 @@ export const CREATOR_KEYS = {
   wallet: ['creator', 'wallet'],
 };
 
-// GET /creator/profile trả 403 khi chưa có hồ sơ -> chỉ gọi khi /auth/me báo đã có
+// GET /creator/profile trả 403 khi chưa có hồ sơ -> chỉ gọi khi /auth/me báo đã có.
+// staffOf: shop đang làm nhân viên (note/chia-se-tai-nguyen.txt), xem được sản phẩm / nhóm creative của shop đó
 export const useCreatorProfile = () => {
   const { data: me } = useMe();
   const hasProfile = !!me?.creatorProfile;
@@ -17,7 +18,7 @@ export const useCreatorProfile = () => {
     queryFn: creatorApi.getProfile,
     enabled: hasProfile,
   });
-  return { ...query, hasProfile, meLoaded: !!me };
+  return { ...query, hasProfile, staffOf: me?.staffOf ?? null, meLoaded: !!me };
 };
 
 // Hồ sơ đổi -> cập nhật cache hồ sơ và tải lại /auth/me (header, trang Cửa hàng dùng creator_profile trong đó)

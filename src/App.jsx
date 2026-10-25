@@ -31,6 +31,8 @@ import BatchNewPage from './pages/BatchNewPage';
 import BatchPage from './pages/BatchPage';
 import ProductsPage from './pages/ProductsPage';
 import CreativeGroupsPage from './pages/CreativeGroupsPage';
+import StaffPage from './pages/StaffPage';
+import StaffBatchPage from './pages/StaffBatchPage';
 import ShippingOrdersPage from './pages/ShippingOrdersPage';
 import ShippingOrderNewPage from './pages/ShippingOrderNewPage';
 import ShippingOrderPage from './pages/ShippingOrderPage';
@@ -68,6 +70,9 @@ export default function App() {
           {/* Tạo lô tự động (note/auto-tao-lo.txt). Không dùng seller/products: link cũ của Quản lý Creative */}
           <Route path="seller/items" element={<ProductsPage />} />
           <Route path="seller/creative-groups" element={<CreativeGroupsPage />} />
+          {/* Nhân viên của shop (note/chia-se-tai-nguyen.txt): chủ shop thêm / gỡ nhân viên, xem lô nhân viên tạo */}
+          <Route path="seller/staff" element={<StaffPage />} />
+          <Route path="seller/staff/batches/:id" element={<StaffBatchPage />} />
           {/* Tạo ảnh theo lô (note/tach-lo-anh-dang-tiktok.txt). Trang rộng, tự chia cột trên desktop */}
           <Route path="batches" element={<BatchesPage />} />
           <Route path="batches/new" element={<BatchNewPage />} />
