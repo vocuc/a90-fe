@@ -10,14 +10,16 @@ import useHorizontalScroll from '../hooks/useHorizontalScroll';
 import { formatCount, formatVnd } from '../utils/format';
 import { hashtagSlug } from '../utils/hashtag';
 
-// Khớp tham số status của GET /creator/creatives ('' = tất cả)
+// Khớp tham số status của GET /creator/creatives ('all' = tất cả, không gửi status)
 const TABS = [
-  { value: '', label: 'Tất cả' },
+  { value: 'all', label: 'Tất cả' },
   { value: 'published', label: 'Đang bán' },
   { value: 'draft', label: 'Nháp' },
   { value: 'paused', label: 'Tạm dừng' },
 ];
 const TAB_VALUES = TABS.map((t) => t.value);
+// Mở trang không có ?status thì vào tab Đang bán
+const DEFAULT_TAB = 'published';
 
 const PAUSE_REASON = {
   manual: 'Bạn đã tạm dừng',
@@ -141,7 +143,8 @@ function ProductCard({ creative }) {
 export default function SellerProductsPage() {
   useSeo({ title: 'Creative của tôi', noindex: true });
   const [params, setParams] = useSearchParams();
-  const status = TAB_VALUES.includes(params.get('status')) ? params.get('status') : '';
+  const tab = TAB_VALUES.includes(params.get('status')) ? params.get('status') : DEFAULT_TAB;
+  const status = tab === 'all' ? '' : tab;
   const hashtag = params.get('hashtag') ?? '';
   const tabScrollRef = useHorizontalScroll();
 
@@ -182,7 +185,7 @@ export default function SellerProductsPage() {
 
   const setStatus = (value) => {
     const next = new URLSearchParams(params);
-    if (value) next.set('status', value);
+    if (value !== DEFAULT_TAB) next.set('status', value);
     else next.delete('status');
     setParams(next, { replace: true });
   };
@@ -223,7 +226,7 @@ export default function SellerProductsPage() {
                 type="button"
                 onClick={() => setStatus(t.value)}
                 className={`whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                  status === t.value
+                  tab === t.value
                     ? 'border-primary-container bg-primary-container text-on-primary'
                     : 'border-outline-variant/40 text-on-surface-variant hover:border-primary-container'
                 }`}
