@@ -71,25 +71,28 @@ export default function AccountPage() {
           <ErrorState error={error} onRetry={refetch} />
         ) : (
           <>
-            <section className="flex items-center gap-4 rounded-2xl border border-outline-variant/40 p-4">
-              {isLoading ? (
-                <Skeleton className="size-16 !rounded-full" />
-              ) : (
-                <Avatar src={me.avatarUrl} name={me.name} className="size-16 shrink-0 ring-2 ring-primary/20" />
-              )}
-              <div className="min-w-0 flex-1">
+            <section className="overflow-hidden rounded-2xl border border-outline-variant/40">
+              <div className="flex items-center gap-4 p-4">
                 {isLoading ? (
-                  <>
-                    <Skeleton className="mb-2 h-5 w-32" />
-                    <Skeleton className="h-4 w-44" />
-                  </>
+                  <Skeleton className="size-16 !rounded-full" />
                 ) : (
-                  <>
-                    <h2 className="truncate text-lg font-bold text-on-surface">{me.name}</h2>
-                    <p className="truncate text-sm text-on-surface-variant">{me.email}</p>
-                  </>
+                  <Avatar src={me.avatarUrl} name={me.name} className="size-16 shrink-0 ring-2 ring-primary/20" />
                 )}
+                <div className="min-w-0 flex-1">
+                  {isLoading ? (
+                    <>
+                      <Skeleton className="mb-2 h-5 w-32" />
+                      <Skeleton className="h-4 w-44" />
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="truncate text-lg font-bold text-on-surface">{me.name}</h2>
+                      <p className="truncate text-sm text-on-surface-variant">{me.email}</p>
+                    </>
+                  )}
+                </div>
               </div>
+              {me && <AccountSwitcher currentId={me.id} />}
             </section>
 
             <section className="divide-y divide-surface-container overflow-hidden rounded-2xl border border-outline-variant/40">
@@ -119,8 +122,6 @@ export default function AccountPage() {
             </section>
           </>
         )}
-
-        {me && <AccountSwitcher currentId={me.id} />}
 
         <TikTokConnectionCard />
 

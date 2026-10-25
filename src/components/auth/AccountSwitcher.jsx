@@ -4,13 +4,13 @@ import Icon from '../common/Icon';
 import { useAuth } from '../../context/AuthContext';
 import { MAX_ACCOUNTS } from '../../api/tokenStorage';
 
-/** Danh sách tài khoản đã đăng nhập trên máy này: bấm để chuyển, nút x để gỡ khỏi máy. */
+/** Danh sách tài khoản đã đăng nhập trên máy này: bấm để chuyển, nút x để gỡ khỏi máy. Nằm trong box hồ sơ ở trang tài khoản. */
 export default function AccountSwitcher({ currentId }) {
   const { accounts, switchAccount, removeAccount } = useAuth();
   const others = accounts.filter((a) => a.id !== currentId);
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-outline-variant/40">
+    <div className="border-t border-surface-container">
       <h2 className="px-4 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-on-surface-variant">Chuyển tài khoản</h2>
       <ul className="divide-y divide-surface-container">
         {others.map((a) => (
@@ -51,6 +51,6 @@ export default function AccountSwitcher({ currentId }) {
           </li>
         )}
       </ul>
-    </section>
+    </div>
   );
 }
