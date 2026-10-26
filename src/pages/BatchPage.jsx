@@ -12,7 +12,15 @@ import { FormAlert } from '../components/common/Form';
 import { BatchStatusBadge } from '../components/batch/BatchStatus';
 import EditInputsDialog from '../components/batch/EditInputsDialog';
 import CropImageDialog from '../components/batch/CropImageDialog';
-import { BATCH_SOURCE, deleteBatchImage, getBatch, regenerateBatchImage } from '../api/batches';
+import {
+  BATCH_SOURCE,
+  UPLOAD_IMAGE_MAX_MB,
+  UPLOAD_IMAGE_TYPES,
+  deleteBatchImage,
+  getBatch,
+  regenerateBatchImage,
+  uploadBatchImage,
+} from '../api/batches';
 import { IMAGE_STATUS, PHOTO_MAX_COUNT, createPostFromImages, isImageBusy, newIdempotencyKey } from '../api/social';
 import { formatVnd } from '../utils/format';
 
@@ -22,7 +30,7 @@ const POLL_INTERVAL = 3000;
  * Một ảnh của lô. Chế độ thường: xem, sửa nguyên liệu, tạo lại, xoá. Chế độ chọn ảnh để tạo bài đăng:
  * bấm vào ảnh để chọn / bỏ chọn (chỉ ảnh đã xong), số thứ tự chọn = thứ tự trong bài.
  */
-function BatchImage({ img, index, busy, selecting, order, canSelect, onToggle, onView, onEdit, onRegenerate, onRemove }) {
+function BatchImage({ img, index, busy, selecting, order, canSelect, onToggle, onView, onEdit, onRegenerate, onUpload, onRemove }) {
   const failed = img.status === IMAGE_STATUS.FAILED;
   const completed = img.status === IMAGE_STATUS.COMPLETED;
   const picked = order >= 0;
@@ -93,10 +101,10 @@ function BatchImage({ img, index, busy, selecting, order, canSelect, onToggle, o
           </button>
         )}
       </div>
-      {/* Tạo lại và xoá nằm dưới ảnh, không che ảnh */}
+      {/* Tạo lại, tải lên và xoá nằm dưới ảnh, không che ảnh */}
       {!selecting && (
         <div className="flex gap-1">
-          {canRegenerate ? (
+          {canRegenerate && (
             <button
               type="button"
               onClick={onRegenerate}
@@ -106,9 +114,17 @@ function BatchImage({ img, index, busy, selecting, order, canSelect, onToggle, o
               <Icon name="refresh" className="text-sm" />
               Tạo lại
             </button>
-          ) : (
-            <span className="flex-1" />
           )}
+          <button
+            type="button"
+            onClick={onUpload}
+            disabled={busy}
+            title="Tải ảnh từ máy thay cho ảnh này"
+            className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border border-outline-variant/50 text-[11px] font-bold text-primary hover:bg-surface-container disabled:opacity-50"
+          >
+            <Icon name="upload" className="text-sm" />
+            Tải lên
+          </button>
           {onRemove && (
             <button
               type="button"
@@ -194,6 +210,35 @@ export default function BatchPage() {
       setError(err?.message || 'Không tạo lại được ảnh, vui lòng thử lại.');
     } finally {
       setRequesting((ids) => ids.filter((x) => x !== img.id));
+    }
+  };
+
+  // "Tải lên": một ô chọn file dùng chung, nhớ ảnh đang thay rồi mở hộp chọn file
+  const uploadRef = useRef(null);
+  const uploadTarget = useRef(null);
+  const pickUpload = (img) => {
+    uploadTarget.current = img;
+    uploadRef.current?.click();
+  };
+  const uploadImage = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    const img = uploadTarget.current;
+    if (!file || !img) return;
+    if (!UPLOAD_IMAGE_TYPES.includes(file.type) || file.size > UPLOAD_IMAGE_MAX_MB * 1024 * 1024) {
+      setError(`Chỉ nhận ảnh JPG, PNG, WebP, tối đa ${UPLOAD_IMAGE_MAX_MB}MB.`);
+      return;
+    }
+    setBusy(img.id);
+    setError(null);
+    try {
+      const fresh = await uploadBatchImage(batch.id, img, file);
+      queryClient.setQueryData(['batches', id], (b) => b && { ...b, images: b.images.map((i) => (i.id === img.id ? fresh : i)) });
+      queryClient.invalidateQueries({ queryKey: ['batches'] });
+    } catch (err) {
+      setError(err?.message || 'Không tải ảnh lên được, vui lòng thử lại.');
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -369,11 +414,13 @@ export default function BatchPage() {
                   onView={() => setViewing(img)}
                   onEdit={() => setEditing(img)}
                   onRegenerate={() => regenerate(img)}
+                  onUpload={() => pickUpload(img)}
                   // Lô luôn còn ít nhất 1 ảnh; muốn bỏ hết thì xoá cả lô
                   onRemove={batch.images.length > 1 ? () => removeImage(img) : null}
                 />
               ))}
             </ul>
+            <input ref={uploadRef} type="file" accept={UPLOAD_IMAGE_TYPES.join(',')} className="hidden" onChange={uploadImage} />
           </section>
 
           {selecting ? (

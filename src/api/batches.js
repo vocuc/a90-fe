@@ -15,7 +15,7 @@ import { mapImage } from './social';
  * GET    /image-batches/{id}/images/{imageId}/inputs            -> { data: { creative, inputs } }
  * POST   /image-batches/{id}/images/{imageId}/regenerate        -> 202 { data: Image }
  * DELETE /image-batches/{id}/images/{imageId}                   -> 204
- * POST   /image-batches/{id}/images/{imageId}/crop (multipart)  -> 200 { data: Image }
+ * POST   /image-batches/{id}/images/{imageId}/crop (multipart)  -> 200 { data: Image }   (cắt ảnh và tải ảnh lên thủ công)
  */
 
 export const BATCH_STATUS = {
@@ -143,6 +143,21 @@ export function regenerateBatchImage(batchId, image, idempotencyKey, edit) {
 export function cropBatchImage(batchId, image, file) {
   const form = new FormData();
   form.append('image', file, `crop_${image.id}.jpg`);
+  return client
+    .post(`/image-batches/${batchId}/images/${image.id}/crop`, form, { timeout: UPLOAD_TIMEOUT })
+    .then(({ data }) => mapImage(data));
+}
+
+export const UPLOAD_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+export const UPLOAD_IMAGE_MAX_MB = 10;
+
+/**
+ * "Tải lên": người dùng tự chọn ảnh từ máy thay cho ảnh của lô (không tính phí). Dùng chung endpoint ghi đè ảnh của "Cắt ảnh".
+ * file: File ảnh JPG / PNG / WebP.
+ */
+export function uploadBatchImage(batchId, image, file) {
+  const form = new FormData();
+  form.append('image', file, file.name || `upload_${image.id}.jpg`);
   return client
     .post(`/image-batches/${batchId}/images/${image.id}/crop`, form, { timeout: UPLOAD_TIMEOUT })
     .then(({ data }) => mapImage(data));
