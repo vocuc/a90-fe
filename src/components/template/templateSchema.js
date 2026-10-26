@@ -405,7 +405,6 @@ export function validateTemplate(template, { maxHiddenImages = DEFAULT_MAX_HIDDE
   });
 
   // ---- Thông tin sản phẩm ----
-  if (!(template.title ?? '').trim()) add('error', 'Chưa nhập tiêu đề.', null, 'title');
   if (!template.model_id) add('error', 'Chưa chọn AI model.', null, 'model_id');
   const price = template.price_per_image ?? '';
   if (price === '') add('error', 'Chưa nhập giá bán mỗi ảnh.', null, 'price_per_image');
@@ -575,7 +574,8 @@ export function fromPayload(data) {
 export function toCreativePayload(template) {
   const trimmed = (v) => (v ?? '').trim() || null;
   return {
-    title: (template.title ?? '').trim(),
+    // Bỏ trống: backend tự đặt tiêu đề MS{thời gian tạo}
+    title: trimmed(template.title),
     model_id: Number(template.model_id),
     price_per_image: Number(template.price_per_image),
     category_id: template.category_id ? Number(template.category_id) : null,

@@ -86,9 +86,9 @@ export default function PromptEditor({ template, onChange, onSet, errors = {}, s
         <section className="space-y-3 rounded-xl border border-outline-variant/40 p-3">
           <h3 className="text-[11px] font-bold uppercase tracking-wide text-outline">Thông tin sản phẩm</h3>
           <Input
-            label="Tiêu đề *"
+            label="Tiêu đề"
             maxLength={MAX_TITLE_LENGTH}
-            placeholder="Ví dụ: Ảnh giày studio nền trắng"
+            placeholder="Bỏ trống để tự đặt MS + thời gian tạo"
             value={template.title ?? ''}
             onChange={(e) => onSet({ title: e.target.value })}
             error={errors.title}
