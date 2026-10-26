@@ -6,12 +6,18 @@ import { MAX_HASHTAGS, MAX_HASHTAG_LENGTH, cleanHashtag, hashtagError, hashtagSl
 /**
  * Nhập hashtag cho Creative: Enter / dấu phẩy / khoảng trắng để thêm, Backspace ở ô trống để xoá cái cuối.
  * Gợi ý lấy từ GET /hashtags (hashtag đang có Creative bán). value: tên hashtag không có #.
+ * lowercase: tự chuyển chữ hoa thành chữ thường ngay khi gõ / dán / chọn gợi ý (dùng ở trang đăng bài).
+ * quickPicks: (chữ đang gõ) => tên hashtag hiện thành nút bấm dưới ô nhập (hashtag đã dùng ở trang đăng bài).
+ * remoteSuggest: false để tắt danh sách gợi ý xổ xuống từ GET /hashtags.
  */
 export default function HashtagInput({
   value = [],
   onChange,
   error,
   hint = 'Giúp người mua tìm thấy mẫu ở trang Khám phá. Nhấn Enter hoặc dấu phẩy để thêm.',
+  lowercase = false,
+  quickPicks,
+  remoteSuggest = true,
 }) {
   const id = useId();
   const [text, setText] = useState('');
@@ -22,15 +28,15 @@ export default function HashtagInput({
 
   const prefix = hashtagSlug(text);
   const full = value.length >= MAX_HASHTAGS;
-  const { data } = useHashtags(prefix, { limit: 8, enabled: focused && !full });
+  const { data } = useHashtags(prefix, { limit: 8, enabled: remoteSuggest && focused && !full });
   const taken = new Set(value.map(hashtagSlug));
-  const suggestions = focused && !full ? (data ?? []).filter((h) => !taken.has(h.slug)) : [];
+  const suggestions = remoteSuggest && focused && !full ? (data ?? []).filter((h) => !taken.has(h.slug)) : [];
 
   useEffect(() => setActive(-1), [prefix]);
 
   // Thêm một hoặc nhiều hashtag (dán "a, #b c"); bỏ qua cái trùng, báo cái sai
   const add = (raw) => {
-    const names = raw.split(/[\s,]+/).map(cleanHashtag).filter(Boolean);
+    const names = (lowercase ? raw.toLowerCase() : raw).split(/[\s,]+/).map(cleanHashtag).filter(Boolean);
     if (!names.length) return true;
     const next = [...value];
     const seen = new Set(next.map(hashtagSlug));
@@ -81,6 +87,7 @@ export default function HashtagInput({
   };
 
   const shownError = inputError ?? error;
+  const picks = quickPicks && !full ? quickPicks(text) : [];
 
   return (
     <div>
@@ -120,7 +127,7 @@ export default function HashtagInput({
               value={text}
               maxLength={MAX_HASHTAG_LENGTH + 1}
               onChange={(e) => {
-                setText(e.target.value);
+                setText(lowercase ? e.target.value.toLowerCase() : e.target.value);
                 setInputError(null);
               }}
               onKeyDown={onKeyDown}
@@ -170,6 +177,23 @@ export default function HashtagInput({
           </ul>
         )}
       </div>
+      {picks.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          <span className="text-[11px] text-on-surface-variant">{prefix ? 'Gợi ý:' : 'Hay dùng:'}</span>
+          {picks.map((name) => (
+            <button
+              key={hashtagSlug(name)}
+              type="button"
+              // Giữ focus ở ô nhập để onBlur không thêm chữ đang gõ dở
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => pick({ name })}
+              className="rounded-full border border-outline-variant/50 px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-surface-container"
+            >
+              #{name}
+            </button>
+          ))}
+        </div>
+      )}
       {shownError ? (
         <p className="mt-1 text-xs text-error">{shownError}</p>
       ) : (

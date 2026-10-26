@@ -8,6 +8,8 @@ import ImageViewer from '../components/common/ImageViewer';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { FormAlert, SubmitButton, TextArea, TextField } from '../components/common/Form';
 import HashtagInput from '../components/template/HashtagInput';
+import { hashtagSlug } from '../utils/hashtag';
+import { readHashtagHistory, recordHashtags, suggestHashtags } from '../utils/hashtagHistory';
 import A51ImagePicker from '../components/social/A51ImagePicker';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
 import {
@@ -576,10 +578,19 @@ function ReviewForm({ post, onRefresh }) {
   const [formError, setFormError] = useState(null);
   const [busy, setBusy] = useState(null); // 'publish' | 'delete'
   const [adding, setAdding] = useState(false);
+  // Hashtag đã nhập ở các bài trước (cookie), gợi ý dưới ô hashtag
+  const [hashtagHistory, setHashtagHistory] = useState(readHashtagHistory);
 
   const set = (key) => (value) => {
     setForm((f) => ({ ...f, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
+  };
+
+  // Thêm hashtag: cộng lần dùng vào cookie (xoá thì không trừ)
+  const setHashtags = (next) => {
+    const added = next.filter((t) => !form.hashtags.some((x) => hashtagSlug(x) === hashtagSlug(t)));
+    if (added.length) setHashtagHistory(recordHashtags(added));
+    set('hashtags')(next);
   };
 
   const run = async (kind, fn) => {
@@ -754,7 +765,10 @@ function ReviewForm({ post, onRefresh }) {
           <div>
             <HashtagInput
               value={form.hashtags}
-              onChange={set('hashtags')}
+              onChange={setHashtags}
+              lowercase
+              quickPicks={(text) => suggestHashtags(hashtagHistory, text, form.hashtags)}
+              remoteSuggest={false}
               hint="Hashtag được thêm vào cuối nội dung. Nhấn Enter hoặc dấu phẩy để thêm."
             />
             {errors.hashtags && <p className="mt-1 text-xs text-error">{errors.hashtags}</p>}
