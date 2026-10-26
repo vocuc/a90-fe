@@ -32,6 +32,7 @@ function ProductCard({ creative }) {
   const publish = usePublishCreative();
   const pause = usePauseCreative();
   const { id, title, cover_url, price_per_image, status, pause_reason, is_hidden, is_public, usage_count, group, hashtags } = creative;
+  const ratio = creative.default_aspect_ratio ?? creative.config?.default_aspect_ratio;
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
   const visibility = VISIBILITY_BADGE[is_public ? 'public' : 'private'];
   const canPublish = PUBLISHABLE.includes(status);
@@ -65,6 +66,15 @@ function ProductCard({ creative }) {
               </span>
             )}
           </div>
+          {ratio && (
+            <span
+              title="Tỷ lệ khung hình mặc định"
+              className="absolute bottom-2 right-2 flex items-center gap-0.5 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white"
+            >
+              <Icon name="aspect_ratio" className="text-[12px]" />
+              {ratio}
+            </span>
+          )}
         </div>
         <div className="flex flex-1 flex-col p-2.5">
           <h3 className="mb-1 line-clamp-2 text-xs font-bold text-on-surface">{title}</h3>
