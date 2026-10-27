@@ -1,0 +1,19 @@
+TẢI ẢNH LÊN BẰNG TAY THAY CHO ẢNH TẠO LỖI (BACKEND CẦN SỬA) - 2026-10-26
+
+Hiện trạng:
+- Trang chi tiết lô (/batches/:id), mỗi ảnh có nút "Tải lên": người dùng chọn ảnh từ máy để thay ảnh đó (không tính phí).
+- Frontend gọi chung endpoint với "Cắt ảnh":
+    POST /image-batches/{batchId}/images/{imageId}/crop   (multipart, field "image": JPG / PNG / WebP, tối đa 10MB)
+- Ảnh tạo thất bại (status failed): backend trả lỗi "Chỉ cắt được ảnh đã tạo xong." -> người dùng không thay được ảnh lỗi.
+
+Yêu cầu:
+- Endpoint trên nhận cả ảnh status failed (ngoài completed). Vẫn chặn ảnh đang tạo (pending / processing).
+- Ảnh failed sau khi tải lên:
+  + lưu file như ảnh đã cắt, gán url / thumb_url mới
+  + status -> completed, xoá error_code / error_message
+  + KHÔNG trừ tiền, KHÔNG đổi khoản đã hoàn tiền trước đó (ảnh lỗi đã hoàn tiền, tải lên là miễn phí)
+  + failed_count của lô giảm tương ứng (frontend hiện "N ảnh lỗi (đã hoàn tiền)" theo failed_count)
+- Trả về ảnh như hiện tại (cùng định dạng phản hồi của /crop) để frontend thay đúng vị trí trong lô.
+- Ảnh đã thay vẫn giữ creative / nguyên liệu cũ để "Tạo lại" / "Sửa nguyên liệu" dùng được.
+
+Frontend: không cần sửa, nút "Tải lên" đã hiện với ảnh lỗi và ảnh trả về completed sẽ chọn được khi tạo bài đăng.

@@ -1,7 +1,6 @@
 import useSeo from '../hooks/useSeo';
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
@@ -25,9 +24,12 @@ function OrderCard({ order }) {
   const status = STATUS[order.status] ?? { label: order.status, className: 'bg-surface-container text-on-surface-variant' };
   const images = (order.outputs ?? []).filter((o) => o.status === 'completed' && o.image_url);
 
-  const [first, ...rest] = images;
   const [downloadingAll, setDownloadingAll] = useState(false);
   const [viewing, setViewing] = useState(null);
+  // Ảnh tải lỗi (link hết hạn, file mất...) thì ẩn khỏi lưới
+  const [broken, setBroken] = useState(() => new Set());
+  const visible = images.filter((o) => !broken.has(o.id));
+  const markBroken = (id) => setBroken((prev) => new Set(prev).add(id));
 
   // Tải lần lượt từng ảnh để trình duyệt không chặn nhiều lượt tải cùng lúc
   const downloadAll = async () => {
@@ -41,15 +43,21 @@ function OrderCard({ order }) {
     }
   };
 
-  const thumb = (o, className) => (
+  const thumb = (o) => (
     <button
       key={o.id}
       type="button"
       onClick={() => setViewing(o)}
       aria-label={`Xem ảnh ${o.position}`}
-      className={`group relative cursor-zoom-in aspect-square overflow-hidden rounded-lg ${className}`}
+      className="group relative aspect-square w-full cursor-zoom-in overflow-hidden rounded-lg bg-surface-container"
     >
-      <CoverImage src={thumbOf(o)} alt={`Ảnh ${o.position}`} className="size-full" />
+      <img
+        src={thumbOf(o)}
+        alt={`Ảnh ${o.position}`}
+        loading="lazy"
+        onError={() => markBroken(o.id)}
+        className="size-full object-cover"
+      />
       <span className="absolute inset-0 flex items-center justify-center bg-inverse-surface/40 text-on-primary opacity-0 transition-opacity group-hover:opacity-100">
         <Icon name="zoom_in" className="text-lg" />
       </span>
@@ -57,20 +65,10 @@ function OrderCard({ order }) {
   );
 
   return (
-    <article className="flex gap-3 rounded-2xl border border-outline-variant/40 p-3">
+    <article className="space-y-3 rounded-2xl border border-outline-variant/40 p-3">
       <ImageViewer src={viewing?.image_url} alt={`Ảnh ${viewing?.position}`} onClose={() => setViewing(null)} />
-      {/* Ảnh bên trái: ảnh đầu to, các ảnh còn lại xếp lưới nhỏ bên dưới */}
-      <div className="w-24 shrink-0 space-y-1.5">
-        {first ? (
-          thumb(first, 'w-full')
-        ) : (
-          <CoverImage src={null} alt="" className="aspect-square w-full rounded-lg" />
-        )}
-        {rest.length > 0 && <div className="grid grid-cols-3 gap-1">{rest.map((o) => thumb(o, 'w-full !rounded-md'))}</div>}
-      </div>
-
-      {/* Thông tin bên phải */}
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      {/* Thông tin đơn */}
+      <div className="flex min-w-0 flex-col gap-1">
         <div className="flex items-start gap-2">
           {order.creative ? (
             <Link
@@ -107,6 +105,9 @@ function OrderCard({ order }) {
           )}
         </div>
       </div>
+
+      {/* Ảnh đã tạo xếp lưới, ảnh lỗi không hiện */}
+      {visible.length > 0 && <div className="grid grid-cols-4 gap-1.5">{visible.map(thumb)}</div>}
     </article>
   );
 }
