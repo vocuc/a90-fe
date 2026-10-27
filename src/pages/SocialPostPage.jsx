@@ -117,7 +117,9 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
   const [connecting, setConnecting] = useState(false);
   const toggle = (value) => setSelected((cur) => (cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value]));
   const toggleTikTok = (id) => {
-    const next = tiktokIds.includes(id) ? tiktokIds.filter((x) => x !== id) : [...tiktokIds, id];
+    // TikTok chưa chọn thì các ô đang hiện trống: bấm tài khoản nào chỉ chọn tài khoản đó
+    const cur = selected.includes('tiktok') ? tiktokIds : [];
+    const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
     setTiktokIds(next);
     // Chọn tài khoản thì chọn luôn TikTok, bỏ hết thì bỏ TikTok
     setSelected((cur) => (next.length ? [...new Set([...cur, 'tiktok'])] : cur.filter((v) => v !== 'tiktok')));
