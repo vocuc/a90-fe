@@ -1,0 +1,56 @@
+MỘT TÀI KHOẢN A51 ỦY QUYỀN NHIỀU TÀI KHOẢN TIKTOK
+==================================================
+
+Ngày: 2026-10-27. ĐÃ LÀM (backend D:\OSPanel\home\a90.local + frontend). Bổ sung cho note/dang-tiktok-qua-api.txt
+(thay mục "mỗi người tối đa 1 tài khoản").
+
+Đã chốt:
+  - Một tài khoản A51 kết nối được nhiều tài khoản TikTok (tối đa TIKTOK_MAX_ACCOUNTS, mặc định 10).
+  - Đăng bài: chọn MỘT HOẶC NHIỀU tài khoản TikTok, mỗi tài khoản một job, trạng thái riêng.
+  - Kết nối lại cùng tài khoản TikTok (cùng open_id) thì cập nhật, tài khoản khác thì thêm (không thay thế nữa).
+  - Màn hình ủy quyền TikTok luôn hiện (disable_auto_auth=1) để người dùng chuyển sang tài khoản muốn thêm.
+
+
+1. DỮ LIỆU (migration 2026_10_27_100000_allow_multiple_tiktok_accounts)
+----------------------------------------------------------------------
+
+publish_accounts: unique(user_id, platform, driver) -> unique(user_id, platform, driver, open_id).
+  Dòng worker vẫn tối đa 1 / nền tảng (admin kiểm tra như cũ).
+social_publish_jobs: + account_open_id, account_name ("@username" lúc gửi, giữ khi huỷ kết nối), superseded.
+  Đích gửi của job: worker | api:{open_id}. Trạng thái nền tảng = gộp job mới nhất của từng đích (bỏ job superseded):
+  còn đang đăng -> publishing, còn chờ -> queued, có lỗi -> failed, xong hết -> published.
+  Bấm đăng một nền tảng: job lỗi trước đó của nền tảng thành superseded (đăng lại thì có job mới, không đăng lại thì bỏ qua).
+
+
+2. API
+------
+
+GET /social/accounts: mỗi phần tử thêm "id". TikTok tự kết nối trả MỌI dòng api (theo thứ tự kết nối), không trả dòng worker.
+
+POST /social/tiktok/oauth/authorize: đủ số tối đa mà mọi tài khoản đều đang dùng được -> 409 TIKTOK_ACCOUNT_LIMIT.
+POST /social/tiktok/oauth/callback: tài khoản TikTok MỚI khi đã đủ số -> { status: error, reason: limit_reached }
+  (thu hồi token vừa cấp, không lưu). Kết nối lại tài khoản cũ luôn được.
+
+DELETE /social/tiktok/accounts/{id} (thay DELETE /social/tiktok/account): huỷ một tài khoản. Không phải của mình -> 404.
+  Tài khoản đang có job gửi -> 409 TIKTOK_PUBLISHING_IN_PROGRESS. Kết nối thêm khi đang gửi: không bị chặn nữa.
+
+POST /social/posts/{id}/publish: thêm tiktok_account_ids (int[], tuỳ chọn).
+  - Chưa tự kết nối TikTok: bỏ qua, đăng qua worker như cũ.
+  - Bỏ trống mà chỉ có 1 tài khoản: dùng tài khoản đó. Nhiều tài khoản: 422 errors.tiktok_account_ids "Chọn tài khoản TikTok...".
+  - id không phải của mình: 422. Tài khoản đã nhận bài này (job completed): 422 "Bài đã gửi vào @x, không gửi lại."
+  - Tài khoản đã chọn mất kết nối: 409 TIKTOK_NOT_CONNECTED, context { reason, account_id }, không tạo job nào.
+  - TikTok đã published nhưng còn tài khoản chưa nhận: vẫn gửi thêm được.
+
+SocialPost.platforms.tiktok thêm accounts: [{ account_id, name, status, error, finished_at }] (job api mới nhất từng tài
+khoản, [] khi đăng qua worker). error của nền tảng = lỗi của tài khoản lỗi đầu tiên.
+
+
+3. FRONTEND
+-----------
+
+- src/api/social.js: tiktokConnectionsOf, isConnectionActive, tiktokNameOf, disconnectTikTok(id), publishPost gửi
+  tiktok_account_ids, mapPlatforms đọc accounts, TIKTOK_CONNECT_MESSAGES.limit_reached.
+- TikTokConnectionCard (trang Tài khoản): danh sách tài khoản, "Thêm", "Kết nối lại" (tài khoản mất kết nối), "Huỷ".
+- Popup "Đăng lên đâu?": dưới dòng TikTok liệt kê tài khoản để tick (chọn sẵn tài khoản lỗi lần trước, không có thì mọi
+  tài khoản còn gửi được); tài khoản đã nhận bài hiện "Đã gửi"; mất kết nối hiện "Kết nối lại"; "+ Thêm tài khoản TikTok".
+- PlatformStatusList: mỗi tài khoản TikTok một chip, lỗi từng tài khoản hiện bên dưới.

@@ -45,16 +45,30 @@ const PLATFORM_STATUS_INFO = {
 
 /**
  * Trạng thái bài trên từng nền tảng đã chọn: "TikTok · Đã lưu nháp", "TikTok · Đã gửi vào hộp thư", "Facebook · Lỗi"...
+ * TikTok gửi vào nhiều tài khoản: mỗi tài khoản một chip "TikTok @shopa · Đã gửi vào hộp thư".
  * showErrors: hiện thêm lỗi cụ thể khi gửi TikTok qua API (hết lượt, mất kết nối...); lỗi worker chỉ là thông báo chung.
  */
 export function PlatformStatusList({ platforms, className = '', showErrors = false }) {
   if (!platforms?.length) return null;
+  const items = platforms.flatMap((p) =>
+    p.accounts?.length
+      ? p.accounts.map((a) => ({
+          ...p,
+          key: `${p.platform}-${a.accountId ?? a.name}`,
+          account: a.name,
+          status: a.status,
+          driver: DRIVER.API,
+          error: a.error,
+          postUrl: null,
+        }))
+      : [{ ...p, key: p.platform, account: null }],
+  );
   const apiErrors = showErrors
-    ? platforms.filter((p) => p.status === PLATFORM_STATUS.FAILED && p.driver === DRIVER.API && p.error)
+    ? items.filter((p) => p.status === PLATFORM_STATUS.FAILED && p.driver === DRIVER.API && p.error)
     : [];
   const list = (
     <ul className={`flex flex-wrap gap-1 ${className}`}>
-      {platforms.map((p) => {
+      {items.map((p) => {
         const info = platformInfo(p.platform);
         const s = PLATFORM_STATUS_INFO[p.status] ?? PLATFORM_STATUS_INFO[PLATFORM_STATUS.QUEUED];
         const label = p.status === PLATFORM_STATUS.PUBLISHED ? doneLabelOf(p.platform, p.driver) : s.label;
@@ -62,12 +76,13 @@ export function PlatformStatusList({ platforms, className = '', showErrors = fal
           <>
             <Icon name={s.icon} fill={s.fill} className={`text-sm ${s.spin ? 'animate-spin' : ''}`} />
             <span className="font-bold">{info.label}</span>
+            {p.account && <span className="max-w-[10rem] truncate font-semibold">{p.account}</span>}
             <span>· {label}</span>
           </>
         );
         const chipClass = `inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] ${s.className}`;
         return (
-          <li key={p.platform}>
+          <li key={p.key}>
             {p.postUrl ? (
               <a
                 href={p.postUrl}
@@ -94,8 +109,9 @@ export function PlatformStatusList({ platforms, className = '', showErrors = fal
     <div className="space-y-1">
       {list}
       {apiErrors.map((p) => (
-        <p key={p.platform} className="text-xs text-error">
-          {platformInfo(p.platform).label}: {p.error}
+        <p key={p.key} className="text-xs text-error">
+          {platformInfo(p.platform).label}
+          {p.account ? ` ${p.account}` : ''}: {p.error}
         </p>
       ))}
     </div>

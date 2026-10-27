@@ -6,6 +6,7 @@ import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
+import Avatar from '../components/common/Avatar';
 import { FormAlert, SubmitButton, TextArea, TextField } from '../components/common/Form';
 import HashtagInput from '../components/template/HashtagInput';
 import { hashtagSlug } from '../utils/hashtag';
@@ -21,16 +22,17 @@ import {
   PLATFORMS,
   PLATFORM_STATUS,
   POST_STATUS,
-  TIKTOK_CONNECT_MESSAGES,
   authorizeTikTok,
   deletePost,
   doneLabelOf,
   getAccounts,
   getPost,
+  isConnectionActive,
   isImageBusy,
   isPostLocked,
   publishPost,
-  tiktokConnectionOf,
+  tiktokConnectionsOf,
+  tiktokNameOf,
 } from '../api/social';
 
 // Đang chuẩn bị / chờ đăng / đang đăng: hỏi lại mỗi 3 giây
@@ -90,16 +92,36 @@ const takeDraft = (postId) => {
  * Popup "Đăng lên đâu?": bấm Đăng bài thì chọn TikTok / Facebook / Instagram (một, vài hoặc cả 3) rồi mới tạo job.
  * Lần trước có nền tảng lỗi thì chọn sẵn các nền tảng lỗi; nền tảng đã đăng xong hiện "Đã đăng" và không chọn được.
  * imageCount / caption: để báo ngay nền tảng nào vượt giới hạn (vd Instagram 10 ảnh, 2200 ký tự).
+ * TikTok tự kết nối (note/uy-quyen-nhieu-tiktok.txt): chọn một hoặc nhiều tài khoản nhận bài; tài khoản đã nhận bài này
+ * thì không chọn lại, tài khoản mất kết nối thì không chọn được tới khi kết nối lại.
  */
 function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, onConfirm, onClose, onConnectTikTok }) {
-  const done = publishedPlatforms(post);
-  // TikTok tự kết nối (đăng qua API, ảnh vào hộp thư TikTok); mất kết nối thì không chọn được tới khi kết nối lại
-  const tiktok = tiktokConnectionOf(accounts);
-  const tiktokLost = !!tiktok && tiktok.connection?.status !== 'active';
-  const available = PLATFORMS.filter((p) => !done.includes(p.value) && !(p.value === 'tiktok' && tiktokLost));
+  // TikTok tự kết nối (đăng qua API, ảnh vào hộp thư TikTok)
+  const tiktokAccounts = tiktokConnectionsOf(accounts);
+  const tiktokPlatform = post.platforms.find((x) => x.platform === 'tiktok');
+  // Tài khoản đã nhận bài này / lần trước gửi lỗi
+  const sentIds = (tiktokPlatform?.accounts ?? []).filter((a) => a.status === PLATFORM_STATUS.PUBLISHED).map((a) => a.accountId);
+  const failedIds = (tiktokPlatform?.accounts ?? []).filter((a) => a.status === PLATFORM_STATUS.FAILED).map((a) => a.accountId);
+  const selectableTikTok = tiktokAccounts.filter((a) => isConnectionActive(a) && !sentIds.includes(a.id));
+  const tiktokApi = tiktokAccounts.length > 0;
+
+  // TikTok tự kết nối: xong khi không còn tài khoản nào để gửi; còn lại: nền tảng đã đăng xong
+  const done = publishedPlatforms(post).filter((v) => !(v === 'tiktok' && tiktokApi && selectableTikTok.length > 0));
+  const available = PLATFORMS.filter((p) => !done.includes(p.value) && !(p.value === 'tiktok' && tiktokApi && !selectableTikTok.length));
   const [selected, setSelected] = useState(() => failedPlatforms(post).filter((v) => available.some((p) => p.value === v)));
+  // Tài khoản TikTok chọn sẵn: các tài khoản lỗi lần trước, không có thì mọi tài khoản còn gửi được
+  const [tiktokIds, setTiktokIds] = useState(() => {
+    const failed = selectableTikTok.filter((a) => failedIds.includes(a.id));
+    return (failed.length ? failed : selectableTikTok).map((a) => a.id);
+  });
   const [connecting, setConnecting] = useState(false);
   const toggle = (value) => setSelected((cur) => (cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value]));
+  const toggleTikTok = (id) => {
+    const next = tiktokIds.includes(id) ? tiktokIds.filter((x) => x !== id) : [...tiktokIds, id];
+    setTiktokIds(next);
+    // Chọn tài khoản thì chọn luôn TikTok, bỏ hết thì bỏ TikTok
+    setSelected((cur) => (next.length ? [...new Set([...cur, 'tiktok'])] : cur.filter((v) => v !== 'tiktok')));
+  };
   const allSelected = available.length > 0 && available.every((p) => selected.includes(p.value));
 
   useEffect(() => {
@@ -121,11 +143,13 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
         ? `Nội dung + hashtag tối đa ${p.descriptionMax} ký tự`
         : null;
   const chosen = PLATFORMS.filter((p) => selected.includes(p.value));
+  const chosenTikTok = tiktokApi && selected.includes('tiktok') ? selectableTikTok.filter((a) => tiktokIds.includes(a.id)) : [];
+  const tiktokMissing = tiktokApi && selected.includes('tiktok') && !chosenTikTok.length;
   const blocked = chosen.filter(limitError);
   const unassigned = chosen.filter((p) => !accounts.some((a) => a.platform === p.value));
   const tiktokWorker = accounts.some((a) => a.platform === 'tiktok' && a.driver === 'worker');
-  const tiktokNote = tiktok
-    ? `Gửi vào hộp thư TikTok${tiktok.username ? ` @${tiktok.username}` : ''}`
+  const tiktokNote = tiktokApi
+    ? `Gửi vào hộp thư TikTok${chosenTikTok.length ? ` (${chosenTikTok.length} tài khoản)` : ''}`
     : tiktokWorker
       ? 'Lưu vào nháp TikTok của A51'
       : PLATFORM_NOTE.tiktok;
@@ -137,6 +161,25 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
       setConnecting(false);
     }
   };
+  const connectLink = (label) => (
+    <button
+      type="button"
+      onClick={connectTikTok}
+      disabled={busy || connecting}
+      className="flex shrink-0 items-center gap-1 text-xs font-bold text-primary hover:underline disabled:opacity-60"
+    >
+      {connecting && <Icon name="progress_activity" className="animate-spin text-sm" />}
+      {label}
+    </button>
+  );
+  const selectAll = () => {
+    if (allSelected) {
+      setSelected([]);
+      return;
+    }
+    setSelected(available.map((p) => p.value));
+    if (tiktokApi && !tiktokIds.length) setTiktokIds(selectableTikTok.map((a) => a.id));
+  };
 
   return (
     <div
@@ -147,7 +190,7 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
       onClick={() => !busy && onClose()}
     >
       <div
-        className="flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-surface-container-lowest shadow-xl sm:rounded-2xl"
+        className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-surface-container-lowest shadow-xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-surface-container px-4 py-3">
@@ -165,15 +208,11 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
           </button>
         </div>
 
-        <div className="space-y-3 p-4">
+        <div className="space-y-3 overflow-y-auto p-4">
           <div className="flex items-center justify-between">
             <p className="text-xs text-on-surface-variant">Chọn một hoặc nhiều nền tảng.</p>
             {available.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setSelected(allSelected ? [] : available.map((p) => p.value))}
-                className="text-xs font-bold text-primary hover:underline"
-              >
+              <button type="button" onClick={selectAll} className="text-xs font-bold text-primary hover:underline">
                 {allSelected ? 'Bỏ chọn tất cả' : `Chọn cả ${available.length}`}
               </button>
             )}
@@ -184,7 +223,8 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
               const isDone = done.includes(p.value);
               const checked = isDone || selected.includes(p.value);
               const limit = !isDone && limitError(p);
-              const lost = p.value === 'tiktok' && tiktokLost && !isDone;
+              // TikTok tự kết nối mà không còn tài khoản nào gửi được (mất kết nối hết)
+              const unavailable = !isDone && !available.some((x) => x.value === p.value);
               const doneDriver = post.platforms.find((x) => x.platform === p.value)?.driver;
               return (
                 <li key={p.value}>
@@ -201,8 +241,11 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
                       type="checkbox"
                       className="size-5 rounded border-outline-variant text-primary focus:ring-primary-container disabled:opacity-50"
                       checked={checked}
-                      disabled={isDone || lost || busy}
-                      onChange={() => toggle(p.value)}
+                      disabled={isDone || unavailable || busy}
+                      onChange={() => {
+                        toggle(p.value);
+                        if (p.value === 'tiktok' && !checked && !tiktokIds.length) setTiktokIds(selectableTikTok.map((a) => a.id));
+                      }}
                     />
                     <Icon name={p.icon} className={`text-2xl ${checked ? 'text-primary' : 'text-outline'}`} />
                     <span className="min-w-0 flex-1">
@@ -214,22 +257,46 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
                       </span>
                     </span>
                   </label>
-                  {p.value === 'tiktok' && !isDone && (!tiktok || lost) && (
+
+                  {/* Các tài khoản TikTok tự kết nối */}
+                  {p.value === 'tiktok' && tiktokApi && (
+                    <ul className="ml-4 mt-1.5 space-y-1 border-l-2 border-surface-container pl-3">
+                      {tiktokAccounts.map((a) => {
+                        const sent = sentIds.includes(a.id);
+                        const active = isConnectionActive(a);
+                        const on = !sent && active && tiktokIds.includes(a.id) && selected.includes('tiktok');
+                        return (
+                          <li key={a.id}>
+                            <label
+                              className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${
+                                sent || !active ? 'cursor-default' : 'cursor-pointer hover:bg-surface-container-low'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="size-4 rounded border-outline-variant text-primary focus:ring-primary-container disabled:opacity-50"
+                                checked={sent || on}
+                                disabled={sent || !active || busy}
+                                onChange={() => toggleTikTok(a.id)}
+                              />
+                              <Avatar src={a.connection?.avatarUrl} name={a.name} className="size-6 shrink-0" />
+                              <span className="min-w-0 flex-1 truncate text-xs font-semibold text-on-surface">{tiktokNameOf(a)}</span>
+                              {sent ? (
+                                <span className="shrink-0 text-[11px] text-emerald-700">Đã gửi</span>
+                              ) : !active ? (
+                                <span className="shrink-0">{connectLink('Kết nối lại')}</span>
+                              ) : null}
+                            </label>
+                          </li>
+                        );
+                      })}
+                      <li className="px-2 py-1">{connectLink('+ Thêm tài khoản TikTok')}</li>
+                    </ul>
+                  )}
+                  {p.value === 'tiktok' && !tiktokApi && !isDone && (
                     <div className="mt-1 flex items-center justify-between gap-2 px-1">
-                      <span className={`text-[11px] ${lost ? 'text-error' : 'text-on-surface-variant'}`}>
-                        {lost
-                          ? (TIKTOK_CONNECT_MESSAGES[tiktok.connection?.status] ?? TIKTOK_CONNECT_MESSAGES.expired)
-                          : 'Kết nối TikTok của bạn để gửi bài thẳng vào hộp thư TikTok.'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={connectTikTok}
-                        disabled={busy || connecting}
-                        className="flex shrink-0 items-center gap-1 text-xs font-bold text-primary hover:underline disabled:opacity-60"
-                      >
-                        {connecting && <Icon name="progress_activity" className="animate-spin text-sm" />}
-                        {lost ? 'Kết nối lại' : 'Kết nối TikTok'}
-                      </button>
+                      <span className="text-[11px] text-on-surface-variant">Kết nối TikTok của bạn để gửi bài thẳng vào hộp thư TikTok.</span>
+                      {connectLink('Kết nối TikTok')}
                     </div>
                   )}
                 </li>
@@ -237,9 +304,15 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
             })}
           </ul>
 
-          {chosen.some((p) => p.value === 'tiktok') && tiktok && !tiktokLost && (
-            <p className="text-xs text-on-surface-variant">TikTok: mở app TikTok, vào Hộp thư để hoàn tất đăng bài.</p>
+          {tiktokAccounts.some((a) => !isConnectionActive(a)) && (
+            <p className="text-[11px] text-error">
+              Tài khoản mất kết nối: bấm "Kết nối lại" và đăng nhập đúng tài khoản đó trên màn hình TikTok.
+            </p>
           )}
+          {chosenTikTok.length > 0 && (
+            <p className="text-xs text-on-surface-variant">TikTok: mở app TikTok của từng tài khoản, vào Hộp thư để hoàn tất đăng bài.</p>
+          )}
+          {tiktokMissing && <p className="text-xs text-error">Chọn ít nhất một tài khoản TikTok.</p>}
           {unassigned.length > 0 && (
             <p className="text-xs text-amber-700">
               Chưa có tài khoản {unassigned.map((p) => p.label).join(', ')}: bài sẽ chờ tới khi A51 gắn tài khoản cho bạn.
@@ -254,8 +327,13 @@ function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, on
             type="button"
             loading={busy}
             loadingText="Đang gửi..."
-            disabled={busy || !chosen.length || blocked.length > 0}
-            onClick={() => onConfirm(chosen.map((p) => p.value))}
+            disabled={busy || !chosen.length || blocked.length > 0 || tiktokMissing}
+            onClick={() =>
+              onConfirm(
+                chosen.map((p) => p.value),
+                chosenTikTok.map((a) => a.id),
+              )
+            }
           >
             <Icon name="send" className="text-lg" />
             {chosen.length ? `Đăng lên ${chosen.map((p) => p.label).join(', ')}` : 'Chọn nền tảng để đăng'}
@@ -638,11 +716,11 @@ function ReviewForm({ post, onRefresh }) {
     setChoosing(true);
   };
 
-  // Đã chọn nền tảng trong popup: lưu chỉnh sửa + tạo 1 job / nền tảng
-  const publish = (platforms) =>
+  // Đã chọn nền tảng (và tài khoản TikTok) trong popup: lưu chỉnh sửa + tạo 1 job / nền tảng (TikTok: 1 job / tài khoản)
+  const publish = (platforms, tiktokAccountIds) =>
     run('publish', async () => {
       try {
-        await publishPost(post.id, { ...form, platforms });
+        await publishPost(post.id, { ...form, platforms, tiktokAccountIds });
       } catch (err) {
         setErrors(formErrorsFrom(err?.errors));
         // Mất kết nối TikTok: tải lại tài khoản để popup hiện nút "Kết nối lại"

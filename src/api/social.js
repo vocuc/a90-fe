@@ -8,11 +8,13 @@ import client from './client';
  * cho tài khoản A51) nhận job và đăng bài (TikTok: LƯU NHÁP).
  * TikTok qua API (note/dang-tiktok-qua-api.txt): người dùng tự kết nối TikTok thì mặc định đăng qua API, không qua worker:
  * ảnh vào hộp thư TikTok, người dùng mở app TikTok để đăng.
+ * Một tài khoản A51 kết nối được nhiều tài khoản TikTok (note/uy-quyen-nhieu-tiktok.txt): đăng bài thì chọn một hoặc
+ * nhiều tài khoản (tiktok_account_ids), mỗi tài khoản một trạng thái riêng (platforms.tiktok.accounts).
  *
  * GET    /social/accounts                                -> { data: PublishAccount[] }  (admin gắn / tự kết nối)
  * POST   /social/tiktok/oauth/authorize { redirect }     -> { data: { url } }  (chuyển sang TikTok)
  * POST   /social/tiktok/oauth/callback { code, state, error } -> { data: { status, reason, redirect } }
- * DELETE /social/tiktok/account                          -> 204  (huỷ kết nối)
+ * DELETE /social/tiktok/accounts/{id}                    -> 204  (huỷ kết nối một tài khoản)
  * GET    /social/posts?page=&per_page=&status=           -> { data: SocialPost[], meta }
  * GET    /social/posts/{id}                              -> { data: SocialPost }
  * POST   /social/posts/from-images                       -> 201 { data: SocialPost }
@@ -87,12 +89,13 @@ export const newIdempotencyKey = () =>
 // ---- Tài khoản đăng bài ----
 
 /**
- * Tài khoản đăng bài của người dùng (admin gắn worker, hoặc TikTok tự kết nối; có cả hai thì chỉ có dòng tự kết nối).
- * connection (chỉ driver api): { status: active | expired | revoked | scope_missing, avatarUrl, connectedAt }.
+ * Tài khoản đăng bài của người dùng (admin gắn worker, hoặc các TikTok tự kết nối; có tự kết nối thì không có dòng worker
+ * của TikTok). connection (chỉ driver api): { status: active | expired | revoked | scope_missing, avatarUrl, connectedAt }.
  */
 export const getAccounts = () =>
   client.get('/social/accounts').then(({ data }) =>
     data.map((a) => ({
+      id: a.id,
       platform: a.platform,
       label: a.label,
       name: a.name,
@@ -105,9 +108,13 @@ export const getAccounts = () =>
     })),
   );
 
-/** TikTok tự kết nối của người dùng (có thể đã mất kết nối), null nếu chưa kết nối. */
-export const tiktokConnectionOf = (accounts) =>
-  (accounts ?? []).find((a) => a.platform === 'tiktok' && a.driver === DRIVER.API) ?? null;
+/** Các TikTok tự kết nối của người dùng (có thể có tài khoản đã mất kết nối), theo thứ tự kết nối. */
+export const tiktokConnectionsOf = (accounts) => (accounts ?? []).filter((a) => a.platform === 'tiktok' && a.driver === DRIVER.API);
+
+export const isConnectionActive = (account) => account?.connection?.status === 'active';
+
+/** "@username", không có thì tên hiển thị. */
+export const tiktokNameOf = (account) => (account.username ? `@${account.username}` : account.name);
 
 /** Chuyển sang TikTok để người dùng đồng ý; TikTok trả về /mxh/tiktok/author, xong quay lại redirect. */
 export const authorizeTikTok = (redirect = window.location.pathname + window.location.search) =>
@@ -119,7 +126,7 @@ export const authorizeTikTok = (redirect = window.location.pathname + window.loc
 export const tiktokCallback = ({ code, state, error }) =>
   client.post('/social/tiktok/oauth/callback', { code, state, error }).then(({ data }) => data);
 
-export const disconnectTikTok = () => client.delete('/social/tiktok/account');
+export const disconnectTikTok = (id) => client.delete(`/social/tiktok/accounts/${id}`);
 
 /** Thông báo theo kết quả kết nối (reason của callback / connection.status). */
 export const TIKTOK_CONNECT_MESSAGES = {
@@ -128,6 +135,7 @@ export const TIKTOK_CONNECT_MESSAGES = {
   scope_missing: 'Cần cho phép quyền tải nội dung lên để A51 gửi bài sang TikTok. Vui lòng kết nối lại.',
   state_invalid: 'Phiên kết nối đã hết hạn, vui lòng thử lại.',
   server_error: 'Không kết nối được TikTok, vui lòng thử lại sau.',
+  limit_reached: 'Bạn đã kết nối đủ số tài khoản TikTok tối đa. Huỷ kết nối bớt một tài khoản để thêm tài khoản khác.',
   expired: 'Kết nối TikTok đã hết hạn, vui lòng kết nối lại.',
   revoked: 'Kết nối TikTok đã bị gỡ, vui lòng kết nối lại.',
 };
@@ -154,7 +162,10 @@ export const mapImage = (img) => ({
   ...mapCreative(img.creative),
 });
 
-/** { tiktok: { status, ... } } -> [{ platform, status, driver, postUrl, error, finishedAt }] theo thứ tự PLATFORMS. */
+/**
+ * { tiktok: { status, ... } } -> [{ platform, status, driver, postUrl, error, finishedAt, accounts }] theo thứ tự PLATFORMS.
+ * accounts: TikTok gửi qua API, trạng thái từng tài khoản [{ accountId, name, status, error, finishedAt }].
+ */
 const mapPlatforms = (platforms) =>
   PLATFORMS.filter((p) => platforms?.[p.value]).map((p) => {
     const s = platforms[p.value];
@@ -165,6 +176,13 @@ const mapPlatforms = (platforms) =>
       postUrl: s.post_url ?? null,
       error: s.error ?? null,
       finishedAt: s.finished_at ?? null,
+      accounts: (s.accounts ?? []).map((a) => ({
+        accountId: a.account_id ?? null,
+        name: a.name ?? 'TikTok',
+        status: a.status,
+        error: a.error ?? null,
+        finishedAt: a.finished_at ?? null,
+      })),
     };
   });
 
@@ -213,6 +231,7 @@ export const createPostFromImages = (images, idempotencyKey, batchId = null) =>
  * Đăng bài: lưu toàn bộ chỉnh sửa trên trang rồi tạo 1 job / nền tảng trong form.platforms, bài chuyển sang queued
  * (khoá tới khi worker xong). Tiêu đề, nội dung, hashtag không bắt buộc. Nền tảng lỗi: xong hết thì bài về
  * pending_review với last_error, người dùng đăng lại các nền tảng lỗi (nền tảng đã đăng xong không đăng lại được).
+ * form.tiktokAccountIds: các TikTok tự kết nối sẽ nhận bài (chỉ gửi khi chọn TikTok).
  */
 export const publishPost = (id, form) =>
   client
@@ -221,6 +240,7 @@ export const publishPost = (id, form) =>
       content: form.content,
       hashtags: form.hashtags,
       platforms: form.platforms,
+      tiktok_account_ids: form.platforms.includes('tiktok') && form.tiktokAccountIds?.length ? form.tiktokAccountIds : undefined,
       images: form.images.map((img) =>
         img.id ? { image_id: img.id } : { generation_id: img.generationId, output_id: img.outputId },
       ),
