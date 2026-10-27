@@ -19,98 +19,80 @@ const STATUS = {
 const formatDateTime = (iso) =>
   new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 
-function OrderCard({ order }) {
+// Mỗi ảnh đã tạo là một thẻ (giống thẻ ở Khám phá). Đơn chưa có ảnh (đang tạo, lỗi, huỷ) hiện một thẻ trạng thái.
+function ImageCard({ order, output, onView }) {
   const download = useDownloadOutput();
+  const [broken, setBroken] = useState(false);
   const status = STATUS[order.status] ?? { label: order.status, className: 'bg-surface-container text-on-surface-variant' };
-  const images = (order.outputs ?? []).filter((o) => o.status === 'completed' && o.image_url);
+  // Ảnh tải lỗi (link hết hạn, file mất...) thì ẩn thẻ
+  if (output && broken) return null;
 
-  const [downloadingAll, setDownloadingAll] = useState(false);
-  const [viewing, setViewing] = useState(null);
-  // Ảnh tải lỗi (link hết hạn, file mất...) thì ẩn khỏi lưới
-  const [broken, setBroken] = useState(() => new Set());
-  const visible = images.filter((o) => !broken.has(o.id));
-  const markBroken = (id) => setBroken((prev) => new Set(prev).add(id));
-
-  // Tải lần lượt từng ảnh để trình duyệt không chặn nhiều lượt tải cùng lúc
-  const downloadAll = async () => {
-    setDownloadingAll(true);
-    try {
-      for (const o of images) await download.mutateAsync({ generationId: order.id, outputId: o.id });
-    } catch {
-      // Lỗi đã nằm trong download.error
-    } finally {
-      setDownloadingAll(false);
-    }
-  };
-
-  const thumb = (o) => (
-    <button
-      key={o.id}
-      type="button"
-      onClick={() => setViewing(o)}
-      aria-label={`Xem ảnh ${o.position}`}
-      className="group relative aspect-square w-full cursor-zoom-in overflow-hidden rounded-lg bg-surface-container"
-    >
-      <img
-        src={thumbOf(o)}
-        alt={`Ảnh ${o.position}`}
-        loading="lazy"
-        onError={() => markBroken(o.id)}
-        className="size-full object-cover"
-      />
-      <span className="absolute inset-0 flex items-center justify-center bg-inverse-surface/40 text-on-primary opacity-0 transition-opacity group-hover:opacity-100">
-        <Icon name="zoom_in" className="text-lg" />
-      </span>
-    </button>
+  const title = order.creative ? (
+    <Link to={`/creatives/${encodeURIComponent(order.creative.slug)}`} className="hover:text-primary">
+      {order.creative.title}
+    </Link>
+  ) : (
+    'Mẫu đã bị gỡ'
   );
 
   return (
-    <article className="space-y-3 rounded-2xl border border-outline-variant/40 p-3">
-      <ImageViewer src={viewing?.image_url} alt={`Ảnh ${viewing?.position}`} onClose={() => setViewing(null)} />
-      {/* Thông tin đơn */}
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex items-start gap-2">
-          {order.creative ? (
-            <Link
-              to={`/creatives/${encodeURIComponent(order.creative.slug)}`}
-              className="line-clamp-2 flex-1 text-sm font-bold text-on-surface hover:text-primary"
-            >
-              {order.creative.title}
-            </Link>
-          ) : (
-            <p className="flex-1 text-sm font-bold text-on-surface">Mẫu đã bị gỡ</p>
-          )}
-          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${status.className}`}>{status.label}</span>
+    <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-outline-variant/40 bg-surface-container-lowest shadow-sm transition-shadow hover:shadow-md">
+      {output ? (
+        <button
+          type="button"
+          onClick={() => onView(output)}
+          aria-label={`Xem ảnh ${output.position}`}
+          className="group relative block w-full cursor-zoom-in overflow-hidden bg-surface-container"
+        >
+          <img
+            src={thumbOf(output)}
+            alt={`Ảnh ${output.position}`}
+            loading="lazy"
+            onError={() => setBroken(true)}
+            className="block h-auto w-full transition-transform duration-500 group-hover:scale-105"
+          />
+          <span className="absolute inset-0 flex items-center justify-center bg-inverse-surface/40 text-on-primary opacity-0 transition-opacity group-hover:opacity-100">
+            <Icon name="zoom_in" className="text-2xl" />
+          </span>
+        </button>
+      ) : (
+        <div className="relative flex aspect-square w-full flex-col items-center justify-center gap-2 bg-surface-container text-on-surface-variant">
+          <Icon
+            name={order.status === 'queued' || order.status === 'processing' ? 'progress_activity' : 'image_not_supported'}
+            className={`text-3xl ${order.status === 'processing' ? 'animate-spin' : ''}`}
+          />
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${status.className}`}>{status.label}</span>
         </div>
-        <p className="text-xs text-on-surface-variant">
+      )}
+      <div className="flex flex-1 flex-col p-2.5">
+        <h3 className="mb-1 truncate text-xs font-bold text-on-surface">{title}</h3>
+        <p className="text-[11px] text-outline">
           #{order.id} · {formatDateTime(order.created_at)}
         </p>
-        <p className="text-xs text-on-surface-variant">
-          {order.quantity} ảnh × {formatVnd(order.price_per_image)} · {order.aspect_ratio}
-        </p>
-        {order.failed_count > 0 && <p className="text-xs text-error">{order.failed_count} ảnh lỗi (đã hoàn tiền)</p>}
-        {download.error && <p className="text-xs text-error">{download.error.message}</p>}
-        <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-          <p className="text-sm font-bold text-primary">{formatVnd(order.total_charged)}</p>
-          {images.length > 0 && (
-            <button
-              type="button"
-              onClick={downloadAll}
-              disabled={downloadingAll}
-              className="flex h-6 items-center gap-0.5 rounded-md bg-primary-container px-2 text-[11px] font-bold text-on-primary transition-all hover:bg-primary active:scale-[0.98] disabled:opacity-50"
-            >
-              <Icon name={downloadingAll ? 'progress_activity' : 'download'} className={`text-xs ${downloadingAll ? 'animate-spin' : ''}`} />
-              Tải về{images.length > 1 ? ` (${images.length})` : ''}
-            </button>
-          )}
+        {!output && order.failed_count > 0 && <p className="text-[11px] text-error">{order.failed_count} ảnh lỗi (đã hoàn tiền)</p>}
+        {download.error && <p className="text-[11px] text-error">{download.error.message}</p>}
+        <div className="mt-auto pt-2.5">
+          <div className="space-y-2 border-t border-surface-container pt-2.5">
+            <p className="text-xs font-bold text-primary">{formatVnd(output ? order.price_per_image : order.total_charged)}</p>
+            {output && (
+              <button
+                type="button"
+                onClick={() => download.mutate({ generationId: order.id, outputId: output.id })}
+                disabled={download.isPending}
+                className="flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-primary-container text-xs font-bold text-on-primary transition-colors hover:bg-primary disabled:opacity-50"
+              >
+                <Icon name={download.isPending ? 'progress_activity' : 'download'} className={`text-sm ${download.isPending ? 'animate-spin' : ''}`} />
+                Tải về
+              </button>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Ảnh đã tạo xếp lưới, ảnh lỗi không hiện */}
-      {visible.length > 0 && <div className="grid grid-cols-4 gap-1.5">{visible.map(thumb)}</div>}
     </article>
   );
 }
+
+const imagesOf = (order) => (order.outputs ?? []).filter((o) => o.status === 'completed' && o.image_url);
 
 /** /account/history: các lần tạo ảnh đã mua, mới nhất trước. */
 export default function PurchaseHistoryPage() {
@@ -119,6 +101,12 @@ export default function PurchaseHistoryPage() {
   const location = useLocation();
   const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useGenerationHistory();
   const orders = data?.pages.flatMap((p) => p.items) ?? [];
+  const [viewing, setViewing] = useState(null);
+  // Trải phẳng: mỗi ảnh một thẻ, đơn chưa có ảnh giữ một thẻ trạng thái
+  const cards = orders.flatMap((order) => {
+    const images = imagesOf(order);
+    return images.length ? images.map((output) => ({ key: `${order.id}-${output.id}`, order, output })) : [{ key: `${order.id}`, order }];
+  });
 
   return (
     <>
@@ -135,11 +123,16 @@ export default function PurchaseHistoryPage() {
         <h1 className="text-base font-bold text-on-surface">Lịch sử mua hàng</h1>
       </header>
 
-      <div className="space-y-3 p-4">
+      <ImageViewer src={viewing?.image_url} alt={`Ảnh ${viewing?.position}`} onClose={() => setViewing(null)} />
+      <div className="p-4">
         {error ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : isLoading ? (
-          Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-32 w-full !rounded-2xl" />)
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="aspect-[3/4] !rounded-2xl" />
+            ))}
+          </div>
         ) : orders.length === 0 ? (
           <EmptyState icon="receipt_long" message="Bạn chưa mua lượt tạo ảnh nào.">
             <Link to="/explore" className="text-sm font-bold text-primary">
@@ -148,15 +141,17 @@ export default function PurchaseHistoryPage() {
           </EmptyState>
         ) : (
           <>
-            {orders.map((o) => (
-              <OrderCard key={o.id} order={o} />
-            ))}
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
+              {cards.map((c) => (
+                <ImageCard key={c.key} order={c.order} output={c.output} onView={setViewing} />
+              ))}
+            </div>
             {hasNextPage && (
               <button
                 type="button"
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
-                className="h-11 w-full rounded-xl border border-outline-variant text-sm font-bold text-primary transition-colors hover:bg-surface-container-low disabled:opacity-50"
+                className="mt-3 h-11 w-full rounded-xl border border-outline-variant text-sm font-bold text-primary transition-colors hover:bg-surface-container-low disabled:opacity-50"
               >
                 {isFetchingNextPage ? 'Đang tải...' : 'Xem thêm'}
               </button>
