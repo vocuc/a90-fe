@@ -94,7 +94,7 @@ export default function GroupFormDialog({ group, onSaved, onClose }) {
           {loadError ? (
             <ErrorState error={loadError} onRetry={refetch} />
           ) : isLoading ? (
-            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14" />)
+            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20" />)
           ) : !creatives.length ? (
             <p className="py-4 text-center text-xs text-on-surface-variant">Không có creative nào.</p>
           ) : (
@@ -116,7 +116,7 @@ export default function GroupFormDialog({ group, onSaved, onClose }) {
                       onChange={() => toggle(c.id)}
                       className="size-4 accent-primary"
                     />
-                    <CoverImage src={c.cover_url} alt="" className="size-10 shrink-0 rounded-lg" />
+                    <CoverImage src={c.cover_url} alt="" className="size-16 shrink-0 rounded-lg" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-on-surface">{c.title}</span>
                       <span className="flex flex-wrap items-center gap-1 text-[11px] text-on-surface-variant">
@@ -135,7 +135,7 @@ export default function GroupFormDialog({ group, onSaved, onClose }) {
             })
           )}
         </ul>
-        {isFetchingNextPage && <Skeleton className="mt-1.5 h-14" />}
+        {isFetchingNextPage && <Skeleton className="mt-1.5 h-20" />}
         {hasNextPage && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
       </div>
 
