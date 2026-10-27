@@ -1,5 +1,5 @@
 import useSeo from '../hooks/useSeo';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
@@ -108,6 +108,16 @@ export default function PurchaseHistoryPage() {
     return images.length ? images.map((output) => ({ key: `${order.id}-${output.id}`, order, output })) : [{ key: `${order.id}`, order }];
   });
 
+  // Cuộn tới cuối danh sách thì tải thêm
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasNextPage || isFetchingNextPage) return undefined;
+    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && fetchNextPage(), { rootMargin: '400px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   return (
     <>
       <header className="sticky top-[60px] z-30 flex items-center gap-2 border-b border-surface-container bg-surface-container-lowest/90 px-2 py-2 backdrop-blur-md">
@@ -120,7 +130,7 @@ export default function PurchaseHistoryPage() {
         >
           <Icon name="arrow_back" />
         </button>
-        <h1 className="text-base font-bold text-on-surface">Lịch sử mua hàng</h1>
+        <h1 className="text-base font-bold text-on-surface lg:text-lg">Lịch sử mua hàng</h1>
       </header>
 
       <ImageViewer src={viewing?.image_url} alt={`Ảnh ${viewing?.position}`} onClose={() => setViewing(null)} />
@@ -146,16 +156,14 @@ export default function PurchaseHistoryPage() {
                 <ImageCard key={c.key} order={c.order} output={c.output} onView={setViewing} />
               ))}
             </div>
-            {hasNextPage && (
-              <button
-                type="button"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="mt-3 h-11 w-full rounded-xl border border-outline-variant text-sm font-bold text-primary transition-colors hover:bg-surface-container-low disabled:opacity-50"
-              >
-                {isFetchingNextPage ? 'Đang tải...' : 'Xem thêm'}
-              </button>
+            {isFetchingNextPage && (
+              <div className="mt-3 grid grid-cols-2 gap-3 lg:mt-4 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
+                {Array.from({ length: 2 }, (_, i) => (
+                  <Skeleton key={i} className="aspect-[3/4] !rounded-2xl" />
+                ))}
+              </div>
             )}
+            {hasNextPage && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
           </>
         )}
       </div>

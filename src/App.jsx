@@ -98,11 +98,12 @@ export default function App() {
           <Route path="store/*" element={<Navigate to="/account" replace />} />
           {/* Trang Cá nhân cũ đã đổi thành Tài khoản */}
           <Route path="profile" element={<Navigate to="/account" replace />} />
+          {/* Lịch sử mua: lưới thẻ ảnh như Khám phá, trải rộng trên desktop */}
+          <Route path="account/history" element={<PurchaseHistoryPage />} />
           <Route element={<PageColumn />}>
             <Route path="create" element={<CreatePage />} />
             <Route path="seller/settings" element={<StoreSettingsPage />} />
             <Route path="account" element={<AccountPage />} />
-            <Route path="account/history" element={<PurchaseHistoryPage />} />
             <Route path="account/topup" element={<TopUpPage />} />
             {/* TikTok trả về sau khi người dùng đồng ý kết nối (Redirect URI của Login Kit, note/dang-tiktok-qua-api.txt) */}
             <Route path="mxh/tiktok/author" element={<TikTokAuthorPage />} />
