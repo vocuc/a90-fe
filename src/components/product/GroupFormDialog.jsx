@@ -9,7 +9,7 @@ import { useCreatorCreatives } from '../../hooks/creatorQueries';
 import { saveGroup } from '../../api/autoBatch';
 
 /**
- * Tạo / sửa nhóm creative (note/auto-tao-lo.txt): tên + creative của chính mình (mọi trạng thái, tạo lô chỉ dùng
+ * Tạo / sửa nhóm creative (note/auto-tao-lo.txt): tên + creative Đang bán của chính mình (tạo lô chỉ dùng
  * creative Đang bán). Một creative chỉ ở một nhóm: creative đã ở nhóm khác hiện tên nhóm, không chọn được.
  */
 export default function GroupFormDialog({ group, onSaved, onClose }) {
@@ -21,7 +21,7 @@ export default function GroupFormDialog({ group, onSaved, onClose }) {
   const [error, setError] = useState(null);
 
   const { data, isLoading, error: loadError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useCreatorCreatives(
-    { q: q.trim() || undefined, limit: 30 },
+    { q: q.trim() || undefined, status: 'published', limit: 30 },
     true,
   );
   const creatives = data?.pages.flatMap((p) => p.items) ?? [];
@@ -96,7 +96,7 @@ export default function GroupFormDialog({ group, onSaved, onClose }) {
           ) : isLoading ? (
             Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20" />)
           ) : !creatives.length ? (
-            <p className="py-4 text-center text-xs text-on-surface-variant">Không có creative nào.</p>
+            <p className="py-4 text-center text-xs text-on-surface-variant">Không có creative đang bán nào.</p>
           ) : (
             creatives.map((c) => {
               const otherGroup = c.group && c.group.id !== group?.id ? c.group : null;
