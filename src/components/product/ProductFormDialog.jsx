@@ -28,7 +28,7 @@ const validateRows = (rows) => {
 /**
  * Thêm / sửa sản phẩm (note/auto-tao-lo.txt): tên (không bắt buộc) + các ảnh, mỗi ảnh gắn key một trường ảnh trong
  * Creative của mình. Tạo lô tự động điền ảnh vào trường có key trùng, creative không có trường nào trùng thì bỏ qua.
- * Hashtag: chỉ ghép với nhóm có creative trùng hashtag; không có hashtag thì sản phẩm không được tạo tự động.
+ * Hashtag: chỉ lưu, tạo lô tự động không xét (mọi sản phẩm ghép với mọi nhóm).
  */
 export default function ProductFormDialog({ product, onSaved, onClose }) {
   const [name, setName] = useState(product?.name ?? '');
@@ -125,11 +125,7 @@ export default function ProductFormDialog({ product, onSaved, onClose }) {
         value={hashtags}
         onChange={setHashtags}
         error={serverErrors.hashtags ?? Object.entries(serverErrors).find(([k]) => k.startsWith('hashtags.'))?.[1]}
-        hint={
-          hashtags.length
-            ? 'Tạo tự động chỉ dùng nhóm có creative trùng ít nhất một hashtag.'
-            : 'Chưa có hashtag: sản phẩm sẽ không được tạo tự động. Nhập hashtag trùng với creative của bạn.'
-        }
+        hint="Không bắt buộc. Nhấn Enter hoặc dấu phẩy để thêm."
       />
 
       <div>
