@@ -7,8 +7,8 @@ import { mapBatch } from './batches';
  * Nhân viên của shop (note/chia-se-tai-nguyen.txt) xem được (GET) sản phẩm / nhóm của shop chủ (is_owner = false, không
  * sửa / xoá) và tạo lô tự động bằng chúng; lượt tự động (auto_batch_count) đếm riêng từng người.
  * Mỗi lô = 1 sản phẩm x các creative Đang bán của 1 nhóm, mỗi creative 1 ảnh; ảnh sản phẩm điền vào trường ảnh có
- * key = field_key. Sản phẩm ít lượt tự động nhất được tạo trước. Sản phẩm chỉ ghép với nhóm có creative trùng ít nhất
- * một hashtag (tạo cả nhóm); sản phẩm không có hashtag thì bỏ qua.
+ * key = field_key. N lô = N sản phẩm ngẫu nhiên ghép N nhóm ngẫu nhiên, không lặp sản phẩm / nhóm (ít hơn N khi không đủ).
+ * Xem trước trả seed; gửi lại seed khi tạo để tạo đúng các lô đã xem.
  *
  * GET    /creator/products?page=&per_page=        -> { data: Product[], meta }
  * POST   /creator/products (multipart)            name?, hashtags[]?, images[i][file], images[i][field_key] -> 201 { data: Product }
@@ -17,8 +17,8 @@ import { mapBatch } from './batches';
  * GET    /creator/creative-groups                 -> { data: CreativeGroup[] } (cũ nhất trước = thứ tự tạo lô)
  * POST   /creator/creative-groups                 { name, creative_ids } -> 201 ; PUT /creator/creative-groups/{id}
  * DELETE /creator/creative-groups/{id}            -> 204
- * GET    /image-batches/auto/preview?count=       -> { data: { batches: AutoPlan[], total_cost, balance } }
- * POST   /image-batches/auto                      { count, insert_logo, idempotency_key }
+ * GET    /image-batches/auto/preview?count=&seed= -> { data: { seed, batches: AutoPlan[], total_cost, balance } }
+ * POST   /image-batches/auto                      { count, insert_logo, idempotency_key, seed? }
  *          -> 201 { data: { batches: ImageBatch[], requested, stopped: null|insufficient_credit|no_valid_pair, required } }
  *          402 INSUFFICIENT_CREDIT (không tạo được lô nào), 422 AUTO_NOTHING_TO_CREATE.
  */
@@ -104,6 +104,7 @@ export const deleteGroup = (id) => client.delete(`/creator/creative-groups/${id}
 
 export const previewAuto = (count) =>
   client.get('/image-batches/auto/preview', { params: { count } }).then(({ data }) => ({
+    seed: data.seed,
     batches: data.batches.map((b) => ({
       product: { id: b.product.id, name: b.product.name, coverUrl: b.product.cover_url },
       group: b.group,
@@ -114,9 +115,10 @@ export const previewAuto = (count) =>
     balance: data.balance,
   }));
 
-export const createAuto = ({ count, insertLogo }, idempotencyKey) =>
+/** seed: của lần xem trước (tạo đúng các lô đã xem); bỏ trống thì hệ thống tự chọn ngẫu nhiên. */
+export const createAuto = ({ count, insertLogo, seed }, idempotencyKey) =>
   client
-    .post('/image-batches/auto', { count, insert_logo: insertLogo, idempotency_key: idempotencyKey })
+    .post('/image-batches/auto', { count, insert_logo: insertLogo, idempotency_key: idempotencyKey, seed })
     .then(({ data }) => ({
       batches: data.batches.map(mapBatch),
       requested: data.requested,

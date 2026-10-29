@@ -15,7 +15,8 @@ const PREVIEW_DELAY = 400;
 
 /**
  * Popup "Tạo tự động" ở trang danh sách lô (note/auto-tao-lo.txt): nhập số lô + chèn logo, xem trước các lô sẽ tạo
- * (sản phẩm x nhóm, creative, tiền) rồi tạo. Hệ thống tạo lần lượt, hết tiền thì dừng. onDone(result) khi đã tạo.
+ * (sản phẩm x nhóm chọn ngẫu nhiên, creative, tiền), "Đổi ngẫu nhiên" để chọn lại, rồi tạo đúng các lô đang xem (gửi seed).
+ * Hệ thống tạo lần lượt, hết tiền thì dừng. onDone(result) khi đã tạo.
  */
 export default function AutoBatchDialog({ onDone, onClose }) {
   const { data: me } = useMe();
@@ -35,9 +36,11 @@ export default function AutoBatchDialog({ onDone, onClose }) {
     return () => clearTimeout(t);
   }, [input]);
 
-  const preview = useQuery({ queryKey: ['auto-preview', count], queryFn: () => previewAuto(count), placeholderData: (prev) => prev });
+  const preview = useQuery({ queryKey: ['auto-preview', count], queryFn: () => previewAuto(count), placeholderData: (prev) => prev, gcTime: 0 });
   const plan = preview.data;
   const empty = plan && !plan.batches.length;
+  // Xem trước đúng số lô đang nhập và không đang đổi ngẫu nhiên thì tạo đúng các lô đó
+  const planReady = !!plan && count === Number(input) && !preview.isFetching;
 
   // Số lô đầu đủ tiền (tạo lần lượt, hết tiền thì dừng)
   let affordable = 0;
@@ -57,7 +60,10 @@ export default function AutoBatchDialog({ onDone, onClose }) {
     setLogoError(null);
     setLoading(true);
     try {
-      const result = await createAuto({ count: Number(input), insertLogo: !!logoUrl && insertLogo }, idem.key.current);
+      const result = await createAuto(
+        { count: Number(input), insertLogo: !!logoUrl && insertLogo, seed: planReady ? plan.seed : undefined },
+        idem.key.current,
+      );
       idem.renew();
       onDone(result);
     } catch (err) {
@@ -71,7 +77,7 @@ export default function AutoBatchDialog({ onDone, onClose }) {
   return (
     <Dialog
       title="Tạo lô tự động"
-      subtitle="Mỗi lô = 1 sản phẩm x các creative Đang bán của 1 nhóm"
+      subtitle="Mỗi lô = 1 sản phẩm ngẫu nhiên x các creative Đang bán của 1 nhóm ngẫu nhiên"
       onClose={onClose}
       footer={
         <>
@@ -85,12 +91,12 @@ export default function AutoBatchDialog({ onDone, onClose }) {
           <button
             type="button"
             onClick={submit}
-            disabled={loading || invalid || !plan || empty}
+            disabled={loading || invalid || !planReady || empty}
             className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
           >
             <Icon name={loading ? 'progress_activity' : 'auto_awesome'} className={`text-lg ${loading ? 'animate-spin' : ''}`} />
-            Tạo {invalid ? '' : `${Number(input)} lô`}
-            {plan && !empty && !invalid && count === Number(input) ? ` · ${formatVnd(plan.totalCost)}` : ''}
+            Tạo {invalid ? '' : `${planReady ? plan.batches.length : Number(input)} lô`}
+            {planReady && !empty && !invalid ? ` · ${formatVnd(plan.totalCost)}` : ''}
           </button>
         </>
       }
@@ -127,10 +133,23 @@ export default function AutoBatchDialog({ onDone, onClose }) {
       />
 
       <div>
-        <p className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-on-surface">
-          Xem trước
-          {preview.isFetching && <Icon name="progress_activity" className="animate-spin text-sm text-outline" />}
-        </p>
+        <div className="mb-1.5 flex items-center gap-1">
+          <p className="flex flex-1 items-center gap-1 text-xs font-semibold text-on-surface">
+            Xem trước
+            {preview.isFetching && <Icon name="progress_activity" className="animate-spin text-sm text-outline" />}
+          </p>
+          {plan && !empty && (
+            <button
+              type="button"
+              onClick={() => preview.refetch()}
+              disabled={preview.isFetching}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-primary hover:bg-surface-container disabled:opacity-50"
+            >
+              <Icon name="shuffle" className="text-base" />
+              Đổi ngẫu nhiên
+            </button>
+          )}
+        </div>
         {preview.error ? (
           <ErrorState error={preview.error} onRetry={preview.refetch} />
         ) : !plan ? (
@@ -146,11 +165,11 @@ export default function AutoBatchDialog({ onDone, onClose }) {
               <Link to="/seller/items" className="font-bold text-primary hover:underline">
                 sản phẩm
               </Link>{' '}
-              (ảnh + key trường nguyên liệu + hashtag) và{' '}
+              (ảnh + key trường nguyên liệu) và{' '}
               <Link to="/seller/creative-groups" className="font-bold text-primary hover:underline">
                 nhóm creative
               </Link>{' '}
-              có creative Đang bán chứa trường ảnh trùng key và trùng hashtag với sản phẩm.
+              có creative Đang bán chứa trường ảnh trùng key với ảnh sản phẩm.
             </p>
           </div>
         ) : (
@@ -185,6 +204,15 @@ export default function AutoBatchDialog({ onDone, onClose }) {
                 <span className="font-bold text-on-surface">{formatVnd(plan.balance)}</span>
               </p>
             </div>
+            {planReady && plan.batches.length < count && (
+              <p className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <Icon name="info" className="text-base" />
+                <span>
+                  Mỗi sản phẩm / nhóm chỉ dùng 1 lần mỗi lượt tạo nên chỉ ghép được {plan.batches.length} lô. Thêm sản phẩm
+                  hoặc nhóm creative để tạo nhiều lô hơn.
+                </span>
+              </p>
+            )}
             {affordable < plan.batches.length && (
               <p className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
                 <Icon name="info" className="text-base" />

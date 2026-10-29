@@ -28,8 +28,10 @@ YÊU CẦU BAN ĐẦU
 - Mỗi lô = 1 sản phẩm x các creative của 1 nhóm, mỗi creative 1 ảnh.
 - KHÔNG chạy theo lịch, không giới hạn / ngày, không cấu hình admin: người dùng bấm "Tạo tự động" (chỉ có ở
   trang danh sách lô /batches), nhập số lô + công tắc chèn logo -> hệ thống chọn sản phẩm x nhóm, tạo ảnh, trừ tiền.
-- Thứ tự: quy tắc câu 17 (sản phẩm ít lô tự động nhất trước, rồi nhóm sản phẩm đó chạy ít nhất; bằng nhau thì
-  cái tạo trước). Hết vòng thì quay lại từ đầu.
+- Thứ tự (cập nhật 2026-10-29, thay quy tắc câu 17): nhập N lô -> chọn ngẫu nhiên N sản phẩm và N nhóm, ghép lần lượt
+  thành N lô. Mỗi sản phẩm / nhóm dùng tối đa 1 lần mỗi lượt bấm; không đủ thì chỉ tạo bằng số ghép được. Cặp không có
+  creative dùng được thì đổi sang nhóm chưa dùng khác. Xem trước trả seed, gửi seed khi tạo để tạo đúng các lô đã xem.
+  Vẫn lưu số lô tự động đã tạo của từng sản phẩm (chỉ hiển thị, không ảnh hưởng cách chọn).
 - Bỏ qua creative (không báo): không Đang bán / bị ẩn; không có trường nào trùng key đã liên kết;
   còn trường bắt buộc không có giá trị (không liên kết, không có mặc định). Mọi creative bị bỏ qua -> không tạo lô,
   không tính lượt, chọn cặp kế tiếp.

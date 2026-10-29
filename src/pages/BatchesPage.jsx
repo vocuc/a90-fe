@@ -179,7 +179,7 @@ export default function BatchesPage() {
                   </Link>
                 </>
               )}
-              {autoResult.stopped === AUTO_STOP.NO_VALID_PAIR && ' Không còn sản phẩm và nhóm creative dùng được.'}
+              {autoResult.stopped === AUTO_STOP.NO_VALID_PAIR && ' Không đủ sản phẩm / nhóm creative khác nhau để ghép thêm lô.'}
             </p>
             <button type="button" onClick={() => setAutoResult(null)} aria-label="Đóng thông báo">
               <Icon name="close" className="text-base" />
