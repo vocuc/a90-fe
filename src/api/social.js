@@ -21,8 +21,8 @@ import client from './client';
  * POST   /social/posts/{id}/publish                      -> { data: SocialPost }   (các nền tảng chọn sang queued)
  * POST   /social/posts/{id}/ai-content                   -> { data: { title, content, hashtags, credit_balance } }
  *        "Viết lại bằng AI": không lưu vào bài, trừ phí khi AI viết được (note/ai-viet-noi-dung-bai-dang.txt)
- * GET    /creator/shop-hashtags                          -> { data: { hashtags, product_hashtags, max } }
- * PUT    /creator/shop-hashtags { hashtags }             -> như trên (kho hashtag AI được chọn)
+ * GET    /creator/ai-content                             -> { data: AiContentSettings }  (trang "AI viết nội dung", chủ shop)
+ * PUT    /creator/ai-content { hashtags, samples, title_max, content_max } -> như trên
  * DELETE /social/posts/{id}                              -> 204
  */
 
@@ -267,14 +267,33 @@ export const saveAiContentPref = (on) => {
   }
 };
 
-// ---- Kho hashtag của shop (AI chỉ chọn tối đa 5 hashtag trong kho, kho rỗng thì bài không có hashtag) ----
+// ---- Cài đặt AI viết nội dung của shop (trang /seller/ai-content) ----
+// hashtags: kho hashtag (AI chọn tối đa limits.aiHashtags, kho rỗng thì bài không có hashtag); samples: bài viết mẫu
+// [{ title, content }] để AI học giọng văn; titleMax / contentMax: số ký tự tối đa AI viết.
 
-const mapShopHashtags = (d) => ({ hashtags: d.hashtags ?? [], productHashtags: d.product_hashtags ?? [], max: d.max ?? 100 });
+const mapAiContentSettings = (d) => ({
+  hashtags: d.hashtags ?? [],
+  samples: d.samples ?? [],
+  titleMax: d.title_max,
+  contentMax: d.content_max,
+  productHashtags: d.product_hashtags ?? [],
+  limits: {
+    hashtags: d.limits.hashtags,
+    aiHashtags: d.limits.ai_hashtags,
+    samples: d.limits.samples,
+    sampleTitle: d.limits.sample_title,
+    sampleContent: d.limits.sample_content,
+    titleMax: d.limits.title_max,
+    contentMax: d.limits.content_max,
+  },
+});
 
-export const getShopHashtags = () => client.get('/creator/shop-hashtags').then(({ data }) => mapShopHashtags(data));
+export const getAiContentSettings = () => client.get('/creator/ai-content').then(({ data }) => mapAiContentSettings(data));
 
-export const saveShopHashtags = (hashtags) =>
-  client.put('/creator/shop-hashtags', { hashtags }).then(({ data }) => mapShopHashtags(data));
+export const saveAiContentSettings = ({ hashtags, samples, titleMax, contentMax }) =>
+  client
+    .put('/creator/ai-content', { hashtags, samples, title_max: titleMax, content_max: contentMax })
+    .then(({ data }) => mapAiContentSettings(data));
 
 /**
  * Đăng bài: lưu toàn bộ chỉnh sửa trên trang rồi tạo 1 job / nền tảng trong form.platforms, bài chuyển sang queued

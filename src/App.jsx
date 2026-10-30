@@ -10,6 +10,7 @@ import CreativeDetailPage from './pages/CreativeDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import StoreSettingsPage from './pages/StoreSettingsPage';
+import AiContentPage from './pages/AiContentPage';
 import SellerProductsPage from './pages/SellerProductsPage';
 import AccountPage from './pages/AccountPage';
 import PurchaseHistoryPage from './pages/PurchaseHistoryPage';
@@ -103,6 +104,8 @@ export default function App() {
           <Route element={<PageColumn />}>
             <Route path="create" element={<CreatePage />} />
             <Route path="seller/settings" element={<StoreSettingsPage />} />
+            {/* AI viết nội dung bài đăng: kho hashtag, bài mẫu, độ dài (note/ai-viet-noi-dung-bai-dang.txt) */}
+            <Route path="seller/ai-content" element={<AiContentPage />} />
             <Route path="account" element={<AccountPage />} />
             <Route path="account/topup" element={<TopUpPage />} />
             {/* TikTok trả về sau khi người dùng đồng ý kết nối (Redirect URI của Login Kit, note/dang-tiktok-qua-api.txt) */}

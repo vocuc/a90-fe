@@ -45,6 +45,8 @@ const FORM_FIELDS = [
   'weight',
   'requiredNote',
   'note',
+  // Đổi ai trả ship cũng là thay đổi cần lưu nháp (PUT nhận payment_type_id)
+  'paymentTypeId',
 ];
 const toForm = (order) => ({
   ...Object.fromEntries(FORM_FIELDS.map((k) => [k, order[k] ?? ''])),

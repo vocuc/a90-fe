@@ -89,6 +89,8 @@ export default function AccountPage() {
     // Chủ shop vào nhóm creative từ trang Quản lý Creative; nhân viên không có trang đó
     ...(staffOf ? [{ to: '/seller/creative-groups', icon: 'workspaces', title: 'Nhóm creative' }] : []),
     ...(me?.creatorProfile ? [{ to: '/seller/staff', icon: 'groups', title: 'Nhân viên' }] : []),
+    // AI viết nội dung bài đăng (note/ai-viet-noi-dung-bai-dang.txt): chỉ chủ shop cài đặt, nhân viên dùng chung
+    ...(me?.creatorProfile && me?.socialAi?.enabled ? [{ to: '/seller/ai-content', icon: 'auto_awesome', title: 'AI viết nội dung' }] : []),
     { to: '/shipping-orders', icon: 'local_shipping', title: 'Đơn GHN', disabled: !me?.creatorProfile },
     { to: '/support', icon: 'support_agent', title: 'Trung tâm hỗ trợ' },
     { to: '/terms', icon: 'gavel', title: 'Điều khoản sử dụng' },

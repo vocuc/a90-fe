@@ -5,7 +5,6 @@ import { ErrorState, Skeleton } from '../components/common/Feedback';
 import ShopInfoForm from '../components/store/ShopInfoForm';
 import ShopImages from '../components/store/ShopImages';
 import GhnSettings from '../components/store/GhnSettings';
-import ShopHashtags from '../components/store/ShopHashtags';
 import { useCreatorProfile } from '../hooks/creatorQueries';
 
 function Section({ title, subtitle, children }) {
@@ -63,10 +62,6 @@ export default function StoreSettingsPage() {
 
             <Section title="Thông tin cửa hàng" subtitle="Hiển thị trên trang shop và các AI Creative của bạn.">
               <ShopInfoForm profile={profile} />
-            </Section>
-
-            <Section title="Kho hashtag" subtitle="Hashtag AI được chọn khi viết nội dung bài đăng cho shop và nhân viên của shop.">
-              <ShopHashtags />
             </Section>
 
             <Section title="Kết nối GHN" subtitle="Dùng để tạo đơn Giao Hàng Nhanh từ ảnh chụp đoạn chat với khách.">

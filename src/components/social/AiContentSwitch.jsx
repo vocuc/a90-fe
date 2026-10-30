@@ -24,7 +24,7 @@ export default function AiContentSwitch({ toggle }) {
   return (
     <Switch
       label={`AI viết tiêu đề, nội dung, hashtag (${formatVnd(toggle.price)})`}
-      hint="AI chọn tối đa 5 hashtag trong kho hashtag của shop. AI lỗi thì được hoàn tiền."
+      hint="AI viết theo cài đặt ở trang AI viết nội dung của shop. AI lỗi thì được hoàn tiền."
       checked={toggle.on}
       onChange={toggle.setOn}
     />
