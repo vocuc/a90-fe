@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
@@ -33,7 +33,12 @@ function ProductCard({ product, shopName, onEdit }) {
 
   return (
     <div className="relative flex gap-3 rounded-2xl border border-outline-variant/40 p-3 lg:flex-col">
-      <CoverImage src={product.coverUrl} alt="" className="size-20 shrink-0 rounded-xl lg:aspect-square lg:size-auto lg:w-full" />
+      {/* Ảnh giữ nguyên tỷ lệ gốc, không cắt: desktop cao theo ảnh, mobile vừa khung 80px */}
+      <CoverImage
+        src={product.coverUrl}
+        alt=""
+        className="size-20 shrink-0 rounded-xl bg-surface-container !object-contain lg:h-auto lg:min-h-40 lg:w-full"
+      />
       <div className="min-w-0 flex-1 space-y-1">
         <p className="truncate text-sm font-bold text-on-surface">{title}</p>
         {!product.isOwner && (
@@ -103,6 +108,18 @@ export default function ProductsPage() {
   });
   const products = data ? data.pages.flatMap((p) => p.items) : null;
 
+  // Cuộn gần tới cuối danh sách thì tự tải trang tiếp, hết trang thì thôi
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasNextPage || isFetchingNextPage) return undefined;
+    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && fetchNextPage(), {
+      rootMargin: '300px',
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   const addButton = (
     <button
       type="button"
@@ -171,17 +188,14 @@ export default function ProductsPage() {
                 ))}
               </ul>
             )}
-            {hasNextPage && (
-              <button
-                type="button"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="mx-auto flex h-9 items-center gap-1 rounded-lg px-4 text-sm font-bold text-primary hover:bg-surface-container disabled:opacity-60"
-              >
-                {isFetchingNextPage && <Icon name="progress_activity" className="animate-spin text-base" />}
-                Xem thêm sản phẩm
-              </button>
+            {isFetchingNextPage && (
+              <div className="grid gap-3 lg:grid-cols-4">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <Skeleton key={i} className="h-28 lg:h-80" />
+                ))}
+              </div>
             )}
+            {hasNextPage && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
           </>
         )}
       </section>
