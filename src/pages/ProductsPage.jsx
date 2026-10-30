@@ -8,6 +8,7 @@ import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback'
 import ProductFormDialog from '../components/product/ProductFormDialog';
 import { useCreatorProfile } from '../hooks/creatorQueries';
 import { AUTO_KEYS, deleteProduct, listProducts } from '../api/autoBatch';
+import { useConfirm } from '../components/common/ConfirmDialog';
 
 const PAGE_SIZE = 20;
 
@@ -15,16 +16,17 @@ const PAGE_SIZE = 20;
 function ProductCard({ product, shopName, onEdit }) {
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
+  const { confirm, alert } = useConfirm();
   const title = product.name || `Sản phẩm #${product.id}`;
 
   const remove = async () => {
-    if (!window.confirm(`Xoá "${title}"? Lô đã tạo từ sản phẩm này vẫn giữ nguyên.`)) return;
+    if (!(await confirm(`Xoá "${title}"? Lô đã tạo từ sản phẩm này vẫn giữ nguyên.`, { confirmLabel: 'Xoá', danger: true }))) return;
     setDeleting(true);
     try {
       await deleteProduct(product.id);
       await queryClient.invalidateQueries({ queryKey: AUTO_KEYS.products });
     } catch (err) {
-      window.alert(err?.message || 'Không xoá được sản phẩm, vui lòng thử lại.');
+      alert(err?.message || 'Không xoá được sản phẩm, vui lòng thử lại.');
       setDeleting(false);
     }
   };

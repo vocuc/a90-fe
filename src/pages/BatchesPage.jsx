@@ -10,6 +10,7 @@ import AutoBatchDialog from '../components/batch/AutoBatchDialog';
 import { BATCH_SOURCE, BATCH_STATUS, deleteBatch, listBatches } from '../api/batches';
 import { AUTO_KEYS, AUTO_STOP } from '../api/autoBatch';
 import { formatVnd } from '../utils/format';
+import { useConfirm } from '../components/common/ConfirmDialog';
 
 const PAGE_SIZE = 20;
 const POLL_INTERVAL = 5000;
@@ -20,16 +21,17 @@ const formatTime = (iso) =>
 function BatchCard({ batch }) {
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
+  const { confirm, alert } = useConfirm();
   const generating = batch.status === BATCH_STATUS.GENERATING;
 
   const remove = async () => {
-    if (!window.confirm(`Xoá lô #${batch.id}? Ảnh vẫn còn trong lịch sử tạo ảnh, bài đăng đã tạo không đổi.`)) return;
+    if (!(await confirm(`Xoá lô #${batch.id}? Ảnh vẫn còn trong lịch sử tạo ảnh, bài đăng đã tạo không đổi.`, { confirmLabel: 'Xoá', danger: true }))) return;
     setDeleting(true);
     try {
       await deleteBatch(batch.id);
       await queryClient.invalidateQueries({ queryKey: ['batches'] });
     } catch (err) {
-      window.alert(err?.message || 'Không xoá được lô, vui lòng thử lại.');
+      alert(err?.message || 'Không xoá được lô, vui lòng thử lại.');
       setDeleting(false);
     }
   };

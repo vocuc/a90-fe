@@ -2,7 +2,7 @@ import Icon from './Icon';
 import { FormAlert } from './Form';
 
 /** Thanh dưới cùng: mobile dính đáy màn hình (che tab dưới), desktop dính đáy vùng nội dung. */
-/** secondary: nút phụ đặt trước nút chính (vd "Huỷ"). */
+/** secondary: nút phụ đặt trước nút chính (vd "Huỷ"). top: nội dung thêm phía trên hàng nút (vd công tắc). */
 export default function ActionBar({
   summary,
   error,
@@ -13,6 +13,7 @@ export default function ActionBar({
   icon = 'add',
   loadingText = 'Đang tạo...',
   secondary = null,
+  top = null,
 }) {
   // Mobile: z-[55] để nằm trên tab dưới (BottomNav z-50 render sau nên sẽ che thanh này nếu cùng z-index);
   // khoảng trống phía trên để nội dung cuối trang không bị thanh che
@@ -20,6 +21,7 @@ export default function ActionBar({
     <>
       <div aria-hidden="true" className="h-8 lg:hidden" />
       <div className="fixed bottom-0 left-0 right-0 z-[55] mx-auto max-w-[640px] border-t border-surface-container bg-surface-container-lowest p-3 lg:sticky lg:max-w-none lg:rounded-t-2xl lg:border lg:px-4">
+        {top && <div className="mb-2">{top}</div>}
         {error && (
           <div className="mb-2">
             <FormAlert>{error}</FormAlert>

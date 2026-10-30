@@ -1,0 +1,70 @@
+AI VIẾT TIÊU ĐỀ / NỘI DUNG / HASHTAG BÀI ĐĂNG (CLAUDE API)
+=========================================================
+
+Ngày: 2026-10-30. Thay mục 7 "AI viết nội dung" của note/nghiep-vu-dang-bai-tiktik.txt (worker FlowKit viết, đã bỏ
+từ 2026-10-14). Backend: D:\OSPanel\home\a90.local, migration 2026_10_30_100000_add_ai_content_to_social_posts.
+Test: tests/Feature/SocialPostTest.php.
+
+
+1. ĐÃ CHỐT
+----------
+
+- Tạo bài có công tắc "AI viết tiêu đề, nội dung, hashtag", MẶC ĐỊNH BẬT, nhớ lựa chọn lần trước (localStorage).
+- Mỗi lần AI viết tốn 2.000 (setting social.ai_content_price, admin sửa trong bảng settings). Trừ ví người bấm
+  (nhân viên: ví nhân viên, như tạo ảnh).
+- AI chỉ chọn hashtag trong KHO HASHTAG CỦA SHOP, tối đa 5. Kho rỗng (hoặc không có shop) thì bài không có hashtag.
+  Nhân viên dùng kho của chủ shop.
+- Kho KHÔNG tự lấy hashtag sản phẩm. Cài đặt cửa hàng có nút "Lấy N hashtag từ sản phẩm" để chủ shop tự bấm.
+- Có nút "Viết lại bằng AI" ở trang bài (chờ gửi).
+- Công tắc tổng SOCIAL_AI_CONTENT (.env) và ANTHROPIC_API_KEY. Tắt thì không hiện công tắc / nút viết lại.
+
+
+2. LUỒNG
+--------
+
+Tạo bài bật AI (POST /social/posts/from-images, ai_content: true):
+  - Chỉ có tác dụng khi SOCIAL_AI_CONTENT bật và người dùng không gửi kèm tiêu đề / nội dung / hashtag.
+  - Trừ phí ngay trong transaction tạo bài. Không đủ Credit -> 402 INSUFFICIENT_CREDIT, không tạo bài.
+  - Bài ở generating ("AI đang viết..."), queue job WriteSocialPostContent gọi Claude (claude-haiku-5-5,
+    ANTHROPIC_SOCIAL_MODEL) với 4 ảnh đầu (thumbnail) + tên / mô tả / ngành hàng của các mẫu + kho hashtag.
+  - Viết xong -> pending_review với nội dung AI viết.
+  - AI lỗi / queue không chạy quá 30 phút (social:sweep) -> pending_review với nội dung mặc định (tên mẫu + hashtag
+    của mẫu) và HOÀN phí (ledger social_content_refund).
+  - Gửi lại cùng idempotency_key không trừ lần 2.
+
+"Viết lại bằng AI" (POST /social/posts/{id}/ai-content):
+  - Chỉ khi bài pending_review (khác -> 409 POST_NOT_EDITABLE). Giới hạn chung với tạo ảnh (throttle generations).
+  - Kiểm tra Credit trước (402, không gọi AI), gọi Claude trong request (5-15 giây), chỉ trừ phí khi viết được.
+  - AI lỗi -> 503 AI_CONTENT_FAILED "AI chưa viết được nội dung, vui lòng thử lại. Bạn không bị trừ Credit."
+  - Tắt tính năng -> 409 AI_CONTENT_DISABLED.
+  - Trả { title, content, hashtags, credit_balance }, KHÔNG lưu vào bài: frontend điền vào form, người dùng xem lại
+    rồi bấm Đăng. Form đang có nội dung thì hỏi xác nhận trước khi thay.
+
+Kết quả AI được backend chuẩn hoá: tiêu đề <= 90 ký tự, nội dung <= 2000 ký tự (vừa Instagram 2200 cả dòng hashtag),
+bỏ #tag lẫn trong nội dung, hashtag ngoài kho bị bỏ (schema JSON cũng ép enum theo kho), lấy tối đa 5.
+
+
+3. API
+------
+
+POST /social/posts/from-images  thêm ai_content (boolean, không bắt buộc, mặc định false)
+SocialPost                      thêm ai_content (boolean)
+POST /social/posts/{id}/ai-content -> { data: { title, content, hashtags, credit_balance } }
+GET  /creator/shop-hashtags     -> { data: { hashtags: string[], product_hashtags: string[], max: 100 } }
+PUT  /creator/shop-hashtags { hashtags: string[] } -> như trên. Gửi cả danh sách theo thứ tự, rỗng = xoá hết.
+     Chỉ chủ shop (middleware creator). Quy tắc hashtag như Creative, tối đa 100.
+GET  /auth/me                   thêm social_ai: { enabled, price }
+Ledger Credit: social_content_charge (trừ), social_content_refund (hoàn), reference social_post #id.
+
+Đã bỏ: API worker GET/POST /api/v1/content-jobs (WorkerContentJobController). Bảng social_content_jobs vẫn dùng
+(1 dòng / bài tạo bằng AI, thêm cột charge_amount); cột worker_id / lease_expires_at không dùng nữa.
+
+
+4. FRONTEND
+-----------
+
+- src/components/social/AiContentSwitch.jsx: công tắc + hook useAiContentToggle, đặt trên thanh "Tạo bài đăng" của
+  /posts/new và trang lô (/batches/:id).
+- src/pages/SocialPostPage.jsx: nút "Viết lại bằng AI" cạnh tiêu đề phần Nội dung; trang generating ghi
+  "AI đang viết tiêu đề, nội dung, hashtag".
+- src/components/store/ShopHashtags.jsx: phần "Kho hashtag" trong Cài đặt cửa hàng (/seller/settings).

@@ -8,6 +8,7 @@ import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback'
 import GroupFormDialog from '../components/product/GroupFormDialog';
 import { CREATOR_KEYS, useCreatorProfile } from '../hooks/creatorQueries';
 import { AUTO_KEYS, deleteGroup, listGroups } from '../api/autoBatch';
+import { useConfirm } from '../components/common/ConfirmDialog';
 
 // Tạo lô tự động chỉ dùng creative Đang bán, không bị ẩn
 const isRunnable = (c) => c.status === 'published' && !c.isHidden;
@@ -15,16 +16,17 @@ const isRunnable = (c) => c.status === 'published' && !c.isHidden;
 /** shopName: nhóm của shop chủ (nhân viên chỉ xem, không sửa / xoá). */
 function GroupCard({ group, index, shopName, onEdit, onDeleted }) {
   const [deleting, setDeleting] = useState(false);
+  const { confirm, alert } = useConfirm();
   const runnable = group.creatives.filter(isRunnable).length;
 
   const remove = async () => {
-    if (!window.confirm(`Xoá nhóm "${group.name}"? Lô đã tạo từ nhóm này vẫn giữ nguyên.`)) return;
+    if (!(await confirm(`Xoá nhóm "${group.name}"? Lô đã tạo từ nhóm này vẫn giữ nguyên.`, { confirmLabel: 'Xoá', danger: true }))) return;
     setDeleting(true);
     try {
       await deleteGroup(group.id);
       await onDeleted();
     } catch (err) {
-      window.alert(err?.message || 'Không xoá được nhóm, vui lòng thử lại.');
+      alert(err?.message || 'Không xoá được nhóm, vui lòng thử lại.');
       setDeleting(false);
     }
   };

@@ -12,7 +12,8 @@ import { mock } from './mock/handlers';
  *
  * user (UserResource): { id, name, email, role, credit_balance, creator_profile: { avatar_url, ... } | null,
  *   staff_of: { username, shop_name, avatar_url, verified } | null (shop đang làm nhân viên, note/chia-se-tai-nguyen.txt),
- *   logo_url (logo nhân viên tự tải lên để chèn vào ảnh), created_at }
+ *   logo_url (logo nhân viên tự tải lên để chèn vào ảnh), social_ai: { enabled, price } (AI viết nội dung bài đăng,
+ *   note/ai-viet-noi-dung-bai-dang.txt), created_at }
  * Lỗi dữ liệu: 422 { message, errors: { field: [msg] } }. Gửi quá nhiều lần: 429.
  *
  * ---- Marketplace (công khai) ----
@@ -85,6 +86,8 @@ const mapUser = (u) => ({
   // Nhân viên của shop (note/chia-se-tai-nguyen.txt): dùng sản phẩm / nhóm / creative của shop, không có shop riêng
   staffOf: u.staff_of ? { shopName: u.staff_of.shop_name, username: u.staff_of.username, avatarUrl: u.staff_of.avatar_url } : null,
   logoUrl: u.logo_url ?? null,
+  // AI viết nội dung bài đăng: tắt thì ẩn công tắc khi tạo bài và nút "Viết lại bằng AI"
+  socialAi: { enabled: !!u.social_ai?.enabled, price: u.social_ai?.price ?? 0 },
 });
 
 const mapSession = ({ data }) => ({ token: data.token, expiresAt: data.expires_at, user: mapUser(data.user) });

@@ -9,6 +9,7 @@ import { useCreatorCreatives, useCreatorProfile, usePauseCreative, usePublishCre
 import useHorizontalScroll from '../hooks/useHorizontalScroll';
 import { formatCount, formatVnd } from '../utils/format';
 import { hashtagSlug } from '../utils/hashtag';
+import { useConfirm } from '../components/common/ConfirmDialog';
 
 // Khớp tham số status của GET /creator/creatives ('all' = tất cả, không gửi status)
 const TABS = [
@@ -31,6 +32,7 @@ const PAGE_SIZE = 20;
 function ProductCard({ creative }) {
   const publish = usePublishCreative();
   const pause = usePauseCreative();
+  const { confirm } = useConfirm();
   const { id, title, cover_url, price_per_image, status, pause_reason, is_hidden, is_public, usage_count, group, hashtags } = creative;
   const ratio = creative.default_aspect_ratio ?? creative.config?.default_aspect_ratio;
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
@@ -40,8 +42,8 @@ function ProductCard({ creative }) {
   const action = canPublish ? publish : pause;
   const error = action.error;
   const reasons = error?.context?.reasons;
-  const run = () => {
-    if (!canPublish && !window.confirm('Tạm dừng bán? Người mua sẽ không tạo ảnh được với Creative này tới khi đăng bán lại.')) return;
+  const run = async () => {
+    if (!canPublish && !(await confirm('Tạm dừng bán? Người mua sẽ không tạo ảnh được với Creative này tới khi đăng bán lại.', { confirmLabel: 'Tạm dừng' }))) return;
     action.mutate(id);
   };
 

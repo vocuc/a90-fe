@@ -12,6 +12,7 @@ import {
   tiktokConnectionsOf,
   tiktokNameOf,
 } from '../../api/social';
+import { useConfirm } from '../common/ConfirmDialog';
 
 const btn = 'flex h-8 shrink-0 items-center gap-1 rounded-full px-4 text-xs font-bold disabled:opacity-60';
 
@@ -24,6 +25,7 @@ export default function TikTokConnectionCard() {
   const queryClient = useQueryClient();
   const { data: accounts, isLoading } = useQuery({ queryKey: ['social', 'accounts'], queryFn: getAccounts, staleTime: 60_000 });
   const [busy, setBusy] = useState(null); // 'connect' | id tài khoản đang huỷ / kết nối lại
+  const { confirm } = useConfirm();
   const [error, setError] = useState(null);
   const connections = tiktokConnectionsOf(accounts);
 
@@ -39,8 +41,8 @@ export default function TikTokConnectionCard() {
   };
 
   const connect = (kind = 'connect') => run(kind, () => authorizeTikTok());
-  const disconnect = (account) => {
-    if (!window.confirm(`Huỷ kết nối TikTok ${tiktokNameOf(account)}? Bài đăng sau đó sẽ không gửi vào tài khoản này nữa.`)) return;
+  const disconnect = async (account) => {
+    if (!(await confirm(`Huỷ kết nối TikTok ${tiktokNameOf(account)}? Bài đăng sau đó sẽ không gửi vào tài khoản này nữa.`, { confirmLabel: 'Huỷ kết nối', danger: true }))) return;
     run(account.id, async () => {
       await disconnectTikTok(account.id);
       await queryClient.invalidateQueries({ queryKey: ['social', 'accounts'] });

@@ -12,6 +12,7 @@ import { useMe } from '../hooks/queries';
 import { useCreatorWallet } from '../hooks/creatorQueries';
 import { staffApi } from '../api/services';
 import { formatVnd } from '../utils/format';
+import { useConfirm } from '../components/common/ConfirmDialog';
 
 // Khớp UserRole của backend
 const ROLE_LABEL = { user: 'Thành viên', admin: 'Quản trị viên' };
@@ -20,9 +21,10 @@ const ROLE_LABEL = { user: 'Thành viên', admin: 'Quản trị viên' };
 function StaffShopCard({ shopName }) {
   const queryClient = useQueryClient();
   const [leaving, setLeaving] = useState(false);
+  const { confirm, alert } = useConfirm();
 
   const leave = async () => {
-    if (!window.confirm(`Rời shop ${shopName}? Bạn sẽ không dùng được sản phẩm, nhóm creative và mẫu của shop nữa. Lô đã tạo vẫn giữ nguyên.`)) return;
+    if (!(await confirm(`Rời shop ${shopName}? Bạn sẽ không dùng được sản phẩm, nhóm creative và mẫu của shop nữa. Lô đã tạo vẫn giữ nguyên.`, { confirmLabel: 'Rời shop', danger: true }))) return;
     setLeaving(true);
     try {
       await staffApi.leaveShop();
@@ -30,7 +32,7 @@ function StaffShopCard({ shopName }) {
       queryClient.removeQueries({ queryKey: ['staff'] });
       await queryClient.invalidateQueries({ queryKey: ['me'] });
     } catch (err) {
-      window.alert(err?.message || 'Không rời shop được, vui lòng thử lại.');
+      alert(err?.message || 'Không rời shop được, vui lòng thử lại.');
     } finally {
       setLeaving(false);
     }

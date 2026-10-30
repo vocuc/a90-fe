@@ -12,6 +12,7 @@ import { FormAlert } from '../components/common/Form';
 import { BatchStatusBadge } from '../components/batch/BatchStatus';
 import EditInputsDialog from '../components/batch/EditInputsDialog';
 import CropImageDialog from '../components/batch/CropImageDialog';
+import AiContentSwitch, { useAiContentToggle } from '../components/social/AiContentSwitch';
 import {
   BATCH_SOURCE,
   UPLOAD_IMAGE_MAX_MB,
@@ -23,6 +24,7 @@ import {
 } from '../api/batches';
 import { IMAGE_STATUS, PHOTO_MAX_COUNT, createPostFromImages, isImageBusy, newIdempotencyKey } from '../api/social';
 import { formatVnd } from '../utils/format';
+import { useConfirm } from '../components/common/ConfirmDialog';
 
 const POLL_INTERVAL = 3000;
 
@@ -164,6 +166,8 @@ export default function BatchPage() {
   // null: chế độ thường; mảng: đang chọn ảnh để tạo bài đăng (theo thứ tự chọn)
   const [selected, setSelected] = useState(null);
   const postKey = useIdempotencyKey();
+  const ai = useAiContentToggle();
+  const { confirm } = useConfirm();
   // Khoá chống trừ tiền 2 lần khi bấm "Tạo lại" lại do lỗi mạng, theo id ảnh
   const regenerateKeys = useRef({});
 
@@ -193,7 +197,7 @@ export default function BatchPage() {
   const regenerate = async (img, edit) => {
     if (!edit) {
       const cost = img.price > 0 ? ` Phí ${formatVnd(img.price)}.` : '';
-      if (!window.confirm(`Tạo lại ảnh này${img.creativeTitle ? ` theo mẫu "${img.creativeTitle}"` : ''}?${cost}`)) return;
+      if (!(await confirm(`Tạo lại ảnh này${img.creativeTitle ? ` theo mẫu "${img.creativeTitle}"` : ''}?${cost}`, { confirmLabel: 'Tạo lại' }))) return;
     }
     const keys = regenerateKeys.current;
     keys[img.id] ??= newIdempotencyKey();
@@ -243,7 +247,7 @@ export default function BatchPage() {
   };
 
   const removeImage = async (img) => {
-    if (!window.confirm('Xoá ảnh này khỏi lô? Ảnh vẫn còn trong lịch sử tạo ảnh, bài đăng đã tạo không đổi.')) return;
+    if (!(await confirm('Xoá ảnh này khỏi lô? Ảnh vẫn còn trong lịch sử tạo ảnh, bài đăng đã tạo không đổi.', { confirmLabel: 'Xoá', danger: true }))) return;
     setBusy(img.id);
     setError(null);
     try {
@@ -275,9 +279,10 @@ export default function BatchPage() {
     setBusy('post');
     setError(null);
     try {
-      const post = await createPostFromImages(selected, postKey.key.current, batch.id);
+      const post = await createPostFromImages(selected, postKey.key.current, batch.id, ai.on);
       postKey.renew();
       queryClient.invalidateQueries({ queryKey: ['social', 'posts'] });
+      if (ai.on) queryClient.invalidateQueries({ queryKey: ['me'] });
       queryClient.invalidateQueries({ queryKey: ['batches'] });
       navigate(`/posts/${post.id}`);
     } catch (err) {
@@ -430,6 +435,7 @@ export default function BatchPage() {
                   Đã chọn <b className="text-on-surface">{selected.length}</b>/{PHOTO_MAX_COUNT} ảnh
                 </>
               }
+              top={<AiContentSwitch toggle={ai} />}
               error={error}
               disabled={!selected.length}
               loading={busy === 'post'}

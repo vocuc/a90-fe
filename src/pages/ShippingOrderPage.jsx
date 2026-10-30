@@ -27,6 +27,7 @@ import {
   submitOrder,
   updateOrder,
 } from '../api/shipping';
+import { useConfirm } from '../components/common/ConfirmDialog';
 
 // Các trường form sửa được (cùng tên với FIELD_NAMES trong api/shipping.js)
 const POLL_INTERVAL = 3000;
@@ -265,6 +266,7 @@ export default function ShippingOrderPage() {
   const [errors, setErrors] = useState({});
   const [actionError, setActionError] = useState(null);
   const [busy, setBusy] = useState(null); // 'save' | 'submit' | 'delete'
+  const { confirm } = useConfirm();
   const [notice, setNotice] = useState(null);
 
   // Nạp đơn vào form lần đầu và sau mỗi lần lưu / gửi
@@ -345,7 +347,7 @@ export default function ShippingOrderPage() {
   };
 
   const remove = async () => {
-    if (!window.confirm('Xoá đơn nháp này?')) return;
+    if (!(await confirm('Xoá đơn nháp này?', { confirmLabel: 'Xoá', danger: true }))) return;
     setBusy('delete');
     try {
       await deleteOrder(order.id);

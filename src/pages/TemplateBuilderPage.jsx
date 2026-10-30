@@ -31,6 +31,7 @@ import {
   toPayload,
   validateTemplate,
 } from '../components/template/templateSchema';
+import { useConfirm } from '../components/common/ConfirmDialog';
 
 /*
  * /seller/creatives/new (tạo) và /seller/creatives/:id/edit (sửa): Creator thiết kế form người mua + Prompt Template.
@@ -243,6 +244,7 @@ function Builder({ creative: loaded }) {
   // Tạo mới chưa có nháp -> vào thẳng builder với Template trống
   const [template, setTemplate] = useState(() => (loaded ? fromCreative(loaded) : (loadDraft() ?? withRatioField(emptyTemplate()))));
   const [picking, setPicking] = useState(false);
+  const { confirm } = useConfirm();
   const [tab, setTab] = useState('fields');
   const [selectedId, setSelectedId] = useState(() => template?.fields[0]?._id ?? null);
   const [savedAt, setSavedAt] = useState(null);
@@ -329,10 +331,9 @@ function Builder({ creative: loaded }) {
     setTab('fields');
   };
 
-  const pickPreset = (preset) => {
+  const pickPreset = async (preset) => {
     const edited = template.fields.some((f) => f.type !== 'aspect_ratio') || template.prompt_text.trim();
-    if (edited && !window.confirm('Thay thế Template hiện tại bằng mẫu mới?'))
-      return;
+    if (edited && !(await confirm('Thay thế Template hiện tại bằng mẫu mới?', { confirmLabel: 'Thay thế' }))) return;
     start(preset.build());
   };
 

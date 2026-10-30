@@ -19,6 +19,10 @@ import client from './client';
  * GET    /social/posts/{id}                              -> { data: SocialPost }
  * POST   /social/posts/from-images                       -> 201 { data: SocialPost }
  * POST   /social/posts/{id}/publish                      -> { data: SocialPost }   (các nền tảng chọn sang queued)
+ * POST   /social/posts/{id}/ai-content                   -> { data: { title, content, hashtags, credit_balance } }
+ *        "Viết lại bằng AI": không lưu vào bài, trừ phí khi AI viết được (note/ai-viet-noi-dung-bai-dang.txt)
+ * GET    /creator/shop-hashtags                          -> { data: { hashtags, product_hashtags, max } }
+ * PUT    /creator/shop-hashtags { hashtags }             -> như trên (kho hashtag AI được chọn)
  * DELETE /social/posts/{id}                              -> 204
  */
 
@@ -48,7 +52,7 @@ export const doneLabelOf = (platform, driver) =>
 
 /*
  * Trạng thái chung của bài:
- *   generating      Đang chuẩn bị: A51 viết sẵn nội dung (chỉ khi bật AI viết nội dung)
+ *   generating      Đang chuẩn bị: AI đang viết tiêu đề / nội dung / hashtag (chỉ khi bật AI viết nội dung lúc tạo bài)
  *   pending_review  Chờ gửi: chờ người dùng bấm đăng (đăng lần trước có nền tảng lỗi thì có last_error)
  *   queued          Chờ đăng: đã tạo job, chờ worker nhận (không hết hạn). Khoá: không sửa, không xoá
  *   publishing      Đang đăng: có worker đang đăng ít nhất 1 nền tảng. Khoá: không sửa, không xoá
@@ -191,6 +195,7 @@ const mapPost = (p) => ({
   status: p.status,
   source: p.source,
   imageBatchId: p.image_batch_id ?? null,
+  aiContent: !!p.ai_content,
   title: p.title ?? '',
   content: p.content ?? '',
   hashtags: p.hashtags ?? [],
@@ -215,17 +220,61 @@ export const listPosts = ({ page = 1, limit = 20, status } = {}) =>
 export const getPost = (id) => client.get(`/social/posts/${id}`).then(({ data }) => mapPost(data));
 
 /**
- * Tạo bài từ ảnh của một lô hoặc ảnh đã có trên A51 (không tính phí): bài chờ người dùng chọn nền tảng và đăng.
+ * Tạo bài từ ảnh của một lô hoặc ảnh đã có trên A51: bài chờ người dùng chọn nền tảng và đăng.
  * images: [{ generationId, outputId }] theo thứ tự, ảnh đầu làm ảnh bìa. batchId: lô tạo ra bài (nút "Tạo bài đăng" của lô).
+ * aiContent: bật "AI viết nội dung" -> trừ phí ngay (không đủ: 402 INSUFFICIENT_CREDIT, không tạo bài), bài ở generating
+ * tới khi AI viết xong; AI lỗi thì bài dùng nội dung mặc định và được hoàn phí. Không bật thì không tính phí.
  */
-export const createPostFromImages = (images, idempotencyKey, batchId = null) =>
+export const createPostFromImages = (images, idempotencyKey, batchId = null, aiContent = false) =>
   client
     .post('/social/posts/from-images', {
       images: images.map((i) => ({ generation_id: i.generationId, output_id: i.outputId })),
       image_batch_id: batchId ?? undefined,
       idempotency_key: idempotencyKey,
+      ai_content: aiContent,
     })
     .then(({ data }) => mapPost(data));
+
+// AI đọc ảnh rồi viết: không dùng timeout 15s mặc định
+const AI_TIMEOUT = 90_000;
+
+/**
+ * "Viết lại bằng AI": nội dung mới để điền vào form (không lưu vào bài). Chỉ trừ phí khi AI viết được;
+ * AI lỗi 503 AI_CONTENT_FAILED, không đủ Credit 402 INSUFFICIENT_CREDIT.
+ */
+export const rewritePostContent = (id) =>
+  client.post(`/social/posts/${id}/ai-content`, null, { timeout: AI_TIMEOUT }).then(({ data }) => ({
+    title: data.title ?? '',
+    content: data.content ?? '',
+    hashtags: data.hashtags ?? [],
+    creditBalance: data.credit_balance,
+  }));
+
+// Nhớ lựa chọn công tắc "AI viết nội dung" lần trước (mặc định bật)
+const AI_CONTENT_PREF_KEY = 'a51.social.aiContent';
+export const loadAiContentPref = () => {
+  try {
+    return localStorage.getItem(AI_CONTENT_PREF_KEY) !== '0';
+  } catch {
+    return true;
+  }
+};
+export const saveAiContentPref = (on) => {
+  try {
+    localStorage.setItem(AI_CONTENT_PREF_KEY, on ? '1' : '0');
+  } catch {
+    // Trình duyệt chặn localStorage: không nhớ được, lần sau vẫn bật mặc định
+  }
+};
+
+// ---- Kho hashtag của shop (AI chỉ chọn tối đa 5 hashtag trong kho, kho rỗng thì bài không có hashtag) ----
+
+const mapShopHashtags = (d) => ({ hashtags: d.hashtags ?? [], productHashtags: d.product_hashtags ?? [], max: d.max ?? 100 });
+
+export const getShopHashtags = () => client.get('/creator/shop-hashtags').then(({ data }) => mapShopHashtags(data));
+
+export const saveShopHashtags = (hashtags) =>
+  client.put('/creator/shop-hashtags', { hashtags }).then(({ data }) => mapShopHashtags(data));
 
 /**
  * Đăng bài: lưu toàn bộ chỉnh sửa trên trang rồi tạo 1 job / nền tảng trong form.platforms, bài chuyển sang queued

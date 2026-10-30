@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
+import { useMe } from '../hooks/queries';
+import { formatVnd } from '../utils/format';
 import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
@@ -31,9 +33,11 @@ import {
   isImageBusy,
   isPostLocked,
   publishPost,
+  rewritePostContent,
   tiktokConnectionsOf,
   tiktokNameOf,
 } from '../api/social';
+import { useConfirm } from '../components/common/ConfirmDialog';
 
 // Đang chuẩn bị / chờ đăng / đang đăng: hỏi lại mỗi 3 giây
 const POLL_INTERVAL = 3000;
@@ -558,7 +562,7 @@ function AddImagesDialog({ exclude, max, onAdd, onClose }) {
   );
 }
 
-/** Đang chuẩn bị: ảnh đã có, A51 đang viết sẵn tiêu đề / nội dung (chỉ khi bật AI viết nội dung). */
+/** Đang chuẩn bị: ảnh đã có, AI đang viết sẵn tiêu đề / nội dung / hashtag (chỉ khi bật AI viết nội dung lúc tạo bài). */
 function GeneratingPanel({ post }) {
   return (
     <section className="space-y-5 p-4 lg:mx-auto lg:w-full lg:max-w-[640px] lg:py-10">
@@ -567,7 +571,7 @@ function GeneratingPanel({ post }) {
           <Icon name="auto_awesome" className="animate-pulse text-3xl" />
         </span>
         <div>
-          <h2 className="text-base font-bold text-on-surface">Đang chuẩn bị bài đăng</h2>
+          <h2 className="text-base font-bold text-on-surface">AI đang viết tiêu đề, nội dung, hashtag</h2>
           <p className="mt-1 text-xs text-on-surface-variant">
             Bạn có thể rời trang này. Xong, bài chuyển sang <b>Chờ gửi</b> để bạn xem lại và đăng bài.
           </p>
@@ -656,8 +660,11 @@ function ReviewForm({ post, onRefresh }) {
   const [choosing, setChoosing] = useState(false);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
-  const [busy, setBusy] = useState(null); // 'publish' | 'delete'
+  const [busy, setBusy] = useState(null); // 'publish' | 'delete' | 'ai'
   const [adding, setAdding] = useState(false);
+  const { data: me } = useMe();
+  const ai = me?.socialAi;
+  const { confirm } = useConfirm();
   // Hashtag đã nhập ở các bài trước (cookie), gợi ý dưới ô hashtag
   const [hashtagHistory, setHashtagHistory] = useState(readHashtagHistory);
 
@@ -685,12 +692,24 @@ function ReviewForm({ post, onRefresh }) {
     }
   };
 
-  const remove = () => {
-    if (!window.confirm('Xoá bài đăng này? Ảnh vẫn còn trong lịch sử tạo ảnh.')) return;
+  const remove = async () => {
+    if (!(await confirm('Xoá bài đăng này? Ảnh vẫn còn trong lịch sử tạo ảnh.', { confirmLabel: 'Xoá', danger: true }))) return;
     run('delete', async () => {
       await deletePost(post.id);
       queryClient.invalidateQueries({ queryKey: ['social', 'posts'] });
       navigate('/posts', { replace: true });
+    });
+  };
+
+  // "Viết lại bằng AI": điền nội dung AI viết vào form (chưa lưu), người dùng xem lại rồi tự đăng
+  const rewrite = async () => {
+    const hasContent = form.title.trim() || form.content.trim() || form.hashtags.length;
+    if (hasContent && !(await confirm(`AI sẽ viết lại và thay tiêu đề, nội dung, hashtag hiện tại. Phí ${formatVnd(ai.price)}.`, { confirmLabel: 'Viết lại' }))) return;
+    run('ai', async () => {
+      const next = await rewritePostContent(post.id);
+      setForm((f) => ({ ...f, title: next.title, content: next.content, hashtags: next.hashtags }));
+      setErrors((e) => ({ ...e, title: undefined, content: undefined, hashtags: undefined }));
+      queryClient.invalidateQueries({ queryKey: ['me'] });
     });
   };
 
@@ -820,9 +839,23 @@ function ReviewForm({ post, onRefresh }) {
 
       <div className="space-y-6">
         <section className="space-y-4">
-          <div>
-            <h2 className="text-sm font-bold text-on-surface">Nội dung</h2>
-            <p className="mt-0.5 text-xs text-on-surface-variant">Không bắt buộc.</p>
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-bold text-on-surface">Nội dung</h2>
+              <p className="mt-0.5 text-xs text-on-surface-variant">Không bắt buộc.</p>
+            </div>
+            {ai?.enabled && (
+              <button
+                type="button"
+                onClick={rewrite}
+                disabled={!!busy}
+                title={`AI viết lại tiêu đề, nội dung, hashtag (${formatVnd(ai.price)})`}
+                className="flex h-9 shrink-0 items-center gap-1 rounded-xl border border-primary-container/50 px-3 text-xs font-bold text-primary hover:bg-primary-fixed/40 disabled:opacity-60"
+              >
+                <Icon name={busy === 'ai' ? 'progress_activity' : 'auto_awesome'} className={`text-base ${busy === 'ai' ? 'animate-spin' : ''}`} />
+                {busy === 'ai' ? 'AI đang viết...' : 'Viết lại bằng AI'}
+              </button>
+            )}
           </div>
           <TextField
             label="Tiêu đề"

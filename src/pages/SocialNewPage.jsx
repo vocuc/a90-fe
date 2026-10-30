@@ -6,10 +6,12 @@ import useIdempotencyKey from '../hooks/useIdempotencyKey';
 import Icon from '../components/common/Icon';
 import ActionBar from '../components/common/ActionBar';
 import A51ImagePicker from '../components/social/A51ImagePicker';
+import AiContentSwitch, { useAiContentToggle } from '../components/social/AiContentSwitch';
 import { PHOTO_MAX_COUNT, createPostFromImages } from '../api/social';
 
 /**
  * /posts/new: tạo bài từ ảnh đã có trên A51 (lịch sử tạo ảnh), sang trang bài để điền tiêu đề, nội dung và gửi.
+ * Bật "AI viết nội dung" thì AI viết sẵn tiêu đề, nội dung, hashtag (tính phí, note/ai-viet-noi-dung-bai-dang.txt).
  * Tạo ảnh mới nằm ở "Tạo ảnh theo lô" (/batches), mỗi lô có nút "Tạo bài đăng" riêng.
  */
 export default function SocialNewPage() {
@@ -20,15 +22,17 @@ export default function SocialNewPage() {
   const [selected, setSelected] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const ai = useAiContentToggle();
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/posts', { replace: true }));
 
   const submit = async () => {
     setLoading(true);
     setError(null);
     try {
-      const post = await createPostFromImages(selected, idem.key.current);
+      const post = await createPostFromImages(selected, idem.key.current, null, ai.on);
       idem.renew();
       queryClient.invalidateQueries({ queryKey: ['social', 'posts'] });
+      if (ai.on) queryClient.invalidateQueries({ queryKey: ['me'] });
       navigate(`/posts/${post.id}`, { replace: true });
     } catch (err) {
       idem.renewAfter(err);
@@ -75,6 +79,7 @@ export default function SocialNewPage() {
             'Chưa chọn ảnh nào'
           )
         }
+        top={<AiContentSwitch toggle={ai} />}
         error={error}
         disabled={!selected.length}
         loading={loading}

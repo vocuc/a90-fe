@@ -9,6 +9,7 @@ import { BatchStatusBadge } from '../components/batch/BatchStatus';
 import { useCreatorProfile } from '../hooks/creatorQueries';
 import { BATCH_SOURCE } from '../api/batches';
 import { STAFF_KEYS, addStaff, listStaff, listStaffBatches, removeStaff } from '../api/staff';
+import { useConfirm } from '../components/common/ConfirmDialog';
 
 const PAGE_SIZE = 20;
 
@@ -68,15 +69,16 @@ function AddStaffForm() {
 function StaffRow({ staff }) {
   const queryClient = useQueryClient();
   const [removing, setRemoving] = useState(false);
+  const { confirm, alert } = useConfirm();
 
   const remove = async () => {
-    if (!window.confirm(`Gỡ ${staff.user.name} khỏi shop? Nhân viên mất quyền dùng tài nguyên shop ngay, lô đã tạo vẫn giữ nguyên.`)) return;
+    if (!(await confirm(`Gỡ ${staff.user.name} khỏi shop? Nhân viên mất quyền dùng tài nguyên shop ngay, lô đã tạo vẫn giữ nguyên.`, { confirmLabel: 'Gỡ', danger: true }))) return;
     setRemoving(true);
     try {
       await removeStaff(staff.id);
       await queryClient.invalidateQueries({ queryKey: STAFF_KEYS.staff });
     } catch (err) {
-      window.alert(err?.message || 'Không gỡ được nhân viên, vui lòng thử lại.');
+      alert(err?.message || 'Không gỡ được nhân viên, vui lòng thử lại.');
       setRemoving(false);
     }
   };

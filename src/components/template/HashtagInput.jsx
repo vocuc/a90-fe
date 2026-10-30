@@ -9,6 +9,7 @@ import { MAX_HASHTAGS, MAX_HASHTAG_LENGTH, cleanHashtag, hashtagError, hashtagSl
  * lowercase: tự chuyển chữ hoa thành chữ thường ngay khi gõ / dán / chọn gợi ý (dùng ở trang đăng bài).
  * quickPicks: (chữ đang gõ) => tên hashtag hiện thành nút bấm dưới ô nhập (hashtag đã dùng ở trang đăng bài).
  * remoteSuggest: false để tắt danh sách gợi ý xổ xuống từ GET /hashtags.
+ * max: số hashtag tối đa (mặc định như Creative; kho hashtag của shop cho nhiều hơn).
  */
 export default function HashtagInput({
   value = [],
@@ -18,6 +19,7 @@ export default function HashtagInput({
   lowercase = false,
   quickPicks,
   remoteSuggest = true,
+  max = MAX_HASHTAGS,
 }) {
   const id = useId();
   const [text, setText] = useState('');
@@ -27,7 +29,7 @@ export default function HashtagInput({
   const [inputError, setInputError] = useState(null);
 
   const prefix = hashtagSlug(text);
-  const full = value.length >= MAX_HASHTAGS;
+  const full = value.length >= max;
   const { data } = useHashtags(prefix, { limit: 8, enabled: remoteSuggest && focused && !full });
   const taken = new Set(value.map(hashtagSlug));
   const suggestions = remoteSuggest && focused && !full ? (data ?? []).filter((h) => !taken.has(h.slug)) : [];
@@ -44,7 +46,7 @@ export default function HashtagInput({
     names.forEach((name) => {
       const err = hashtagError(name);
       if (err) failed ??= err;
-      else if (next.length >= MAX_HASHTAGS) failed ??= `Tối đa ${MAX_HASHTAGS} hashtag.`;
+      else if (next.length >= max) failed ??= `Tối đa ${max} hashtag.`;
       else if (!seen.has(hashtagSlug(name))) {
         seen.add(hashtagSlug(name));
         next.push(name);
@@ -94,7 +96,7 @@ export default function HashtagInput({
       <label htmlFor={id} className="mb-1 flex items-center justify-between text-xs font-semibold text-on-surface">
         <span>Hashtag</span>
         <span className="font-normal text-outline">
-          {value.length}/{MAX_HASHTAGS}
+          {value.length}/{max}
         </span>
       </label>
       <div className="relative">
