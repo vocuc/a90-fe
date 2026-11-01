@@ -1,0 +1,116 @@
+THẢO LUẬN: TÍNH NĂNG LẬP LỊCH LÀM VIỆC CHO WORKER
+Ngày: 2026-11-01
+
+==================================================
+0. HIỆN TRẠNG (để tham khảo)
+==================================================
+- Worker tự hỏi backend lấy việc liên tục (GET /api/v1/jobs, /publish-jobs, /video-images), không có khái niệm giờ giấc.
+- Việc tạo ảnh / đăng bài chỉ sinh ra khi người dùng bấm. Worker tạo video tự xin ảnh khi nó muốn.
+- Chủ shop xem worker được gắn ở Công cụ -> Quản lý worker (chỉ xem). Admin gắn / bật tắt ở trang admin.
+- Một worker tạo ảnh có thể gắn cho nhiều shop.
+
+==================================================
+1. MỤC ĐÍCH
+==================================================
+Lập kế hoạch làm việc hàng ngày cho các woker tạo video, nút này chỉ hiển thị với các woker tạo video.
+
+==================================================
+2. MÔ TẢ CÔNG VIỆC CẦN LẬP LỊCH
+==================================================
+(Worker làm việc gì, vào lúc nào, lặp lại thế nào, mỗi lần làm bao nhiêu...)
+Tạo một bài đăng gồm danh sách ảnh và mẫu video tempalte, tiêu đề nội dung hashtag
+
+==================================================
+3. AI ĐẶT LỊCH / AI XEM LỊCH
+==================================================
+chủ shop đặt và xem lịch
+
+==================================================
+4. LUỒNG MUỐN THỰC HIỆN
+==================================================
+Bước 1. Chủ shop vào trang bài đăng bấm tạo video, hệ thống hiển thị ô select cho chọn woker số lượng bài viết muốn tạo.
+
+Bước 2. 
+Hệ thống tự động sinh ra số lượng bài tương ứng gồm tempalte video số lượng ảnh tiêu đề nội dung hashtag được AI tạo.
+- teamplate được lấy ngẫu nhiên
+- Sản phẩm chọn ngẫu nhiên
+- Số lượng ảnh được lấy theo số lượng ảnh tempalte yêu cầu và ngẫu nhiên của sản phẩm được chọn.
+
+Bước 3. Đưa chủ shop ra trang xem danh sách việc làm đang chờ thực hiện, nếu chủ shop bấm sửa job sẽ hiển thị popup cho chủ shop chọn tempalte chọn sản phẩm và chọn ảnh trong danh sách ảnh theo sản phẩm đó hoặc toàn bột ảnh đã tạo ra
+==================================================
+5. LỐI VÀO / GIAO DIỆN
+==================================================
+Từ trang Đăng bài ở phần công cụ
+
+==================================================
+6. ĐÃ CHỐT (2026-11-01)
+==================================================
+- Video template có thêm ô "Số ảnh" (số ảnh template cần).
+- Worker dựng video xong tự đăng bài rồi báo lại đã đăng (hoặc lỗi).
+- Mỗi bài video có thời gian đăng cố định: chỉ khi đến giờ (hoặc đã quá giờ) worker mới được nhận job.
+- Chỉ sửa được bài khi worker chưa nhận job. Sửa được mọi thứ: template, sản phẩm, ảnh (theo sản phẩm hoặc toàn bộ
+  ảnh đã tạo), tiêu đề, nội dung, hashtag, thời gian đăng.
+- AI viết tiêu đề / nội dung / hashtag: mỗi bài gọi AI 1 lần, trừ phí 1 lần. Hết tiền thì dừng, không tạo các bài tiếp
+  theo (các bài đã tạo vẫn giữ).
+- Danh sách việc đang chờ = danh sách Bài đăng hiện có (kèm trạng thái), có thêm bài video.
+- Xoá được bài video (như bài ảnh).
+- Popup tạo video: chọn worker, số bài, khoảng cách giữa 2 bài liên tiếp gồm tối thiểu và tối đa (phút),
+  ví dụ tối thiểu 40, tối đa 60.
+- Worker báo lỗi: bài chuyển sang Lỗi, chủ shop sửa rồi bấm đăng lại.
+- Worker nhận job rồi im lặng (tắt máy...): bài giữ nguyên trạng thái, không tự hết hạn; chủ shop bấm "tạo lại".
+- AI lỗi: làm giống bài ảnh (dùng nội dung dự phòng từ thông tin mẫu, hoàn tiền).
+- Popup có ô "Giờ đăng bài đầu tiên" (mặc định là bây giờ). Bài sau = bài trước + một số phút NGẪU NHIÊN trong khoảng
+  tối thiểu - tối đa (VD 40-60: 9:00, 9:47, 10:31...).
+- Ô chọn worker: hiện tất cả worker được gắn cho shop.
+- Nút "Tạo lại" (bài đang Đang đăng, worker im lặng): luôn bấm được, chủ shop tự chịu rủi ro đăng trùng
+  (bấm thì hỏi xác nhận, nói rõ có thể bị đăng 2 lần).
+
+Claude tự chọn (cần đổi thì báo):
+- Số ảnh template: 1-35 (bằng số ảnh tối đa mỗi bài đăng). Template cũ chưa có số ảnh không được chọn ngẫu nhiên.
+- Mỗi lần "Tạo video" tối đa 50 bài; khoảng cách giữa 2 bài 0-1440 phút.
+- Sửa bài: số ảnh phải đúng bằng số ảnh template; ảnh chọn được trong ảnh của sản phẩm hoặc mọi ảnh đã tạo.
+- Worker đăng bằng tài khoản đăng bài nó đang giữ, nên nền tảng = nền tảng của tài khoản đó. Worker chưa giữ tài khoản
+  đăng bài thì không nhận được bài video (API trả 409 ACCOUNT_NOT_ASSIGNED).
+- Bài video không có trang chi tiết: bấm vào bài ở danh sách mở popup.
+
+==================================================
+7. TRIỂN KHAI
+==================================================
+Chủ shop (cần hồ sơ người bán):
+  POST /api/v1/social/video-posts/auto { worker_id, count, first_at, gap_min, gap_max, idempotency_key }
+       -> 201 { data: { created, requested, stopped: null|insufficient_credit|no_template|not_enough_images, post_ids } }
+       Không tạo được bài nào: 422 VIDEO_NO_TEMPLATE / VIDEO_NOT_ENOUGH_IMAGES, 402 INSUFFICIENT_CREDIT.
+  PUT  /api/v1/social/video-posts/{id} { worker_id, video_template_id, product_id, images[{generation_id, output_id}],
+       scheduled_at, title, content, hashtags }   (bài Chờ đăng hoặc Lỗi; Đang đăng -> 409 POST_NOT_EDITABLE)
+  POST /api/v1/social/video-posts/{id}/retry    "Đăng lại" (Lỗi) / "Tạo lại" (Đang đăng) -> bài về Chờ đăng
+  GET  /api/v1/social/video-posts/images?product_id=   ảnh để chọn; GET /api/v1/social/video-posts/templates
+  Danh sách / xoá: /api/v1/social/posts (thêm type photo|video, lọc ?type=video), DELETE /api/v1/social/posts/{id}.
+  POST /api/v1/creator/video-templates thêm image_count (bắt buộc).
+
+Worker (Authorization: Bearer <token worker>) - PHẦN NGƯỜI LÀM WORKER CẦN VIẾT THÊM:
+  GET /api/v1/video-posts
+    204: chưa có bài nào tới giờ.
+    409 ACCOUNT_NOT_ASSIGNED: worker chưa giữ tài khoản đăng bài.
+    200 { data: {
+      id,                              // mã job, dùng để báo kết quả
+      type: "tiktok_video_publish",    // {nền tảng}_video_publish
+      request: {
+        post_id, platform, title, content, hashtags,
+        description,                   // nội dung + dòng hashtag, dán thẳng vào ô mô tả
+        images: [url, ...],            // đúng thứ tự, đủ số ảnh template cần (ảnh bị tắt sau đó thì bỏ qua)
+        account: { id, name, username, target_url },
+        template: { id, name, video_url, image_count },   // video TikTok mẫu để dựng theo
+        product: { id, name } | null,
+        scheduled_at
+      } } }
+    Mỗi lần gọi nhận 1 bài (cũ nhất trước), chỉ bài đã tới giờ, được giao đúng cho worker này.
+  POST /api/v1/video-posts/{id}
+    { status: "completed", post_url? }                      -> bài Đã đăng
+    { status: "failed", error_code: "RENDER_FAILED", error_message? }  -> bài Lỗi (chủ shop sửa rồi đăng lại)
+    409 JOB_NOT_ASSIGNED: chủ shop đã bấm "Tạo lại" (job này bị bỏ), không cần làm gì thêm.
+  Job KHÔNG có hạn: worker nhận rồi tắt máy thì bài nằm ở Đang đăng tới khi chủ shop bấm "Tạo lại".
+  API cũ GET /api/v1/video-images vẫn giữ nguyên.
+
+File chính: backend app/Services/Social/VideoPostService.php, Social/VideoPostController.php,
+  WorkerVideoPostController.php, tests/Feature/VideoPostTest.php, migration 2026_11_01_140000_add_video_posts.php.
+  Frontend src/components/social/VideoPostDialogs.jsx, src/pages/SocialPostsPage.jsx, src/api/social.js.

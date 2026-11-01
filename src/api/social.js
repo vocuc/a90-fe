@@ -192,8 +192,26 @@ const mapPlatforms = (platforms) =>
     };
   });
 
+/** Bài video (note/lap-lich-worker.txt): worker dựng + đăng, template, sản phẩm, giờ đăng. Bài ảnh: null. */
+const mapVideo = (v) =>
+  v
+    ? {
+        worker: v.worker ? { id: v.worker.id, name: v.worker.name } : null,
+        template: {
+          id: v.template?.id ?? null,
+          name: v.template?.name ?? '',
+          videoUrl: v.template?.video_url ?? '',
+          imageCount: v.template?.image_count ?? 0,
+        },
+        product: v.product ? { id: v.product.id, name: v.product.name } : null,
+        scheduledAt: v.scheduled_at,
+      }
+    : null;
+
 const mapPost = (p) => ({
   id: p.id,
+  type: p.type ?? POST_TYPE.PHOTO,
+  video: mapVideo(p.video),
   status: p.status,
   source: p.source,
   imageBatchId: p.image_batch_id ?? null,
@@ -211,8 +229,8 @@ const mapPost = (p) => ({
 });
 
 /** Mới nhất trước, có phân trang. */
-export const listPosts = ({ page = 1, limit = 20, status } = {}) =>
-  client.get('/social/posts', { params: { page, per_page: limit, status } }).then(({ data, meta }) => ({
+export const listPosts = ({ page = 1, limit = 20, status, type } = {}) =>
+  client.get('/social/posts', { params: { page, per_page: limit, status, type } }).then(({ data, meta }) => ({
     items: data.map(mapPost),
     page: meta.current_page,
     lastPage: meta.last_page,
@@ -318,3 +336,75 @@ export const publishPost = (id, form) =>
     .then(({ data }) => mapPost(data));
 
 export const deletePost = (id) => client.delete(`/social/posts/${id}`);
+
+// ---- Bài đăng video có lịch (note/lap-lich-worker.txt), cần hồ sơ người bán ----
+// POST /social/video-posts/auto { worker_id, count, first_at, gap_min, gap_max, idempotency_key }
+//   -> 201 { data: { created, requested, stopped: null|insufficient_credit|no_template|not_enough_images, post_ids } }
+//   không tạo được bài nào: 422 VIDEO_NO_TEMPLATE / VIDEO_NOT_ENOUGH_IMAGES, 402 INSUFFICIENT_CREDIT
+// PUT  /social/video-posts/{id} { worker_id, video_template_id, product_id, images, scheduled_at, title, content, hashtags }
+//   sửa khi worker chưa nhận (queued) hoặc bài lỗi (pending_review); số ảnh phải bằng số ảnh template
+// POST /social/video-posts/{id}/retry   "Đăng lại" (lỗi) / "Tạo lại" (worker nhận rồi im lặng) -> bài về queued
+// GET  /social/video-posts/images?product_id=&page=&per_page=  ảnh của sản phẩm, không có product_id: mọi ảnh đã tạo
+// GET  /social/video-posts/templates    template có số ảnh
+
+export const POST_TYPE = { PHOTO: 'photo', VIDEO: 'video' };
+
+export const isVideoPost = (post) => post.type === POST_TYPE.VIDEO;
+
+/** Bài video sửa / xoá được: worker chưa nhận (chờ tới giờ) hoặc lỗi chờ đăng lại. */
+export const isVideoEditable = (post) => post.status === POST_STATUS.QUEUED || post.status === POST_STATUS.PENDING_REVIEW;
+
+export const VIDEO_AUTO_MAX = 50;
+export const VIDEO_GAP_MAX_MINUTES = 1440;
+
+export const VIDEO_STOP_MESSAGES = {
+  insufficient_credit: 'Số dư không đủ trả phí AI viết nội dung nên dừng lại.',
+  no_template: 'Hết video template có số ảnh.',
+  not_enough_images: 'Không còn sản phẩm nào đủ ảnh cho các template.',
+};
+
+export const autoCreateVideoPosts = ({ workerId, count, firstAt, gapMin, gapMax }, idempotencyKey) =>
+  client
+    .post(
+      '/social/video-posts/auto',
+      { worker_id: workerId, count, first_at: firstAt, gap_min: gapMin, gap_max: gapMax, idempotency_key: idempotencyKey },
+      // Mỗi bài chờ trừ phí + giao AI viết: không dùng timeout mặc định
+      { timeout: AI_TIMEOUT },
+    )
+    .then(({ data }) => ({ created: data.created, requested: data.requested, stopped: data.stopped, postIds: data.post_ids }));
+
+export const updateVideoPost = (id, form) =>
+  client
+    .put(`/social/video-posts/${id}`, {
+      worker_id: form.workerId,
+      video_template_id: form.templateId,
+      product_id: form.productId || null,
+      images: form.images.map((i) => ({ generation_id: i.generationId, output_id: i.outputId })),
+      scheduled_at: form.scheduledAt,
+      title: form.title,
+      content: form.content,
+      hashtags: form.hashtags,
+    })
+    .then(({ data }) => mapPost(data));
+
+export const retryVideoPost = (id) => client.post(`/social/video-posts/${id}/retry`).then(({ data }) => mapPost(data));
+
+export const listVideoImages = ({ productId, page = 1, limit = 40 } = {}) =>
+  client
+    .get('/social/video-posts/images', { params: { product_id: productId || undefined, page, per_page: limit } })
+    .then(({ data, meta }) => ({
+      items: data.map((i) => ({
+        key: `${i.generation_id}_${i.output_id}`,
+        generationId: i.generation_id,
+        outputId: i.output_id,
+        thumbUrl: i.thumb_url,
+        url: i.image_url,
+      })),
+      page: meta.current_page,
+      lastPage: meta.last_page,
+    }));
+
+export const listVideoPostTemplates = () =>
+  client.get('/social/video-posts/templates').then(({ data }) =>
+    data.map((t) => ({ id: t.id, name: t.name, videoUrl: t.video_url, imageCount: t.image_count })),
+  );

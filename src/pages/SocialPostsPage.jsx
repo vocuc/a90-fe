@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
@@ -5,18 +6,43 @@ import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
-import { POST_STATUS, isPostLocked, listPosts } from '../api/social';
+import { POST_STATUS, isPostLocked, isVideoPost, listPosts } from '../api/social';
+import { useMe } from '../hooks/queries';
+import { CreateVideoDialog, POSTS_KEY, VideoPostDialog, createdMessage, formatSchedule } from '../components/social/VideoPostDialogs';
 
 const formatTime = (iso) =>
   new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 
 const generating = (post) => post.status === POST_STATUS.GENERATING;
-const postTitle = (post) => (generating(post) ? 'Đang chuẩn bị...' : post.title?.trim() || 'Bài đăng ảnh');
+const postTitle = (post) => (generating(post) ? 'Đang chuẩn bị...' : post.title?.trim() || (isVideoPost(post) ? 'Bài đăng video' : 'Bài đăng ảnh'));
 const imageCount = (post) => post.imageCount;
 const coverUrl = (post) => post.coverUrl ?? null;
 
 // Bài chờ gửi cần người dùng làm tiếp (xem lại rồi đăng): nút gọi hành động thay cho "Xem"
-const actionLabel = (post) => (post.status === POST_STATUS.PENDING_REVIEW ? (post.platforms.length ? 'Đăng lại' : 'Đăng bài') : 'Xem');
+const actionLabel = (post) => {
+  if (isVideoPost(post)) {
+    // Bài video: sửa khi chờ tới giờ, sửa / đăng lại khi lỗi, tạo lại khi worker im lặng
+    return { [POST_STATUS.QUEUED]: 'Sửa', [POST_STATUS.PENDING_REVIEW]: 'Sửa / Đăng lại', [POST_STATUS.PUBLISHING]: 'Tạo lại' }[post.status] ?? 'Xem';
+  }
+  return post.status === POST_STATUS.PENDING_REVIEW ? (post.platforms.length ? 'Đăng lại' : 'Đăng bài') : 'Xem';
+};
+
+/** Nhãn loại bài + giờ đăng (bài video). */
+function VideoInfo({ post }) {
+  if (!isVideoPost(post)) return null;
+  return (
+    <p className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-on-surface-variant">
+      <span className="inline-flex items-center gap-0.5 rounded bg-primary-fixed/40 px-1 font-bold text-primary">
+        <Icon name="movie" className="text-xs" />
+        Video
+      </span>
+      <span>
+        Đăng lúc <b className="text-on-surface">{formatSchedule(post.video?.scheduledAt)}</b>
+      </span>
+      {post.video?.worker && <span>· {post.video.worker.name}</span>}
+    </p>
+  );
+}
 
 function Cover({ post, className = '' }) {
   return (
@@ -29,7 +55,7 @@ function Cover({ post, className = '' }) {
         <CoverImage src={coverUrl(post)} alt="" className="size-full" />
       )}
       <span className="absolute bottom-1 left-1 flex items-center gap-0.5 rounded bg-black/60 px-1 text-[10px] font-semibold text-white">
-        <Icon name="photo_library" className="text-xs" />
+        <Icon name={isVideoPost(post) ? 'movie' : 'photo_library'} className="text-xs" />
         {imageCount(post)}
       </span>
     </div>
@@ -48,13 +74,20 @@ function Hashtags({ tags }) {
 }
 
 // Mobile: mỗi bài là một thẻ, ảnh bìa bên trái, bấm vào để xem / đăng
-function PostCards({ posts }) {
+function PostCards({ posts, onOpen }) {
   return (
     <ul className="space-y-3 lg:hidden">
       {posts.map((post) => (
         <li key={post.id}>
           <Link
             to={`/posts/${post.id}`}
+            onClick={(e) => {
+              // Bài video mở popup, không có trang chi tiết
+              if (isVideoPost(post)) {
+                e.preventDefault();
+                onOpen(post);
+              }
+            }}
             className={`flex gap-3 rounded-2xl border p-3 transition-colors hover:bg-surface-container-low ${
               post.status === POST_STATUS.PENDING_REVIEW ? 'border-amber-200' : 'border-outline-variant/40'
             }`}
@@ -62,6 +95,7 @@ function PostCards({ posts }) {
             <Cover post={post} className="aspect-[3/4] w-20" />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <p className={`line-clamp-1 text-sm font-bold ${generating(post) ? 'text-outline' : 'text-on-surface'}`}>{postTitle(post)}</p>
+              <VideoInfo post={post} />
               {post.content && <p className="line-clamp-2 text-xs text-on-surface-variant">{post.content}</p>}
               <Hashtags tags={post.hashtags} />
               <PlatformStatusList platforms={post.platforms} />
@@ -78,8 +112,9 @@ function PostCards({ posts }) {
 }
 
 // Desktop: bảng nhiều cột
-function PostTable({ posts }) {
+function PostTable({ posts, onOpen }) {
   const navigate = useNavigate();
+  const open = (post) => (isVideoPost(post) ? onOpen(post) : navigate(`/posts/${post.id}`));
   return (
     <div className="hidden overflow-hidden rounded-2xl border border-outline-variant/40 lg:block">
       <table className="w-full text-left text-sm">
@@ -97,7 +132,7 @@ function PostTable({ posts }) {
           {posts.map((post) => (
             <tr
               key={post.id}
-              onClick={() => navigate(`/posts/${post.id}`)}
+              onClick={() => open(post)}
               className="cursor-pointer align-top hover:bg-surface-container-low/60"
             >
               <td className="px-4 py-3">
@@ -110,6 +145,7 @@ function PostTable({ posts }) {
                 <p className="mt-1 text-xs text-outline">
                   {imageCount(post)} ảnh
                 </p>
+                <VideoInfo post={post} />
                 <p className="text-xs text-outline">{formatTime(post.createdAt)}</p>
               </td>
               <td className="px-4 py-3">
@@ -129,7 +165,13 @@ function PostTable({ posts }) {
               <td className="px-4 py-3 text-right">
                 <Link
                   to={`/posts/${post.id}`}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isVideoPost(post)) {
+                      e.preventDefault();
+                      onOpen(post);
+                    }
+                  }}
                   className={`inline-flex h-8 items-center whitespace-nowrap rounded-lg px-3 text-xs font-bold ${
                     post.status === POST_STATUS.PENDING_REVIEW
                       ? 'bg-primary-container text-on-primary hover:bg-primary'
@@ -149,7 +191,10 @@ function PostTable({ posts }) {
 
 const PAGE_SIZE = 20;
 const POLL_INTERVAL = 5000;
-const isRunning = (p) => p.status === POST_STATUS.GENERATING || isPostLocked(p);
+// Bài video chờ tới giờ (có thể vài ngày): chỉ theo dõi khi đã tới giờ, worker sắp nhận
+const isRunning = (p) =>
+  p.status === POST_STATUS.GENERATING ||
+  (isVideoPost(p) && p.status === POST_STATUS.QUEUED ? new Date(p.video?.scheduledAt) <= new Date() : isPostLocked(p));
 
 /** /posts: bước 1, danh sách bài đăng (TikTok / Facebook / Instagram). */
 export default function SocialPostsPage() {
@@ -157,8 +202,14 @@ export default function SocialPostsPage() {
   const navigate = useNavigate();
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/tools'));
 
+  const { data: me } = useMe();
+  // Popup "Tạo video" và popup bài video đang mở (id, lấy bài mới nhất từ danh sách)
+  const [creatingVideo, setCreatingVideo] = useState(false);
+  const [openId, setOpenId] = useState(null);
+  const [notice, setNotice] = useState(null);
+
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['social', 'posts'],
+    queryKey: POSTS_KEY,
     queryFn: ({ pageParam }) => listPosts({ page: pageParam, limit: PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
@@ -168,6 +219,8 @@ export default function SocialPostsPage() {
   const posts = data ? data.pages.flatMap((p) => p.items) : null;
 
   const pendingCount = posts?.filter((p) => p.status === POST_STATUS.PENDING_REVIEW).length ?? 0;
+  const openPost = openId ? posts?.find((p) => p.id === openId) ?? null : null;
+  const onOpen = (post) => setOpenId(post.id);
 
   return (
     <>
@@ -181,6 +234,17 @@ export default function SocialPostsPage() {
           <Icon name="arrow_back" />
         </button>
         <h1 className="flex-1 text-base font-bold text-on-surface">Danh sách bài đăng</h1>
+        {/* Bài video có lịch (note/lap-lich-worker.txt): cần hồ sơ người bán */}
+        {me?.creatorProfile && (
+          <button
+            type="button"
+            onClick={() => setCreatingVideo(true)}
+            className="flex h-8 items-center gap-1 rounded-lg border border-primary px-3 text-xs font-bold text-primary hover:bg-primary-fixed/30"
+          >
+            <Icon name="movie" className="text-base" />
+            Tạo video
+          </button>
+        )}
         <Link
           to="/posts/new"
           className="mr-2 flex h-8 items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary"
@@ -191,6 +255,15 @@ export default function SocialPostsPage() {
       </header>
 
       <section className="space-y-3 p-4 lg:py-6">
+        {notice && (
+          <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
+            <Icon name="check_circle" className="text-base" />
+            <span className="flex-1">{notice}</span>
+            <button type="button" onClick={() => setNotice(null)} aria-label="Đóng" className="text-emerald-800">
+              <Icon name="close" className="text-base" />
+            </button>
+          </p>
+        )}
         {pendingCount > 0 && (
           <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
             <Icon name="edit_note" className="text-base" />
@@ -217,8 +290,8 @@ export default function SocialPostsPage() {
           </EmptyState>
         ) : (
           <>
-            <PostCards posts={posts} />
-            <PostTable posts={posts} />
+            <PostCards posts={posts} onOpen={onOpen} />
+            <PostTable posts={posts} onOpen={onOpen} />
             {hasNextPage && (
               <button
                 type="button"
@@ -233,6 +306,17 @@ export default function SocialPostsPage() {
           </>
         )}
       </section>
+
+      {creatingVideo && (
+        <CreateVideoDialog
+          onClose={() => setCreatingVideo(false)}
+          onCreated={(result) => {
+            setCreatingVideo(false);
+            setNotice(createdMessage(result));
+          }}
+        />
+      )}
+      {openPost && <VideoPostDialog key={`${openPost.id}-${openPost.status}`} post={openPost} onClose={() => setOpenId(null)} />}
     </>
   );
 }

@@ -32,6 +32,7 @@ import {
   isConnectionActive,
   isImageBusy,
   isPostLocked,
+  isVideoPost,
   publishPost,
   rewritePostContent,
   tiktokConnectionsOf,
@@ -953,6 +954,11 @@ export default function SocialPostPage() {
     getPost(id).then(setPost, setError);
   }, [id]);
   useEffect(load, [load]);
+
+  // Bài video (note/lap-lich-worker.txt) không có trang chi tiết: xem / sửa bằng popup ở danh sách
+  useEffect(() => {
+    if (post && isVideoPost(post)) navigate('/posts', { replace: true });
+  }, [post, navigate]);
 
   // Đang chuẩn bị / chờ đăng / đang đăng: tự cập nhật tới khi xong
   const polling = needsPolling(post);

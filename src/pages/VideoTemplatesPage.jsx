@@ -46,7 +46,14 @@ function TemplateRow({ template }) {
           <Icon name="open_in_new" className="shrink-0 text-sm" />
           <span className="truncate">{template.videoUrl}</span>
         </a>
-        <p className="text-[11px] text-outline">Tạo lúc {formatDate(template.createdAt)}</p>
+        <p className="text-[11px] text-outline">
+          {template.imageCount ? (
+            `${template.imageCount} ảnh · `
+          ) : (
+            <span className="font-semibold text-amber-700">Chưa có số ảnh, sửa để dùng tạo video · </span>
+          )}
+          Tạo lúc {formatDate(template.createdAt)}
+        </p>
       </div>
       <div className="flex shrink-0 gap-1">
         <Link

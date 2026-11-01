@@ -1,0 +1,610 @@
+import { useMemo, useState } from 'react';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import Dialog from '../common/Dialog';
+import Icon from '../common/Icon';
+import CoverImage from '../common/CoverImage';
+import { ErrorState, Skeleton } from '../common/Feedback';
+import { FormAlert, SelectField, TextArea, TextField } from '../common/Form';
+import { useConfirm } from '../common/ConfirmDialog';
+import { PlatformStatusList, PostStatusBadge } from './PostStatus';
+import {
+  HASHTAG_MAX,
+  PHOTO_TITLE_MAX,
+  POST_STATUS,
+  VIDEO_AUTO_MAX,
+  VIDEO_GAP_MAX_MINUTES,
+  VIDEO_STOP_MESSAGES,
+  autoCreateVideoPosts,
+  deletePost,
+  isVideoEditable,
+  listVideoImages,
+  listVideoPostTemplates,
+  newIdempotencyKey,
+  retryVideoPost,
+  updateVideoPost,
+} from '../../api/social';
+import { WORKER_FUNCTIONS, WORKER_KEYS, listWorkers } from '../../api/workers';
+import { listProducts } from '../../api/autoBatch';
+
+export const POSTS_KEY = ['social', 'posts'];
+
+// <input type="datetime-local"> dùng giờ máy người dùng; gửi backend dạng ISO (UTC)
+const pad = (n) => String(n).padStart(2, '0');
+const toLocalInput = (date) => {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const fromLocalInput = (value) => new Date(value).toISOString();
+
+export const formatSchedule = (iso) =>
+  iso ? new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+
+const workerLabel = (w) =>
+  `${w.name}${w.functions.length ? ` · ${w.functions.map((f) => WORKER_FUNCTIONS[f]?.label ?? f).join(', ')}` : ''}${w.online ? '' : ' (offline)'}`;
+
+const parseHashtags = (text) =>
+  [...new Set(text.split(/[\s,]+/).map((t) => t.replace(/^#+/, '').trim()).filter(Boolean))].slice(0, HASHTAG_MAX);
+
+function useShopWorkers() {
+  return useQuery({ queryKey: WORKER_KEYS.all, queryFn: listWorkers });
+}
+
+function WorkerSelect({ value, onChange, error }) {
+  const { data: workers, isLoading } = useShopWorkers();
+  return (
+    <SelectField label="Worker dựng và đăng video" value={value} onChange={(e) => onChange(e.target.value)} error={error}>
+      <option value="">{isLoading ? 'Đang tải...' : workers?.length ? 'Chọn worker' : 'Shop chưa được gắn worker nào'}</option>
+      {(workers ?? []).map((w) => (
+        <option key={w.id} value={w.id}>
+          {workerLabel(w)}
+        </option>
+      ))}
+    </SelectField>
+  );
+}
+
+/**
+ * Popup "Tạo video" (note/lap-lich-worker.txt): chọn worker, số bài, giờ đăng bài đầu, khoảng cách tối thiểu / tối đa
+ * giữa 2 bài (phút). Hệ thống chọn ngẫu nhiên template + sản phẩm + ảnh, AI viết nội dung (trừ phí từng bài).
+ */
+export function CreateVideoDialog({ onClose, onCreated }) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({ workerId: '', count: '5', firstAt: toLocalInput(Date.now()), gapMin: '40', gapMax: '60' });
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState(null);
+  const [saving, setSaving] = useState(false);
+  // Giữ khoá khi bấm lại do lỗi mạng, đổi khi người dùng sửa form
+  const [idemKey, setIdemKey] = useState(newIdempotencyKey);
+
+  const set = (field, errorKey) => (e) => {
+    setForm((f) => ({ ...f, [field]: e?.target ? e.target.value : e }));
+    setErrors((er) => ({ ...er, [errorKey]: undefined }));
+    setIdemKey(newIdempotencyKey());
+  };
+
+  const validate = () => {
+    const er = {};
+    const count = Number(form.count);
+    const min = Number(form.gapMin);
+    const max = Number(form.gapMax);
+    if (!form.workerId) er.worker_id = 'Chọn worker.';
+    if (!Number.isInteger(count) || count < 1 || count > VIDEO_AUTO_MAX) er.count = `Nhập từ 1 đến ${VIDEO_AUTO_MAX} bài.`;
+    if (!form.firstAt) er.first_at = 'Chọn giờ đăng bài đầu tiên.';
+    if (!Number.isInteger(min) || min < 0 || min > VIDEO_GAP_MAX_MINUTES) er.gap_min = `Từ 0 đến ${VIDEO_GAP_MAX_MINUTES} phút.`;
+    if (!Number.isInteger(max) || max < 0 || max > VIDEO_GAP_MAX_MINUTES) er.gap_max = `Từ 0 đến ${VIDEO_GAP_MAX_MINUTES} phút.`;
+    else if (!er.gap_min && max < min) er.gap_max = 'Tối đa phải lớn hơn hoặc bằng tối thiểu.';
+    return er;
+  };
+
+  const submit = async () => {
+    const er = validate();
+    setErrors(er);
+    setFormError(null);
+    if (Object.keys(er).length) return;
+    setSaving(true);
+    try {
+      const result = await autoCreateVideoPosts(
+        {
+          workerId: Number(form.workerId),
+          count: Number(form.count),
+          firstAt: fromLocalInput(form.firstAt),
+          gapMin: Number(form.gapMin),
+          gapMax: Number(form.gapMax),
+        },
+        idemKey,
+      );
+      await queryClient.invalidateQueries({ queryKey: POSTS_KEY });
+      onCreated(result);
+    } catch (err) {
+      if (err?.errors && Object.keys(err.errors).length) setErrors(err.errors);
+      else setFormError(err?.message || 'Không tạo được bài video, vui lòng thử lại.');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog
+      title="Tạo video"
+      subtitle="Worker dựng video từ template + ảnh sản phẩm rồi tự đăng đúng giờ"
+      onClose={saving ? () => {} : onClose}
+      footer={
+        <>
+          <button type="button" onClick={onClose} disabled={saving} className="h-10 rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container disabled:opacity-50">
+            Huỷ
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={saving}
+            className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+          >
+            <Icon name={saving ? 'progress_activity' : 'movie'} className={`text-lg ${saving ? 'animate-spin' : ''}`} />
+            {saving ? 'Đang tạo...' : 'Tạo lịch làm việc'}
+          </button>
+        </>
+      }
+    >
+      <WorkerSelect value={form.workerId} onChange={set('workerId', 'worker_id')} error={errors.worker_id} />
+      <TextField
+        label="Số bài video"
+        icon="format_list_numbered"
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={VIDEO_AUTO_MAX}
+        value={form.count}
+        onChange={set('count', 'count')}
+        error={errors.count}
+        hint={`Tối đa ${VIDEO_AUTO_MAX} bài mỗi lần. Mỗi bài trừ một lần phí AI viết nội dung, hết tiền thì dừng.`}
+      />
+      <TextField
+        label="Giờ đăng bài đầu tiên"
+        icon="schedule"
+        type="datetime-local"
+        value={form.firstAt}
+        onChange={set('firstAt', 'first_at')}
+        error={errors.first_at}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <TextField
+          label="Cách nhau tối thiểu (phút)"
+          icon="timer"
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={form.gapMin}
+          onChange={set('gapMin', 'gap_min')}
+          error={errors.gap_min}
+        />
+        <TextField
+          label="Cách nhau tối đa (phút)"
+          icon="timer"
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={form.gapMax}
+          onChange={set('gapMax', 'gap_max')}
+          error={errors.gap_max}
+        />
+      </div>
+      <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
+        <Icon name="info" className="text-base" />
+        Mỗi bài: template ngẫu nhiên, sản phẩm ngẫu nhiên đủ ảnh, ảnh ngẫu nhiên đúng số ảnh template cần. Bài sau đăng cách bài
+        trước một số phút ngẫu nhiên trong khoảng trên.
+      </p>
+      {formError && <FormAlert>{formError}</FormAlert>}
+    </Dialog>
+  );
+}
+
+/** Kết quả "Tạo video": số bài đã tạo + lý do dừng sớm. */
+export const createdMessage = (result) =>
+  `Đã tạo ${result.created}/${result.requested} bài video.${result.stopped ? ` ${VIDEO_STOP_MESSAGES[result.stopped] ?? ''}` : ''}`;
+
+/** Chọn ảnh cho bài video: ảnh của sản phẩm hoặc mọi ảnh đã tạo, đúng số ảnh template cần (theo thứ tự chọn). */
+function VideoImagePicker({ productId, selected, onChange, required }) {
+  const [source, setSource] = useState(productId ? 'product' : 'all');
+  const useProduct = source === 'product' && productId;
+  const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+    queryKey: ['social', 'video-images', useProduct ? productId : 'all'],
+    queryFn: ({ pageParam }) => listVideoImages({ productId: useProduct ? productId : undefined, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
+  });
+  const images = data?.pages.flatMap((p) => p.items) ?? [];
+  const order = (key) => selected.findIndex((s) => s.key === key);
+  const toggle = (img) => {
+    if (order(img.key) >= 0) onChange(selected.filter((s) => s.key !== img.key));
+    else if (selected.length < required) onChange([...selected, img]);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-on-surface">
+          Ảnh của bài{' '}
+          <span className={selected.length === required ? 'text-primary' : 'text-error'}>
+            ({selected.length}/{required})
+          </span>
+        </span>
+        <div role="tablist" className="flex gap-1 rounded-lg bg-surface-container-low p-0.5 text-xs font-bold">
+          {[
+            { value: 'product', label: 'Ảnh sản phẩm', disabled: !productId },
+            { value: 'all', label: 'Tất cả ảnh' },
+          ].map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              role="tab"
+              aria-selected={source === t.value}
+              disabled={t.disabled}
+              onClick={() => setSource(t.value)}
+              className={`rounded-md px-2 py-1 disabled:opacity-40 ${source === t.value ? 'bg-surface-container-lowest text-on-surface shadow-sm' : 'text-on-surface-variant'}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {selected.length > 0 && (
+        <ul className="no-scrollbar flex gap-1.5 overflow-x-auto">
+          {selected.map((img, i) => (
+            <li key={img.key} className="relative w-14 shrink-0">
+              <CoverImage src={img.thumbUrl} alt="" className="aspect-square w-full rounded-lg" />
+              <span className="absolute left-0.5 top-0.5 rounded bg-black/60 px-1 text-[10px] font-bold text-white">{i + 1}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {error ? (
+        <ErrorState error={error} onRetry={refetch} />
+      ) : isLoading ? (
+        <Skeleton className="h-32 w-full" />
+      ) : !images.length ? (
+        <p className="py-4 text-center text-xs text-on-surface-variant">Không có ảnh nào.</p>
+      ) : (
+        <div className="max-h-64 overflow-y-auto rounded-xl border border-outline-variant/30 p-1.5">
+          <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
+            {images.map((img) => {
+              const idx = order(img.key);
+              return (
+                <button
+                  key={img.key}
+                  type="button"
+                  onClick={() => toggle(img)}
+                  aria-pressed={idx >= 0}
+                  className={`relative overflow-hidden rounded-lg ring-2 ${idx >= 0 ? 'ring-primary' : 'ring-transparent'} ${idx < 0 && selected.length >= required ? 'opacity-50' : ''}`}
+                >
+                  <CoverImage src={img.thumbUrl} alt="" className="aspect-square w-full" />
+                  {idx >= 0 && (
+                    <span className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-on-primary">
+                      {idx + 1}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {hasNextPage && (
+            <button
+              type="button"
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+              className="mx-auto mt-1.5 flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-bold text-primary hover:bg-surface-container disabled:opacity-60"
+            >
+              {isFetchingNextPage && <Icon name="progress_activity" className="animate-spin text-sm" />}
+              Xem thêm ảnh
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Sửa bài video (worker chưa nhận / bài lỗi): mọi thứ. */
+function VideoPostForm({ post, onSaved, onCancel, footerExtra }) {
+  const templates = useQuery({ queryKey: ['social', 'video-templates'], queryFn: listVideoPostTemplates });
+  const products = useQuery({ queryKey: ['creator', 'products', 'all-50'], queryFn: () => listProducts({ limit: 50 }) });
+  const [form, setForm] = useState(() => ({
+    workerId: post.video?.worker?.id ? String(post.video.worker.id) : '',
+    templateId: post.video?.template?.id ? String(post.video.template.id) : '',
+    productId: post.video?.product?.id ? String(post.video.product.id) : '',
+    images: post.images.map((i) => ({ key: i.key, generationId: i.generationId, outputId: i.outputId, thumbUrl: i.thumbUrl })),
+    scheduledAt: toLocalInput(post.video?.scheduledAt ?? Date.now()),
+    title: post.title,
+    content: post.content,
+    hashtags: post.hashtags.map((h) => `#${h}`).join(' '),
+  }));
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  // Template bị xoá sau khi tạo bài: vẫn hiện tên cũ, phải chọn template khác
+  const template = useMemo(
+    () => templates.data?.find((t) => String(t.id) === form.templateId) ?? null,
+    [templates.data, form.templateId],
+  );
+  const required = template?.imageCount ?? post.video?.template?.imageCount ?? form.images.length;
+
+  const set = (field, errorKey) => (e) => {
+    const value = e?.target ? e.target.value : e;
+    setForm((f) => ({ ...f, [field]: value }));
+    setErrors((er) => ({ ...er, [errorKey]: undefined }));
+  };
+
+  const submit = async () => {
+    const er = {};
+    if (!form.workerId) er.worker_id = 'Chọn worker.';
+    if (!template) er.video_template_id = 'Chọn template.';
+    if (template && form.images.length !== template.imageCount) er.images = `Template cần đúng ${template.imageCount} ảnh.`;
+    if (!form.scheduledAt) er.scheduled_at = 'Chọn giờ đăng.';
+    setErrors(er);
+    setFormError(null);
+    if (Object.keys(er).length) return;
+    setSaving(true);
+    try {
+      const saved = await updateVideoPost(post.id, {
+        workerId: Number(form.workerId),
+        templateId: Number(form.templateId),
+        productId: form.productId ? Number(form.productId) : null,
+        images: form.images,
+        scheduledAt: fromLocalInput(form.scheduledAt),
+        title: form.title,
+        content: form.content,
+        hashtags: parseHashtags(form.hashtags),
+      });
+      onSaved(saved);
+    } catch (err) {
+      if (err?.errors && Object.keys(err.errors).length) setErrors(err.errors);
+      else setFormError(err?.message || 'Không lưu được bài, vui lòng thử lại.');
+      setSaving(false);
+    }
+  };
+
+  const imageError = errors.images ?? Object.entries(errors).find(([k]) => k.startsWith('images.'))?.[1];
+
+  return (
+    <>
+      <WorkerSelect value={form.workerId} onChange={set('workerId', 'worker_id')} error={errors.worker_id} />
+      <SelectField label="Video template" value={form.templateId} onChange={set('templateId', 'video_template_id')} error={errors.video_template_id}>
+        <option value="">{templates.isLoading ? 'Đang tải...' : 'Chọn template'}</option>
+        {!template && post.video?.template?.name && form.templateId && (
+          <option value={form.templateId} disabled>
+            {post.video.template.name} (đã xoá / chưa có số ảnh)
+          </option>
+        )}
+        {(templates.data ?? []).map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name} · {t.imageCount} ảnh
+          </option>
+        ))}
+      </SelectField>
+      <SelectField
+        label="Sản phẩm"
+        value={form.productId}
+        onChange={set('productId', 'product_id')}
+        error={errors.product_id}
+        hint="Để chọn ảnh theo sản phẩm. Có thể chọn ảnh ở tab Tất cả ảnh."
+      >
+        <option value="">Không theo sản phẩm</option>
+        {(products.data?.items ?? []).map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name || `Sản phẩm #${p.id}`}
+          </option>
+        ))}
+      </SelectField>
+      <VideoImagePicker
+        key={form.productId || 'all'}
+        productId={form.productId ? Number(form.productId) : null}
+        selected={form.images}
+        onChange={(images) => {
+          setForm((f) => ({ ...f, images }));
+          setErrors((er) => ({ ...er, images: undefined }));
+        }}
+        required={required}
+      />
+      {imageError && <p className="text-xs text-error">{imageError}</p>}
+      <TextField
+        label="Giờ đăng"
+        icon="schedule"
+        type="datetime-local"
+        value={form.scheduledAt}
+        onChange={set('scheduledAt', 'scheduled_at')}
+        error={errors.scheduled_at}
+      />
+      <TextField label="Tiêu đề" icon="title" value={form.title} maxLength={PHOTO_TITLE_MAX} onChange={set('title', 'title')} error={errors.title} />
+      <TextArea label="Nội dung" value={form.content} rows={4} onChange={set('content', 'content')} error={errors.content} />
+      <TextField
+        label="Hashtag"
+        icon="tag"
+        value={form.hashtags}
+        onChange={set('hashtags', 'hashtags')}
+        placeholder="#giay #thoitrang"
+        hint={`Cách nhau bằng dấu cách, tối đa ${HASHTAG_MAX}.`}
+        error={errors.hashtags ?? Object.entries(errors).find(([k]) => k.startsWith('hashtags.'))?.[1]}
+      />
+      {formError && <FormAlert>{formError}</FormAlert>}
+      <div className="sticky bottom-0 -mx-4 -mb-4 flex items-center gap-2 border-t border-surface-container bg-surface-container-lowest p-3">
+        {footerExtra}
+        <button type="button" onClick={onCancel} disabled={saving} className="h-10 rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container disabled:opacity-50">
+          Đóng
+        </button>
+        <button
+          type="button"
+          onClick={submit}
+          disabled={saving}
+          className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+        >
+          {saving && <Icon name="progress_activity" className="animate-spin text-lg" />}
+          Lưu
+        </button>
+      </div>
+    </>
+  );
+}
+
+/**
+ * Popup bài video: sửa (worker chưa nhận / lỗi), xoá, "Đăng lại" (lỗi), "Tạo lại" (worker nhận rồi im lặng, có thể đăng
+ * trùng), xem (đã đăng).
+ */
+export function VideoPostDialog({ post, onClose }) {
+  const queryClient = useQueryClient();
+  const { confirm, alert } = useConfirm();
+  const [busy, setBusy] = useState(false);
+  const editable = isVideoEditable(post);
+  const failed = post.status === POST_STATUS.PENDING_REVIEW;
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: POSTS_KEY });
+
+  const run = async (action, failMessage) => {
+    setBusy(true);
+    try {
+      await action();
+      await refresh();
+      onClose();
+    } catch (err) {
+      alert(err?.message || failMessage);
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!(await confirm('Xoá bài video này?', { confirmLabel: 'Xoá', danger: true }))) return;
+    run(() => deletePost(post.id), 'Không xoá được bài, vui lòng thử lại.');
+  };
+
+  const retry = async () => {
+    if (post.status === POST_STATUS.PUBLISHING) {
+      const ok = await confirm(
+        'Worker đã nhận bài này. Nếu worker thực ra đã đăng xong nhưng chưa báo lại, tạo lại có thể làm bài bị đăng 2 lần. Vẫn tạo lại?',
+        { confirmLabel: 'Tạo lại', danger: true },
+      );
+      if (!ok) return;
+    }
+    run(() => retryVideoPost(post.id), 'Không đưa bài về chờ đăng được, vui lòng thử lại.');
+  };
+
+  const header = (
+    <div className="space-y-1.5 rounded-xl bg-surface-container-low p-3 text-xs text-on-surface-variant">
+      <div className="flex flex-wrap items-center gap-2">
+        <PostStatusBadge status={post.status} />
+        <span>
+          Đăng lúc <b className="text-on-surface">{formatSchedule(post.video?.scheduledAt)}</b>
+        </span>
+      </div>
+      <PlatformStatusList platforms={post.platforms} />
+      {post.lastError?.message && <p className="font-semibold text-error">{post.lastError.message}</p>}
+      {failed && <p>Sửa bài nếu cần rồi bấm <b>Đăng lại</b> để worker làm lại.</p>}
+    </div>
+  );
+
+  const deleteButton = (
+    <button
+      type="button"
+      onClick={remove}
+      disabled={busy}
+      aria-label="Xoá bài"
+      className="flex size-10 items-center justify-center rounded-xl text-error hover:bg-error-container/40 disabled:opacity-50"
+    >
+      <Icon name="delete" className="text-xl" />
+    </button>
+  );
+
+  if (editable) {
+    return (
+      <Dialog title={failed ? 'Bài video lỗi' : 'Sửa bài video'} subtitle={post.title || undefined} onClose={busy ? () => {} : onClose}>
+        {header}
+        {failed && (
+          <button
+            type="button"
+            onClick={retry}
+            disabled={busy}
+            className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-primary text-sm font-bold text-primary hover:bg-primary-fixed/30 disabled:opacity-50"
+          >
+            <Icon name="replay" className="text-lg" />
+            Đăng lại
+          </button>
+        )}
+        <VideoPostForm
+          post={post}
+          onCancel={onClose}
+          footerExtra={deleteButton}
+          onSaved={async () => {
+            await refresh();
+            onClose();
+          }}
+        />
+      </Dialog>
+    );
+  }
+
+  const tpl = post.video?.template;
+  return (
+    <Dialog
+      title="Bài video"
+      subtitle={post.title || undefined}
+      onClose={busy ? () => {} : onClose}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="h-10 rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container">
+            Đóng
+          </button>
+          {post.status === POST_STATUS.PUBLISHING && (
+            <button
+              type="button"
+              onClick={retry}
+              disabled={busy}
+              className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+            >
+              <Icon name={busy ? 'progress_activity' : 'replay'} className={`text-lg ${busy ? 'animate-spin' : ''}`} />
+              Tạo lại
+            </button>
+          )}
+        </>
+      }
+    >
+      {header}
+      {post.status === POST_STATUS.PUBLISHING && (
+        <p className="text-xs text-on-surface-variant">
+          Worker <b>{post.video?.worker?.name ?? ''}</b> đang dựng và đăng video. Nếu worker bị tắt và không báo lại, bấm <b>Tạo lại</b>
+          để bài về chờ đăng.
+        </p>
+      )}
+      {post.status === POST_STATUS.GENERATING && <p className="text-xs text-on-surface-variant">AI đang viết nội dung, chờ xong là sửa được.</p>}
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+        <dt className="text-on-surface-variant">Worker</dt>
+        <dd className="font-semibold text-on-surface">{post.video?.worker?.name ?? '—'}</dd>
+        <dt className="text-on-surface-variant">Template</dt>
+        <dd className="font-semibold text-on-surface">
+          {tpl?.videoUrl ? (
+            <a href={tpl.videoUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              {tpl.name}
+            </a>
+          ) : (
+            tpl?.name || '—'
+          )}
+        </dd>
+        <dt className="text-on-surface-variant">Sản phẩm</dt>
+        <dd className="font-semibold text-on-surface">{post.video?.product?.name ?? '—'}</dd>
+      </dl>
+      <ul className="no-scrollbar flex gap-1.5 overflow-x-auto">
+        {post.images.map((img) => (
+          <li key={img.key} className="w-16 shrink-0">
+            <CoverImage src={img.thumbUrl} alt="" className="aspect-square w-full rounded-lg" />
+          </li>
+        ))}
+      </ul>
+      {post.content && <p className="whitespace-pre-line text-sm text-on-surface">{post.content}</p>}
+      {post.hashtags.length > 0 && <p className="text-xs font-semibold text-primary">{post.hashtags.map((h) => `#${h}`).join(' ')}</p>}
+      <p className="text-[11px] text-outline">
+        Template và sản phẩm quản lý ở{' '}
+        <Link to="/seller/video-templates" className="text-primary hover:underline">
+          Quản lý video template
+        </Link>
+        .
+      </p>
+    </Dialog>
+  );
+}
