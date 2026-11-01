@@ -1,20 +1,46 @@
 import useSeo from '../hooks/useSeo';
 import { Link } from 'react-router-dom';
 import Icon from '../components/common/Icon';
-import LayoutThumb from '../components/tools/LayoutThumb';
 import { TOOLS } from '../components/tools/tools';
+import { useAuth } from '../context/AuthContext';
+import { useMe } from '../hooks/queries';
+
+const CARD_CLASS =
+  'group flex flex-col gap-3 rounded-2xl border border-outline-variant/30 bg-surface-container-low p-3 transition-all';
+const ICON_CLASS = 'flex size-12 items-center justify-center rounded-xl bg-surface-container transition-colors';
+
+/**
+ * Lối tắt quản lý (cũng có ở trang Tài khoản). Khoá giống trang Tài khoản: Quản lý cửa hàng khoá với nhân viên của shop,
+ * Quản lý Creative / Nhân viên cần profile người bán, Quản lý sản phẩm cần profile người bán hoặc là nhân viên.
+ * Chưa đăng nhập: không khoá, bấm vào RequireAuth chuyển sang trang đăng nhập.
+ */
+function useManageTools() {
+  const { isAuthenticated } = useAuth();
+  const { data: me } = useMe();
+  const known = isAuthenticated && !!me;
+  const isCreator = !!me?.creatorProfile;
+  const staffOf = me?.staffOf;
+  return [
+    { to: '/account/history', icon: 'receipt_long', title: 'Lịch sử mua hàng', description: 'Xem lại các lượt tạo và tải ảnh kết quả' },
+    { to: '/seller/staff', icon: 'groups', title: 'Nhân viên', description: 'Thêm, gỡ nhân viên và xem lô nhân viên tạo', locked: known && !isCreator, lockHint: 'Cần mở cửa hàng' },
+    { to: '/seller/creatives', icon: 'inventory_2', title: 'Quản lý Creative', description: 'Tạo, sửa và đăng bán mẫu AI Creative', locked: known && !isCreator, lockHint: 'Cần mở cửa hàng' },
+    { to: '/seller/items', icon: 'shopping_bag', title: 'Quản lý sản phẩm', description: 'Sản phẩm dùng để tạo ảnh theo lô tự động', locked: known && !isCreator && !staffOf, lockHint: 'Cần mở cửa hàng' },
+    { to: '/seller/settings', icon: 'tune', title: 'Quản lý cửa hàng', description: 'Tên cửa hàng, ảnh đại diện và ảnh bìa', locked: known && !!staffOf, lockHint: 'Nhân viên không mở cửa hàng' },
+  ];
+}
 
 export default function ToolsPage() {
   useSeo({
-    title: 'Công cụ chỉnh ảnh',
-    description: 'Công cụ miễn phí trên A51: ghép 2, 3, 4 ảnh, ghép 1 ảnh dọc 2 ảnh ngang, chèn logo và chữ chìm. Xử lý ngay trên trình duyệt.',
+    title: 'Công cụ',
+    description: 'Công cụ trên A51: chèn logo và chữ chìm, tạo ảnh theo lô, đăng bài, tạo đơn GHN từ ảnh.',
   });
+  const manageTools = useManageTools();
 
   return (
     <>
       <header className="sticky top-[60px] z-30 border-b border-surface-container bg-surface-container-lowest/90 px-4 py-3 backdrop-blur-md">
         <h1 className="text-lg font-bold text-on-surface">Công cụ</h1>
-        <p className="text-xs text-on-surface-variant">Ghép ảnh, chèn logo ngay trên trình duyệt</p>
+        <p className="text-xs text-on-surface-variant">Chèn logo, tạo ảnh theo lô, đăng bài và quản lý cửa hàng</p>
       </header>
 
       <section className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-4 lg:gap-4">
@@ -22,14 +48,10 @@ export default function ToolsPage() {
           <Link
             key={t.slug}
             to={t.to ?? `/tools/${t.slug}`}
-            className="group flex flex-col gap-3 rounded-2xl border border-outline-variant/30 bg-surface-container-low p-3 transition-all hover:border-primary-container active:scale-[0.98]"
+            className={`${CARD_CLASS} hover:border-primary-container active:scale-[0.98]`}
           >
-            <span className="flex size-12 items-center justify-center rounded-xl bg-surface-container text-primary transition-colors group-hover:bg-primary-container group-hover:text-on-primary">
-              {t.type === 'collage' ? (
-                <LayoutThumb tool={t} className="size-7" />
-              ) : (
-                <Icon name={t.icon} className="text-[26px]" />
-              )}
+            <span className={`${ICON_CLASS} text-primary group-hover:bg-primary-container group-hover:text-on-primary`}>
+              <Icon name={t.icon} className="text-[26px]" />
             </span>
             <span>
               <span className="block text-sm font-bold text-on-surface">{t.title}</span>
@@ -37,6 +59,32 @@ export default function ToolsPage() {
             </span>
           </Link>
         ))}
+      </section>
+
+      <h2 className="px-4 pt-2 text-base font-bold text-on-surface">Quản lý</h2>
+      <section className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-4 lg:gap-4">
+        {manageTools.map((t) => {
+          const body = (
+            <>
+              <span className={`${ICON_CLASS} ${t.locked ? 'text-outline' : 'text-primary group-hover:bg-primary-container group-hover:text-on-primary'}`}>
+                <Icon name={t.locked ? 'lock' : t.icon} className="text-[26px]" />
+              </span>
+              <span>
+                <span className={`block text-sm font-bold ${t.locked ? 'text-outline' : 'text-on-surface'}`}>{t.title}</span>
+                <span className="mt-0.5 block text-xs leading-snug text-on-surface-variant">{t.locked ? t.lockHint : t.description}</span>
+              </span>
+            </>
+          );
+          return t.locked ? (
+            <div key={t.to} aria-disabled="true" className={`${CARD_CLASS} cursor-not-allowed opacity-70`}>
+              {body}
+            </div>
+          ) : (
+            <Link key={t.to} to={t.to} className={`${CARD_CLASS} hover:border-primary-container active:scale-[0.98]`}>
+              {body}
+            </Link>
+          );
+        })}
       </section>
     </>
   );

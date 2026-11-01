@@ -1,10 +1,5 @@
 export const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
-const pad = (n) => String(n).padStart(2, '0');
-
-export const timestamp = (d = new Date()) =>
-  `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-
 // Xuất canvas thành file và tải về máy
 export function downloadCanvas(canvas, filename, type = 'image/png', quality = 0.95) {
   canvas.toBlob(

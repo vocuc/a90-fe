@@ -25,7 +25,7 @@ const TOPICS = [
     faqs: [
       ['Quy trình tạo ảnh như thế nào?', 'Vào Khám phá hoặc trang chủ, chọn một mẫu AI Creative, tải ảnh sản phẩm lên, điền các thông tin mẫu yêu cầu rồi xác nhận. Giá mỗi lượt tạo được hiển thị trước khi bạn xác nhận.'],
       ['Ảnh tải lên cần đạt yêu cầu gì?', 'Nên dùng ảnh rõ nét, đủ sáng, sản phẩm nằm trọn trong khung và ít chi tiết thừa ở nền. Ảnh càng rõ thì kết quả càng sát với sản phẩm thật.'],
-      ['Xem lại và tải ảnh đã tạo ở đâu?', 'Vào Tài khoản → Lịch sử mua hàng. Tại đây bạn có thể xem lại các lượt tạo và tải ảnh kết quả.'],
+      ['Xem lại và tải ảnh đã tạo ở đâu?', 'Vào Công cụ → Lịch sử mua hàng. Tại đây bạn có thể xem lại các lượt tạo và tải ảnh kết quả.'],
       ['Kết quả không giống như mong đợi?', 'Ảnh do AI tạo có thể khác nhau giữa các lần. Hãy thử ảnh gốc rõ hơn hoặc chọn mẫu khác phù hợp hơn với loại sản phẩm. Kiểm tra kỹ ảnh trước khi dùng cho quảng cáo.'],
     ],
   },
@@ -45,8 +45,8 @@ const TOPICS = [
     icon: 'storefront',
     title: 'Dành cho người bán',
     faqs: [
-      ['Làm sao để mở cửa hàng?', 'Vào Tài khoản → Quản lý cửa hàng, điền tên cửa hàng, ảnh đại diện và ảnh bìa. Sau khi tạo cửa hàng, mục Quản lý Creative sẽ được mở khoá.'],
-      ['Làm sao để đăng mẫu AI Creative?', 'Vào Tài khoản → Quản lý Creative → tạo Creative mới. Trình tạo mẫu cho phép bạn soạn prompt, thiết kế biểu mẫu cho người mua và tải ảnh minh hoạ.'],
+      ['Làm sao để mở cửa hàng?', 'Vào Công cụ → Quản lý cửa hàng, điền tên cửa hàng, ảnh đại diện và ảnh bìa. Sau khi tạo cửa hàng, mục Quản lý Creative sẽ được mở khoá.'],
+      ['Làm sao để đăng mẫu AI Creative?', 'Vào Công cụ → Quản lý Creative → tạo Creative mới. Trình tạo mẫu cho phép bạn soạn prompt, thiết kế biểu mẫu cho người mua và tải ảnh minh hoạ.'],
       ['Mẫu của tôi có bị kiểm duyệt không?', 'Có. Mẫu phải do bạn tự tạo hoặc có quyền phân phối hợp pháp, ảnh minh hoạ phải phản ánh đúng kết quả. Mẫu vi phạm có thể bị ẩn hoặc gỡ.'],
     ],
   },

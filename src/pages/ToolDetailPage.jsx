@@ -1,7 +1,6 @@
 import useSeo from '../hooks/useSeo';
 import { Link, useParams } from 'react-router-dom';
 import Icon from '../components/common/Icon';
-import CollageTool from '../components/tools/CollageTool';
 import LogoTool from '../components/tools/LogoTool';
 import { findTool } from '../components/tools/tools';
 import PlaceholderPage from './PlaceholderPage';
@@ -29,7 +28,7 @@ export default function ToolDetailPage() {
         </div>
       </header>
       {/* key: đổi công cụ thì làm mới toàn bộ trạng thái */}
-      {tool.type === 'collage' ? <CollageTool key={tool.slug} tool={tool} /> : <LogoTool key={tool.slug} />}
+      <LogoTool key={tool.slug} />
     </>
   );
 }

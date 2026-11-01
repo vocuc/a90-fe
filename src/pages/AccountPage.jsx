@@ -80,15 +80,10 @@ export default function AccountPage() {
   // Backend chỉ cho quản lý Creative khi đã có profile người bán (middleware "creator"). Nhân viên của shop
   // (note/chia-se-tai-nguyen.txt) không được mở shop riêng, chỉ xem sản phẩm / nhóm creative của shop chủ
   const staffOf = me?.staffOf;
+  // Lịch sử mua hàng, Nhân viên, Quản lý Creative / sản phẩm / cửa hàng đã chuyển sang trang Công cụ (mục Quản lý)
   const menu = [
-    { to: '/account/history', icon: 'receipt_long', title: 'Lịch sử mua hàng' },
-    { to: '/seller/settings', icon: 'tune', title: 'Quản lý cửa hàng', disabled: !!staffOf },
-    { to: '/seller/creatives', icon: 'inventory_2', title: 'Quản lý Creative', disabled: !me?.creatorProfile },
-    // Sản phẩm cho tạo lô tự động (note/auto-tao-lo.txt)
-    { to: '/seller/items', icon: 'shopping_bag', title: 'Quản lý sản phẩm', disabled: !me?.creatorProfile && !staffOf },
     // Chủ shop vào nhóm creative từ trang Quản lý Creative; nhân viên không có trang đó
     ...(staffOf ? [{ to: '/seller/creative-groups', icon: 'workspaces', title: 'Nhóm creative' }] : []),
-    ...(me?.creatorProfile ? [{ to: '/seller/staff', icon: 'groups', title: 'Nhân viên' }] : []),
     // AI viết nội dung bài đăng (note/ai-viet-noi-dung-bai-dang.txt): chỉ chủ shop cài đặt, nhân viên dùng chung
     ...(me?.creatorProfile && me?.socialAi?.enabled ? [{ to: '/seller/ai-content', icon: 'auto_awesome', title: 'AI viết nội dung' }] : []),
     { to: '/shipping-orders', icon: 'local_shipping', title: 'Đơn GHN', disabled: !me?.creatorProfile },
