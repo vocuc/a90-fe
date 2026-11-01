@@ -109,6 +109,10 @@ Worker (Authorization: Bearer <token worker>) - PHẦN NGƯỜI LÀM WORKER CẦ
     { status: "failed", error_code: "RENDER_FAILED", error_message? }  -> bài Lỗi (chủ shop sửa rồi đăng lại)
     409 JOB_NOT_ASSIGNED: chủ shop đã bấm "Tạo lại" (job này bị bỏ), không cần làm gì thêm.
   Job KHÔNG có hạn: worker nhận rồi tắt máy thì bài nằm ở Đang đăng tới khi chủ shop bấm "Tạo lại".
+  Worker được nhận bài khi giữ tài khoản đăng bài của shop, HOẶC được gắn "Tài khoản tạo video" của shop
+  (workers.video_user_id): khi đó đăng TikTok, request.account = null (đăng bằng tài khoản trên điện thoại).
+  Worker D:\FlowKit\auto-make-image-to-video (thiet-ke.txt mục 5): khớp template theo TÊN (tên template trên A51 phải
+  trùng tên template Remotion, vd LensPop), số ảnh phải trùng; nội dung lấy từ A51 (cắt còn 5 hashtag).
   API cũ GET /api/v1/video-images vẫn giữ nguyên.
 
 File chính: backend app/Services/Social/VideoPostService.php, Social/VideoPostController.php,

@@ -119,7 +119,8 @@ export default function VideoTemplateFormPage() {
             value={values.name}
             onChange={set('name', 'name')}
             maxLength={VIDEO_TEMPLATE_NAME_MAX}
-            placeholder="VD: Mở hộp giày"
+            placeholder="VD: LensPop"
+            hint="Phải trùng tên template trên máy worker (VD: StripReveal, LensPop, FlashMontage) thì worker mới dựng được video"
             error={errors.name}
             autoFocus={!editing}
           />
