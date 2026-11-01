@@ -122,7 +122,6 @@ export default function AutoBatchDialog({ onDone, onClose }) {
 
       <LogoCard
         hasShop={!!me?.creatorProfile}
-        isStaff={!!me?.staffOf}
         logoUrl={logoUrl}
         checked={insertLogo}
         onChange={(v) => {

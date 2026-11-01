@@ -26,7 +26,7 @@ Test: tests/Feature/SocialPostTest.php.
 1b. TRANG "AI VIẾT NỘI DUNG" (/seller/ai-content)
 -------------------------------------------------
 
-Tài khoản -> "AI viết nội dung" (chỉ chủ shop, khi bật SOCIAL_AI_CONTENT). Nhân viên dùng chung cài đặt của chủ shop.
+Công cụ -> Quản lý -> "AI viết nội dung" (chỉ chủ shop, khi bật SOCIAL_AI_CONTENT). Nhân viên dùng chung cài đặt của chủ shop.
 Lưu một lần cả trang (bảng shop_ai_settings + shop_hashtag):
   - Độ dài: tiêu đề tối đa 10..90 ký tự (mặc định 90), nội dung tối đa 50..2000 ký tự (mặc định 2000). Prompt dặn AI
     không vượt, backend vẫn cắt cứng theo đúng số này.
@@ -89,4 +89,4 @@ Ledger Credit: social_content_charge (trừ), social_content_refund (hoàn), ref
   /posts/new và trang lô (/batches/:id).
 - src/pages/SocialPostPage.jsx: nút "Viết lại bằng AI" cạnh tiêu đề phần Nội dung; trang generating ghi
   "AI đang viết tiêu đề, nội dung, hashtag".
-- src/pages/AiContentPage.jsx: trang "AI viết nội dung" (/seller/ai-content), link ở menu Tài khoản.
+- src/pages/AiContentPage.jsx: trang "AI viết nội dung" (/seller/ai-content), link ở trang Công cụ (mục Quản lý).

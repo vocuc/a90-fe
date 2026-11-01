@@ -40,7 +40,7 @@ export default function BatchNewPage() {
   const [error, setError] = useState(null);
   // Lỗi theo trường do máy chủ trả về: { [slug]: { [key]: msg } } (errors["items.1.inputs.product_image"])
   const [serverErrors, setServerErrors] = useState({});
-  // Logo shop = ảnh đại diện shop (nhân viên của shop: logo tự tải lên); có logo thì mặc định chèn
+  // Logo shop = ảnh đại diện shop; có logo thì mặc định chèn
   const { data: me } = useMe();
   const logoUrl = batchLogoUrl(me);
   const [insertLogo, setInsertLogo] = useState(true);
@@ -182,7 +182,6 @@ export default function BatchNewPage() {
         </div>
         <LogoCard
           hasShop={!!me?.creatorProfile}
-          isStaff={!!me?.staffOf}
           logoUrl={logoUrl}
           checked={insertLogo}
           onChange={(v) => {

@@ -13,8 +13,7 @@ import { useConfirm } from '../components/common/ConfirmDialog';
 // Tạo lô tự động chỉ dùng creative Đang bán, không bị ẩn
 const isRunnable = (c) => c.status === 'published' && !c.isHidden;
 
-/** shopName: nhóm của shop chủ (nhân viên chỉ xem, không sửa / xoá). */
-function GroupCard({ group, index, shopName, onEdit, onDeleted }) {
+function GroupCard({ group, index, onEdit, onDeleted }) {
   const [deleting, setDeleting] = useState(false);
   const { confirm, alert } = useConfirm();
   const runnable = group.creatives.filter(isRunnable).length;
@@ -42,34 +41,24 @@ function GroupCard({ group, index, shopName, onEdit, onDeleted }) {
           <p className={`text-xs ${runnable ? 'text-on-surface-variant' : 'text-error'}`}>
             {group.creatives.length} creative · {runnable ? `${runnable} đang bán dùng được` : 'Không có creative Đang bán, nhóm bị bỏ qua'}
           </p>
-          {!group.isOwner && (
-            <p className="flex items-center gap-1 text-xs text-on-surface-variant">
-              <Icon name="storefront" className="text-sm" />
-              <span className="truncate">Của shop {shopName}</span>
-            </p>
-          )}
         </div>
-        {group.isOwner && (
-          <>
-            <button
-              type="button"
-              onClick={onEdit}
-              aria-label={`Sửa nhóm ${group.name}`}
-              className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
-            >
-              <Icon name="edit" className="text-lg" />
-            </button>
-            <button
-              type="button"
-              onClick={remove}
-              disabled={deleting}
-              aria-label={`Xoá nhóm ${group.name}`}
-              className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40 disabled:opacity-50"
-            >
-              <Icon name={deleting ? 'progress_activity' : 'delete'} className={`text-lg ${deleting ? 'animate-spin' : ''}`} />
-            </button>
-          </>
-        )}
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Sửa nhóm ${group.name}`}
+            className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
+          >
+            <Icon name="edit" className="text-lg" />
+          </button>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={deleting}
+            aria-label={`Xoá nhóm ${group.name}`}
+            className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40 disabled:opacity-50"
+          >
+            <Icon name={deleting ? 'progress_activity' : 'delete'} className={`text-lg ${deleting ? 'animate-spin' : ''}`} />
+          </button>
       </div>
       <ul className="mt-2 flex gap-2 overflow-x-auto pb-1">
         {group.creatives.map((c) => (
@@ -85,16 +74,15 @@ function GroupCard({ group, index, shopName, onEdit, onDeleted }) {
 
 /**
  * /seller/creative-groups: nhóm creative cho tạo lô tự động (note/auto-tao-lo.txt). Nhóm tạo trước chạy trước.
- * Nhân viên của shop (note/chia-se-tai-nguyen.txt) xem nhóm của shop chủ, không tạo / sửa / xoá.
  */
 export default function CreativeGroupsPage() {
   useSeo({ title: 'Nhóm creative', noindex: true });
   const queryClient = useQueryClient();
-  const { hasProfile, staffOf, meLoaded } = useCreatorProfile();
+  const { hasProfile, meLoaded } = useCreatorProfile();
   // null: đóng, {}: tạo mới, { group }: sửa
   const [editing, setEditing] = useState(null);
 
-  const { data: groups, error, refetch } = useQuery({ queryKey: AUTO_KEYS.groups, queryFn: listGroups, enabled: hasProfile || !!staffOf });
+  const { data: groups, error, refetch } = useQuery({ queryKey: AUTO_KEYS.groups, queryFn: listGroups, enabled: hasProfile });
 
   // Nhóm đổi -> tải lại nhóm và danh sách creative (thẻ creative hiện tên nhóm)
   const reload = () =>
@@ -131,7 +119,7 @@ export default function CreativeGroupsPage() {
       <section className="space-y-3 p-4 lg:py-6">
         {!meLoaded ? (
           <Skeleton className="h-24 w-full" />
-        ) : !hasProfile && !staffOf ? (
+        ) : !hasProfile ? (
           <EmptyState icon="storefront" message="Bạn cần tạo cửa hàng trước khi tạo nhóm creative.">
             <Link to="/seller/settings" className="text-sm font-bold text-primary hover:underline">
               Tạo cửa hàng
@@ -151,17 +139,16 @@ export default function CreativeGroupsPage() {
               <Icon name="info" className="text-base" />
               Mỗi lô tự động = 1 sản phẩm x các creative Đang bán của 1 nhóm, mỗi creative 1 ảnh. Nhóm tạo trước chạy trước.
               Một creative chỉ ở một nhóm.
-              {staffOf && ` Đây là nhóm của shop ${staffOf.shopName}, bạn chỉ dùng để tạo lô, không sửa được.`}
             </p>
             {!groups.length ? (
-              <EmptyState icon="workspaces" message={staffOf ? 'Shop chưa có nhóm creative nào.' : 'Chưa có nhóm creative nào.'}>
+              <EmptyState icon="workspaces" message="Chưa có nhóm creative nào.">
                 {hasProfile && <div className="mt-2">{addButton}</div>}
               </EmptyState>
             ) : (
               <ul className="grid gap-3 lg:grid-cols-2">
                 {groups.map((g, i) => (
                   <li key={g.id}>
-                    <GroupCard group={g} index={i} shopName={staffOf?.shopName} onEdit={() => setEditing({ group: g })} onDeleted={reload} />
+                    <GroupCard group={g} index={i} onEdit={() => setEditing({ group: g })} onDeleted={reload} />
                   </li>
                 ))}
               </ul>

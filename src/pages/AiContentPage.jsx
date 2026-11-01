@@ -41,8 +41,8 @@ function LimitField({ label, value, onChange, range, error, hint }) {
 }
 
 /**
- * /seller/ai-content: cài đặt AI viết nội dung bài đăng của shop (note/ai-viet-noi-dung-bai-dang.txt), chỉ chủ shop sửa;
- * nhân viên dùng chung. AI dựa vào đây để viết tiêu đề, nội dung và chọn hashtag:
+ * /seller/ai-content: cài đặt AI viết nội dung bài đăng của shop (note/ai-viet-noi-dung-bai-dang.txt), chỉ chủ shop sửa.
+ * AI dựa vào đây để viết tiêu đề, nội dung và chọn hashtag:
  * - Kho hashtag: AI chọn tối đa 5 hashtag hợp với ảnh, kho rỗng thì bài không có hashtag.
  * - Bài viết mẫu: AI học giọng văn, cách trình bày, không chép nguyên.
  * - Số ký tự tối đa của tiêu đề / nội dung.
@@ -88,12 +88,10 @@ export default function AiContentPage() {
       <>
         {header}
         <div className="space-y-3 p-4 text-center text-sm text-on-surface-variant">
-          <p>{me.staffOf ? 'Chỉ chủ shop cài đặt được AI viết nội dung. Bài bạn tạo dùng cài đặt của shop.' : 'Bạn cần tạo cửa hàng trước.'}</p>
-          {!me.staffOf && (
-            <Link to="/seller/settings" className="text-sm font-bold text-primary hover:underline">
-              Tạo cửa hàng
-            </Link>
-          )}
+          <p>Bạn cần tạo cửa hàng trước.</p>
+          <Link to="/seller/settings" className="text-sm font-bold text-primary hover:underline">
+            Tạo cửa hàng
+          </Link>
         </div>
       </>
     );
@@ -168,7 +166,7 @@ export default function AiContentPage() {
           <span>
             Khi tạo bài có bật <b>AI viết nội dung</b> hoặc bấm <b>Viết lại bằng AI</b>
             {me.socialAi?.price ? ` (${formatVnd(me.socialAi.price)} / lần)` : ''}, AI xem ảnh của bài rồi viết theo cài đặt
-            dưới đây. Nhân viên của shop dùng chung cài đặt này.
+            dưới đây.
           </span>
         </p>
 

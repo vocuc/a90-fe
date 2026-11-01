@@ -10,22 +10,22 @@ const CARD_CLASS =
 const ICON_CLASS = 'flex size-12 items-center justify-center rounded-xl bg-surface-container transition-colors';
 
 /**
- * Lối tắt quản lý (cũng có ở trang Tài khoản). Khoá giống trang Tài khoản: Quản lý cửa hàng khoá với nhân viên của shop,
- * Quản lý Creative / Nhân viên cần profile người bán, Quản lý sản phẩm cần profile người bán hoặc là nhân viên.
+ * Lối tắt quản lý. Quản lý Creative / sản phẩm / AI viết nội dung cần profile người bán (mở cửa hàng trước).
  * Chưa đăng nhập: không khoá, bấm vào RequireAuth chuyển sang trang đăng nhập.
  */
 function useManageTools() {
   const { isAuthenticated } = useAuth();
   const { data: me } = useMe();
-  const known = isAuthenticated && !!me;
-  const isCreator = !!me?.creatorProfile;
-  const staffOf = me?.staffOf;
+  const noShop = isAuthenticated && !!me && !me.creatorProfile;
   return [
     { to: '/account/history', icon: 'receipt_long', title: 'Lịch sử mua hàng', description: 'Xem lại các lượt tạo và tải ảnh kết quả' },
-    { to: '/seller/staff', icon: 'groups', title: 'Nhân viên', description: 'Thêm, gỡ nhân viên và xem lô nhân viên tạo', locked: known && !isCreator, lockHint: 'Cần mở cửa hàng' },
-    { to: '/seller/creatives', icon: 'inventory_2', title: 'Quản lý Creative', description: 'Tạo, sửa và đăng bán mẫu AI Creative', locked: known && !isCreator, lockHint: 'Cần mở cửa hàng' },
-    { to: '/seller/items', icon: 'shopping_bag', title: 'Quản lý sản phẩm', description: 'Sản phẩm dùng để tạo ảnh theo lô tự động', locked: known && !isCreator && !staffOf, lockHint: 'Cần mở cửa hàng' },
-    { to: '/seller/settings', icon: 'tune', title: 'Quản lý cửa hàng', description: 'Tên cửa hàng, ảnh đại diện và ảnh bìa', locked: known && !!staffOf, lockHint: 'Nhân viên không mở cửa hàng' },
+    { to: '/seller/creatives', icon: 'inventory_2', title: 'Quản lý Creative', description: 'Tạo, sửa và đăng bán mẫu AI Creative', locked: noShop, lockHint: 'Cần mở cửa hàng' },
+    { to: '/seller/items', icon: 'shopping_bag', title: 'Quản lý sản phẩm', description: 'Sản phẩm dùng để tạo ảnh theo lô tự động', locked: noShop, lockHint: 'Cần mở cửa hàng' },
+    { to: '/seller/settings', icon: 'tune', title: 'Quản lý cửa hàng', description: 'Tên cửa hàng, ảnh đại diện và ảnh bìa' },
+    // AI viết nội dung bài đăng (note/ai-viet-noi-dung-bai-dang.txt): chỉ hiện khi backend bật tính năng
+    ...(me?.socialAi?.enabled
+      ? [{ to: '/seller/ai-content', icon: 'auto_awesome', title: 'AI viết nội dung', description: 'Kho hashtag, bài mẫu và độ dài nội dung bài đăng', locked: !me.creatorProfile, lockHint: 'Cần mở cửa hàng' }]
+      : []),
   ];
 }
 
