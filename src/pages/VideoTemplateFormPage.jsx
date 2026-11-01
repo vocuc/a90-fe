@@ -111,6 +111,13 @@ export default function VideoTemplateFormPage() {
         <div className="p-4">
           <ErrorState error={existing.error} onRetry={existing.refetch} />
         </div>
+      ) : editing && existing.data?.synced ? (
+        <div className="space-y-3 p-4 text-center text-sm text-on-surface-variant">
+          <p>Template "{existing.data.name}" được đồng bộ từ máy làm template, không sửa được.</p>
+          <Link to="/seller/video-templates" className="text-sm font-bold text-primary hover:underline">
+            Về danh sách template
+          </Link>
+        </div>
       ) : (
         <form onSubmit={onSubmit} noValidate className="space-y-4 p-4">
           <TextField

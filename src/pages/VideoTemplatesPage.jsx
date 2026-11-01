@@ -36,16 +36,29 @@ function TemplateRow({ template }) {
         <Icon name="movie" className="text-xl" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-on-surface">{template.name}</p>
-        <a
-          href={template.videoUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-        >
-          <Icon name="open_in_new" className="shrink-0 text-sm" />
-          <span className="truncate">{template.videoUrl}</span>
-        </a>
+        <p className="flex items-center gap-1.5 text-sm font-bold text-on-surface">
+          <span className="truncate">{template.name}</span>
+          {template.synced && (
+            <span
+              title="Đồng bộ từ máy làm template, không sửa / xoá được"
+              className="inline-flex shrink-0 items-center gap-0.5 rounded bg-primary-fixed/40 px-1 text-[10px] font-bold text-primary"
+            >
+              <Icon name="sync" className="text-xs" />
+              Đồng bộ
+            </span>
+          )}
+        </p>
+        {template.videoUrl && (
+          <a
+            href={template.videoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+          >
+            <Icon name="open_in_new" className="shrink-0 text-sm" />
+            <span className="truncate">{template.videoUrl}</span>
+          </a>
+        )}
         <p className="text-[11px] text-outline">
           {template.imageCount ? (
             `${template.imageCount} ảnh · `
@@ -55,24 +68,27 @@ function TemplateRow({ template }) {
           Tạo lúc {formatDate(template.createdAt)}
         </p>
       </div>
-      <div className="flex shrink-0 gap-1">
-        <Link
-          to={`/seller/video-templates/${template.id}/edit`}
-          aria-label={`Sửa ${template.name}`}
-          className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
-        >
-          <Icon name="edit" className="text-lg" />
-        </Link>
-        <button
-          type="button"
-          onClick={remove}
-          disabled={deleting}
-          aria-label={`Xoá ${template.name}`}
-          className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40 disabled:opacity-50"
-        >
-          <Icon name={deleting ? 'progress_activity' : 'delete'} className={`text-lg ${deleting ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
+      {/* Template đồng bộ từ máy làm template: chỉ xem */}
+      {!template.synced && (
+        <div className="flex shrink-0 gap-1">
+          <Link
+            to={`/seller/video-templates/${template.id}/edit`}
+            aria-label={`Sửa ${template.name}`}
+            className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
+          >
+            <Icon name="edit" className="text-lg" />
+          </Link>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={deleting}
+            aria-label={`Xoá ${template.name}`}
+            className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40 disabled:opacity-50"
+          >
+            <Icon name={deleting ? 'progress_activity' : 'delete'} className={`text-lg ${deleting ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

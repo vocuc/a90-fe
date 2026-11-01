@@ -115,6 +115,15 @@ Worker (Authorization: Bearer <token worker>) - PHẦN NGƯỜI LÀM WORKER CẦ
   trùng tên template Remotion, vd LensPop), số ảnh phải trùng; nội dung lấy từ A51 (cắt còn 5 hashtag).
   API cũ GET /api/v1/video-images vẫn giữ nguyên.
 
+Đồng bộ template từ máy làm template (D:\video-tmp, npm run sync-templates, chạy tay):
+  PUT /api/v1/video-templates/sync   (Bearer token worker, worker phải gắn "Tài khoản tạo video" = shop nhận template)
+    { templates: [ { key: "6", name: "LensPop", image_count: 2 }, ... ] }   gửi TOÀN BỘ danh sách
+    -> { data: { created, updated, unchanged, hidden, account: {id, name}, templates: [...] } }
+    key mới -> thêm; key cũ -> sửa tên / số ảnh (đang ẩn thì hiện lại); key không còn -> ẩn (không random / chọn được,
+    bài đã tạo giữ nguyên). Template shop tự tạo không bị đụng. 409 VIDEO_ACCOUNT_NOT_ASSIGNED: worker chưa gắn shop.
+  Shop: template đồng bộ có nhãn "Đồng bộ", không có link TikTok, chỉ xem (sửa / xoá -> 409 VIDEO_TEMPLATE_SYNCED).
+  Migration 2026_11_01_150000_add_sync_to_video_templates.php (source_key, hidden_at, video_url cho phép null).
+
 File chính: backend app/Services/Social/VideoPostService.php, Social/VideoPostController.php,
   WorkerVideoPostController.php, tests/Feature/VideoPostTest.php, migration 2026_11_01_140000_add_video_posts.php.
   Frontend src/components/social/VideoPostDialogs.jsx, src/pages/SocialPostsPage.jsx, src/api/social.js.
