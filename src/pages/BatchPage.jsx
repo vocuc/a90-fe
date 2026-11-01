@@ -247,6 +247,8 @@ export default function BatchPage() {
       const fresh = await uploadBatchImage(batch.id, img, file);
       queryClient.setQueryData(['batches', id], (b) => b && { ...b, images: b.images.map((i) => (i.id === img.id ? fresh : i)) });
       queryClient.invalidateQueries({ queryKey: ['batches'] });
+      // Ảnh đã tắt được bật lại khi tải ảnh mới -> lịch sử mua đổi tab
+      queryClient.invalidateQueries({ queryKey: ['generations'] });
     } catch (err) {
       setError(err?.message || 'Không tải ảnh lên được, vui lòng thử lại.');
     } finally {

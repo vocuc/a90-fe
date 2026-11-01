@@ -321,6 +321,8 @@ export const creatorPageApi = {
  *   lỗi: 402 INSUFFICIENT_CREDIT (context: { required, balance }), 404 CREATIVE_NOT_AVAILABLE,
  *        409 CREATIVE_TEMPORARILY_UNAVAILABLE, 409 IDEMPOTENCY_CONFLICT, 422 quantity/aspect_ratio
  * GET  /generations?page=&per_page= (<= 50, mới nhất trước) -> { data: generation[] (kèm outputs), meta: { current_page, last_page, ... } }
+ *   &tab=active (ảnh chưa tắt, không lỗi, gồm ảnh đang tạo) | failed (ảnh tạo lỗi) | disabled (ảnh đã tắt):
+ *   mỗi đơn chỉ kèm ảnh của tab, đơn không có ảnh nào của tab thì không trả về
  * GET  /generations/{id}/status  -> { data: { id, status, success_count, failed_count,
  *                                             outputs: [{ id, position, status, image_url, thumb_url, error_code }] } }
  *   status (generation và output): queued | processing | completed | failed (generation có thêm cancelled)
@@ -329,6 +331,8 @@ export const creatorPageApi = {
  *   url ký số có Content-Disposition: attachment -> mở là tải về
  * POST /generations/{id}/outputs/{outputId}/disable -> 204. Người dùng tự tắt ảnh (không hoàn tiền): ảnh không còn trong
  *   outputs của lịch sử, không tải về, không chọn cho bài đăng, không gửi worker. 409 IMAGE_NOT_READY nếu ảnh chưa xong.
+ * POST /generations/{id}/outputs/{outputId}/enable -> 204. Bật lại ảnh đã tắt.
+ *   Tab failed không trả ảnh lỗi đã "Tạo lại" (retry) để không hiện trùng.
  * generation: { id, status, creative: { id, slug, title }, quantity, aspect_ratio, price_per_image, total_charged,
  *               success_count, failed_count, outputs?: [{ id, position, status, image_url, thumb_url, error_message }], created_at }
  *   thumb_url: ảnh nhỏ để hiển thị, image_url: ảnh gốc (chỉ dùng khi phóng to)
@@ -355,8 +359,9 @@ export const generationApi = {
     form.append('idempotency_key', idempotencyKey);
     return client.post('/generations', form, { timeout: GENERATION_UPLOAD_TIMEOUT }).then(({ data }) => data);
   }),
-  list: requireRealBackend(({ page, limit } = {}) =>
-    client.get('/generations', { params: { page, per_page: limit } }).then(({ data, meta }) => ({
+  // tab: active | failed | disabled (không truyền: mọi đơn, kèm ảnh chưa tắt)
+  list: requireRealBackend(({ page, limit, tab } = {}) =>
+    client.get('/generations', { params: { page, per_page: limit, tab } }).then(({ data, meta }) => ({
       items: data,
       page: meta.current_page,
       lastPage: meta.last_page,
@@ -372,4 +377,5 @@ export const generationApi = {
     client.get(`/generations/${id}/outputs/${outputId}/download`).then(({ data }) => data),
   ),
   disableOutput: requireRealBackend((id, outputId) => client.post(`/generations/${id}/outputs/${outputId}/disable`)),
+  enableOutput: requireRealBackend((id, outputId) => client.post(`/generations/${id}/outputs/${outputId}/enable`)),
 };

@@ -21,6 +21,18 @@ const useGenerationMutation = (mutationFn) => {
 export const useCreateGeneration = () => useGenerationMutation(generationApi.create);
 export const useRetryGeneration = () => useGenerationMutation(generationApi.retry);
 
+/** Tạo lại ảnh lỗi từ Lịch sử mua hàng: tải lại số dư và lịch sử (ảnh lỗi cũ rời tab "Bị lỗi"). */
+export const useRetryFromHistory = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: generationApi.retry,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      queryClient.invalidateQueries({ queryKey: ['generations'] });
+    },
+  });
+};
+
 /** Hỏi trạng thái mỗi 2 giây tới khi xong; xong thì tải lại số dư (ảnh lỗi được hoàn tiền). */
 export const useGenerationStatus = (id) => {
   const queryClient = useQueryClient();
@@ -37,10 +49,10 @@ export const useGenerationStatus = (id) => {
 };
 
 /** Lịch sử tạo ảnh (mua hàng) của tài khoản, tải thêm theo trang. */
-export const useGenerationHistory = (limit = 10) =>
+export const useGenerationHistory = (limit = 10, tab) =>
   useInfiniteQuery({
-    queryKey: ['generations', 'history', limit],
-    queryFn: ({ pageParam }) => generationApi.list({ page: pageParam, limit }),
+    queryKey: ['generations', 'history', limit, tab ?? 'all'],
+    queryFn: ({ pageParam }) => generationApi.list({ page: pageParam, limit, tab }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
   });
@@ -50,7 +62,22 @@ export const useDisableOutput = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ generationId, outputId }) => generationApi.disableOutput(generationId, outputId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['generations'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['generations'] });
+      queryClient.invalidateQueries({ queryKey: ['batches'] });
+    },
+  });
+};
+
+/** Bật lại ảnh đã tắt: ảnh về tab "Đang hoạt động", lô ảnh hết làm mờ. */
+export const useEnableOutput = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ generationId, outputId }) => generationApi.enableOutput(generationId, outputId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['generations'] });
+      queryClient.invalidateQueries({ queryKey: ['batches'] });
+    },
   });
 };
 
