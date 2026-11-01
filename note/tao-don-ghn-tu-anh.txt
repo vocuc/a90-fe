@@ -139,7 +139,7 @@ POST /creator/shipping-orders/{id}/submit { payment_type_id }   (mặc định k
     Đã gửi rồi -> 409 INVALID_STATE
 
 ---- 3.6. Trang FE (đã làm, nhánh feature/ghn-shipping-orders ở cả FE và BE) ----
-Lối vào: Công cụ -> "Tạo đơn GHN từ ảnh" (/shipping-orders), Tài khoản -> "Đơn GHN".
+Lối vào: Công cụ -> "Tạo đơn GHN từ ảnh" (/shipping-orders).
 Route: /shipping-orders, /shipping-orders/new, /shipping-orders/:id. API: src/api/shipping.js.
 BE: app/Services/Shipping (GhnClient, GhnCatalog, ClaudeShippingOrderReader, ShippingOrderService),
     app/Http/Controllers/Api/V1/Shipping, tests/Feature/ShippingOrderTest.php. .env: ANTHROPIC_API_KEY, GHN_BASE_URL.

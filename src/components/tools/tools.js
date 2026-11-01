@@ -34,6 +34,8 @@ export const TOOLS = [
     type: 'link',
     to: '/shipping-orders',
     icon: 'local_shipping',
+    // Cần hồ sơ người bán: chưa mở cửa hàng thì khoá ở trang Công cụ
+    needsShop: true,
   },
 ];
 

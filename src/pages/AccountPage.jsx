@@ -33,9 +33,8 @@ export default function AccountPage() {
   const { data: wallet, isLoading: walletLoading } = useCreatorWallet();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Lịch sử mua hàng, Quản lý Creative / sản phẩm / cửa hàng, AI viết nội dung ở trang Công cụ (mục Quản lý)
+  // Lịch sử mua hàng, Quản lý Creative / sản phẩm / cửa hàng, AI viết nội dung, Đơn GHN ở trang Công cụ
   const menu = [
-    { to: '/shipping-orders', icon: 'local_shipping', title: 'Đơn GHN', disabled: !me?.creatorProfile },
     { to: '/support', icon: 'support_agent', title: 'Trung tâm hỗ trợ' },
     { to: '/terms', icon: 'gavel', title: 'Điều khoản sử dụng' },
     { to: '/privacy', icon: 'shield_person', title: 'Chính sách quyền riêng tư' },
