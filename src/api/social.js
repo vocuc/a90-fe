@@ -341,6 +341,8 @@ export const deletePost = (id) => client.delete(`/social/posts/${id}`);
 // POST /social/video-posts/auto { worker_id, count, first_at, gap_min, gap_max, idempotency_key }
 //   -> 201 { data: { created, requested, stopped: null|insufficient_credit|no_template|not_enough_images, post_ids } }
 //   không tạo được bài nào: 422 VIDEO_NO_TEMPLATE / VIDEO_NOT_ENOUGH_IMAGES, 402 INSUFFICIENT_CREDIT
+// POST /social/video-posts { worker_id, video_template_id, product_id?, images, scheduled_at, idempotency_key } -> 201 { data: post }
+//      tab "Thủ công": 1 bài, AI viết nội dung như tự động (402 khi thiếu tiền)
 // PUT  /social/video-posts/{id} { worker_id, video_template_id, product_id, images, scheduled_at, title, content, hashtags }
 //   sửa khi worker chưa nhận (queued) hoặc bài lỗi (pending_review); số ảnh phải bằng số ảnh template
 // POST /social/video-posts/{id}/retry   "Đăng lại" (lỗi) / "Tạo lại" (worker nhận rồi im lặng) -> bài về queued
@@ -372,6 +374,19 @@ export const autoCreateVideoPosts = ({ workerId, count, firstAt, gapMin, gapMax 
       { timeout: AI_TIMEOUT },
     )
     .then(({ data }) => ({ created: data.created, requested: data.requested, stopped: data.stopped, postIds: data.post_ids }));
+
+// Tab "Thủ công": 1 bài, chủ shop chọn worker / template / sản phẩm / ảnh / giờ đăng; AI viết nội dung (trừ phí, thiếu -> 402)
+export const createVideoPost = (form, idempotencyKey) =>
+  client
+    .post('/social/video-posts', {
+      worker_id: form.workerId,
+      video_template_id: form.templateId,
+      product_id: form.productId || null,
+      images: form.images.map((i) => ({ generation_id: i.generationId, output_id: i.outputId })),
+      scheduled_at: form.scheduledAt,
+      idempotency_key: idempotencyKey,
+    })
+    .then(({ data }) => mapPost(data));
 
 export const updateVideoPost = (id, form) =>
   client

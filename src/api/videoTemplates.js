@@ -7,7 +7,9 @@ import client from './client';
  * POST   /creator/video-templates { name, video_url, image_count }    -> 201 { data: VideoTemplate }
  * PUT    /creator/video-templates/{id} { name, video_url, image_count } -> { data: VideoTemplate }
  * DELETE /creator/video-templates/{id}                   -> 204
- * VideoTemplate: { id, name, video_url, image_count, synced, source_key, created_at }. Template của người khác -> 404.
+ * PATCH  /creator/video-templates/{id}/enabled { enabled } -> { data: VideoTemplate }  công tắc, cả template đồng bộ;
+ *        tắt thì không random / chọn cho bài video, bài đã tạo giữ nguyên, sync không bật lại
+ * VideoTemplate: { id, name, video_url, image_count, enabled, synced, source_key, created_at }. Template của người khác -> 404.
  * synced: đồng bộ từ máy làm template (D:\video-tmp, npm run sync-templates), video_url null; chỉ xem, sửa / xoá -> 409
  * VIDEO_TEMPLATE_SYNCED. Template bị xoá khỏi máy làm template thì ẩn, không có trong danh sách.
  * image_count: số ảnh template cần (bài video lấy đúng số ảnh này, note/lap-lich-worker.txt); null với template cũ.
@@ -31,6 +33,7 @@ const mapTemplate = (t) => ({
   name: t.name,
   videoUrl: t.video_url ?? '',
   imageCount: t.image_count ?? null,
+  enabled: t.enabled !== false,
   synced: Boolean(t.synced),
   createdAt: t.created_at,
 });
@@ -53,3 +56,6 @@ export const updateVideoTemplate = (id, values) =>
   client.put(`/creator/video-templates/${id}`, toBody(values)).then(({ data }) => mapTemplate(data));
 
 export const deleteVideoTemplate = (id) => client.delete(`/creator/video-templates/${id}`);
+
+export const setVideoTemplateEnabled = (id, enabled) =>
+  client.patch(`/creator/video-templates/${id}/enabled`, { enabled }).then(({ data }) => mapTemplate(data));

@@ -16,6 +16,7 @@ import {
   VIDEO_GAP_MAX_MINUTES,
   VIDEO_STOP_MESSAGES,
   autoCreateVideoPosts,
+  createVideoPost,
   deletePost,
   isVideoEditable,
   listVideoImages,
@@ -64,16 +65,40 @@ function WorkerSelect({ value, onChange, error }) {
   );
 }
 
+/** Nút đáy của 2 tab "Tạo video" (dính đáy popup như form Sửa). */
+function CreateFooter({ onClose, onSubmit, saving }) {
+  return (
+    <div className="sticky bottom-0 -mx-4 -mb-4 flex items-center gap-2 border-t border-surface-container bg-surface-container-lowest p-3">
+      <button
+        type="button"
+        onClick={onClose}
+        disabled={saving}
+        className="h-10 rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container disabled:opacity-50"
+      >
+        Huỷ
+      </button>
+      <button
+        type="button"
+        onClick={onSubmit}
+        disabled={saving}
+        className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+      >
+        <Icon name={saving ? 'progress_activity' : 'movie'} className={`text-lg ${saving ? 'animate-spin' : ''}`} />
+        {saving ? 'Đang tạo...' : 'Tạo lịch làm việc'}
+      </button>
+    </div>
+  );
+}
+
 /**
- * Popup "Tạo video" (note/lap-lich-worker.txt): chọn worker, số bài, giờ đăng bài đầu, khoảng cách tối thiểu / tối đa
- * giữa 2 bài (phút). Hệ thống chọn ngẫu nhiên template + sản phẩm + ảnh, AI viết nội dung (trừ phí từng bài).
+ * Tab "Tự động": chọn worker, số bài, giờ đăng bài đầu, khoảng cách tối thiểu / tối đa giữa 2 bài (phút).
+ * Hệ thống chọn ngẫu nhiên template + sản phẩm + ảnh, AI viết nội dung (trừ phí từng bài).
  */
-export function CreateVideoDialog({ onClose, onCreated }) {
+function AutoCreateForm({ onClose, onCreated, saving, setSaving }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ workerId: '', count: '5', firstAt: toLocalInput(Date.now()), gapMin: '40', gapMax: '60' });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
-  const [saving, setSaving] = useState(false);
   // Giữ khoá khi bấm lại do lỗi mạng, đổi khi người dùng sửa form
   const [idemKey, setIdemKey] = useState(newIdempotencyKey);
 
@@ -124,27 +149,7 @@ export function CreateVideoDialog({ onClose, onCreated }) {
   };
 
   return (
-    <Dialog
-      title="Tạo video"
-      subtitle="Worker dựng video từ template + ảnh sản phẩm rồi tự đăng đúng giờ"
-      onClose={saving ? () => {} : onClose}
-      footer={
-        <>
-          <button type="button" onClick={onClose} disabled={saving} className="h-10 rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container disabled:opacity-50">
-            Huỷ
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={saving}
-            className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
-          >
-            <Icon name={saving ? 'progress_activity' : 'movie'} className={`text-lg ${saving ? 'animate-spin' : ''}`} />
-            {saving ? 'Đang tạo...' : 'Tạo lịch làm việc'}
-          </button>
-        </>
-      }
-    >
+    <>
       <WorkerSelect value={form.workerId} onChange={set('workerId', 'worker_id')} error={errors.worker_id} />
       <TextField
         label="Số bài video"
@@ -194,6 +199,174 @@ export function CreateVideoDialog({ onClose, onCreated }) {
         trước một số phút ngẫu nhiên trong khoảng trên.
       </p>
       {formError && <FormAlert>{formError}</FormAlert>}
+      <CreateFooter onClose={onClose} onSubmit={submit} saving={saving} />
+    </>
+  );
+}
+
+/**
+ * Tab "Thủ công": chủ shop tự chọn worker, template, sản phẩm, ảnh (đúng số ảnh template cần), giờ đăng -> 1 bài.
+ * AI viết tiêu đề / nội dung / hashtag như tab tự động (trừ phí); sửa lại được sau khi tạo.
+ */
+function ManualCreateForm({ onClose, onCreated, saving, setSaving }) {
+  const queryClient = useQueryClient();
+  const templates = useQuery({ queryKey: ['social', 'video-templates'], queryFn: listVideoPostTemplates });
+  const products = useQuery({ queryKey: ['creator', 'products', 'all-50'], queryFn: () => listProducts({ limit: 50 }) });
+  const [form, setForm] = useState({ workerId: '', templateId: '', productId: '', images: [], scheduledAt: toLocalInput(Date.now()) });
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState(null);
+  const [idemKey, setIdemKey] = useState(newIdempotencyKey);
+
+  const template = templates.data?.find((t) => String(t.id) === form.templateId) ?? null;
+
+  const update = (patch, errorKey) => {
+    setForm((f) => ({ ...f, ...patch }));
+    setErrors((er) => ({ ...er, [errorKey]: undefined }));
+    setIdemKey(newIdempotencyKey());
+  };
+  const set = (field, errorKey) => (e) => update({ [field]: e?.target ? e.target.value : e }, errorKey);
+
+  // Đổi template: bỏ bớt ảnh đã chọn nếu template mới cần ít ảnh hơn
+  const changeTemplate = (e) => {
+    const next = templates.data?.find((t) => String(t.id) === e.target.value);
+    update({ templateId: e.target.value, images: next ? form.images.slice(0, next.imageCount) : form.images }, 'video_template_id');
+  };
+
+  const submit = async () => {
+    const er = {};
+    if (!form.workerId) er.worker_id = 'Chọn worker.';
+    if (!template) er.video_template_id = 'Chọn template.';
+    else if (form.images.length !== template.imageCount) er.images = `Template cần đúng ${template.imageCount} ảnh, đã chọn ${form.images.length}.`;
+    if (!form.scheduledAt) er.scheduled_at = 'Chọn giờ đăng.';
+    setErrors(er);
+    setFormError(null);
+    if (Object.keys(er).length) return;
+    setSaving(true);
+    try {
+      await createVideoPost(
+        {
+          workerId: Number(form.workerId),
+          templateId: Number(form.templateId),
+          productId: form.productId ? Number(form.productId) : null,
+          images: form.images,
+          scheduledAt: fromLocalInput(form.scheduledAt),
+        },
+        idemKey,
+      );
+      await queryClient.invalidateQueries({ queryKey: POSTS_KEY });
+      onCreated({ created: 1, requested: 1, stopped: null });
+    } catch (err) {
+      if (err?.errors && Object.keys(err.errors).length) setErrors(err.errors);
+      else setFormError(err?.message || 'Không tạo được bài video, vui lòng thử lại.');
+      setSaving(false);
+    }
+  };
+
+  const imageError = errors.images ?? Object.entries(errors).find(([k]) => k.startsWith('images.'))?.[1];
+
+  return (
+    <>
+      <WorkerSelect value={form.workerId} onChange={set('workerId', 'worker_id')} error={errors.worker_id} />
+      <SelectField
+        label="Video template"
+        value={form.templateId}
+        onChange={changeTemplate}
+        error={errors.video_template_id}
+        hint={templates.data && !templates.data.length ? 'Chưa có template nào đang bật và có số ảnh.' : undefined}
+      >
+        <option value="">{templates.isLoading ? 'Đang tải...' : 'Chọn template'}</option>
+        {(templates.data ?? []).map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name} · {t.imageCount} ảnh
+          </option>
+        ))}
+      </SelectField>
+      <SelectField
+        label="Sản phẩm"
+        value={form.productId}
+        onChange={set('productId', 'product_id')}
+        error={errors.product_id}
+        hint="Chọn sản phẩm để lấy ảnh của sản phẩm đó. Có thể chọn ảnh ở tab Tất cả ảnh."
+      >
+        <option value="">Không theo sản phẩm</option>
+        {(products.data?.items ?? []).map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name || `Sản phẩm #${p.id}`}
+          </option>
+        ))}
+      </SelectField>
+      {template ? (
+        <VideoImagePicker
+          key={form.productId || 'all'}
+          productId={form.productId ? Number(form.productId) : null}
+          selected={form.images}
+          onChange={(images) => update({ images }, 'images')}
+          required={template.imageCount}
+        />
+      ) : (
+        <p className="rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
+          Chọn template để biết cần bao nhiêu ảnh rồi chọn ảnh.
+        </p>
+      )}
+      {imageError && <p className="text-xs text-error">{imageError}</p>}
+      <TextField
+        label="Giờ đăng"
+        icon="schedule"
+        type="datetime-local"
+        value={form.scheduledAt}
+        onChange={set('scheduledAt', 'scheduled_at')}
+        error={errors.scheduled_at}
+      />
+      <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
+        <Icon name="info" className="text-base" />
+        AI viết tiêu đề, nội dung, hashtag từ ảnh đã chọn (trừ một lần phí). Tạo xong bấm vào bài để sửa nếu cần.
+      </p>
+      {formError && <FormAlert>{formError}</FormAlert>}
+      <CreateFooter onClose={onClose} onSubmit={submit} saving={saving} />
+    </>
+  );
+}
+
+const CREATE_TABS = [
+  { value: 'auto', label: 'Tự động', icon: 'auto_awesome' },
+  { value: 'manual', label: 'Thủ công', icon: 'touch_app' },
+];
+
+/**
+ * Popup "Tạo video" (note/lap-lich-worker.txt): tab "Tự động" (mặc định, hệ thống random nhiều bài) và tab "Thủ công"
+ * (chủ shop tự chọn worker / template / sản phẩm / ảnh / giờ đăng cho 1 bài). Cả 2 tab giữ dữ liệu khi chuyển qua lại.
+ */
+export function CreateVideoDialog({ onClose, onCreated }) {
+  const [tab, setTab] = useState('auto');
+  const [saving, setSaving] = useState(false);
+  const formProps = { onClose, onCreated, saving, setSaving };
+
+  return (
+    <Dialog title="Tạo video" subtitle="Worker dựng video từ template + ảnh sản phẩm rồi tự đăng đúng giờ" onClose={saving ? () => {} : onClose}>
+      <div role="tablist" className="grid grid-cols-2 gap-1 rounded-xl bg-surface-container-low p-1 text-sm font-bold">
+        {CREATE_TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.value}
+            disabled={saving}
+            onClick={() => setTab(t.value)}
+            className={`flex h-9 items-center justify-center gap-1.5 rounded-lg disabled:opacity-60 ${
+              tab === t.value ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+            }`}
+          >
+            <Icon name={t.icon} className="text-lg" />
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" className={tab === 'auto' ? 'space-y-3' : 'hidden'}>
+        <AutoCreateForm {...formProps} />
+      </div>
+      <div role="tabpanel" className={tab === 'manual' ? 'space-y-3' : 'hidden'}>
+        <ManualCreateForm {...formProps} />
+      </div>
     </Dialog>
   );
 }
@@ -372,7 +545,7 @@ function VideoPostForm({ post, onSaved, onCancel, footerExtra }) {
         <option value="">{templates.isLoading ? 'Đang tải...' : 'Chọn template'}</option>
         {!template && post.video?.template?.name && form.templateId && (
           <option value={form.templateId} disabled>
-            {post.video.template.name} (đã xoá / chưa có số ảnh)
+            {post.video.template.name} (đã tắt / đã xoá / chưa có số ảnh)
           </option>
         )}
         {(templates.data ?? []).map((t) => (

@@ -80,6 +80,10 @@ Chủ shop (cần hồ sơ người bán):
   POST /api/v1/social/video-posts/auto { worker_id, count, first_at, gap_min, gap_max, idempotency_key }
        -> 201 { data: { created, requested, stopped: null|insufficient_credit|no_template|not_enough_images, post_ids } }
        Không tạo được bài nào: 422 VIDEO_NO_TEMPLATE / VIDEO_NOT_ENOUGH_IMAGES, 402 INSUFFICIENT_CREDIT.
+  POST /api/v1/social/video-posts { worker_id, video_template_id, product_id?, images[{generation_id, output_id}],
+       scheduled_at, idempotency_key } -> 201 { data: SocialPost }
+       Tab "Thủ công" của popup "Tạo video" (tab "Tự động" là mặc định): chủ shop tự chọn worker, template (đang bật),
+       sản phẩm, ảnh (đúng số ảnh template), giờ đăng -> 1 bài; AI viết nội dung như tự động (trừ phí, thiếu -> 402).
   PUT  /api/v1/social/video-posts/{id} { worker_id, video_template_id, product_id, images[{generation_id, output_id}],
        scheduled_at, title, content, hashtags }   (bài Chờ đăng hoặc Lỗi; Đang đăng -> 409 POST_NOT_EDITABLE)
   POST /api/v1/social/video-posts/{id}/retry    "Đăng lại" (Lỗi) / "Tạo lại" (Đang đăng) -> bài về Chờ đăng
@@ -123,6 +127,12 @@ Worker (Authorization: Bearer <token worker>) - PHẦN NGƯỜI LÀM WORKER CẦ
     bài đã tạo giữ nguyên). Template shop tự tạo không bị đụng. 409 VIDEO_ACCOUNT_NOT_ASSIGNED: worker chưa gắn shop.
   Shop: template đồng bộ có nhãn "Đồng bộ", không có link TikTok, chỉ xem (sửa / xoá -> 409 VIDEO_TEMPLATE_SYNCED).
   Migration 2026_11_01_150000_add_sync_to_video_templates.php (source_key, hidden_at, video_url cho phép null).
+
+Công tắc bật / tắt từng template (Quản lý video template, cả template đồng bộ):
+  PATCH /api/v1/creator/video-templates/{id}/enabled { enabled: true|false }
+  Tắt: không random cho bài video mới, không chọn được khi sửa bài (bài đang dùng template đó vẫn giữ / lưu được),
+  bài đã tạo vẫn đăng bình thường. Sync không bật lại template shop đã tắt.
+  Migration 2026_11_01_160000_add_is_enabled_to_video_templates.php.
 
 File chính: backend app/Services/Social/VideoPostService.php, Social/VideoPostController.php,
   WorkerVideoPostController.php, tests/Feature/VideoPostTest.php, migration 2026_11_01_140000_add_video_posts.php.

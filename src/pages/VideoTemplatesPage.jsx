@@ -6,7 +6,7 @@ import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { useConfirm } from '../components/common/ConfirmDialog';
 import { useCreatorProfile } from '../hooks/creatorQueries';
-import { VIDEO_TEMPLATE_KEYS, deleteVideoTemplate, listVideoTemplates } from '../api/videoTemplates';
+import { VIDEO_TEMPLATE_KEYS, deleteVideoTemplate, listVideoTemplates, setVideoTemplateEnabled } from '../api/videoTemplates';
 
 const PAGE_SIZE = 20;
 
@@ -17,6 +17,28 @@ function TemplateRow({ template }) {
   const queryClient = useQueryClient();
   const { confirm, alert } = useConfirm();
   const [deleting, setDeleting] = useState(false);
+  // Công tắc: hiện ngay giá trị mới, lỗi thì trả về như cũ
+  const [enabled, setEnabled] = useState(template.enabled);
+  const [toggling, setToggling] = useState(false);
+  useEffect(() => setEnabled(template.enabled), [template.enabled]);
+
+  const toggle = async (next) => {
+    setEnabled(next);
+    setToggling(true);
+    try {
+      await setVideoTemplateEnabled(template.id, next);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: VIDEO_TEMPLATE_KEYS.all }),
+        // Ô chọn template trong popup bài video
+        queryClient.invalidateQueries({ queryKey: ['social', 'video-templates'] }),
+      ]);
+    } catch (err) {
+      setEnabled(!next);
+      alert(err?.message || 'Không đổi được trạng thái template, vui lòng thử lại.');
+    } finally {
+      setToggling(false);
+    }
+  };
 
   const remove = async () => {
     if (!(await confirm(`Xoá template "${template.name}"?`, { confirmLabel: 'Xoá', danger: true }))) return;
@@ -35,7 +57,7 @@ function TemplateRow({ template }) {
       <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-container text-primary">
         <Icon name="movie" className="text-xl" />
       </span>
-      <div className="min-w-0 flex-1">
+      <div className={`min-w-0 flex-1 ${enabled ? '' : 'opacity-60'}`}>
         <p className="flex items-center gap-1.5 text-sm font-bold text-on-surface">
           <span className="truncate">{template.name}</span>
           {template.synced && (
@@ -46,6 +68,9 @@ function TemplateRow({ template }) {
               <Icon name="sync" className="text-xs" />
               Đồng bộ
             </span>
+          )}
+          {!enabled && (
+            <span className="shrink-0 rounded bg-surface-container px-1 text-[10px] font-bold text-on-surface-variant">Đã tắt</span>
           )}
         </p>
         {template.videoUrl && (
@@ -68,6 +93,22 @@ function TemplateRow({ template }) {
           Tạo lúc {formatDate(template.createdAt)}
         </p>
       </div>
+      {/* Công tắc: tắt thì không dùng cho bài video mới (cả template đồng bộ) */}
+      <label className="flex shrink-0 cursor-pointer items-center" title={enabled ? 'Đang bật: dùng cho bài video' : 'Đã tắt: không dùng nữa'}>
+        <span className="relative inline-flex">
+          <input
+            type="checkbox"
+            role="switch"
+            checked={enabled}
+            disabled={toggling}
+            onChange={(e) => toggle(e.target.checked)}
+            aria-label={`${enabled ? 'Tắt' : 'Bật'} template ${template.name}`}
+            className="peer sr-only"
+          />
+          <span className="h-6 w-10 rounded-full bg-outline-variant transition-colors peer-checked:bg-primary-container peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container/40 peer-disabled:opacity-60" />
+          <span className="absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+        </span>
+      </label>
       {/* Template đồng bộ từ máy làm template: chỉ xem */}
       {!template.synced && (
         <div className="flex shrink-0 gap-1">
