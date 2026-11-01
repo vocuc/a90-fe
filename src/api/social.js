@@ -157,6 +157,8 @@ export const mapImage = (img) => ({
   generationId: img.generation_id,
   outputId: img.output_id,
   status: img.status,
+  // Người dùng đã tắt ảnh ở Lịch sử mua hàng: vẫn hiện (làm mờ) nhưng không chọn để đăng
+  disabled: !!img.disabled,
   url: img.image_url,
   thumbUrl: img.thumb_url || img.image_url,
   errorMessage: img.error_message ?? null,

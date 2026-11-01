@@ -34,13 +34,14 @@ const POLL_INTERVAL = 3000;
  */
 function BatchImage({ img, index, busy, selecting, order, canSelect, onToggle, onView, onEdit, onRegenerate, onUpload, onRemove }) {
   const failed = img.status === IMAGE_STATUS.FAILED;
-  const completed = img.status === IMAGE_STATUS.COMPLETED;
+  // Ảnh đã tắt (ở Lịch sử mua hàng) không chọn để đăng được
+  const completed = img.status === IMAGE_STATUS.COMPLETED && !img.disabled;
   const picked = order >= 0;
   // Tạo lại / sửa nguyên liệu: biết được mẫu đã tạo ra ảnh
   const canRegenerate = !!img.creativeSlug;
 
   const content = img.url ? (
-    <CoverImage src={img.thumbUrl ?? img.url} alt="" className="size-full" />
+    <CoverImage src={img.thumbUrl ?? img.url} alt="" className={`size-full ${img.disabled ? 'opacity-40 grayscale' : ''}`} />
   ) : failed && !busy ? (
     <span className="flex size-full flex-col items-center justify-center gap-1 bg-error-container/40 p-2 text-center text-on-error-container">
       <Icon name="broken_image" className="text-2xl" />
@@ -76,6 +77,12 @@ function BatchImage({ img, index, busy, selecting, order, canSelect, onToggle, o
         <span className="absolute left-1.5 top-1.5 rounded bg-black/60 px-1.5 text-[10px] font-semibold text-white">
           {index + 1}
         </span>
+        {img.disabled && !busy && (
+          <span className="pointer-events-none absolute inset-x-1.5 bottom-1.5 flex items-center justify-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+            <Icon name="visibility_off" className="text-xs" />
+            Đã tắt
+          </span>
+        )}
         {busy && (
           <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50 text-white">
             <Icon name="progress_activity" className="animate-spin text-2xl" />
@@ -189,7 +196,8 @@ export default function BatchPage() {
   };
 
   const isBusy = (img) => isImageBusy(img) || requesting.includes(img.id);
-  const completed = batch?.images.filter((i) => i.status === IMAGE_STATUS.COMPLETED) ?? [];
+  // Ảnh dùng được để đăng: đã xong và chưa bị tắt
+  const completed = batch?.images.filter((i) => i.status === IMAGE_STATUS.COMPLETED && !i.disabled) ?? [];
   const generating = batch?.images.some(isImageBusy) ?? false;
 
   // Tạo lại một ảnh: chạy lại mẫu đã tạo ra ảnh đó (tính phí), ảnh mới thay vào đúng vị trí cũ.

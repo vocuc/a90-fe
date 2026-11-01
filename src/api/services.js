@@ -327,6 +327,8 @@ export const creatorPageApi = {
  * POST /generations/{id}/retry  { output_ids, idempotency_key } -> 202 { data: generation mới } (trừ tiền lại)
  * GET  /generations/{id}/outputs/{outputId}/download -> { data: { url, filename, expires_in_minutes } }
  *   url ký số có Content-Disposition: attachment -> mở là tải về
+ * POST /generations/{id}/outputs/{outputId}/disable -> 204. Người dùng tự tắt ảnh (không hoàn tiền): ảnh không còn trong
+ *   outputs của lịch sử, không tải về, không chọn cho bài đăng, không gửi worker. 409 IMAGE_NOT_READY nếu ảnh chưa xong.
  * generation: { id, status, creative: { id, slug, title }, quantity, aspect_ratio, price_per_image, total_charged,
  *               success_count, failed_count, outputs?: [{ id, position, status, image_url, thumb_url, error_message }], created_at }
  *   thumb_url: ảnh nhỏ để hiển thị, image_url: ảnh gốc (chỉ dùng khi phóng to)
@@ -369,4 +371,5 @@ export const generationApi = {
   download: requireRealBackend((id, outputId) =>
     client.get(`/generations/${id}/outputs/${outputId}/download`).then(({ data }) => data),
   ),
+  disableOutput: requireRealBackend((id, outputId) => client.post(`/generations/${id}/outputs/${outputId}/disable`)),
 };

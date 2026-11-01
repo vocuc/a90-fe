@@ -4,7 +4,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
-import { thumbOf, useDownloadOutput, useGenerationHistory } from '../hooks/generationQueries';
+import { useConfirm } from '../components/common/ConfirmDialog';
+import { thumbOf, useDisableOutput, useDownloadOutput, useGenerationHistory } from '../hooks/generationQueries';
 import { formatVnd } from '../utils/format';
 
 // Khớp GenerationStatus của backend
@@ -22,10 +23,19 @@ const formatDateTime = (iso) =>
 // Mỗi ảnh đã tạo là một thẻ (giống thẻ ở Khám phá). Đơn chưa có ảnh (đang tạo, lỗi, huỷ) hiện một thẻ trạng thái.
 function ImageCard({ order, output, onView }) {
   const download = useDownloadOutput();
+  const disable = useDisableOutput();
+  const { confirm } = useConfirm();
   const [broken, setBroken] = useState(false);
   const status = STATUS[order.status] ?? { label: order.status, className: 'bg-surface-container text-on-surface-variant' };
-  // Ảnh tải lỗi (link hết hạn, file mất...) thì ẩn thẻ
-  if (output && broken) return null;
+
+  const handleDisable = async () => {
+    const ok = await confirm('Ảnh sẽ bị ẩn khỏi lịch sử, không tải về và không dùng để đăng bài được nữa. Không hoàn tiền.', {
+      title: 'Tắt ảnh này?',
+      confirmLabel: 'Tắt ảnh',
+      danger: true,
+    });
+    if (ok) disable.mutate({ generationId: order.id, outputId: output.id });
+  };
 
   const title = order.creative ? (
     <Link to={`/creatives/${encodeURIComponent(order.creative.slug)}`} className="hover:text-primary">
@@ -37,7 +47,13 @@ function ImageCard({ order, output, onView }) {
 
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-outline-variant/40 bg-surface-container-lowest shadow-sm transition-shadow hover:shadow-md">
-      {output ? (
+      {output && broken ? (
+        // Ảnh tải lỗi (file mất...): giữ thẻ để người dùng tắt ảnh
+        <div className="flex aspect-square w-full flex-col items-center justify-center gap-2 bg-surface-container text-on-surface-variant">
+          <Icon name="broken_image" className="text-3xl" />
+          <span className="text-[11px] font-bold">Ảnh bị lỗi</span>
+        </div>
+      ) : output ? (
         <button
           type="button"
           onClick={() => onView(output)}
@@ -71,19 +87,35 @@ function ImageCard({ order, output, onView }) {
         </p>
         {!output && order.failed_count > 0 && <p className="text-[11px] text-error">{order.failed_count} ảnh lỗi (đã hoàn tiền)</p>}
         {download.error && <p className="text-[11px] text-error">{download.error.message}</p>}
+        {disable.error && <p className="text-[11px] text-error">{disable.error.message}</p>}
         <div className="mt-auto pt-2.5">
           <div className="space-y-2 border-t border-surface-container pt-2.5">
             <p className="text-xs font-bold text-primary">{formatVnd(output ? order.price_per_image : order.total_charged)}</p>
             {output && (
-              <button
-                type="button"
-                onClick={() => download.mutate({ generationId: order.id, outputId: output.id })}
-                disabled={download.isPending}
-                className="flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-primary-container text-xs font-bold text-on-primary transition-colors hover:bg-primary disabled:opacity-50"
-              >
-                <Icon name={download.isPending ? 'progress_activity' : 'download'} className={`text-sm ${download.isPending ? 'animate-spin' : ''}`} />
-                Tải về
-              </button>
+              <div className="flex gap-1.5">
+                {!broken && (
+                  <button
+                    type="button"
+                    onClick={() => download.mutate({ generationId: order.id, outputId: output.id })}
+                    disabled={download.isPending}
+                    className="flex h-8 flex-1 items-center justify-center gap-1 rounded-lg bg-primary-container text-xs font-bold text-on-primary transition-colors hover:bg-primary disabled:opacity-50"
+                  >
+                    <Icon name={download.isPending ? 'progress_activity' : 'download'} className={`text-sm ${download.isPending ? 'animate-spin' : ''}`} />
+                    Tải về
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleDisable}
+                  disabled={disable.isPending}
+                  aria-label="Tắt ảnh"
+                  title="Tắt ảnh"
+                  className={`flex h-8 items-center justify-center gap-1 rounded-lg border border-outline-variant text-xs font-bold text-on-surface-variant transition-colors hover:border-error hover:text-error disabled:opacity-50 ${broken ? 'flex-1' : 'w-8'}`}
+                >
+                  <Icon name={disable.isPending ? 'progress_activity' : 'visibility_off'} className={`text-sm ${disable.isPending ? 'animate-spin' : ''}`} />
+                  {broken && 'Tắt ảnh'}
+                </button>
+              </div>
             )}
           </div>
         </div>

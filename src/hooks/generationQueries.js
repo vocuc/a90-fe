@@ -45,6 +45,15 @@ export const useGenerationHistory = (limit = 10) =>
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
   });
 
+/** Tắt ảnh đã tạo (không hoàn tiền): ảnh biến khỏi lịch sử và các nơi chọn ảnh. */
+export const useDisableOutput = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ generationId, outputId }) => generationApi.disableOutput(generationId, outputId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['generations'] }),
+  });
+};
+
 const clickLink = (href, filename) => {
   const a = document.createElement('a');
   a.href = href;
