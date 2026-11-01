@@ -1,0 +1,81 @@
+THẢO LUẬN: TÍNH NĂNG QUẢN LÝ WORKER
+Ngày: 2026-11-01
+
+==================================================
+0. HIỆN TRẠNG (để tham khảo khi thảo luận)
+==================================================
+Worker = máy nội bộ chạy bằng token, gọi API backend (repo a90.local):
+- Tạo ảnh: GET /api/v1/jobs, chỉ nhận job của các tài khoản A51 admin gắn cho worker (imageUsers, nhiều tài khoản).
+- Đăng bài: GET /api/v1/publish-jobs, chỉ worker được gắn tài khoản đăng bài của một nền tảng.
+- Tạo video: GET /api/v1/video-images, worker được gắn tối đa 1 tài khoản tạo video (videoUser).
+- Mỗi lần worker gọi API thì cập nhật last_seen_at.
+
+Trang admin (web, /admin/workers) đang có:
+- Danh sách, tạo worker (nhập tên -> sinh token), xem chi tiết.
+- Đổi tên, đổi token (token cũ hết hiệu lực ngay), bật / tắt worker.
+- Gắn / gỡ tài khoản tạo ảnh, đặt / bỏ tài khoản tạo video.
+- Xem lại token (worker tạo sau khi có lưu token mã hoá).
+
+Frontend (a90-fe) chưa có trang nào về worker.
+
+==================================================
+1. MỤC ĐÍCH
+==================================================
+Chu shop xem dc cac worker đã được gắn cho mình
+
+==================================================
+2. AI DÙNG / QUẢN LÝ WORKER
+==================================================
+(Chỉ admin như hiện tại? Hay chủ shop tự thêm / quản lý worker của shop mình trên a90-fe?)
+chủ shop
+
+==================================================
+3. LUỒNG MUỐN THỰC HIỆN
+==================================================
+Bước 1. vào trang công cụ
+
+Bước 2. bấm quản lý Worker
+
+Bước 3. hiển thị danh sách worker được cấp và chức năng của worker đó là gì
+
+
+==================================================
+4. THÔNG TIN CẦN XEM / THAO TÁC TRÊN MỘT WORKER
+==================================================
+(VD: tên, trạng thái online / offline theo last_seen_at, bật / tắt, token, loại việc (ảnh / đăng bài / video),
+tài khoản được gắn, số job đang chạy / đã xong / lỗi, ...)
+-
+
+
+==================================================
+5. LỐI VÀO / GIAO DIỆN
+==================================================
+(VD: Công cụ -> Quản lý -> "Quản lý worker"?)
+-
+
+
+==================================================
+6. CÂU HỎI CÒN MỞ
+==================================================
+-
+
+==================================================
+7. ĐÃ CHỐT (2026-11-01)
+==================================================
+- Chủ shop (có hồ sơ người bán) chỉ XEM worker admin đã gắn cho mình. Thêm / gắn / bật tắt / đổi token vẫn ở trang admin.
+- Worker "gắn cho shop" khi có ít nhất 1 chức năng của shop:
+    Tạo ảnh: tài khoản shop nằm trong tài khoản tạo ảnh của worker
+    Đăng bài: worker giữ tài khoản đăng bài của shop
+    Tạo video: worker lấy ảnh tạo video từ tài khoản shop
+  Worker đang tắt không hiện.
+- Mỗi worker hiện: tên, chức năng, nền tảng + kênh đăng bài (nếu có), online / offline (gọi API trong 5 phút gần
+  đây) + lần hoạt động cuối, token (ẩn mặc định, bấm hiện / sao chép; worker cũ chưa lưu token -> "liên hệ admin").
+- Lối vào: Công cụ -> Quản lý -> "Quản lý worker" (/seller/workers). Tự tải lại mỗi phút.
+
+==================================================
+8. TRIỂN KHAI
+==================================================
+Backend: GET /api/v1/creator/workers (middleware "creator", ShopWorkerController) -> { data: [{ id, name,
+  functions: ['image'|'publish'|'video'], publish_account: { platform, platform_label, name } | null, online,
+  last_seen_at, token }] }, sắp theo tên. Test: tests/Feature/ShopWorkerTest.php.
+Frontend: src/api/workers.js, src/pages/WorkersPage.jsx.

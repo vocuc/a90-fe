@@ -33,6 +33,7 @@ import BatchPage from './pages/BatchPage';
 import ProductsPage from './pages/ProductsPage';
 import CreativeGroupsPage from './pages/CreativeGroupsPage';
 import VideoTemplatesPage from './pages/VideoTemplatesPage';
+import WorkersPage from './pages/WorkersPage';
 import VideoTemplateFormPage from './pages/VideoTemplateFormPage';
 import ShippingOrdersPage from './pages/ShippingOrdersPage';
 import ShippingOrderNewPage from './pages/ShippingOrderNewPage';
@@ -73,6 +74,8 @@ export default function App() {
           <Route path="seller/creative-groups" element={<CreativeGroupsPage />} />
           {/* Quản lý video template (note/quan-ly-video-template.txt) */}
           <Route path="seller/video-templates" element={<VideoTemplatesPage />} />
+          {/* Worker admin gắn cho shop, chỉ xem (note/quan-ly-worker.txt) */}
+          <Route path="seller/workers" element={<WorkersPage />} />
           {/* Tạo ảnh theo lô (note/tach-lo-anh-dang-tiktok.txt). Trang rộng, tự chia cột trên desktop */}
           <Route path="batches" element={<BatchesPage />} />
           <Route path="batches/new" element={<BatchNewPage />} />
