@@ -106,7 +106,7 @@ export default function CreativeGroupsPage() {
     <>
       <header className="sticky top-[60px] z-30 flex items-center gap-2 border-b border-surface-container bg-surface-container-lowest/90 px-2 py-2 backdrop-blur-md">
         <Link
-          to={hasProfile ? '/seller/creatives' : '/account'}
+          to={hasProfile ? '/seller/creatives' : '/tools'}
           aria-label="Quay lại"
           className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container"
         >

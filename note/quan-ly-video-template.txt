@@ -1,0 +1,47 @@
+TÍNH NĂNG: QUẢN LÝ VIDEO TEMPLATE
+Ngày: 2026-11-01
+
+==================================================
+1. MỤC ĐÍCH
+==================================================
+Quản lý các teamplate dùng để tạo video
+
+==================================================
+2. LUỒNG MUỐN THỰC HIỆN
+==================================================
+Bước 1.
+    người dùng vào trang công cụ bấm tab quản lý teamplate
+Bước 2.
+    Người dùng nhập tên tempalte
+    Link video tiktok mẫu làm từ tempalte đó sau đó bấm lưu lại
+Bước 3.
+    đưa người dùng về trang danh sách teamplate
+
+==================================================
+3. DỮ LIỆU CỦA MỘT VIDEO TEMPLATE
+==================================================
+- Tên
+- Link video mẫu
+- Ngày tạo
+
+==================================================
+4. ĐÃ CHỐT (2026-11-01)
+==================================================
+- Chỉ chủ shop (có hồ sơ người bán) dùng được; chưa mở cửa hàng thì thẻ ở trang Công cụ bị khoá. Mỗi shop chỉ thấy
+  template của mình.
+- Có thêm, sửa (tên, link) và xoá (hỏi xác nhận).
+- Danh sách: tên, ngày tạo, link video mẫu bấm mở TikTok ở tab mới (không nhúng video).
+- Link bắt buộc là link TikTok (tiktok.com, www.tiktok.com, vt.tiktok.com, vm.tiktok.com), link khác báo lỗi.
+
+==================================================
+5. TRIỂN KHAI
+==================================================
+Backend (cần hồ sơ người bán, middleware "creator"; template của người khác -> 404):
+  GET    /creator/video-templates?page=&per_page=   -> { data: VideoTemplate[], meta } (mới tạo trước)
+  POST   /creator/video-templates { name, video_url } -> 201 { data: VideoTemplate }
+  PUT    /creator/video-templates/{id} { name, video_url } -> { data: VideoTemplate }
+  DELETE /creator/video-templates/{id}               -> 204
+  VideoTemplate: { id, name, video_url, created_at }
+  Lỗi: 422 errors.name (bắt buộc, <= 150 ký tự), errors.video_url (bắt buộc, link TikTok, <= 500 ký tự).
+Frontend: Công cụ -> Quản lý -> "Quản lý video template" (/seller/video-templates). Danh sách + nút Thêm; thêm / sửa
+  ở trang riêng (/seller/video-templates/new, /seller/video-templates/:id/edit), lưu xong về danh sách.

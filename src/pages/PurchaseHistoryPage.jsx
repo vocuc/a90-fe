@@ -248,7 +248,7 @@ export default function PurchaseHistoryPage() {
           <button
             type="button"
             // Mở thẳng link thì về trang tài khoản thay vì thoát khỏi app
-            onClick={() => (location.key === 'default' ? navigate('/account', { replace: true }) : navigate(-1))}
+            onClick={() => (location.key === 'default' ? navigate('/tools', { replace: true }) : navigate(-1))}
             aria-label="Quay lại"
             className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container"
           >

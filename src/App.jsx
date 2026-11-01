@@ -32,6 +32,8 @@ import BatchNewPage from './pages/BatchNewPage';
 import BatchPage from './pages/BatchPage';
 import ProductsPage from './pages/ProductsPage';
 import CreativeGroupsPage from './pages/CreativeGroupsPage';
+import VideoTemplatesPage from './pages/VideoTemplatesPage';
+import VideoTemplateFormPage from './pages/VideoTemplateFormPage';
 import ShippingOrdersPage from './pages/ShippingOrdersPage';
 import ShippingOrderNewPage from './pages/ShippingOrderNewPage';
 import ShippingOrderPage from './pages/ShippingOrderPage';
@@ -69,6 +71,8 @@ export default function App() {
           {/* Tạo lô tự động (note/auto-tao-lo.txt). Không dùng seller/products: link cũ của Quản lý Creative */}
           <Route path="seller/items" element={<ProductsPage />} />
           <Route path="seller/creative-groups" element={<CreativeGroupsPage />} />
+          {/* Quản lý video template (note/quan-ly-video-template.txt) */}
+          <Route path="seller/video-templates" element={<VideoTemplatesPage />} />
           {/* Tạo ảnh theo lô (note/tach-lo-anh-dang-tiktok.txt). Trang rộng, tự chia cột trên desktop */}
           <Route path="batches" element={<BatchesPage />} />
           <Route path="batches/new" element={<BatchNewPage />} />
@@ -99,6 +103,8 @@ export default function App() {
           <Route element={<PageColumn />}>
             <Route path="create" element={<CreatePage />} />
             <Route path="seller/settings" element={<StoreSettingsPage />} />
+            <Route path="seller/video-templates/new" element={<VideoTemplateFormPage />} />
+            <Route path="seller/video-templates/:id/edit" element={<VideoTemplateFormPage />} />
             {/* AI viết nội dung bài đăng: kho hashtag, bài mẫu, độ dài (note/ai-viet-noi-dung-bai-dang.txt) */}
             <Route path="seller/ai-content" element={<AiContentPage />} />
             <Route path="account" element={<AccountPage />} />

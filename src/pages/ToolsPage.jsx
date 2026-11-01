@@ -36,7 +36,7 @@ function ToolCard({ to, icon, title, description, locked, lockHint }) {
 
 /**
  * Trang Công cụ: công cụ (TOOLS) và mục Quản lý. Mục cần profile người bán (needsShop / Quản lý Creative, sản phẩm,
- * AI viết nội dung) khoá khi chưa mở cửa hàng. Chưa đăng nhập: không khoá, bấm vào RequireAuth chuyển sang trang đăng nhập.
+ * video template, AI viết nội dung) khoá khi chưa mở cửa hàng. Chưa đăng nhập: không khoá, bấm vào RequireAuth chuyển sang trang đăng nhập.
  */
 export default function ToolsPage() {
   useSeo({
@@ -52,6 +52,8 @@ export default function ToolsPage() {
     { to: '/seller/creatives', icon: 'inventory_2', title: 'Quản lý Creative', description: 'Tạo, sửa và đăng bán mẫu AI Creative', locked: noShop },
     { to: '/seller/items', icon: 'shopping_bag', title: 'Quản lý sản phẩm', description: 'Sản phẩm dùng để tạo ảnh theo lô tự động', locked: noShop },
     { to: '/seller/settings', icon: 'tune', title: 'Quản lý cửa hàng', description: 'Tên cửa hàng, ảnh đại diện và ảnh bìa' },
+    // note/quan-ly-video-template.txt
+    { to: '/seller/video-templates', icon: 'movie', title: 'Quản lý video template', description: 'Tên và video TikTok mẫu của từng template', locked: noShop },
     // AI viết nội dung bài đăng (note/ai-viet-noi-dung-bai-dang.txt): chỉ hiện khi backend bật tính năng
     ...(me?.socialAi?.enabled
       ? [{ to: '/seller/ai-content', icon: 'auto_awesome', title: 'AI viết nội dung', description: 'Kho hashtag, bài mẫu và độ dài nội dung bài đăng', locked: noShop }]
