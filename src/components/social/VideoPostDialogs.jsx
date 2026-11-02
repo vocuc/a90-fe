@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Dialog from '../common/Dialog';
 import Icon from '../common/Icon';
 import CoverImage from '../common/CoverImage';
+import ImageViewer from '../common/ImageViewer';
 import { ErrorState, Skeleton } from '../common/Feedback';
 import Pagination from '../common/Pagination';
 import { FormAlert, SelectField, TextArea, TextField } from '../common/Form';
@@ -386,6 +387,8 @@ const ORDER_BTN =
 function SelectedImages({ selected, onChange, large }) {
   // Vị trí đang kéo tới, null = không kéo
   const [dropIndex, setDropIndex] = useState(null);
+  // Ảnh đang xem phóng to
+  const [viewing, setViewing] = useState(null);
   const sortable = selected.length > 1;
 
   const move = (from, to) => {
@@ -421,7 +424,10 @@ function SelectedImages({ selected, onChange, large }) {
 
   return (
     <div className="space-y-1">
-      {sortable && <p className="text-[11px] text-on-surface-variant">Thứ tự ảnh trong video. Kéo thả hoặc bấm mũi tên để đổi.</p>}
+      <ImageViewer src={viewing} alt="Ảnh của bài" onClose={() => setViewing(null)} />
+      <p className="text-[11px] text-on-surface-variant">
+        {sortable ? 'Thứ tự ảnh trong video. Bấm ảnh để xem lớn, kéo thả hoặc bấm mũi tên để đổi thứ tự.' : 'Bấm ảnh để xem lớn.'}
+      </p>
       <ul className="flex flex-wrap gap-2">
         {selected.map((img, i) => (
           <li key={img.key} className={`shrink-0 space-y-1 ${large ? 'w-24' : 'w-16'}`} {...dragProps(i)}>
@@ -430,7 +436,14 @@ function SelectedImages({ selected, onChange, large }) {
                 sortable ? 'cursor-grab' : ''
               }`}
             >
-              <CoverImage src={img.thumbUrl} alt="" className="aspect-square w-full" />
+              <button
+                type="button"
+                onClick={() => setViewing(img.url || img.thumbUrl)}
+                aria-label={`Xem lớn ảnh ${i + 1}`}
+                className="block w-full cursor-zoom-in"
+              >
+                <CoverImage src={img.thumbUrl} alt="" className="aspect-square w-full" />
+              </button>
               <span className="absolute left-0.5 top-0.5 rounded bg-black/60 px-1 text-[10px] font-bold text-white">{i + 1}</span>
               <button
                 type="button"
@@ -566,7 +579,7 @@ function VideoPostForm({ post, onSaved, footerExtra }) {
     workerId: post.video?.worker?.id ? String(post.video.worker.id) : '',
     templateId: post.video?.template?.id ? String(post.video.template.id) : '',
     productId: post.video?.product?.id ? String(post.video.product.id) : '',
-    images: post.images.map((i) => ({ key: i.key, generationId: i.generationId, outputId: i.outputId, thumbUrl: i.thumbUrl })),
+    images: post.images.map((i) => ({ key: i.key, generationId: i.generationId, outputId: i.outputId, thumbUrl: i.thumbUrl, url: i.url })),
     scheduledAt: toLocalInput(post.video?.scheduledAt ?? Date.now()),
     title: post.title,
     content: post.content,
