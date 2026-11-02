@@ -1,8 +1,12 @@
 import client from './client';
 
 /*
- * ---- Worker admin gắn cho shop (note/quan-ly-worker.txt), cần hồ sơ người bán (403 khi chưa có shop), chỉ xem ----
+ * ---- Worker admin gắn cho shop (note/quan-ly-worker.txt), cần hồ sơ người bán (403 khi chưa có shop) ----
  * GET /creator/workers -> { data: ShopWorker[] } (theo tên; worker đang tắt không có)
+ * PATCH /creator/workers/{id}/name { name } -> ShopWorker. Tên dùng chung (admin + shop khác cùng được gắn thấy tên mới),
+ *   duy nhất, tối đa 100 ký tự -> 422 errors["name"]. Worker không gắn cho shop / đang tắt -> 404.
+ * POST /creator/workers/{id}/token -> ShopWorker (token mới). Token cũ hết hiệu lực ngay; token dùng chung (admin + shop
+ *   khác cùng được gắn thấy token mới). Worker không gắn cho shop / đang tắt -> 404.
  * ShopWorker: { id, name, type: 'image'|'publish', functions: ('image'|'publish'|'video')[], online (gọi API trong 5 phút),
  *   last_seen_at | null,
  *   (publish + video: worker đăng bài ảnh / video được giao và tạo video cho shop, note/gop-luong-dang-bai.txt)
@@ -29,6 +33,10 @@ const mapWorker = (w) => ({
 });
 
 export const listWorkers = () => client.get('/creator/workers').then(({ data }) => data.map(mapWorker));
+
+export const regenerateWorkerToken = (id) => client.post(`/creator/workers/${id}/token`).then(mapWorker);
+
+export const renameWorker = (id, name) => client.patch(`/creator/workers/${id}/name`, { name }).then(mapWorker);
 
 /*
  * ---- Worker tạo ảnh để chọn khi tạo ảnh / tạo lô (note/chon-worker-tao-anh.txt), mọi tài khoản đã đăng nhập ----

@@ -104,3 +104,25 @@ Backend: migration 2026_11_02_110000_add_type_to_workers.php (thêm workers.type
   (PATCH /admin/workers/{id}/type), bỏ mục "Shop đăng bài".
   GET /creator/workers trả thêm type (image | publish); functions: image -> ['image'], publish -> ['publish', 'video'].
 Frontend: ô chọn worker ở trang bài đăng / popup "Tạo video" chỉ hiện worker loại Đăng bài (useShopWorkers lọc type).
+
+==================================================
+10. SHOP ĐỔI TÊN WORKER (2026-11-02)
+==================================================
+- Chủ shop đổi được tên worker được gắn cho shop (bấm bút cạnh tên ở /seller/workers, Enter lưu, Esc huỷ).
+- Đổi thẳng tên worker (dùng chung): admin và các shop khác cùng được gắn worker đều thấy tên mới. Tên duy nhất,
+  tối đa 100 ký tự, như ở trang admin. Chỉ để hiển thị, máy worker đang chạy không bị ảnh hưởng.
+Backend: PATCH /api/v1/creator/workers/{id}/name { name } -> worker (như phần tử của GET /creator/workers).
+  Worker không gắn cho shop / đang tắt -> 404; trùng / trống / quá dài -> 422 errors.name. Audit: creator.worker.rename.
+  Test: tests/Feature/ShopWorkerTest.php.
+Frontend: src/api/workers.js (renameWorker), src/pages/WorkersPage.jsx (WorkerName).
+
+==================================================
+11. SHOP TẠO LẠI TOKEN WORKER (2026-11-02)
+==================================================
+- Chủ shop tạo lại token worker được gắn cho shop (nút mũi tên xoay ở dòng Token, hỏi xác nhận). Token cũ hết hiệu lực
+  ngay, máy worker phải dán token mới vào .env. Tạo xong hiện sẵn token mới để sao chép.
+- Token dùng chung: admin và các shop khác cùng được gắn worker đều thấy token mới (máy của họ cũng phải đổi token).
+- Worker cũ chưa lưu token: shop bấm tạo token mới để có token (không cần liên hệ admin).
+Backend: POST /api/v1/creator/workers/{id}/token -> worker (token mới). Không gắn cho shop / đang tắt -> 404.
+  Audit: creator.worker.regenerate_token. Test: tests/Feature/ShopWorkerTest.php.
+Frontend: src/api/workers.js (regenerateWorkerToken), src/pages/WorkersPage.jsx (TokenRow).
