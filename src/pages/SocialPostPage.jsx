@@ -70,7 +70,7 @@ const formErrorsFrom = (errors) =>
 const publishedPlatforms = (post) => post.platforms.filter((p) => p.status === PLATFORM_STATUS.PUBLISHED).map((p) => p.platform);
 
 /*
- * Worker chọn ở thanh tiêu đề (note/gop-luong-dang-bai.txt): bài đã giao worker thì chọn sẵn worker đó, không thì worker
+ * Worker chọn trong phần soạn bài (note/gop-luong-dang-bai.txt): bài đã giao worker thì chọn sẵn worker đó, không thì worker
  * chọn lần trước (localStorage, lỗi / bị chặn thì bỏ qua), không có thì worker đăng bài đầu tiên của shop.
  */
 const WORKER_PREF_KEY = 'a51_post_worker';
@@ -103,47 +103,6 @@ function usePostWorker(post) {
     saveWorkerPref(id);
   };
   return { workers, isLoading: query.isLoading, error: query.error, workerId: String(workerId), setWorkerId };
-}
-
-/**
- * Ô chọn worker trên thanh tiêu đề. Bài worker đã nhận / đã đăng: chỉ hiện worker của bài. Shop chưa có hồ sơ người bán
- * (403): ẩn.
- */
-function HeaderWorkerSelect({ worker, post }) {
-  const locked = post && !isPostEditable(post);
-  if (locked) {
-    return post.worker ? (
-      <span className="flex min-w-0 max-w-[45%] items-center gap-1 truncate rounded-xl bg-surface-container-low px-2 py-1.5 text-xs font-semibold text-on-surface sm:max-w-[280px]">
-        <Icon name="smart_toy" className="shrink-0 text-lg text-primary" />
-        <span className="truncate">{post.worker.name}</span>
-      </span>
-    ) : null;
-  }
-  if (worker.error) return null;
-  return (
-    <label className="flex min-w-0 max-w-[45%] shrink items-center gap-1 rounded-xl bg-surface-container-low pl-2 sm:max-w-[280px]">
-      <Icon name="smart_toy" className="shrink-0 text-lg text-primary" />
-      <span className="sr-only">Worker làm việc</span>
-      <select
-        value={worker.workerId}
-        onChange={(e) => worker.setWorkerId(e.target.value)}
-        disabled={worker.isLoading || !worker.workers?.length}
-        className="h-9 min-w-0 flex-1 truncate border-0 bg-transparent py-0 pl-1 pr-7 text-xs font-semibold text-on-surface focus:ring-0 disabled:opacity-60"
-      >
-        {worker.isLoading ? (
-          <option value="">Đang tải worker...</option>
-        ) : !worker.workers?.length ? (
-          <option value="">Chưa có worker</option>
-        ) : (
-          worker.workers.map((w) => (
-            <option key={w.id} value={w.id}>
-              {workerLabel(w)}
-            </option>
-          ))
-        )}
-      </select>
-    </label>
-  );
 }
 
 // Kiểu dữ liệu kéo thả để đổi thứ tự ảnh (bỏ qua file kéo từ máy vào)
@@ -275,8 +234,7 @@ function ImageStrip({ images, editable, onRemove, onAdd, onMove }) {
                     title="Bỏ khỏi bài"
                     className={`${STRIP_BTN} min-w-0 flex-1 hover:border-error hover:text-error`}
                   >
-                    <Icon name="delete" className="text-sm" />
-                    <span className="truncate">Bỏ</span>
+                    <Icon name="delete" className="text-base" />
                   </button>
                 </div>
               )}
@@ -549,11 +507,12 @@ function PlatformPicker({ value, onChange, done, limitError, error }) {
 
 /**
  * Soạn và đăng bài (chờ gửi / chờ tới giờ), note/gop-luong-dang-bai.txt. Dùng chung cho bài ảnh và bài video (type: tab
- * đang chọn). Worker lấy từ ô chọn trên thanh tiêu đề. Bài video: chọn template; thiếu ảnh so với số ảnh template cần thì
+ * đang chọn). Worker chọn ở ô đầu form. Bài video: chọn template; thiếu ảnh so với số ảnh template cần thì
  * yêu cầu thêm ảnh, thừa thì bỏ bớt. Chọn nền tảng, giờ đăng (mặc định bây giờ) rồi bấm Đăng bài: bài sang "Chờ đăng",
  * tới giờ worker nhận và đăng. Chuyển tab Ảnh / Video không mất chỉnh sửa.
  */
-function PostEditor({ post, type, workerId, hasWorkers }) {
+function PostEditor({ post, type, worker }) {
+  const { workerId } = worker;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const video = type === POST_TYPE.VIDEO;
@@ -644,7 +603,7 @@ function PostEditor({ post, type, workerId, hasWorkers }) {
 
   const validate = () => {
     const e = {};
-    if (!workerId) e.worker = 'Chọn worker ở thanh tiêu đề phía trên.';
+    if (!workerId) e.worker = 'Chọn worker làm việc.';
     if (!form.images.length) e.images = 'Bài đăng cần ít nhất một ảnh.';
     else if (!video && form.images.length > PHOTO_MAX_COUNT) e.images = `Bài đăng tối đa ${PHOTO_MAX_COUNT} ảnh.`;
     if (video) {
@@ -760,49 +719,37 @@ function PostEditor({ post, type, workerId, hasWorkers }) {
           </p>
         )}
         {post.platforms.length > 0 && <PlatformStatusList platforms={post.platforms} showErrors />}
-        {video && template && missing > 0 && (
-          <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 sm:flex-row sm:items-center">
-            <p className="flex flex-1 items-start gap-2">
-              <Icon name="add_photo_alternate" className="text-base" />
-              <span>
-                Template <b>{template.name}</b> cần <b>{required} ảnh</b>, bài mới có {form.images.length}. Thêm <b>{missing} ảnh</b> nữa để
-                tạo video.
-              </span>
-            </p>
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg bg-amber-600 px-3 font-bold text-white hover:bg-amber-700"
-            >
-              <Icon name="add" className="text-base" />
-              Thêm {missing} ảnh
-            </button>
-          </div>
-        )}
-        {video && template && extra > 0 && (
-          <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
-            <Icon name="info" className="text-base" />
-            <span>
-              Template chỉ cần <b>{required} ảnh</b>: bấm <b>Bỏ</b> ở {extra} ảnh không muốn dùng. Thứ tự ảnh là thứ tự trong video.
-            </span>
-          </p>
-        )}
-        <ImageStrip
-          images={form.images}
-          editable
-          onRemove={(key) => set('images')(form.images.filter((i) => i.key !== key))}
-          onAdd={() => setAdding(true)}
-          onMove={moveImage}
-        />
-        {errors.images && <p className="text-xs text-error">{errors.images}</p>}
-      </div>
-
-      <div className="space-y-6">
-        {errors.worker && <FormAlert>{errors.worker}</FormAlert>}
-        {!hasWorkers && !errors.worker && (
-          <p className="text-xs text-amber-700">Shop chưa được gắn worker nào, liên hệ A51 để được gắn worker đăng bài.</p>
-        )}
-
+        <SelectField
+          label="Worker làm việc"
+          value={workerId}
+          onChange={(e) => {
+            worker.setWorkerId(e.target.value);
+            setErrors((er) => ({ ...er, worker: undefined }));
+          }}
+          disabled={worker.isLoading || !worker.workers?.length}
+          error={errors.worker}
+          hint={
+            worker.error
+              ? worker.error.status === 403
+                ? 'Cần mở cửa hàng (hồ sơ người bán) để giao bài cho worker.'
+                : 'Không tải được danh sách worker, tải lại trang để thử lại.'
+              : !worker.isLoading && !worker.workers?.length
+                ? 'Shop chưa được gắn worker nào, liên hệ A51 để được gắn worker đăng bài.'
+                : 'Worker nhận bài khi tới giờ đăng và đăng lên các nền tảng đã chọn.'
+          }
+        >
+          {worker.isLoading ? (
+            <option value="">Đang tải worker...</option>
+          ) : !worker.workers?.length ? (
+            <option value="">Chưa có worker</option>
+          ) : (
+            worker.workers.map((w) => (
+              <option key={w.id} value={w.id}>
+                {workerLabel(w)}
+              </option>
+            ))
+          )}
+        </SelectField>
         {video && (
           <section className="space-y-2">
             <SelectField
@@ -843,7 +790,6 @@ function PostEditor({ post, type, workerId, hasWorkers }) {
             )}
           </section>
         )}
-
         <section className="space-y-4">
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
@@ -893,6 +839,44 @@ function PostEditor({ post, type, workerId, hasWorkers }) {
             {errors.hashtags && <p className="mt-1 text-xs text-error">{errors.hashtags}</p>}
           </div>
         </section>
+      </div>
+
+      <div className="space-y-6">
+        {video && template && missing > 0 && (
+          <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 sm:flex-row sm:items-center">
+            <p className="flex flex-1 items-start gap-2">
+              <Icon name="add_photo_alternate" className="text-base" />
+              <span>
+                Template <b>{template.name}</b> cần <b>{required} ảnh</b>, bài mới có {form.images.length}. Thêm <b>{missing} ảnh</b> nữa để
+                tạo video.
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg bg-amber-600 px-3 font-bold text-white hover:bg-amber-700"
+            >
+              <Icon name="add" className="text-base" />
+              Thêm {missing} ảnh
+            </button>
+          </div>
+        )}
+        {video && template && extra > 0 && (
+          <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
+            <Icon name="info" className="text-base" />
+            <span>
+              Template chỉ cần <b>{required} ảnh</b>: bấm biểu tượng thùng rác ở {extra} ảnh không muốn dùng. Thứ tự ảnh là thứ tự trong video.
+            </span>
+          </p>
+        )}
+        <ImageStrip
+          images={form.images}
+          editable
+          onRemove={(key) => set('images')(form.images.filter((i) => i.key !== key))}
+          onAdd={() => setAdding(true)}
+          onMove={moveImage}
+        />
+        {errors.images && <p className="text-xs text-error">{errors.images}</p>}
 
         <PlatformPicker value={form.platforms} onChange={set('platforms')} done={done} limitError={limitError} error={errors.platforms} />
 
@@ -909,7 +893,7 @@ function PostEditor({ post, type, workerId, hasWorkers }) {
         <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs leading-relaxed text-on-surface-variant">
           <Icon name="info" className="text-base" />
           <span>
-            Bấm <b>{submitLabel}</b> để giao bài cho worker đã chọn trên thanh tiêu đề. Tới giờ đăng, worker
+            Bấm <b>{submitLabel}</b> để giao bài cho worker đã chọn. Tới giờ đăng, worker
             {video ? ' dựng video theo template rồi' : ''} đăng lên các nền tảng đã chọn bằng tài khoản trên máy worker. Worker nhận bài
             rồi thì không sửa hoặc xoá được.
           </span>
@@ -949,8 +933,8 @@ const TYPE_TABS = [
 ];
 
 /**
- * /posts/:id (note/gop-luong-dang-bai.txt): bài ảnh và bài video dùng chung trang. Thanh tiêu đề chọn worker; tab Ảnh /
- * Video chọn loại bài; soạn, chọn nền tảng + giờ đăng rồi giao cho worker.
+ * /posts/:id (note/gop-luong-dang-bai.txt): bài ảnh và bài video dùng chung trang. Tab Ảnh / Video chọn loại bài;
+ * soạn theo thứ tự worker -> template (video) -> tiêu đề / nội dung / hashtag, rồi ảnh, nền tảng, giờ đăng.
  */
 export default function SocialPostPage() {
   useSeo({ title: 'Bài đăng', noindex: true });
@@ -997,7 +981,6 @@ export default function SocialPostPage() {
           <Icon name="arrow_back" />
         </button>
         <h1 className="min-w-0 flex-1 truncate text-base font-bold text-on-surface">Bài đăng</h1>
-        <HeaderWorkerSelect worker={worker} post={post} />
         {post && (
           <span className="mr-2">
             <PostStatusBadge status={post.status} />
@@ -1044,8 +1027,7 @@ export default function SocialPostPage() {
           key={`${post.id}-${post.status}`}
           post={post}
           type={type}
-          workerId={worker.workerId}
-          hasWorkers={worker.isLoading || !!worker.workers?.length}
+          worker={worker}
         />
       ) : (
         <PostPreview post={post} onChanged={setPost} />
