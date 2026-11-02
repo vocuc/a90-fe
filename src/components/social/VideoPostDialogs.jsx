@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import Dialog from '../common/Dialog';
@@ -31,6 +31,8 @@ import { WORKER_FUNCTIONS, WORKER_KEYS, listWorkers } from '../../api/workers';
 import { listProducts } from '../../api/autoBatch';
 
 export const POSTS_KEY = ['social', 'posts'];
+// Một bài (trang /posts/:id/video)
+export const postKey = (id) => ['social', 'post', String(id)];
 
 // <input type="datetime-local"> dùng giờ máy người dùng; gửi backend dạng ISO (UTC)
 const pad = (n) => String(n).padStart(2, '0');
@@ -572,7 +574,34 @@ function VideoImagePicker({ productId, selected, onChange, required, large = fal
 }
 
 /** Sửa bài video (worker chưa nhận / bài lỗi): mọi thứ. */
+/** Dòng trạng thái tự lưu ảnh dưới phần chọn ảnh. */
+function AutoSaveStatus({ status, required }) {
+  const view = {
+    pending: { icon: 'schedule', text: 'Sắp tự lưu ảnh...', cls: 'text-on-surface-variant' },
+    saving: { icon: 'progress_activity', text: 'Đang lưu ảnh...', cls: 'text-on-surface-variant', spin: true },
+    saved: { icon: 'cloud_done', text: 'Đã tự lưu ảnh và thứ tự ảnh.', cls: 'text-emerald-700' },
+    incomplete: {
+      icon: 'info',
+      text: required ? `Chọn đủ ${required} ảnh để tự lưu.` : 'Chọn template để tự lưu ảnh.',
+      cls: 'text-amber-700',
+    },
+    error: { icon: 'error', text: status.message, cls: 'text-error' },
+  }[status.state];
+  if (!view) return null;
+  return (
+    <p className={`flex items-center gap-1 text-xs font-semibold ${view.cls}`} role="status">
+      <Icon name={view.icon} className={`text-sm ${view.spin ? 'animate-spin' : ''}`} />
+      {view.text}
+    </p>
+  );
+}
+
+// Ảnh tự lưu: chờ người dùng ngừng thao tác 600ms rồi mới gửi
+const AUTOSAVE_DELAY = 600;
+const imagesSig = (images) => images.map((i) => i.key).join(',');
+
 function VideoPostForm({ post, onSaved, footerExtra }) {
+  const queryClient = useQueryClient();
   const templates = useQuery({ queryKey: ['social', 'video-templates'], queryFn: listVideoPostTemplates });
   const products = useQuery({ queryKey: ['creator', 'products', 'all-50'], queryFn: () => listProducts({ limit: 50 }) });
   const [form, setForm] = useState(() => ({
@@ -588,6 +617,12 @@ function VideoPostForm({ post, onSaved, footerExtra }) {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
   const [saving, setSaving] = useState(false);
+  // Bản đã lưu trên server: tự lưu ảnh chỉ gửi ảnh (kèm template / sản phẩm), các ô khác giữ như bản đã lưu tới khi bấm Lưu
+  const savedRef = useRef(form);
+  // Trạng thái tự lưu ảnh: idle | pending | saving | saved | incomplete | error
+  const [autoSave, setAutoSave] = useState({ state: 'idle' });
+  const autoTimer = useRef(null);
+  const autoSeq = useRef(0);
 
   // Template bị xoá sau khi tạo bài: vẫn hiện tên cũ, phải chọn template khác
   const template = useMemo(
@@ -602,7 +637,57 @@ function VideoPostForm({ post, onSaved, footerExtra }) {
     setErrors((er) => ({ ...er, [errorKey]: undefined }));
   };
 
+  const toPayload = (f) => ({
+    workerId: Number(f.workerId),
+    templateId: Number(f.templateId),
+    productId: f.productId ? Number(f.productId) : null,
+    images: f.images,
+    scheduledAt: fromLocalInput(f.scheduledAt),
+    title: f.title,
+    content: f.content,
+    hashtags: parseHashtags(f.hashtags),
+  });
+
+  // Đổi thứ tự / chọn / bỏ ảnh: tự lưu khi đủ số ảnh template cần
+  useEffect(() => {
+    clearTimeout(autoTimer.current);
+    if (imagesSig(form.images) === imagesSig(savedRef.current.images)) {
+      setAutoSave((a) => (a.state === 'pending' || a.state === 'incomplete' ? { state: 'idle' } : a));
+      return undefined;
+    }
+    if (!template || form.images.length !== template.imageCount) {
+      setAutoSave({ state: 'incomplete' });
+      return undefined;
+    }
+    setAutoSave({ state: 'pending' });
+    const { images, templateId, productId } = form;
+    autoTimer.current = setTimeout(async () => {
+      const seq = ++autoSeq.current;
+      const next = { ...savedRef.current, images, templateId, productId };
+      setAutoSave({ state: 'saving' });
+      try {
+        const saved = await updateVideoPost(post.id, toPayload(next));
+        savedRef.current = next;
+        // Vào lại trang thấy ngay ảnh mới, không phải F5
+        queryClient.setQueryData(postKey(post.id), saved);
+        if (seq !== autoSeq.current) return;
+        setAutoSave({ state: 'saved' });
+        setErrors((er) => Object.fromEntries(Object.entries(er).filter(([k]) => k !== 'images' && !k.startsWith('images.'))));
+        queryClient.invalidateQueries({ queryKey: POSTS_KEY });
+      } catch (err) {
+        if (seq !== autoSeq.current) return;
+        const imageErr = err?.errors && Object.entries(err.errors).find(([k]) => k === 'images' || k.startsWith('images.'))?.[1];
+        setAutoSave({ state: 'error', message: imageErr || err?.message || 'Không tự lưu được ảnh, bấm Lưu để thử lại.' });
+      }
+    }, AUTOSAVE_DELAY);
+    return () => clearTimeout(autoTimer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.images, form.templateId, form.productId, template]);
+
   const submit = async () => {
+    clearTimeout(autoTimer.current);
+    // Bỏ kết quả tự lưu đang chạy, bấm Lưu gửi toàn bộ form
+    autoSeq.current += 1;
     const er = {};
     if (!form.workerId) er.worker_id = 'Chọn worker.';
     if (!template) er.video_template_id = 'Chọn template.';
@@ -613,16 +698,8 @@ function VideoPostForm({ post, onSaved, footerExtra }) {
     if (Object.keys(er).length) return;
     setSaving(true);
     try {
-      const saved = await updateVideoPost(post.id, {
-        workerId: Number(form.workerId),
-        templateId: Number(form.templateId),
-        productId: form.productId ? Number(form.productId) : null,
-        images: form.images,
-        scheduledAt: fromLocalInput(form.scheduledAt),
-        title: form.title,
-        content: form.content,
-        hashtags: parseHashtags(form.hashtags),
-      });
+      const saved = await updateVideoPost(post.id, toPayload(form));
+      queryClient.setQueryData(postKey(post.id), saved);
       onSaved(saved);
     } catch (err) {
       if (err?.errors && Object.keys(err.errors).length) setErrors(err.errors);
@@ -698,6 +775,7 @@ function VideoPostForm({ post, onSaved, footerExtra }) {
             large
           />
           {imageError && <p className="text-xs text-error">{imageError}</p>}
+          <AutoSaveStatus status={autoSave} required={template?.imageCount} />
         </div>
       </div>
       {formError && <FormAlert>{formError}</FormAlert>}
@@ -729,7 +807,12 @@ export function VideoPostPanel({ post, onDone }) {
   const editable = isVideoEditable(post);
   const failed = post.status === POST_STATUS.PENDING_REVIEW;
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: POSTS_KEY });
+  // Danh sách bài và chính bài này (cache 60 giây, không làm mới thì vào lại vẫn thấy bản cũ)
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: POSTS_KEY }),
+      queryClient.invalidateQueries({ queryKey: postKey(post.id) }),
+    ]);
 
   const run = async (action, failMessage) => {
     setBusy(true);

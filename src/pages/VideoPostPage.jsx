@@ -5,7 +5,7 @@ import useSeo from '../hooks/useSeo';
 import Icon from '../components/common/Icon';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { PostStatusBadge } from '../components/social/PostStatus';
-import { VideoPostPanel } from '../components/social/VideoPostDialogs';
+import { VideoPostPanel, postKey } from '../components/social/VideoPostDialogs';
 import { getPost, isVideoEditable, isVideoPost } from '../api/social';
 
 /** /posts/:id/video: xem / sửa bài video (trước đây là popup ở danh sách bài đăng). */
@@ -15,7 +15,13 @@ export default function VideoPostPage() {
   const navigate = useNavigate();
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/posts', { replace: true }));
 
-  const { data: post, error, refetch } = useQuery({ queryKey: ['social', 'post', id], queryFn: () => getPost(id) });
+  // Form lấy giá trị ban đầu từ bài lúc mở trang: luôn tải bản mới nhất, không dùng bản cache cũ
+  const { data: post, error, refetch, isFetchedAfterMount } = useQuery({
+    queryKey: postKey(id),
+    queryFn: () => getPost(id),
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
   // Bài ảnh có trang riêng
   const wrongType = post && !isVideoPost(post);
   useEffect(() => {
@@ -49,7 +55,7 @@ export default function VideoPostPage() {
       <section className="p-4 lg:py-6">
         {error ? (
           <ErrorState error={error} onRetry={error.status === 404 ? undefined : refetch} />
-        ) : !post || wrongType ? (
+        ) : !post || !isFetchedAfterMount || wrongType ? (
           <div className="space-y-3">
             <Skeleton className="h-16" />
             <Skeleton className="h-64" />
