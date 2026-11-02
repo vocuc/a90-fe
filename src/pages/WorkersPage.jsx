@@ -79,10 +79,9 @@ function WorkerCard({ worker }) {
           </span>
         ))}
       </div>
-      {worker.publishAccount && (
+      {worker.functions.includes('publish') && (
         <p className="text-xs text-on-surface-variant">
-          Đăng bài lên <b className="text-on-surface">{worker.publishAccount.platformLabel}</b> bằng kênh{' '}
-          <b className="text-on-surface">{worker.publishAccount.name}</b>
+          Chọn được ở trang bài đăng: đăng bài ảnh / video lên TikTok, Facebook, Instagram bằng tài khoản đăng nhập trên máy worker.
         </p>
       )}
       <TokenRow token={worker.token} />
@@ -91,7 +90,7 @@ function WorkerCard({ worker }) {
 }
 
 /**
- * /seller/workers: worker admin đã gắn cho shop (note/quan-ly-worker.txt). Chỉ xem: chức năng, kênh đăng bài,
+ * /seller/workers: worker admin đã gắn cho shop (note/quan-ly-worker.txt). Chỉ xem: chức năng,
  * online / offline, token. Thêm / gắn / bật tắt / đổi token do admin làm.
  */
 export default function WorkersPage() {

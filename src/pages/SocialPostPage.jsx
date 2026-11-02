@@ -8,8 +8,7 @@ import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
-import Avatar from '../components/common/Avatar';
-import { FormAlert, SubmitButton, TextArea, TextField } from '../components/common/Form';
+import { FormAlert, SelectField, SubmitButton, TextArea, TextField } from '../components/common/Form';
 import HashtagInput from '../components/template/HashtagInput';
 import { hashtagSlug } from '../utils/hashtag';
 import { readHashtagHistory, recordHashtags, suggestHashtags } from '../utils/hashtagHistory';
@@ -24,35 +23,42 @@ import {
   PLATFORMS,
   PLATFORM_STATUS,
   POST_STATUS,
-  authorizeTikTok,
+  POST_TYPE,
   deletePost,
-  doneLabelOf,
-  getAccounts,
   getPost,
-  isConnectionActive,
   isImageBusy,
-  isPostLocked,
-  isVideoPost,
+  isPostEditable,
+  listVideoPostTemplates,
   publishPost,
+  retryPost,
   rewritePostContent,
-  tiktokConnectionsOf,
-  tiktokNameOf,
 } from '../api/social';
 import { useConfirm } from '../components/common/ConfirmDialog';
+import { POSTS_KEY, formatSchedule, fromLocalInput, toLocalInput, useShopWorkers, workerLabel } from '../components/social/VideoPostDialogs';
 
-// Đang chuẩn bị / chờ đăng / đang đăng: hỏi lại mỗi 3 giây
+// Đang chuẩn bị / đang đăng / chờ đăng đã tới giờ: hỏi lại mỗi 3 giây
 const POLL_INTERVAL = 3000;
-const needsPolling = (post) => !!post && (post.status === POST_STATUS.GENERATING || isPostLocked(post));
-
-const EDIT_FIELDS = ['images', 'title', 'content', 'hashtags'];
-const pickEdit = (post) => Object.fromEntries(EDIT_FIELDS.map((k) => [k, post[k]]));
+const needsPolling = (post) =>
+  !!post &&
+  (post.status === POST_STATUS.GENERATING ||
+    post.status === POST_STATUS.PUBLISHING ||
+    (post.status === POST_STATUS.QUEUED && new Date(post.scheduledAt ?? 0) <= new Date()));
 
 // Nội dung gửi lên nền tảng = content + "\n" + dòng hashtag, tổng không quá descriptionMax của nền tảng
 const captionLength = (content, hashtags) =>
   content.length + (hashtags.length ? 1 + hashtags.map((t) => `#${t}`).join(' ').length : 0);
 
-// Lỗi theo trường của API gửi bài (snake_case, images.N) -> trường của form
-const FIELD_FROM_API = { title: 'title', content: 'content', hashtags: 'hashtags', images: 'images', platforms: 'platforms' };
+// Lỗi theo trường của API đăng bài (snake_case, images.N) -> trường của form
+const FIELD_FROM_API = {
+  title: 'title',
+  content: 'content',
+  hashtags: 'hashtags',
+  images: 'images',
+  platforms: 'platforms',
+  worker_id: 'worker',
+  video_template_id: 'template',
+  scheduled_at: 'scheduledAt',
+};
 const formErrorsFrom = (errors) =>
   Object.entries(errors ?? {}).reduce((acc, [field, msg]) => {
     const key = FIELD_FROM_API[field.split('.')[0]];
@@ -62,292 +68,81 @@ const formErrorsFrom = (errors) =>
 
 // Nền tảng đã đăng xong của bài: không đăng lại (tránh bài trùng)
 const publishedPlatforms = (post) => post.platforms.filter((p) => p.status === PLATFORM_STATUS.PUBLISHED).map((p) => p.platform);
-const failedPlatforms = (post) => post.platforms.filter((p) => p.status === PLATFORM_STATUS.FAILED).map((p) => p.platform);
-
-// Cách đăng của từng nền tảng, hiện trong popup chọn nền tảng (TikTok tuỳ đã tự kết nối hay chưa: tiktokNote)
-const PLATFORM_NOTE = {
-  tiktok: 'Lưu vào nháp TikTok',
-  facebook: 'Đăng thẳng lên trang / nhóm',
-  instagram: 'Đăng thẳng, tối đa 10 ảnh',
-};
 
 /*
- * Chỉnh sửa chưa đăng được giữ lại khi người dùng sang TikTok kết nối rồi quay về trang bài (sessionStorage,
- * đọc một lần). Lỗi / chặn bộ nhớ thì bỏ qua: chỉ mất chỉnh sửa chưa đăng.
+ * Worker chọn ở thanh tiêu đề (note/gop-luong-dang-bai.txt): bài đã giao worker thì chọn sẵn worker đó, không thì worker
+ * chọn lần trước (localStorage, lỗi / bị chặn thì bỏ qua), không có thì worker đăng bài đầu tiên của shop.
  */
-const draftKey = (postId) => `a51_post_draft_${postId}`;
-const saveDraft = (postId, form) => {
+const WORKER_PREF_KEY = 'a51_post_worker';
+const readWorkerPref = () => {
   try {
-    sessionStorage.setItem(draftKey(postId), JSON.stringify(form));
+    return localStorage.getItem(WORKER_PREF_KEY) ?? '';
+  } catch {
+    return '';
+  }
+};
+const saveWorkerPref = (id) => {
+  try {
+    localStorage.setItem(WORKER_PREF_KEY, id);
   } catch {
     // bỏ qua
   }
 };
-const takeDraft = (postId) => {
-  try {
-    const raw = sessionStorage.getItem(draftKey(postId));
-    sessionStorage.removeItem(draftKey(postId));
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-};
+
+function usePostWorker(post) {
+  const query = useShopWorkers();
+  const workers = query.data;
+  // null: chưa chọn trên trang này
+  const [picked, setPicked] = useState(null);
+  const [pref] = useState(readWorkerPref);
+  const exists = (id) => !!id && workers?.some((w) => String(w.id) === String(id));
+  const fallback = workers?.find((w) => w.functions.includes('publish')) ?? workers?.[0];
+  const workerId = [picked, post?.worker?.id, pref].find(exists) ?? (fallback ? fallback.id : '');
+  const setWorkerId = (id) => {
+    setPicked(id);
+    saveWorkerPref(id);
+  };
+  return { workers, isLoading: query.isLoading, error: query.error, workerId: String(workerId), setWorkerId };
+}
 
 /**
- * Popup "Đăng lên đâu?": bấm Đăng bài thì chọn TikTok / Facebook / Instagram (một, vài hoặc cả 3) rồi mới tạo job.
- * Lần trước có nền tảng lỗi thì chọn sẵn các nền tảng lỗi; nền tảng đã đăng xong hiện "Đã đăng" và không chọn được.
- * imageCount / caption: để báo ngay nền tảng nào vượt giới hạn (vd Instagram 10 ảnh, 2200 ký tự).
- * TikTok tự kết nối (note/uy-quyen-nhieu-tiktok.txt): chọn một hoặc nhiều tài khoản nhận bài; tài khoản đã nhận bài này
- * thì không chọn lại, tài khoản mất kết nối thì không chọn được tới khi kết nối lại.
+ * Ô chọn worker trên thanh tiêu đề. Bài worker đã nhận / đã đăng: chỉ hiện worker của bài. Shop chưa có hồ sơ người bán
+ * (403): ẩn.
  */
-function PublishDialog({ post, accounts, imageCount, captionLen, busy, error, onConfirm, onClose, onConnectTikTok }) {
-  // TikTok tự kết nối (đăng qua API, ảnh vào hộp thư TikTok)
-  const tiktokAccounts = tiktokConnectionsOf(accounts);
-  const tiktokPlatform = post.platforms.find((x) => x.platform === 'tiktok');
-  // Tài khoản đã nhận bài này / lần trước gửi lỗi
-  const sentIds = (tiktokPlatform?.accounts ?? []).filter((a) => a.status === PLATFORM_STATUS.PUBLISHED).map((a) => a.accountId);
-  const failedIds = (tiktokPlatform?.accounts ?? []).filter((a) => a.status === PLATFORM_STATUS.FAILED).map((a) => a.accountId);
-  const selectableTikTok = tiktokAccounts.filter((a) => isConnectionActive(a) && !sentIds.includes(a.id));
-  const tiktokApi = tiktokAccounts.length > 0;
-
-  // TikTok tự kết nối: xong khi không còn tài khoản nào để gửi; còn lại: nền tảng đã đăng xong
-  const done = publishedPlatforms(post).filter((v) => !(v === 'tiktok' && tiktokApi && selectableTikTok.length > 0));
-  const available = PLATFORMS.filter((p) => !done.includes(p.value) && !(p.value === 'tiktok' && tiktokApi && !selectableTikTok.length));
-  const [selected, setSelected] = useState(() => failedPlatforms(post).filter((v) => available.some((p) => p.value === v)));
-  // Tài khoản TikTok chọn sẵn: các tài khoản lỗi lần trước, không có thì mọi tài khoản còn gửi được
-  const [tiktokIds, setTiktokIds] = useState(() => {
-    const failed = selectableTikTok.filter((a) => failedIds.includes(a.id));
-    return (failed.length ? failed : selectableTikTok).map((a) => a.id);
-  });
-  const [connecting, setConnecting] = useState(false);
-  const toggle = (value) => setSelected((cur) => (cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value]));
-  const toggleTikTok = (id) => {
-    // TikTok chưa chọn thì các ô đang hiện trống: bấm tài khoản nào chỉ chọn tài khoản đó
-    const cur = selected.includes('tiktok') ? tiktokIds : [];
-    const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
-    setTiktokIds(next);
-    // Chọn tài khoản thì chọn luôn TikTok, bỏ hết thì bỏ TikTok
-    setSelected((cur) => (next.length ? [...new Set([...cur, 'tiktok'])] : cur.filter((v) => v !== 'tiktok')));
-  };
-  const allSelected = available.length > 0 && available.every((p) => selected.includes(p.value));
-
-  useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && !busy && onClose();
-    window.addEventListener('keydown', onKey);
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = overflow;
-    };
-  }, [busy, onClose]);
-
-  // Lý do nền tảng không đăng được bài này (vượt giới hạn ảnh / ký tự)
-  const limitError = (p) =>
-    imageCount > p.maxImages
-      ? `Tối đa ${p.maxImages} ảnh (bài có ${imageCount})`
-      : captionLen > p.descriptionMax
-        ? `Nội dung + hashtag tối đa ${p.descriptionMax} ký tự`
-        : null;
-  const chosen = PLATFORMS.filter((p) => selected.includes(p.value));
-  const chosenTikTok = tiktokApi && selected.includes('tiktok') ? selectableTikTok.filter((a) => tiktokIds.includes(a.id)) : [];
-  const tiktokMissing = tiktokApi && selected.includes('tiktok') && !chosenTikTok.length;
-  const blocked = chosen.filter(limitError);
-  const unassigned = chosen.filter((p) => !accounts.some((a) => a.platform === p.value));
-  const tiktokWorker = accounts.some((a) => a.platform === 'tiktok' && a.driver === 'worker');
-  const tiktokNote = tiktokApi
-    ? `Gửi vào hộp thư TikTok${chosenTikTok.length ? ` (${chosenTikTok.length} tài khoản)` : ''}`
-    : tiktokWorker
-      ? 'Lưu vào nháp TikTok của A51'
-      : PLATFORM_NOTE.tiktok;
-  const connectTikTok = async () => {
-    setConnecting(true);
-    try {
-      await onConnectTikTok();
-    } catch {
-      setConnecting(false);
-    }
-  };
-  const connectLink = (label) => (
-    <button
-      type="button"
-      onClick={connectTikTok}
-      disabled={busy || connecting}
-      className="flex shrink-0 items-center gap-1 text-xs font-bold text-primary hover:underline disabled:opacity-60"
-    >
-      {connecting && <Icon name="progress_activity" className="animate-spin text-sm" />}
-      {label}
-    </button>
-  );
-  const selectAll = () => {
-    if (allSelected) {
-      setSelected([]);
-      return;
-    }
-    setSelected(available.map((p) => p.value));
-    if (tiktokApi && !tiktokIds.length) setTiktokIds(selectableTikTok.map((a) => a.id));
-  };
-
+function HeaderWorkerSelect({ worker, post }) {
+  const locked = post && !isPostEditable(post);
+  if (locked) {
+    return post.worker ? (
+      <span className="flex min-w-0 max-w-[45%] items-center gap-1 truncate rounded-xl bg-surface-container-low px-2 py-1.5 text-xs font-semibold text-on-surface sm:max-w-[280px]">
+        <Icon name="smart_toy" className="shrink-0 text-lg text-primary" />
+        <span className="truncate">{post.worker.name}</span>
+      </span>
+    ) : null;
+  }
+  if (worker.error) return null;
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="publish-dialog-title"
-      onClick={() => !busy && onClose()}
-    >
-      <div
-        className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-surface-container-lowest shadow-xl sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
+    <label className="flex min-w-0 max-w-[45%] shrink items-center gap-1 rounded-xl bg-surface-container-low pl-2 sm:max-w-[280px]">
+      <Icon name="smart_toy" className="shrink-0 text-lg text-primary" />
+      <span className="sr-only">Worker làm việc</span>
+      <select
+        value={worker.workerId}
+        onChange={(e) => worker.setWorkerId(e.target.value)}
+        disabled={worker.isLoading || !worker.workers?.length}
+        className="h-9 min-w-0 flex-1 truncate border-0 bg-transparent py-0 pl-1 pr-7 text-xs font-semibold text-on-surface focus:ring-0 disabled:opacity-60"
       >
-        <div className="flex items-center gap-2 border-b border-surface-container px-4 py-3">
-          <h2 id="publish-dialog-title" className="flex-1 text-base font-bold text-on-surface">
-            Đăng lên đâu?
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            aria-label="Đóng"
-            className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container disabled:opacity-50"
-          >
-            <Icon name="close" />
-          </button>
-        </div>
-
-        <div className="space-y-3 overflow-y-auto p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-on-surface-variant">Chọn một hoặc nhiều nền tảng.</p>
-            {available.length > 1 && (
-              <button type="button" onClick={selectAll} className="text-xs font-bold text-primary hover:underline">
-                {allSelected ? 'Bỏ chọn tất cả' : `Chọn cả ${available.length}`}
-              </button>
-            )}
-          </div>
-
-          <ul className="space-y-2">
-            {PLATFORMS.map((p) => {
-              const isDone = done.includes(p.value);
-              const checked = isDone || selected.includes(p.value);
-              const limit = !isDone && limitError(p);
-              // TikTok tự kết nối mà không còn tài khoản nào gửi được (mất kết nối hết)
-              const unavailable = !isDone && !available.some((x) => x.value === p.value);
-              const doneDriver = post.platforms.find((x) => x.platform === p.value)?.driver;
-              return (
-                <li key={p.value}>
-                  <label
-                    className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${
-                      isDone
-                        ? 'cursor-default border-emerald-200 bg-emerald-50/60'
-                        : checked
-                          ? 'cursor-pointer border-primary-container bg-primary-fixed/30'
-                          : 'cursor-pointer border-outline-variant/60 hover:border-primary-container'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="size-5 rounded border-outline-variant text-primary focus:ring-primary-container disabled:opacity-50"
-                      checked={checked}
-                      disabled={isDone || unavailable || busy}
-                      onChange={() => {
-                        toggle(p.value);
-                        if (p.value === 'tiktok' && !checked && !tiktokIds.length) setTiktokIds(selectableTikTok.map((a) => a.id));
-                      }}
-                    />
-                    <Icon name={p.icon} className={`text-2xl ${checked ? 'text-primary' : 'text-outline'}`} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-bold text-on-surface">{p.label}</span>
-                      <span className={`block text-xs ${limit && checked ? 'text-error' : 'text-on-surface-variant'}`}>
-                        {isDone
-                          ? `${doneLabelOf(p.value, doneDriver)} — không đăng lại`
-                          : limit || (p.value === 'tiktok' ? tiktokNote : PLATFORM_NOTE[p.value])}
-                      </span>
-                    </span>
-                  </label>
-
-                  {/* Các tài khoản TikTok tự kết nối */}
-                  {p.value === 'tiktok' && tiktokApi && (
-                    <ul className="ml-4 mt-1.5 space-y-1 border-l-2 border-surface-container pl-3">
-                      {tiktokAccounts.map((a) => {
-                        const sent = sentIds.includes(a.id);
-                        const active = isConnectionActive(a);
-                        const on = !sent && active && tiktokIds.includes(a.id) && selected.includes('tiktok');
-                        return (
-                          <li key={a.id}>
-                            <label
-                              className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${
-                                sent || !active ? 'cursor-default' : 'cursor-pointer hover:bg-surface-container-low'
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                className="size-4 rounded border-outline-variant text-primary focus:ring-primary-container disabled:opacity-50"
-                                checked={sent || on}
-                                disabled={sent || !active || busy}
-                                onChange={() => toggleTikTok(a.id)}
-                              />
-                              <Avatar src={a.connection?.avatarUrl} name={a.name} className="size-6 shrink-0" />
-                              <span className="min-w-0 flex-1 truncate text-xs font-semibold text-on-surface">{tiktokNameOf(a)}</span>
-                              {sent ? (
-                                <span className="shrink-0 text-[11px] text-emerald-700">Đã gửi</span>
-                              ) : !active ? (
-                                <span className="shrink-0">{connectLink('Kết nối lại')}</span>
-                              ) : null}
-                            </label>
-                          </li>
-                        );
-                      })}
-                      <li className="px-2 py-1">{connectLink('+ Thêm tài khoản TikTok')}</li>
-                    </ul>
-                  )}
-                  {p.value === 'tiktok' && !tiktokApi && !isDone && (
-                    <div className="mt-1 flex items-center justify-between gap-2 px-1">
-                      <span className="text-[11px] text-on-surface-variant">Kết nối TikTok của bạn để gửi bài thẳng vào hộp thư TikTok.</span>
-                      {connectLink('Kết nối TikTok')}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-
-          {tiktokAccounts.some((a) => !isConnectionActive(a)) && (
-            <p className="text-[11px] text-error">
-              Tài khoản mất kết nối: bấm "Kết nối lại" và đăng nhập đúng tài khoản đó trên màn hình TikTok.
-            </p>
-          )}
-          {chosenTikTok.length > 0 && (
-            <p className="text-xs text-on-surface-variant">TikTok: mở app TikTok của từng tài khoản, vào Hộp thư để hoàn tất đăng bài.</p>
-          )}
-          {tiktokMissing && <p className="text-xs text-error">Chọn ít nhất một tài khoản TikTok.</p>}
-          {unassigned.length > 0 && (
-            <p className="text-xs text-amber-700">
-              Chưa có tài khoản {unassigned.map((p) => p.label).join(', ')}: bài sẽ chờ tới khi A51 gắn tài khoản cho bạn.
-            </p>
-          )}
-          <p className="text-xs text-on-surface-variant">Sau khi đăng, bài bị khoá: không sửa hoặc xoá được tới khi đăng xong.</p>
-          {error && <FormAlert>{error}</FormAlert>}
-        </div>
-
-        <div className="border-t border-surface-container p-3">
-          <SubmitButton
-            type="button"
-            loading={busy}
-            loadingText="Đang gửi..."
-            disabled={busy || !chosen.length || blocked.length > 0 || tiktokMissing}
-            onClick={() =>
-              onConfirm(
-                chosen.map((p) => p.value),
-                chosenTikTok.map((a) => a.id),
-              )
-            }
-          >
-            <Icon name="send" className="text-lg" />
-            {chosen.length ? `Đăng lên ${chosen.map((p) => p.label).join(', ')}` : 'Chọn nền tảng để đăng'}
-          </SubmitButton>
-        </div>
-      </div>
-    </div>
+        {worker.isLoading ? (
+          <option value="">Đang tải worker...</option>
+        ) : !worker.workers?.length ? (
+          <option value="">Chưa có worker</option>
+        ) : (
+          worker.workers.map((w) => (
+            <option key={w.id} value={w.id}>
+              {workerLabel(w)}
+            </option>
+          ))
+        )}
+      </select>
+    </label>
   );
 }
 
@@ -598,25 +393,71 @@ function GeneratingPanel({ post }) {
   );
 }
 
-/** Chờ đăng / Đang đăng / Đã đăng: chỉ xem, không sửa, không xoá. Trạng thái từng nền tảng ở đầu cột phải. */
-function PostPreview({ post }) {
+/** Template video của bài (tên, số ảnh, link video mẫu). */
+function TemplateInfo({ template }) {
+  if (!template?.name) return null;
+  return (
+    <p className="text-sm text-on-surface">
+      <span className="text-xs font-semibold text-outline">Template: </span>
+      {template.videoUrl ? (
+        <a href={template.videoUrl} target="_blank" rel="noopener noreferrer" className="font-bold text-primary hover:underline">
+          {template.name}
+        </a>
+      ) : (
+        <b>{template.name}</b>
+      )}
+      {template.imageCount ? ` · ${template.imageCount} ảnh` : ''}
+    </p>
+  );
+}
+
+/**
+ * Đang đăng / Đã đăng: chỉ xem, không sửa, không xoá. Đang đăng mà worker im lặng: "Tạo lại" (có thể đăng trùng).
+ * onChanged(post): sau khi tạo lại.
+ */
+function PostPreview({ post, onChanged }) {
+  const queryClient = useQueryClient();
+  const { confirm, alert } = useConfirm();
+  const [busy, setBusy] = useState(false);
+
+  const recreate = async () => {
+    const ok = await confirm(
+      'Worker đã nhận bài này. Nếu worker thực ra đã đăng xong nhưng chưa báo lại, tạo lại có thể làm bài bị đăng 2 lần. Vẫn tạo lại?',
+      { confirmLabel: 'Tạo lại', danger: true },
+    );
+    if (!ok) return;
+    setBusy(true);
+    try {
+      onChanged(await retryPost(post.id));
+      queryClient.invalidateQueries({ queryKey: POSTS_KEY });
+    } catch (err) {
+      alert(err?.message || 'Không tạo lại được, vui lòng thử lại.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8 lg:py-6">
       <ImageStrip images={post.images} />
       <section className="space-y-4">
-        {post.status === POST_STATUS.QUEUED ? (
-          <div className="space-y-1 rounded-xl bg-primary-fixed/40 px-3 py-2 text-xs text-primary">
+        {post.status === POST_STATUS.PUBLISHING ? (
+          <div className="space-y-2 rounded-xl bg-primary-fixed/40 px-3 py-2 text-xs text-primary">
             <p className="flex items-center gap-2 font-semibold">
-              <Icon name="schedule" className="text-base" />
-              Bài đang chờ đến lượt đăng.
+              <Icon name="progress_activity" className="animate-spin text-base" />
+              Worker {post.worker?.name ? <b>{post.worker.name}</b> : ''} đang {post.type === POST_TYPE.VIDEO ? 'dựng video và đăng' : 'đăng'} bài...
             </p>
-            <p>Bạn có thể rời trang này. Bài đã khoá, không sửa hoặc xoá được trong lúc đăng.</p>
+            <p>Nếu worker bị tắt và không báo lại, bấm Tạo lại để bài về chờ đăng.</p>
+            <button
+              type="button"
+              onClick={recreate}
+              disabled={busy}
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-primary px-3 font-bold hover:bg-primary-fixed/40 disabled:opacity-50"
+            >
+              <Icon name={busy ? 'progress_activity' : 'replay'} className={`text-base ${busy ? 'animate-spin' : ''}`} />
+              Tạo lại
+            </button>
           </div>
-        ) : post.status === POST_STATUS.PUBLISHING ? (
-          <p className="flex items-center gap-2 rounded-xl bg-primary-fixed/40 px-3 py-2 text-xs font-semibold text-primary">
-            <Icon name="progress_activity" className="animate-spin text-base" />
-            Đang đăng bài...
-          </p>
         ) : (
           <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
             <Icon name="check_circle" fill className="text-base" />
@@ -625,6 +466,13 @@ function PostPreview({ post }) {
           </p>
         )}
         <PlatformStatusList platforms={post.platforms} />
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+          <dt className="text-xs font-semibold text-outline">Worker</dt>
+          <dd className="font-semibold text-on-surface">{post.worker?.name ?? '—'}</dd>
+          <dt className="text-xs font-semibold text-outline">Giờ đăng</dt>
+          <dd className="font-semibold text-on-surface">{formatSchedule(post.scheduledAt)}</dd>
+        </dl>
+        {post.type === POST_TYPE.VIDEO && <TemplateInfo template={post.video?.template} />}
         <div>
           <p className="text-xs font-semibold text-outline">Tiêu đề</p>
           <p className="text-sm font-bold text-on-surface">{post.title || '—'}</p>
@@ -646,19 +494,81 @@ function PostPreview({ post }) {
 }
 
 /**
- * Chờ gửi: ảnh đã xong, người dùng xem lại (tiêu đề, nội dung không bắt buộc) rồi bấm "Đăng bài": popup chọn
- * TikTok / Facebook / Instagram (một, vài hoặc cả 3), xác nhận mới tạo job. TikTok: lưu nháp; Facebook / Instagram: đăng thẳng.
- * onRefresh: tải lại bài (sau khi đăng lỗi, để hiện last_error).
+ * Chọn nền tảng đăng (một hoặc nhiều). Nền tảng đã đăng xong: "Đã đăng", không chọn lại. limitError(p): lý do nền tảng
+ * không nhận bài này (vượt số ảnh / ký tự), hiện đỏ khi đang chọn.
  */
-function ReviewForm({ post, onRefresh }) {
+function PlatformPicker({ value, onChange, done, limitError, error }) {
+  const toggle = (v) => onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
+  return (
+    <section className="space-y-2">
+      <div>
+        <h2 className="text-sm font-bold text-on-surface">Đăng lên</h2>
+        <p className="mt-0.5 text-xs text-on-surface-variant">Chọn một hoặc nhiều nền tảng.</p>
+      </div>
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+        {PLATFORMS.map((p) => {
+          const isDone = done.includes(p.value);
+          const checked = isDone || value.includes(p.value);
+          const limit = !isDone && checked && limitError(p);
+          return (
+            <li key={p.value}>
+              <label
+                className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${
+                  isDone
+                    ? 'cursor-default border-emerald-200 bg-emerald-50/60'
+                    : checked
+                      ? 'cursor-pointer border-primary-container bg-primary-fixed/30'
+                      : 'cursor-pointer border-outline-variant/60 hover:border-primary-container'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="size-5 rounded border-outline-variant text-primary focus:ring-primary-container disabled:opacity-50"
+                  checked={checked}
+                  disabled={isDone}
+                  onChange={() => toggle(p.value)}
+                />
+                <Icon name={p.icon} className={`text-2xl ${checked ? 'text-primary' : 'text-outline'}`} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold text-on-surface">{p.label}</span>
+                  {(isDone || limit) && (
+                    <span className={`block text-xs ${limit ? 'text-error' : 'text-emerald-700'}`}>
+                      {isDone ? 'Đã đăng — không đăng lại' : limit}
+                    </span>
+                  )}
+                </span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+      {error && <p className="text-xs text-error">{error}</p>}
+    </section>
+  );
+}
+
+/**
+ * Soạn và đăng bài (chờ gửi / chờ tới giờ), note/gop-luong-dang-bai.txt. Dùng chung cho bài ảnh và bài video (type: tab
+ * đang chọn). Worker lấy từ ô chọn trên thanh tiêu đề. Bài video: chọn template; thiếu ảnh so với số ảnh template cần thì
+ * yêu cầu thêm ảnh, thừa thì bỏ bớt. Chọn nền tảng, giờ đăng (mặc định bây giờ) rồi bấm Đăng bài: bài sang "Chờ đăng",
+ * tới giờ worker nhận và đăng. Chuyển tab Ảnh / Video không mất chỉnh sửa.
+ */
+function PostEditor({ post, type, workerId, hasWorkers }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  // Quay về từ màn hình kết nối TikTok: lấy lại chỉnh sửa chưa đăng
-  const [form, setForm] = useState(() => takeDraft(post.id) ?? pickEdit(post));
-  // Tài khoản admin đã gắn: popup báo nền tảng nào chưa có tài khoản (lỗi tải: coi như chưa có)
-  const accountsQuery = useQuery({ queryKey: ['social', 'accounts'], queryFn: getAccounts, staleTime: 60_000 });
+  const video = type === POST_TYPE.VIDEO;
   const done = publishedPlatforms(post);
-  const [choosing, setChoosing] = useState(false);
+  const [form, setForm] = useState(() => ({
+    images: post.images,
+    title: post.title,
+    content: post.content,
+    hashtags: post.hashtags,
+    templateId: post.video?.template?.id ? String(post.video.template.id) : '',
+    // Bài mới: mặc định TikTok
+    platforms: (post.selectedPlatforms.length ? post.selectedPlatforms : ['tiktok']).filter((p) => !done.includes(p)),
+    // Chờ tới giờ: giữ giờ đã hẹn; còn lại: bây giờ
+    scheduledAt: toLocalInput(post.status === POST_STATUS.QUEUED && post.scheduledAt ? post.scheduledAt : Date.now()),
+  }));
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
   const [busy, setBusy] = useState(null); // 'publish' | 'delete' | 'ai'
@@ -668,10 +578,20 @@ function ReviewForm({ post, onRefresh }) {
   const { confirm } = useConfirm();
   // Hashtag đã nhập ở các bài trước (cookie), gợi ý dưới ô hashtag
   const [hashtagHistory, setHashtagHistory] = useState(readHashtagHistory);
+  // Template video (cần hồ sơ người bán); chỉ tải khi mở tab Video
+  const templates = useQuery({ queryKey: ['social', 'video-templates'], queryFn: listVideoPostTemplates, enabled: video, retry: false });
+
+  const template = templates.data?.find((t) => String(t.id) === form.templateId) ?? null;
+  const required = template?.imageCount ?? 0;
+  const missing = video && template ? Math.max(0, required - form.images.length) : 0;
+  const extra = video && template ? Math.max(0, form.images.length - required) : 0;
+  const imagesNotReady = form.images.some((i) => i.status !== IMAGE_STATUS.COMPLETED);
+  const captionLen = captionLength(form.content, form.hashtags);
 
   const set = (key) => (value) => {
     setForm((f) => ({ ...f, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
+    setFormError(null);
   };
 
   // Thêm hashtag: cộng lần dùng vào cookie (xoá thì không trừ)
@@ -697,7 +617,7 @@ function ReviewForm({ post, onRefresh }) {
     if (!(await confirm('Xoá bài đăng này? Ảnh vẫn còn trong lịch sử tạo ảnh.', { confirmLabel: 'Xoá', danger: true }))) return;
     run('delete', async () => {
       await deletePost(post.id);
-      queryClient.invalidateQueries({ queryKey: ['social', 'posts'] });
+      queryClient.invalidateQueries({ queryKey: POSTS_KEY });
       navigate('/posts', { replace: true });
     });
   };
@@ -714,14 +634,30 @@ function ReviewForm({ post, onRefresh }) {
     });
   };
 
-  // Giới hạn riêng từng nền tảng kiểm tra trong popup chọn nền tảng
+  // Lý do nền tảng không nhận bài này (bài video không giới hạn số ảnh)
+  const limitError = (p) =>
+    !video && form.images.length > p.maxImages
+      ? `Tối đa ${p.maxImages} ảnh (bài có ${form.images.length})`
+      : captionLen > p.descriptionMax
+        ? `Nội dung + hashtag tối đa ${p.descriptionMax} ký tự`
+        : null;
+
   const validate = () => {
     const e = {};
+    if (!workerId) e.worker = 'Chọn worker ở thanh tiêu đề phía trên.';
     if (!form.images.length) e.images = 'Bài đăng cần ít nhất một ảnh.';
-    else if (form.images.length > PHOTO_MAX_COUNT) e.images = `Bài đăng tối đa ${PHOTO_MAX_COUNT} ảnh.`;
+    else if (!video && form.images.length > PHOTO_MAX_COUNT) e.images = `Bài đăng tối đa ${PHOTO_MAX_COUNT} ảnh.`;
+    if (video) {
+      if (!template) e.template = 'Chọn video template.';
+      else if (missing) e.images = `Template cần ${required} ảnh, bài mới có ${form.images.length}: thêm ${missing} ảnh nữa.`;
+      else if (extra) e.images = `Template chỉ cần ${required} ảnh: bỏ bớt ${extra} ảnh.`;
+    }
     if (form.hashtags.length > HASHTAG_MAX) e.hashtags = `Tối đa ${HASHTAG_MAX} hashtag.`;
-    if (captionLength(form.content, form.hashtags) > PHOTO_DESCRIPTION_MAX)
-      e.content = `Nội dung và hashtag cộng lại tối đa ${PHOTO_DESCRIPTION_MAX} ký tự.`;
+    if (captionLen > PHOTO_DESCRIPTION_MAX) e.content = `Nội dung và hashtag cộng lại tối đa ${PHOTO_DESCRIPTION_MAX} ký tự.`;
+    const chosen = PLATFORMS.filter((p) => form.platforms.includes(p.value));
+    if (!chosen.length) e.platforms = 'Chọn ít nhất một nền tảng để đăng.';
+    else if (chosen.some(limitError)) e.platforms = 'Có nền tảng không nhận được bài này, xem dòng đỏ ở trên.';
+    if (!form.scheduledAt) e.scheduledAt = 'Chọn giờ đăng.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -735,25 +671,24 @@ function ReviewForm({ post, onRefresh }) {
       return;
     }
     if (!validate()) return;
-    setChoosing(true);
-  };
-
-  // Đã chọn nền tảng (và tài khoản TikTok) trong popup: lưu chỉnh sửa + tạo 1 job / nền tảng (TikTok: 1 job / tài khoản)
-  const publish = (platforms, tiktokAccountIds) =>
     run('publish', async () => {
       try {
-        await publishPost(post.id, { ...form, platforms, tiktokAccountIds });
+        await publishPost(post.id, {
+          ...form,
+          type,
+          workerId: Number(workerId),
+          templateId: form.templateId ? Number(form.templateId) : null,
+          productId: post.video?.product?.id ?? null,
+          scheduledAt: fromLocalInput(form.scheduledAt),
+        });
       } catch (err) {
         setErrors(formErrorsFrom(err?.errors));
-        // Mất kết nối TikTok: tải lại tài khoản để popup hiện nút "Kết nối lại"
-        if (err?.code === 'TIKTOK_NOT_CONNECTED') queryClient.invalidateQueries({ queryKey: ['social', 'accounts'] });
-        // Đăng lỗi: backend vẫn lưu chỉnh sửa và đặt last_error
-        onRefresh();
         throw err;
       }
-      queryClient.invalidateQueries({ queryKey: ['social', 'posts'] });
+      queryClient.invalidateQueries({ queryKey: POSTS_KEY });
       navigate('/posts', { replace: true });
     });
+  };
 
   const addImages = (picked) => {
     set('images')([
@@ -782,7 +717,9 @@ function ReviewForm({ post, onRefresh }) {
     set('images')(next);
   };
 
-  const imagesNotReady = form.images.some((i) => i.status !== IMAGE_STATUS.COMPLETED);
+  const queued = post.status === POST_STATUS.QUEUED;
+  const submitLabel = queued ? 'Lưu thay đổi' : post.lastError ? 'Đăng lại' : 'Đăng bài';
+  const addMax = video && template && missing ? missing : PHOTO_MAX_COUNT - form.images.length;
 
   return (
     <form
@@ -790,35 +727,16 @@ function ReviewForm({ post, onRefresh }) {
       noValidate
       className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8 lg:py-6"
     >
-      {choosing && (
-        <PublishDialog
-          post={post}
-          accounts={accountsQuery.data ?? []}
-          imageCount={form.images.length}
-          captionLen={captionLength(form.content, form.hashtags)}
-          busy={busy === 'publish'}
-          error={formError}
-          onConfirm={publish}
-          onConnectTikTok={() => {
-            saveDraft(post.id, form);
-            return authorizeTikTok(`/posts/${post.id}`);
-          }}
-          onClose={() => {
-            setChoosing(false);
-            setFormError(null);
-          }}
-        />
-      )}
       {adding && (
         <AddImagesDialog
           exclude={form.images.map((i) => i.key)}
-          max={PHOTO_MAX_COUNT - form.images.length}
+          max={Math.max(1, addMax)}
           onAdd={addImages}
           onClose={() => setAdding(false)}
         />
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {post.lastError && !formError && (
           <p className="flex items-start gap-2 rounded-xl bg-error-container/60 px-3 py-2 text-xs text-on-error-container">
             <Icon name="error" className="text-base" />
@@ -827,7 +745,48 @@ function ReviewForm({ post, onRefresh }) {
             </span>
           </p>
         )}
+        {queued && (
+          <p className="flex items-start gap-2 rounded-xl bg-primary-fixed/40 px-3 py-2 text-xs text-primary">
+            <Icon name="schedule" className="text-base" />
+            <span>
+              Bài đang chờ tới giờ đăng (<b>{formatSchedule(post.scheduledAt)}</b>)
+              {post.worker ? (
+                <>
+                  , worker <b>{post.worker.name}</b> sẽ nhận
+                </>
+              ) : null}
+              . Còn sửa / xoá được tới khi worker nhận bài.
+            </span>
+          </p>
+        )}
         {post.platforms.length > 0 && <PlatformStatusList platforms={post.platforms} showErrors />}
+        {video && template && missing > 0 && (
+          <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 sm:flex-row sm:items-center">
+            <p className="flex flex-1 items-start gap-2">
+              <Icon name="add_photo_alternate" className="text-base" />
+              <span>
+                Template <b>{template.name}</b> cần <b>{required} ảnh</b>, bài mới có {form.images.length}. Thêm <b>{missing} ảnh</b> nữa để
+                tạo video.
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg bg-amber-600 px-3 font-bold text-white hover:bg-amber-700"
+            >
+              <Icon name="add" className="text-base" />
+              Thêm {missing} ảnh
+            </button>
+          </div>
+        )}
+        {video && template && extra > 0 && (
+          <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
+            <Icon name="info" className="text-base" />
+            <span>
+              Template chỉ cần <b>{required} ảnh</b>: bấm <b>Bỏ</b> ở {extra} ảnh không muốn dùng. Thứ tự ảnh là thứ tự trong video.
+            </span>
+          </p>
+        )}
         <ImageStrip
           images={form.images}
           editable
@@ -839,6 +798,52 @@ function ReviewForm({ post, onRefresh }) {
       </div>
 
       <div className="space-y-6">
+        {errors.worker && <FormAlert>{errors.worker}</FormAlert>}
+        {!hasWorkers && !errors.worker && (
+          <p className="text-xs text-amber-700">Shop chưa được gắn worker nào, liên hệ A51 để được gắn worker đăng bài.</p>
+        )}
+
+        {video && (
+          <section className="space-y-2">
+            <SelectField
+              label="Video template"
+              value={form.templateId}
+              onChange={(e) => set('templateId')(e.target.value)}
+              error={errors.template}
+              hint={
+                templates.error
+                  ? 'Cần mở cửa hàng (hồ sơ người bán) để tạo bài video.'
+                  : templates.data && !templates.data.length
+                    ? 'Chưa có template nào đang bật và có số ảnh.'
+                    : 'Worker dựng video theo template từ ảnh của bài, đúng thứ tự ảnh.'
+              }
+            >
+              <option value="">{templates.isLoading ? 'Đang tải...' : 'Chọn template'}</option>
+              {!template && post.video?.template?.name && form.templateId && (
+                <option value={form.templateId} disabled>
+                  {post.video.template.name} (đã tắt / đã xoá)
+                </option>
+              )}
+              {(templates.data ?? []).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} · {t.imageCount} ảnh
+                </option>
+              ))}
+            </SelectField>
+            {template?.videoUrl && (
+              <a
+                href={template.videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+              >
+                <Icon name="play_circle" className="text-base" />
+                Xem video mẫu
+              </a>
+            )}
+          </section>
+        )}
+
         <section className="space-y-4">
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
@@ -889,23 +894,36 @@ function ReviewForm({ post, onRefresh }) {
           </div>
         </section>
 
+        <PlatformPicker value={form.platforms} onChange={set('platforms')} done={done} limitError={limitError} error={errors.platforms} />
+
+        <TextField
+          label="Giờ đăng"
+          icon="schedule"
+          type="datetime-local"
+          value={form.scheduledAt}
+          onChange={(e) => set('scheduledAt')(e.target.value)}
+          error={errors.scheduledAt}
+          hint="Mặc định là bây giờ. Tới giờ, worker nhận bài và đăng."
+        />
+
         <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs leading-relaxed text-on-surface-variant">
           <Icon name="info" className="text-base" />
           <span>
-            Bấm <b>Đăng bài</b> để chọn đăng lên TikTok, Facebook, Instagram hoặc cả 3. TikTok: đã kết nối TikTok của bạn thì
-            bài vào hộp thư TikTok, chưa thì lưu nháp. Sau khi đăng, bài bị khoá: không sửa hoặc xoá được tới khi đăng xong.
+            Bấm <b>{submitLabel}</b> để giao bài cho worker đã chọn trên thanh tiêu đề. Tới giờ đăng, worker
+            {video ? ' dựng video theo template rồi' : ''} đăng lên các nền tảng đã chọn bằng tài khoản trên máy worker. Worker nhận bài
+            rồi thì không sửa hoặc xoá được.
           </span>
         </p>
 
-        {formError && !choosing && <FormAlert>{formError}</FormAlert>}
+        {formError && <FormAlert>{formError}</FormAlert>}
         {imagesNotReady && !formError && (
           <p className="text-xs text-amber-700">Còn ảnh chưa xong hoặc bị lỗi: hãy bỏ ảnh đó khỏi bài trước khi đăng.</p>
         )}
 
         <div className="space-y-2">
           <SubmitButton loading={busy === 'publish'} loadingText="Đang gửi..." disabled={!!busy}>
-            <Icon name="send" className="text-lg" />
-            {done.length ? 'Đăng lại' : 'Đăng bài'}
+            <Icon name={video ? 'movie' : 'send'} className="text-lg" />
+            {submitLabel}
           </SubmitButton>
           {/* Đã đăng lên nền tảng nào đó: không xoá được trên A51 */}
           {!done.length && (
@@ -925,19 +943,15 @@ function ReviewForm({ post, onRefresh }) {
   );
 }
 
-function VideoComingSoon() {
-  return (
-    <div className="p-4 lg:py-10">
-      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-outline-variant p-10 text-center">
-        <Icon name="construction" className="text-4xl text-outline" />
-        <p className="text-sm font-bold text-on-surface">Đăng video đang được phát triển</p>
-        <p className="text-xs text-on-surface-variant">Hiện bạn có thể đăng bài dạng ảnh.</p>
-      </div>
-    </div>
-  );
-}
+const TYPE_TABS = [
+  [POST_TYPE.PHOTO, 'photo_library', 'Ảnh'],
+  [POST_TYPE.VIDEO, 'movie', 'Video'],
+];
 
-/** /posts/:id: xem lại bài rồi đăng lên TikTok (lưu nháp) / Facebook / Instagram. */
+/**
+ * /posts/:id (note/gop-luong-dang-bai.txt): bài ảnh và bài video dùng chung trang. Thanh tiêu đề chọn worker; tab Ảnh /
+ * Video chọn loại bài; soạn, chọn nền tảng + giờ đăng rồi giao cho worker.
+ */
 export default function SocialPostPage() {
   useSeo({ title: 'Bài đăng', noindex: true });
   const { id } = useParams();
@@ -947,7 +961,9 @@ export default function SocialPostPage() {
 
   const [post, setPost] = useState(null);
   const [error, setError] = useState(null);
-  const [mode, setMode] = useState('photo');
+  // null: theo loại bài hiện tại
+  const [mode, setMode] = useState(null);
+  const worker = usePostWorker(post);
 
   const load = useCallback(() => {
     setError(null);
@@ -955,22 +971,19 @@ export default function SocialPostPage() {
   }, [id]);
   useEffect(load, [load]);
 
-  // Bài video (note/lap-lich-worker.txt) có trang riêng /posts/:id/video
-  useEffect(() => {
-    if (post && isVideoPost(post)) navigate(`/posts/${post.id}/video`, { replace: true });
-  }, [post, navigate]);
-
-  // Đang chuẩn bị / chờ đăng / đang đăng: tự cập nhật tới khi xong
+  // Đang chuẩn bị / đang đăng / chờ đăng đã tới giờ: tự cập nhật tới khi đổi trạng thái
   const polling = needsPolling(post);
   useEffect(() => {
     if (!polling) return undefined;
     const timer = setInterval(() => getPost(id).then(setPost, () => {}), POLL_INTERVAL);
     return () => {
       clearInterval(timer);
-      // Xong: danh sách bài đổi trạng thái
-      queryClient.invalidateQueries({ queryKey: ['social', 'posts'] });
+      queryClient.invalidateQueries({ queryKey: POSTS_KEY });
     };
   }, [polling, id, queryClient]);
+
+  const type = mode ?? post?.type ?? POST_TYPE.PHOTO;
+  const editable = post && isPostEditable(post);
 
   return (
     <>
@@ -983,7 +996,8 @@ export default function SocialPostPage() {
         >
           <Icon name="arrow_back" />
         </button>
-        <h1 className="flex-1 truncate text-base font-bold text-on-surface">Bài đăng</h1>
+        <h1 className="min-w-0 flex-1 truncate text-base font-bold text-on-surface">Bài đăng</h1>
+        <HeaderWorkerSelect worker={worker} post={post} />
         {post && (
           <span className="mr-2">
             <PostStatusBadge status={post.status} />
@@ -991,36 +1005,30 @@ export default function SocialPostPage() {
         )}
       </header>
 
-      {/* Desktop: cùng lưới 2 cột với nội dung bên dưới để tab rộng bằng cột trái */}
-      <div className="px-4 pt-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8">
-        <div role="tablist" aria-label="Loại bài đăng" className="grid grid-cols-2 gap-1 rounded-xl bg-surface-container p-1">
-          {[
-            ['photo', 'photo_library', 'Ảnh'],
-            ['video', 'movie', 'Video'],
-          ].map(([value, icon, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={mode === value}
-              onClick={() => setMode(value)}
-              className={`flex h-10 items-center justify-center gap-1.5 rounded-lg text-sm font-bold transition-colors ${
-                mode === value ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
-              }`}
-            >
-              <Icon name={icon} className="text-lg" />
-              {label}
-              {value === 'video' && (
-                <span className="rounded-full bg-surface-container-high px-1.5 text-[10px] font-semibold text-outline">Sắp có</span>
-              )}
-            </button>
-          ))}
+      {editable && (
+        // Desktop: cùng lưới 2 cột với nội dung bên dưới để tab rộng bằng cột trái
+        <div className="px-4 pt-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8">
+          <div role="tablist" aria-label="Loại bài đăng" className="grid grid-cols-2 gap-1 rounded-xl bg-surface-container p-1">
+            {TYPE_TABS.map(([value, icon, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={type === value}
+                onClick={() => setMode(value)}
+                className={`flex h-10 items-center justify-center gap-1.5 rounded-lg text-sm font-bold transition-colors ${
+                  type === value ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                <Icon name={icon} className="text-lg" />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {mode === 'video' ? (
-        <VideoComingSoon />
-      ) : error ? (
+      {error ? (
         <div className="p-4">
           <ErrorState error={error} onRetry={error.status === 404 ? undefined : load} />
         </div>
@@ -1031,10 +1039,16 @@ export default function SocialPostPage() {
         </div>
       ) : post.status === POST_STATUS.GENERATING ? (
         <GeneratingPanel post={post} />
-      ) : post.status === POST_STATUS.PENDING_REVIEW ? (
-        <ReviewForm key={post.id} post={post} onRefresh={load} />
+      ) : editable ? (
+        <PostEditor
+          key={`${post.id}-${post.status}`}
+          post={post}
+          type={type}
+          workerId={worker.workerId}
+          hasWorkers={worker.isLoading || !!worker.workers?.length}
+        />
       ) : (
-        <PostPreview post={post} />
+        <PostPreview post={post} onChanged={setPost} />
       )}
     </>
   );

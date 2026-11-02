@@ -1,24 +1,19 @@
 import client from './client';
 
 /*
- * ---- Đăng bài lên TikTok / Facebook / Instagram (cần đăng nhập) ----
- * Đặc tả: note/dang-bai-da-nen-tang.txt (bản mới nhất), note/nghiep-vu-dang-bai-tiktik.txt (bài đăng).
+ * ---- Bài đăng ảnh / video, giao cho worker (cần đăng nhập) ----
+ * Đặc tả: note/gop-luong-dang-bai.txt (bản mới nhất), note/lap-lich-worker.txt (bài video).
  * Ảnh của bài lấy từ lô ảnh (src/api/batches.js) hoặc lịch sử tạo ảnh.
- * Bấm đăng thì backend tạo 1 job / nền tảng đã chọn, mỗi worker (FlowKit) giữ một tài khoản của một nền tảng (admin gắn
- * cho tài khoản A51) nhận job và đăng bài (TikTok: LƯU NHÁP).
- * TikTok qua API (note/dang-tiktok-qua-api.txt): người dùng tự kết nối TikTok thì mặc định đăng qua API, không qua worker:
- * ảnh vào hộp thư TikTok, người dùng mở app TikTok để đăng.
- * Một tài khoản A51 kết nối được nhiều tài khoản TikTok (note/uy-quyen-nhieu-tiktok.txt): đăng bài thì chọn một hoặc
- * nhiều tài khoản (tiktok_account_ids), mỗi tài khoản một trạng thái riêng (platforms.tiktok.accounts).
+ * Bấm đăng: chọn worker (thanh tiêu đề trang bài), loại bài (ảnh / video + template), nền tảng (một hoặc nhiều), giờ đăng
+ * (mặc định bây giờ). Bài sang "Chờ đăng" (còn sửa / xoá được); tới giờ worker nhận 1 job chứa mọi nền tảng, tự đăng
+ * bằng tài khoản trên máy rồi báo lại 1 lần. Lỗi -> "Chờ gửi" kèm last_error; worker im lặng -> "Tạo lại".
  *
- * GET    /social/accounts                                -> { data: PublishAccount[] }  (admin gắn / tự kết nối)
- * POST   /social/tiktok/oauth/authorize { redirect }     -> { data: { url } }  (chuyển sang TikTok)
- * POST   /social/tiktok/oauth/callback { code, state, error } -> { data: { status, reason, redirect } }
- * DELETE /social/tiktok/accounts/{id}                    -> 204  (huỷ kết nối một tài khoản)
- * GET    /social/posts?page=&per_page=&status=           -> { data: SocialPost[], meta }
+ * GET    /social/posts?page=&per_page=&status=&type=     -> { data: SocialPost[], meta }
  * GET    /social/posts/{id}                              -> { data: SocialPost }
  * POST   /social/posts/from-images                       -> 201 { data: SocialPost }
- * POST   /social/posts/{id}/publish                      -> { data: SocialPost }   (các nền tảng chọn sang queued)
+ * POST   /social/posts/{id}/publish { worker_id, type, video_template_id?, product_id?, platforms, scheduled_at, images,
+ *        title, content, hashtags }                       -> { data: SocialPost }   (bài sang queued)
+ * POST   /social/posts/{id}/retry                        -> { data: SocialPost }   "Đăng lại" (lỗi) / "Tạo lại" (đang đăng)
  * POST   /social/posts/{id}/ai-content                   -> { data: { title, content, hashtags, credit_balance } }
  *        "Viết lại bằng AI": không lưu vào bài, trừ phí khi AI viết được (note/ai-viet-noi-dung-bai-dang.txt)
  * GET    /creator/ai-content                             -> { data: AiContentSettings }  (trang "AI viết nội dung", chủ shop)
@@ -37,26 +32,20 @@ export const HASHTAG_MAX = 10;
  * maxImages: số ảnh tối đa; descriptionMax: nội dung + dòng hashtag tối đa; doneLabel: nhãn khi đăng xong.
  */
 export const PLATFORMS = [
-  { value: 'tiktok', label: 'TikTok', icon: 'music_note', maxImages: 35, descriptionMax: 4000, doneLabel: 'Đã lưu nháp' },
+  { value: 'tiktok', label: 'TikTok', icon: 'music_note', maxImages: 35, descriptionMax: 4000, doneLabel: 'Đã đăng' },
   { value: 'facebook', label: 'Facebook', icon: 'thumb_up', maxImages: 35, descriptionMax: 63206, doneLabel: 'Đã đăng' },
   { value: 'instagram', label: 'Instagram', icon: 'photo_camera', maxImages: 10, descriptionMax: 2200, doneLabel: 'Đã đăng' },
 ];
 export const platformInfo = (value) => PLATFORMS.find((p) => p.value === value) ?? { value, label: value, icon: 'public', doneLabel: 'Đã đăng' };
 
-// Cách đăng: worker (admin gắn) | api (TikTok người dùng tự kết nối)
-export const DRIVER = { WORKER: 'worker', API: 'api' };
-
-/** Nhãn khi đăng xong theo cách đăng: TikTok qua API thì ảnh vào hộp thư TikTok. */
-export const doneLabelOf = (platform, driver) =>
-  platform === 'tiktok' && driver === DRIVER.API ? 'Đã gửi vào hộp thư' : platformInfo(platform).doneLabel;
 
 /*
  * Trạng thái chung của bài:
  *   generating      Đang chuẩn bị: AI đang viết tiêu đề / nội dung / hashtag (chỉ khi bật AI viết nội dung lúc tạo bài)
- *   pending_review  Chờ gửi: chờ người dùng bấm đăng (đăng lần trước có nền tảng lỗi thì có last_error)
- *   queued          Chờ đăng: đã tạo job, chờ worker nhận (không hết hạn). Khoá: không sửa, không xoá
- *   publishing      Đang đăng: có worker đang đăng ít nhất 1 nền tảng. Khoá: không sửa, không xoá
- *   published       Đã đăng xong mọi nền tảng đã chọn (TikTok: đã lưu nháp, nhân viên A51 tự đăng nháp)
+ *   pending_review  Chờ gửi: chờ người dùng bấm đăng (đăng lần trước lỗi thì có last_error)
+ *   queued          Chờ đăng: đã giao cho worker, chờ tới giờ / worker nhận (không hết hạn). Còn sửa / xoá được
+ *   publishing      Đang đăng: worker đã nhận. Khoá: không sửa, không xoá; worker im lặng thì "Tạo lại"
+ *   published       Đã đăng xong mọi nền tảng đã chọn
  */
 export const POST_STATUS = {
   GENERATING: 'generating',
@@ -74,8 +63,11 @@ export const PLATFORM_STATUS = {
   FAILED: 'failed',
 };
 
-// Đã bấm đăng, đang chờ / đang được worker xử lý
-export const isPostLocked = (post) => post.status === POST_STATUS.QUEUED || post.status === POST_STATUS.PUBLISHING;
+// Worker đã nhận bài: không sửa, không xoá
+export const isPostLocked = (post) => post.status === POST_STATUS.PUBLISHING;
+
+// Còn sửa / đăng / xoá được: chờ gửi hoặc chờ tới giờ (worker chưa nhận)
+export const isPostEditable = (post) => post.status === POST_STATUS.PENDING_REVIEW || post.status === POST_STATUS.QUEUED;
 
 // Trạng thái ảnh trong bài
 export const IMAGE_STATUS = {
@@ -89,60 +81,6 @@ export const isImageBusy = (img) => img.status === IMAGE_STATUS.QUEUED || img.st
 /** Khoá chống tạo trùng: tạo 1 lần cho mỗi lần bấm, bấm lại do lỗi mạng thì dùng lại khoá cũ. */
 export const newIdempotencyKey = () =>
   globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-// ---- Tài khoản đăng bài ----
-
-/**
- * Tài khoản đăng bài của người dùng (admin gắn worker, hoặc các TikTok tự kết nối; có tự kết nối thì không có dòng worker
- * của TikTok). connection (chỉ driver api): { status: active | expired | revoked | scope_missing, avatarUrl, connectedAt }.
- */
-export const getAccounts = () =>
-  client.get('/social/accounts').then(({ data }) =>
-    data.map((a) => ({
-      id: a.id,
-      platform: a.platform,
-      label: a.label,
-      name: a.name,
-      username: a.username,
-      isActive: a.is_active,
-      driver: a.driver ?? DRIVER.WORKER,
-      connection: a.connection
-        ? { status: a.connection.status, avatarUrl: a.connection.avatar_url ?? null, connectedAt: a.connection.connected_at }
-        : null,
-    })),
-  );
-
-/** Các TikTok tự kết nối của người dùng (có thể có tài khoản đã mất kết nối), theo thứ tự kết nối. */
-export const tiktokConnectionsOf = (accounts) => (accounts ?? []).filter((a) => a.platform === 'tiktok' && a.driver === DRIVER.API);
-
-export const isConnectionActive = (account) => account?.connection?.status === 'active';
-
-/** "@username", không có thì tên hiển thị. */
-export const tiktokNameOf = (account) => (account.username ? `@${account.username}` : account.name);
-
-/** Chuyển sang TikTok để người dùng đồng ý; TikTok trả về /mxh/tiktok/author, xong quay lại redirect. */
-export const authorizeTikTok = (redirect = window.location.pathname + window.location.search) =>
-  client.post('/social/tiktok/oauth/authorize', { redirect }).then(({ data }) => {
-    window.location.href = data.url;
-  });
-
-/** Trang /mxh/tiktok/author gửi tham số TikTok trả về: { status: connected | error, reason, redirect }. */
-export const tiktokCallback = ({ code, state, error }) =>
-  client.post('/social/tiktok/oauth/callback', { code, state, error }).then(({ data }) => data);
-
-export const disconnectTikTok = (id) => client.delete(`/social/tiktok/accounts/${id}`);
-
-/** Thông báo theo kết quả kết nối (reason của callback / connection.status). */
-export const TIKTOK_CONNECT_MESSAGES = {
-  connected: 'Đã kết nối tài khoản TikTok.',
-  access_denied: 'Bạn đã huỷ kết nối TikTok.',
-  scope_missing: 'Cần cho phép quyền tải nội dung lên để A51 gửi bài sang TikTok. Vui lòng kết nối lại.',
-  state_invalid: 'Phiên kết nối đã hết hạn, vui lòng thử lại.',
-  server_error: 'Không kết nối được TikTok, vui lòng thử lại sau.',
-  limit_reached: 'Bạn đã kết nối đủ số tài khoản TikTok tối đa. Huỷ kết nối bớt một tài khoản để thêm tài khoản khác.',
-  expired: 'Kết nối TikTok đã hết hạn, vui lòng kết nối lại.',
-  revoked: 'Kết nối TikTok đã bị gỡ, vui lòng kết nối lại.',
-};
 
 // ---- Bài đăng ----
 
@@ -168,27 +106,16 @@ export const mapImage = (img) => ({
   ...mapCreative(img.creative),
 });
 
-/**
- * { tiktok: { status, ... } } -> [{ platform, status, driver, postUrl, error, finishedAt, accounts }] theo thứ tự PLATFORMS.
- * accounts: TikTok gửi qua API, trạng thái từng tài khoản [{ accountId, name, status, error, finishedAt }].
- */
+/** { tiktok: { status, ... } } -> [{ platform, status, postUrl, error, finishedAt }] theo thứ tự PLATFORMS. */
 const mapPlatforms = (platforms) =>
   PLATFORMS.filter((p) => platforms?.[p.value]).map((p) => {
     const s = platforms[p.value];
     return {
       platform: p.value,
       status: s.status,
-      driver: s.driver ?? null,
       postUrl: s.post_url ?? null,
       error: s.error ?? null,
       finishedAt: s.finished_at ?? null,
-      accounts: (s.accounts ?? []).map((a) => ({
-        accountId: a.account_id ?? null,
-        name: a.name ?? 'TikTok',
-        status: a.status,
-        error: a.error ?? null,
-        finishedAt: a.finished_at ?? null,
-      })),
     };
   });
 
@@ -212,6 +139,10 @@ const mapPost = (p) => ({
   id: p.id,
   type: p.type ?? POST_TYPE.PHOTO,
   video: mapVideo(p.video),
+  // Worker được giao, giờ đăng, nền tảng đã chọn (note/gop-luong-dang-bai.txt)
+  worker: p.worker ? { id: p.worker.id, name: p.worker.name } : null,
+  scheduledAt: p.scheduled_at ?? null,
+  selectedPlatforms: p.selected_platforms ?? [],
   status: p.status,
   source: p.source,
   imageBatchId: p.image_batch_id ?? null,
@@ -316,34 +247,40 @@ export const saveAiContentSettings = ({ hashtags, samples, titleMax, contentMax 
     .then(({ data }) => mapAiContentSettings(data));
 
 /**
- * Đăng bài: lưu toàn bộ chỉnh sửa trên trang rồi tạo 1 job / nền tảng trong form.platforms, bài chuyển sang queued
- * (khoá tới khi worker xong). Tiêu đề, nội dung, hashtag không bắt buộc. Nền tảng lỗi: xong hết thì bài về
- * pending_review với last_error, người dùng đăng lại các nền tảng lỗi (nền tảng đã đăng xong không đăng lại được).
- * form.tiktokAccountIds: các TikTok tự kết nối sẽ nhận bài (chỉ gửi khi chọn TikTok).
+ * "Đăng bài" (note/gop-luong-dang-bai.txt): lưu chỉnh sửa + worker + loại bài + nền tảng + giờ đăng, bài sang "Chờ đăng".
+ * form: { workerId, type: 'photo'|'video', templateId?, productId?, platforms, scheduledAt (ISO), images, title, content,
+ * hashtags }. Ảnh đang có trong bài gửi { image_id }, ảnh vừa thêm gửi { generation_id, output_id }.
  */
 export const publishPost = (id, form) =>
   client
     .post(`/social/posts/${id}/publish`, {
+      worker_id: form.workerId,
+      type: form.type,
+      video_template_id: form.type === POST_TYPE.VIDEO ? form.templateId : undefined,
+      product_id: form.type === POST_TYPE.VIDEO ? form.productId || null : undefined,
+      platforms: form.platforms,
+      scheduled_at: form.scheduledAt,
       title: form.title,
       content: form.content,
       hashtags: form.hashtags,
-      platforms: form.platforms,
-      tiktok_account_ids: form.platforms.includes('tiktok') && form.tiktokAccountIds?.length ? form.tiktokAccountIds : undefined,
       images: form.images.map((img) =>
         img.id ? { image_id: img.id } : { generation_id: img.generationId, output_id: img.outputId },
       ),
     })
     .then(({ data }) => mapPost(data));
 
+/** "Đăng lại" (bài lỗi) / "Tạo lại" (worker nhận rồi im lặng, có thể đăng trùng): bài về "Chờ đăng". */
+export const retryPost = (id) => client.post(`/social/posts/${id}/retry`).then(({ data }) => mapPost(data));
+
 export const deletePost = (id) => client.delete(`/social/posts/${id}`);
 
 // ---- Bài đăng video có lịch (note/lap-lich-worker.txt), cần hồ sơ người bán ----
-// POST /social/video-posts/auto { worker_id, count, first_at, gap_min, gap_max, idempotency_key }
+// POST /social/video-posts/auto { worker_id, platforms, count, first_at, gap_min, gap_max, idempotency_key }
 //   -> 201 { data: { created, requested, stopped: null|insufficient_credit|no_template|not_enough_images, post_ids } }
 //   không tạo được bài nào: 422 VIDEO_NO_TEMPLATE / VIDEO_NOT_ENOUGH_IMAGES, 402 INSUFFICIENT_CREDIT
-// POST /social/video-posts { worker_id, video_template_id, product_id?, images, scheduled_at, idempotency_key } -> 201 { data: post }
+// POST /social/video-posts { worker_id, platforms, video_template_id, product_id?, images, scheduled_at, idempotency_key } -> 201 { data: post }
 //      tab "Thủ công": 1 bài, AI viết nội dung như tự động (402 khi thiếu tiền)
-// PUT  /social/video-posts/{id} { worker_id, video_template_id, product_id, images, scheduled_at, title, content, hashtags }
+// PUT  /social/video-posts/{id} { worker_id, platforms, video_template_id, product_id, images, scheduled_at, title, content, hashtags }
 //   sửa khi worker chưa nhận (queued) hoặc bài lỗi (pending_review); số ảnh phải bằng số ảnh template
 // POST /social/video-posts/{id}/retry   "Đăng lại" (lỗi) / "Tạo lại" (worker nhận rồi im lặng) -> bài về queued
 // GET  /social/video-posts/images?product_id=&page=&per_page=  ảnh của sản phẩm, không có product_id: mọi ảnh đã tạo
@@ -354,7 +291,7 @@ export const POST_TYPE = { PHOTO: 'photo', VIDEO: 'video' };
 export const isVideoPost = (post) => post.type === POST_TYPE.VIDEO;
 
 /** Bài video sửa / xoá được: worker chưa nhận (chờ tới giờ) hoặc lỗi chờ đăng lại. */
-export const isVideoEditable = (post) => post.status === POST_STATUS.QUEUED || post.status === POST_STATUS.PENDING_REVIEW;
+export const isVideoEditable = isPostEditable;
 
 export const VIDEO_AUTO_MAX = 50;
 export const VIDEO_GAP_MAX_MINUTES = 1440;
@@ -365,11 +302,11 @@ export const VIDEO_STOP_MESSAGES = {
   not_enough_images: 'Không còn sản phẩm nào đủ ảnh cho các template.',
 };
 
-export const autoCreateVideoPosts = ({ workerId, count, firstAt, gapMin, gapMax }, idempotencyKey) =>
+export const autoCreateVideoPosts = ({ workerId, platforms, count, firstAt, gapMin, gapMax }, idempotencyKey) =>
   client
     .post(
       '/social/video-posts/auto',
-      { worker_id: workerId, count, first_at: firstAt, gap_min: gapMin, gap_max: gapMax, idempotency_key: idempotencyKey },
+      { worker_id: workerId, platforms, count, first_at: firstAt, gap_min: gapMin, gap_max: gapMax, idempotency_key: idempotencyKey },
       // Mỗi bài chờ trừ phí + giao AI viết: không dùng timeout mặc định
       { timeout: AI_TIMEOUT },
     )
@@ -380,6 +317,7 @@ export const createVideoPost = (form, idempotencyKey) =>
   client
     .post('/social/video-posts', {
       worker_id: form.workerId,
+      platforms: form.platforms,
       video_template_id: form.templateId,
       product_id: form.productId || null,
       images: form.images.map((i) => ({ generation_id: i.generationId, output_id: i.outputId })),
@@ -392,6 +330,7 @@ export const updateVideoPost = (id, form) =>
   client
     .put(`/social/video-posts/${id}`, {
       worker_id: form.workerId,
+      platforms: form.platforms,
       video_template_id: form.templateId,
       product_id: form.productId || null,
       images: form.images.map((i) => ({ generation_id: i.generationId, output_id: i.outputId })),
@@ -402,7 +341,7 @@ export const updateVideoPost = (id, form) =>
     })
     .then(({ data }) => mapPost(data));
 
-export const retryVideoPost = (id) => client.post(`/social/video-posts/${id}/retry`).then(({ data }) => mapPost(data));
+export const retryVideoPost = retryPost;
 
 export const listVideoImages = ({ productId, page = 1, limit = 40 } = {}) =>
   client

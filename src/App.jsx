@@ -24,10 +24,8 @@ import TemplateBuilderPage from './pages/TemplateBuilderPage';
 import SupportPage from './pages/SupportPage';
 import TopUpPage from './pages/TopUpPage';
 import SocialPostPage from './pages/SocialPostPage';
-import VideoPostPage from './pages/VideoPostPage';
 import SocialPostsPage from './pages/SocialPostsPage';
 import SocialNewPage from './pages/SocialNewPage';
-import TikTokAuthorPage from './pages/TikTokAuthorPage';
 import BatchesPage from './pages/BatchesPage';
 import BatchNewPage from './pages/BatchNewPage';
 import BatchPage from './pages/BatchPage';
@@ -40,8 +38,8 @@ import ShippingOrdersPage from './pages/ShippingOrdersPage';
 import ShippingOrderNewPage from './pages/ShippingOrderNewPage';
 import ShippingOrderPage from './pages/ShippingOrderPage';
 
-/** Link bài đăng cũ /tiktok/post/:id -> /posts/:id. */
-function LegacyTikTokPostRedirect() {
+/** Link bài đăng cũ /tiktok/post/:id, /posts/:id/video -> /posts/:id. */
+function LegacyPostRedirect() {
   const { id } = useParams();
   return <Navigate to={`/posts/${id}`} replace />;
 }
@@ -81,11 +79,12 @@ export default function App() {
           <Route path="batches" element={<BatchesPage />} />
           <Route path="batches/new" element={<BatchNewPage />} />
           <Route path="batches/:id" element={<BatchPage />} />
-          {/* Đăng bài TikTok / Facebook / Instagram (note/dang-bai-da-nen-tang.txt). Trang rộng, tự chia cột trên desktop */}
+          {/* Bài đăng ảnh / video giao cho worker (note/gop-luong-dang-bai.txt). Trang rộng, tự chia cột trên desktop */}
           <Route path="posts" element={<SocialPostsPage />} />
           <Route path="posts/new" element={<SocialNewPage />} />
           <Route path="posts/:id" element={<SocialPostPage />} />
-          <Route path="posts/:id/video" element={<VideoPostPage />} />
+          {/* Link cũ của bài video: bài ảnh / video dùng chung trang /posts/:id */}
+          <Route path="posts/:id/video" element={<LegacyPostRedirect />} />
           {/* Tạo đơn GHN từ ảnh chat (note/tao-don-ghn-tu-anh.txt). Cần hồ sơ người bán + kết nối GHN */}
           <Route path="shipping-orders" element={<ShippingOrdersPage />} />
           <Route path="shipping-orders/new" element={<ShippingOrderNewPage />} />
@@ -93,7 +92,7 @@ export default function App() {
           {/* Link cũ /tiktok/... */}
           <Route path="tiktok" element={<Navigate to="/posts" replace />} />
           <Route path="tiktok/new" element={<Navigate to="/posts/new" replace />} />
-          <Route path="tiktok/post/:id" element={<LegacyTikTokPostRedirect />} />
+          <Route path="tiktok/post/:id" element={<LegacyPostRedirect />} />
           {/* Trang đăng bài cũ không có id: về danh sách */}
           <Route path="tiktok/post" element={<Navigate to="/posts" replace />} />
           {/* Tab Người bán đã gộp vào trang Tài khoản */}
@@ -114,8 +113,8 @@ export default function App() {
             <Route path="seller/ai-content" element={<AiContentPage />} />
             <Route path="account" element={<AccountPage />} />
             <Route path="account/topup" element={<TopUpPage />} />
-            {/* TikTok trả về sau khi người dùng đồng ý kết nối (Redirect URI của Login Kit, note/dang-tiktok-qua-api.txt) */}
-            <Route path="mxh/tiktok/author" element={<TikTokAuthorPage />} />
+            {/* Đã bỏ kết nối TikTok (note/gop-luong-dang-bai.txt): link trả về cũ đưa về trang bài đăng */}
+            <Route path="mxh/tiktok/author" element={<Navigate to="/posts" replace />} />
           </Route>
         </Route>
       </Route>

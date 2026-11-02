@@ -1,0 +1,74 @@
+THẢO LUẬN: GỘP LUỒNG ĐĂNG BÀI ẢNH + VIDEO, MỌI BÀI GIAO CHO WORKER
+Ngày: 2026-11-02
+
+==================================================
+0. HIỆN TRẠNG (trước khi gộp)
+==================================================
+Bài ảnh:
+- Chủ shop: POST /social/posts/from-images (tạo bài), POST /social/posts/{id}/publish { platforms, tiktok_account_ids }.
+- Không chọn worker: mỗi nền tảng 1 job, worker giữ publish_accounts (user + nền tảng) nào thì nhận job nền tảng đó.
+- TikTok tự kết nối (driver api): không qua worker, queue PublishTikTokViaApi gọi TikTok.
+- Đăng ngay, job có hạn lease (quá hạn -> lỗi).
+- Worker: GET/POST /api/v1/publish-jobs.
+Bài video (note/lap-lich-worker.txt):
+- Chủ shop: POST /social/video-posts/auto, POST /social/video-posts, PUT /social/video-posts/{id}, POST .../retry.
+- Có worker_id, scheduled_at; nền tảng = nền tảng tài khoản worker giữ. Job không có hạn, nút "Tạo lại".
+- Worker: GET/POST /api/v1/video-posts.
+
+==================================================
+1. ĐÃ CHỐT (2026-11-02)
+==================================================
+- Mọi bài (ảnh, video) đều giao cho 1 worker. Chọn worker ở thanh tiêu đề trang chi tiết bài đăng.
+- Mọi bài đều chọn nền tảng (TikTok / Facebook / Instagram, một hoặc nhiều) ở trang chi tiết bài đăng.
+- Mọi bài có giờ đăng, mặc định là giờ hiện tại.
+- Bài video: chọn thêm template; thiếu ảnh so với số ảnh template cần thì yêu cầu thêm ảnh.
+- 1 bài = 1 job chứa TẤT CẢ nền tảng đã chọn; worker đăng xong báo kết quả 1 lần.
+- Job không có hạn; worker im lặng thì chủ shop bấm "Tạo lại" (hỏi xác nhận, có thể đăng trùng).
+- Worker không phân biệt bài ảnh / video: được giao là làm, đăng bằng tài khoản nào worker tự lo
+  (job không gửi account).
+- Bỏ TikTok tự kết nối (code, route, giao diện) và XOÁ dữ liệu khỏi DB.
+- Bỏ bảng publish_accounts và trang admin gắn tài khoản đăng bài cho worker.
+- Popup "Tạo video" tự động: thêm ô chọn nền tảng, mặc định TikTok.
+- API worker: hướng 1 = API mới GET/POST /api/v1/post-jobs, XOÁ /api/v1/publish-jobs và /api/v1/video-posts,
+  sửa worker FlowKit sang API mới cùng lúc. /api/v1/video-images (API cũ worker video) giữ nguyên.
+
+Claude tự chọn (cần đổi thì báo):
+- Bài ảnh đang chờ / đang đăng theo luồng cũ (chưa có worker): migration chuyển về Chờ gửi, chủ shop chọn worker
+  rồi đăng lại.
+- Bài video đang có: thêm platforms = nền tảng tài khoản worker cũ, không có thì TikTok.
+
+Claude tự chọn khi triển khai (cần đổi thì báo):
+- Worker "gắn cho shop để đăng bài" = workers.video_user_id (admin -> Worker -> mục "Shop đăng bài", trước là
+  "Tài khoản tạo video"). Migration chép liên kết từ publish_accounts sang trước khi xoá bảng.
+- Bài "Chờ đăng" (worker chưa nhận) sửa / xoá được như bài video trước đây (trước: bài ảnh đã bấm đăng là khoá).
+- Thêm social_posts.platforms (nền tảng đã chọn), tách khỏi trạng thái từng nền tảng: bài lỗi sửa nền tảng rồi Đăng lại.
+- Worker FlowKit hiện có chỉ làm 1 việc: worker đăng ảnh (web/flowkit) đăng 1 nền tảng của nó, worker video
+  (auto-make-image-to-video) chỉ dựng video + đăng TikTok. Nhận bài không làm được (sai loại bài / thiếu nền tảng) thì
+  báo failed ngay: UNSUPPORTED_POST_TYPE / UNSUPPORTED_PLATFORM, chủ shop đổi worker / nền tảng rồi đăng lại.
+- Job không gửi tài khoản: worker đăng ảnh đọc {PREFIX}_USERNAME (kiểm tra tài khoản) và FACEBOOK_TARGET_URL (nơi đăng
+  Facebook) trong .env của worker.
+
+==================================================
+2. ĐÃ TRIỂN KHAI (2026-11-02)
+==================================================
+Chủ shop:
+  POST /social/posts/{id}/publish { worker_id, type: photo|video, video_template_id? (video), product_id?, platforms[],
+       scheduled_at? (không gửi: bây giờ), images[{image_id}|{generation_id, output_id}], title, content, hashtags }
+       Bài chờ gửi hoặc chờ đăng (worker chưa nhận). Bài video: số ảnh phải đúng số ảnh template.
+  POST /social/posts/{id}/retry           Đăng lại (lỗi) / Tạo lại (đang đăng, worker im lặng). Như video-posts/{id}/retry.
+  POST /social/video-posts/auto           thêm platforms[] (mặc định ['tiktok'])
+  POST /social/video-posts, PUT /social/video-posts/{id}   thêm platforms[] (bắt buộc)
+  Bỏ: GET /social/accounts, /social/tiktok/* (kết nối TikTok, webhook).
+  SocialPost thêm: worker { id, name } | null, scheduled_at, selected_platforms[]; platforms.{p} còn status, post_url,
+  error, finished_at (bỏ driver, accounts).
+Worker (Bearer token worker):
+  GET  /api/v1/post-jobs   204: chưa có việc. 200 { data: { id, type: photo|video, request: { post_id, type, platforms[],
+       title, content, hashtags, description, images[url], template|null, product|null, scheduled_at } } }
+       Chỉ bài đã tới giờ, được giao đúng worker này, cũ nhất trước. Không còn 409 ACCOUNT_NOT_ASSIGNED.
+  POST /api/v1/post-jobs/{id} { status: completed|failed, post_url?, error_code?, error_message? }
+       completed / failed áp cho mọi nền tảng của job. 409 JOB_NOT_ASSIGNED: chủ shop đã bấm "Tạo lại".
+  Bỏ: /api/v1/publish-jobs, /api/v1/video-posts. Giữ: /api/v1/video-images, /api/v1/video-templates/sync.
+Migration: 2026_11_02_100000_merge_post_publishing_into_worker_jobs.php (KHÔNG hoàn tác được: xoá publish_accounts,
+  job gửi TikTok qua API, các cột tài khoản / hạn của social_publish_jobs).
+Frontend: /posts/:id dùng chung bài ảnh + video (thanh tiêu đề chọn worker, tab Ảnh / Video, template + báo thiếu ảnh,
+  chọn nền tảng, giờ đăng). /posts/:id/video chuyển về /posts/:id. Bỏ thẻ kết nối TikTok ở Tài khoản và /mxh/tiktok/author.

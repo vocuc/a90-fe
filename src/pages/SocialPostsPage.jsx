@@ -18,31 +18,34 @@ const postTitle = (post) => (generating(post) ? 'Đang chuẩn bị...' : post.t
 const imageCount = (post) => post.imageCount;
 const coverUrl = (post) => post.coverUrl ?? null;
 
-// Bài chờ gửi cần người dùng làm tiếp (xem lại rồi đăng): nút gọi hành động thay cho "Xem"
-// Bài video có trang riêng /posts/:id/video
-const postUrl = (post) => (isVideoPost(post) ? `/posts/${post.id}/video` : `/posts/${post.id}`);
+// Bài ảnh / video dùng chung trang /posts/:id (note/gop-luong-dang-bai.txt)
+const postUrl = (post) => `/posts/${post.id}`;
 
-const actionLabel = (post) => {
-  if (isVideoPost(post)) {
-    // Bài video: sửa khi chờ tới giờ, sửa / đăng lại khi lỗi, tạo lại khi worker im lặng
-    return { [POST_STATUS.QUEUED]: 'Sửa', [POST_STATUS.PENDING_REVIEW]: 'Sửa / Đăng lại', [POST_STATUS.PUBLISHING]: 'Tạo lại' }[post.status] ?? 'Xem';
-  }
-  return post.status === POST_STATUS.PENDING_REVIEW ? (post.platforms.length ? 'Đăng lại' : 'Đăng bài') : 'Xem';
-};
+// Bài cần người dùng làm tiếp: nút gọi hành động thay cho "Xem". Chờ tới giờ: sửa; lỗi: sửa / đăng lại; worker im lặng: tạo lại
+const actionLabel = (post) =>
+  ({
+    [POST_STATUS.QUEUED]: 'Sửa',
+    [POST_STATUS.PENDING_REVIEW]: post.lastError ? 'Sửa / Đăng lại' : 'Đăng bài',
+    [POST_STATUS.PUBLISHING]: 'Tạo lại',
+  })[post.status] ?? 'Xem';
 
-/** Nhãn loại bài + giờ đăng (bài video). */
+/** Nhãn bài video + giờ đăng + worker (bài đã giao cho worker). */
 function VideoInfo({ post }) {
-  if (!isVideoPost(post)) return null;
+  if (!isVideoPost(post) && !post.worker) return null;
   return (
     <p className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-on-surface-variant">
-      <span className="inline-flex items-center gap-0.5 rounded bg-primary-fixed/40 px-1 font-bold text-primary">
-        <Icon name="movie" className="text-xs" />
-        Video
-      </span>
-      <span>
-        Đăng lúc <b className="text-on-surface">{formatSchedule(post.video?.scheduledAt)}</b>
-      </span>
-      {post.video?.worker && <span>· {post.video.worker.name}</span>}
+      {isVideoPost(post) && (
+        <span className="inline-flex items-center gap-0.5 rounded bg-primary-fixed/40 px-1 font-bold text-primary">
+          <Icon name="movie" className="text-xs" />
+          Video
+        </span>
+      )}
+      {post.worker && post.status !== POST_STATUS.PENDING_REVIEW && (
+        <span>
+          Đăng lúc <b className="text-on-surface">{formatSchedule(post.scheduledAt)}</b>
+        </span>
+      )}
+      {post.worker && <span>· {post.worker.name}</span>}
     </p>
   );
 }
@@ -181,12 +184,13 @@ function PostTable({ posts }) {
 
 const PAGE_SIZE = 20;
 const POLL_INTERVAL = 5000;
-// Bài video chờ tới giờ (có thể vài ngày): chỉ theo dõi khi đã tới giờ, worker sắp nhận
+// Bài chờ tới giờ (có thể vài ngày): chỉ theo dõi khi đã tới giờ, worker sắp nhận
 const isRunning = (p) =>
   p.status === POST_STATUS.GENERATING ||
-  (isVideoPost(p) && p.status === POST_STATUS.QUEUED ? new Date(p.video?.scheduledAt) <= new Date() : isPostLocked(p));
+  isPostLocked(p) ||
+  (p.status === POST_STATUS.QUEUED && new Date(p.scheduledAt ?? 0) <= new Date());
 
-/** /posts: bước 1, danh sách bài đăng (TikTok / Facebook / Instagram). */
+/** /posts: danh sách bài đăng ảnh / video (worker đăng lên TikTok / Facebook / Instagram). */
 export default function SocialPostsPage() {
   useSeo({ title: 'Đăng bài', noindex: true });
   const navigate = useNavigate();
