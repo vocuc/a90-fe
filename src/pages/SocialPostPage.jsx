@@ -695,7 +695,47 @@ function PostEditor({ post, type, worker }) {
         />
       )}
 
-      <div className="space-y-4 lg:col-start-2 lg:row-start-1">
+      {/* Cột trái: danh sách ảnh */}
+      <div className="space-y-4">
+        {video && template && missing > 0 && (
+          <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 sm:flex-row sm:items-center">
+            <p className="flex flex-1 items-start gap-2">
+              <Icon name="add_photo_alternate" className="text-base" />
+              <span>
+                Template <b>{template.name}</b> cần <b>{required} ảnh</b>, bài mới có {form.images.length}. Thêm <b>{missing} ảnh</b> nữa để
+                tạo video.
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg bg-amber-600 px-3 font-bold text-white hover:bg-amber-700"
+            >
+              <Icon name="add" className="text-base" />
+              Thêm {missing} ảnh
+            </button>
+          </div>
+        )}
+        {video && template && extra > 0 && (
+          <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
+            <Icon name="info" className="text-base" />
+            <span>
+              Template chỉ cần <b>{required} ảnh</b>: bấm biểu tượng thùng rác ở {extra} ảnh không muốn dùng. Thứ tự ảnh là thứ tự trong video.
+            </span>
+          </p>
+        )}
+        <ImageStrip
+          images={form.images}
+          editable
+          onRemove={(key) => set('images')(form.images.filter((i) => i.key !== key))}
+          onAdd={() => setAdding(true)}
+          onMove={moveImage}
+        />
+        {errors.images && <p className="text-xs text-error">{errors.images}</p>}
+      </div>
+
+      {/* Cột phải: worker, template, nội dung, nền tảng, giờ đăng, nút đăng */}
+      <div className="space-y-6">
         {post.lastError && !formError && (
           <p className="flex items-start gap-2 rounded-xl bg-error-container/60 px-3 py-2 text-xs text-on-error-container">
             <Icon name="error" className="text-base" />
@@ -839,44 +879,6 @@ function PostEditor({ post, type, worker }) {
             {errors.hashtags && <p className="mt-1 text-xs text-error">{errors.hashtags}</p>}
           </div>
         </section>
-      </div>
-
-      <div className="space-y-6 lg:col-start-1 lg:row-start-1">
-        {video && template && missing > 0 && (
-          <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 sm:flex-row sm:items-center">
-            <p className="flex flex-1 items-start gap-2">
-              <Icon name="add_photo_alternate" className="text-base" />
-              <span>
-                Template <b>{template.name}</b> cần <b>{required} ảnh</b>, bài mới có {form.images.length}. Thêm <b>{missing} ảnh</b> nữa để
-                tạo video.
-              </span>
-            </p>
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg bg-amber-600 px-3 font-bold text-white hover:bg-amber-700"
-            >
-              <Icon name="add" className="text-base" />
-              Thêm {missing} ảnh
-            </button>
-          </div>
-        )}
-        {video && template && extra > 0 && (
-          <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
-            <Icon name="info" className="text-base" />
-            <span>
-              Template chỉ cần <b>{required} ảnh</b>: bấm biểu tượng thùng rác ở {extra} ảnh không muốn dùng. Thứ tự ảnh là thứ tự trong video.
-            </span>
-          </p>
-        )}
-        <ImageStrip
-          images={form.images}
-          editable
-          onRemove={(key) => set('images')(form.images.filter((i) => i.key !== key))}
-          onAdd={() => setAdding(true)}
-          onMove={moveImage}
-        />
-        {errors.images && <p className="text-xs text-error">{errors.images}</p>}
 
         <PlatformPicker value={form.platforms} onChange={set('platforms')} done={done} limitError={limitError} error={errors.platforms} />
 
@@ -989,9 +991,9 @@ export default function SocialPostPage() {
       </header>
 
       {editable && (
-        // Desktop: cùng lưới 2 cột với nội dung bên dưới để tab nằm trên cột phải (worker, template, nội dung)
-        <div className="px-4 pt-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8">
-          <div role="tablist" aria-label="Loại bài đăng" className="grid grid-cols-2 gap-1 rounded-xl bg-surface-container p-1 lg:col-start-2">
+        // Tab Ảnh / Video trên cùng, rộng bằng khung nội dung; bên dưới chia 2 cột (trái: ảnh, phải: form)
+        <div className="px-4 pt-4 lg:mx-auto lg:w-full lg:max-w-[1000px]">
+          <div role="tablist" aria-label="Loại bài đăng" className="grid grid-cols-2 gap-1 rounded-xl bg-surface-container p-1">
             {TYPE_TABS.map(([value, icon, label]) => (
               <button
                 key={value}
