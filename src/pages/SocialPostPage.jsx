@@ -991,8 +991,8 @@ export default function SocialPostPage() {
       </header>
 
       {editable && (
-        // Tab Ảnh / Video trên cùng, rộng bằng khung nội dung; bên dưới chia 2 cột (trái: ảnh, phải: form)
-        <div className="px-4 pt-4 lg:mx-auto lg:w-full lg:max-w-[1000px]">
+        // Desktop: cùng lưới 2 cột với nội dung bên dưới, tab Ảnh / Video chỉ rộng bằng cột trái (ảnh)
+        <div className="px-4 pt-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8">
           <div role="tablist" aria-label="Loại bài đăng" className="grid grid-cols-2 gap-1 rounded-xl bg-surface-container p-1">
             {TYPE_TABS.map(([value, icon, label]) => (
               <button
