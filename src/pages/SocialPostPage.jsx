@@ -396,9 +396,11 @@ function PostPreview({ post, onChanged }) {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8 lg:py-6">
-      <ImageStrip images={post.images} />
-      <section className="space-y-4">
+    <div className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[400px_minmax(0,1fr)] lg:items-start lg:gap-8 lg:py-6">
+      <div className="lg:col-start-2 lg:row-start-1">
+        <ImageStrip images={post.images} />
+      </div>
+      <section className="space-y-4 lg:col-start-1 lg:row-start-1">
         {post.status === POST_STATUS.PUBLISHING ? (
           <div className="space-y-2 rounded-xl bg-primary-fixed/40 px-3 py-2 text-xs text-primary">
             <p className="flex items-center gap-2 font-semibold">
@@ -684,7 +686,7 @@ function PostEditor({ post, type, worker }) {
     <form
       onSubmit={submit}
       noValidate
-      className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8 lg:py-6"
+      className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[400px_minmax(0,1fr)] lg:items-start lg:gap-8 lg:py-6"
     >
       {adding && (
         <AddImagesDialog
@@ -989,8 +991,8 @@ export default function SocialPostPage() {
       </header>
 
       {editable && (
-        // Desktop: cùng lưới 2 cột với nội dung bên dưới để tab rộng bằng cột trái
-        <div className="px-4 pt-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8">
+        // Desktop: cùng lưới 2 cột với nội dung bên dưới để tab rộng bằng cột trái (worker, template, nội dung)
+        <div className="px-4 pt-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-8">
           <div role="tablist" aria-label="Loại bài đăng" className="grid grid-cols-2 gap-1 rounded-xl bg-surface-container p-1">
             {TYPE_TABS.map(([value, icon, label]) => (
               <button
