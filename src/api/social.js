@@ -8,7 +8,7 @@ import client from './client';
  * (mặc định bây giờ). Bài sang "Chờ đăng" (còn sửa / xoá được); tới giờ worker nhận 1 job chứa mọi nền tảng, tự đăng
  * bằng tài khoản trên máy rồi báo lại 1 lần. Lỗi -> "Chờ gửi" kèm last_error; worker im lặng -> "Tạo lại".
  *
- * GET    /social/posts?page=&per_page=&status=&type=     -> { data: SocialPost[], meta }
+ * GET    /social/posts?page=&per_page=&status=&type=&worker_id= -> { data: SocialPost[], meta }
  * GET    /social/posts/{id}                              -> { data: SocialPost }
  * POST   /social/posts/from-images                       -> 201 { data: SocialPost }
  * POST   /social/posts/{id}/publish { worker_id, type, video_template_id?, product_id?, platforms, scheduled_at, images,
@@ -160,8 +160,8 @@ const mapPost = (p) => ({
 });
 
 /** Mới nhất trước, có phân trang. */
-export const listPosts = ({ page = 1, limit = 20, status, type } = {}) =>
-  client.get('/social/posts', { params: { page, per_page: limit, status, type } }).then(({ data, meta }) => ({
+export const listPosts = ({ page = 1, limit = 20, status, type, workerId } = {}) =>
+  client.get('/social/posts', { params: { page, per_page: limit, status, type, worker_id: workerId || undefined } }).then(({ data, meta }) => ({
     items: data.map(mapPost),
     page: meta.current_page,
     lastPage: meta.last_page,

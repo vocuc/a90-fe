@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
@@ -8,7 +8,7 @@ import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback'
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
 import { POST_STATUS, isPostLocked, isVideoPost, listPosts } from '../api/social';
 import { useMe } from '../hooks/queries';
-import { CreateVideoDialog, POSTS_KEY, createdMessage, formatSchedule } from '../components/social/VideoPostDialogs';
+import { CreateVideoDialog, POSTS_KEY, createdMessage, formatSchedule, useShopWorkers } from '../components/social/VideoPostDialogs';
 
 const formatTime = (iso) =>
   new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -182,6 +182,39 @@ function PostTable({ posts }) {
   );
 }
 
+/** Lọc bài theo worker đã giao bài (worker đăng bài của shop). Không có worker thì ẩn. */
+function WorkerFilter({ workers, value, onChange }) {
+  if (!workers?.length) return null;
+  const chip = (active) =>
+    `flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-semibold transition-colors ${
+      active ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface hover:bg-primary-fixed/60'
+    }`;
+  return (
+    <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4" role="group" aria-label="Lọc theo worker">
+      <Icon name="filter_list" className="shrink-0 text-lg text-outline" />
+      <button type="button" aria-pressed={!value} onClick={() => onChange('')} className={chip(!value)}>
+        Tất cả worker
+      </button>
+      {workers.map((w) => {
+        const active = value === String(w.id);
+        return (
+          <button
+            key={w.id}
+            type="button"
+            aria-pressed={active}
+            title={w.online ? 'Đang online' : 'Offline'}
+            onClick={() => onChange(active ? '' : String(w.id))}
+            className={chip(active)}
+          >
+            <span className={`size-2 rounded-full ${w.online ? 'bg-emerald-500' : 'bg-outline-variant'}`} />
+            {w.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 const PAGE_SIZE = 20;
 const POLL_INTERVAL = 5000;
 // Bài chờ tới giờ (có thể vài ngày): chỉ theo dõi khi đã tới giờ, worker sắp nhận
@@ -201,9 +234,26 @@ export default function SocialPostsPage() {
   const [creatingVideo, setCreatingVideo] = useState(false);
   const [notice, setNotice] = useState(null);
 
+  // Worker đang lọc nằm trên URL (?worker=id): giữ khi tải lại / quay lại trang
+  const [searchParams, setSearchParams] = useSearchParams();
+  const workerId = searchParams.get('worker') ?? '';
+  const setWorkerId = (id) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (id) next.set('worker', id);
+        else next.delete('worker');
+        return next;
+      },
+      { replace: true },
+    );
+  // Worker chỉ có khi đã có hồ sơ người bán (API trả 403 khi chưa có shop)
+  const { data: workers } = useShopWorkers({ enabled: !!me?.creatorProfile });
+  const filterWorker = workers?.find((w) => String(w.id) === workerId);
+
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: POSTS_KEY,
-    queryFn: ({ pageParam }) => listPosts({ page: pageParam, limit: PAGE_SIZE }),
+    queryKey: [...POSTS_KEY, { workerId }],
+    queryFn: ({ pageParam }) => listPosts({ page: pageParam, limit: PAGE_SIZE, workerId }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
     // Còn bài đang chuẩn bị / chờ đăng / đang đăng thì tự cập nhật trạng thái mỗi 5 giây
@@ -246,6 +296,7 @@ export default function SocialPostsPage() {
       </header>
 
       <section className="space-y-3 p-4 lg:py-6">
+        <WorkerFilter workers={workers} value={workerId} onChange={setWorkerId} />
         {notice && (
           <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
             <Icon name="check_circle" className="text-base" />
@@ -269,6 +320,19 @@ export default function SocialPostsPage() {
               <Skeleton key={i} className="h-28" />
             ))}
           </div>
+        ) : !posts.length && workerId ? (
+          <EmptyState
+            icon="filter_list_off"
+            message={`${filterWorker ? `Worker "${filterWorker.name}"` : 'Worker này'} chưa có bài đăng nào.`}
+          >
+            <button
+              type="button"
+              onClick={() => setWorkerId('')}
+              className="mt-2 flex h-10 items-center gap-1 rounded-xl px-4 text-sm font-bold text-primary hover:bg-surface-container"
+            >
+              Xem tất cả bài đăng
+            </button>
+          </EmptyState>
         ) : !posts.length ? (
           <EmptyState icon="video_library" message="Chưa có bài đăng nào.">
             <Link

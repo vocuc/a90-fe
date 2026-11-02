@@ -37,9 +37,10 @@ export const formatSchedule = (iso) =>
 export const workerLabel = (w) => `${w.name}${w.online ? '' : ' (offline)'}`;
 
 /** Worker đăng bài của shop (loại publish): chọn ở trang bài đăng / popup "Tạo video". Worker tạo ảnh không hiện. */
-export function useShopWorkers() {
+export function useShopWorkers({ enabled = true } = {}) {
   return useQuery({
     queryKey: WORKER_KEYS.all,
+    enabled,
     queryFn: listWorkers,
     select: (workers) => workers.filter((w) => w.type === 'publish'),
   });
