@@ -422,7 +422,7 @@ function SelectedImages({ selected, onChange, large }) {
   return (
     <div className="space-y-1">
       {sortable && <p className="text-[11px] text-on-surface-variant">Thứ tự ảnh trong video. Kéo thả hoặc bấm mũi tên để đổi.</p>}
-      <ul className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+      <ul className="flex flex-wrap gap-2">
         {selected.map((img, i) => (
           <li key={img.key} className={`shrink-0 space-y-1 ${large ? 'w-24' : 'w-16'}`} {...dragProps(i)}>
             <div
