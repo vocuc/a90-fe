@@ -79,3 +79,28 @@ Backend: GET /api/v1/creator/workers (middleware "creator", ShopWorkerController
   functions: ['image'|'publish'|'video'], publish_account: { platform, platform_label, name } | null, online,
   last_seen_at, token }] }, sắp theo tên. Test: tests/Feature/ShopWorkerTest.php.
 Frontend: src/api/workers.js, src/pages/WorkersPage.jsx.
+
+==================================================
+9. ĐỔI LẠI: WORKER CÓ LOẠI (2026-11-02)
+==================================================
+ĐÃ CHỐT:
+- Admin tạo worker: nhập tên + chọn loại (Tạo ảnh | Đăng bài) + gắn tài khoản A51 (không bắt buộc lúc tạo).
+- Cả 2 loại gắn được NHIỀU tài khoản; một tài khoản có NHIỀU worker cùng loại.
+- Tạo ảnh: nhận job tạo ảnh của các tài khoản được gắn. Đăng bài: shop được gắn chọn worker ở trang bài đăng, worker
+  nhận bài được giao (note/gop-luong-dang-bai.txt).
+- Worker cũ: chuyển hết sang Đăng bài, tài khoản gắn = tài khoản tạo ảnh + "Shop đăng bài" cũ; admin tự đổi lại loại.
+- Đổi loại / bỏ tài khoản bị CHẶN khi worker còn việc dở (Tạo ảnh: ảnh đang tạo; Đăng bài: bài chờ đăng / đang đăng).
+
+Claude tự chọn (cần đổi thì báo):
+- Worker gọi API không đúng loại -> 409 WORKER_TYPE_MISMATCH (vd worker tạo ảnh gọi /post-jobs).
+- GET /api/v1/video-images (loại Đăng bài): gắn nhiều shop thì gửi ?user_id=, gắn 1 shop thì không cần.
+- PUT /api/v1/video-templates/sync (loại Đăng bài): đồng bộ vào MỌI shop được gắn; trả thêm accounts[].
+- Lệnh: php artisan workers:create {name} --type=image|publish --email=...
+
+TRIỂN KHAI:
+Backend: migration 2026_11_02_110000_add_type_to_workers.php (thêm workers.type, chép video_user_id vào worker_user,
+  bỏ video_user_id). Worker::users() (thay imageUsers / videoUser), scopeAssignedTo($userId, $type),
+  pendingJobCount(), assertType(). Admin: trang Worker có cột Loại + Tài khoản được gắn, đổi loại
+  (PATCH /admin/workers/{id}/type), bỏ mục "Shop đăng bài".
+  GET /creator/workers trả thêm type (image | publish); functions: image -> ['image'], publish -> ['publish', 'video'].
+Frontend: ô chọn worker ở trang bài đăng / popup "Tạo video" chỉ hiện worker loại Đăng bài (useShopWorkers lọc type).

@@ -96,7 +96,7 @@ function usePostWorker(post) {
   const [picked, setPicked] = useState(null);
   const [pref] = useState(readWorkerPref);
   const exists = (id) => !!id && workers?.some((w) => String(w.id) === String(id));
-  const fallback = workers?.find((w) => w.functions.includes('publish')) ?? workers?.[0];
+  const fallback = workers?.[0];
   const workerId = [picked, post?.worker?.id, pref].find(exists) ?? (fallback ? fallback.id : '');
   const setWorkerId = (id) => {
     setPicked(id);
@@ -793,7 +793,7 @@ function PostEditor({ post, type, worker }) {
                   ? 'Cần mở cửa hàng (hồ sơ người bán) để giao bài cho worker.'
                   : 'Không tải được danh sách worker, tải lại trang để thử lại.'
                 : !worker.isLoading && !worker.workers?.length
-                  ? 'Shop chưa được gắn worker nào, liên hệ A51 để được gắn worker đăng bài.'
+                  ? 'Shop chưa được gắn worker đăng bài nào, liên hệ A51 để được gắn.'
                   : 'Worker nhận bài khi tới giờ đăng và đăng lên các nền tảng đã chọn.'
             }
           >

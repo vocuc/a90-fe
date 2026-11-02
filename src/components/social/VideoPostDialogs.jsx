@@ -18,7 +18,7 @@ import {
   listVideoPostTemplates,
   newIdempotencyKey,
 } from '../../api/social';
-import { WORKER_FUNCTIONS, WORKER_KEYS, listWorkers } from '../../api/workers';
+import { WORKER_KEYS, listWorkers } from '../../api/workers';
 import { listProducts } from '../../api/autoBatch';
 
 export const POSTS_KEY = ['social', 'posts'];
@@ -34,11 +34,15 @@ export const fromLocalInput = (value) => new Date(value).toISOString();
 export const formatSchedule = (iso) =>
   iso ? new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
-export const workerLabel = (w) =>
-  `${w.name}${w.functions.length ? ` · ${w.functions.map((f) => WORKER_FUNCTIONS[f]?.label ?? f).join(', ')}` : ''}${w.online ? '' : ' (offline)'}`;
+export const workerLabel = (w) => `${w.name}${w.online ? '' : ' (offline)'}`;
 
+/** Worker đăng bài của shop (loại publish): chọn ở trang bài đăng / popup "Tạo video". Worker tạo ảnh không hiện. */
 export function useShopWorkers() {
-  return useQuery({ queryKey: WORKER_KEYS.all, queryFn: listWorkers });
+  return useQuery({
+    queryKey: WORKER_KEYS.all,
+    queryFn: listWorkers,
+    select: (workers) => workers.filter((w) => w.type === 'publish'),
+  });
 }
 
 /** Nền tảng worker đăng video lên (một hoặc nhiều), mặc định TikTok. */
@@ -75,7 +79,7 @@ function WorkerSelect({ value, onChange, error }) {
   const { data: workers, isLoading } = useShopWorkers();
   return (
     <SelectField label="Worker dựng và đăng video" value={value} onChange={(e) => onChange(e.target.value)} error={error}>
-      <option value="">{isLoading ? 'Đang tải...' : workers?.length ? 'Chọn worker' : 'Shop chưa được gắn worker nào'}</option>
+      <option value="">{isLoading ? 'Đang tải...' : workers?.length ? 'Chọn worker' : 'Shop chưa được gắn worker đăng bài nào'}</option>
       {(workers ?? []).map((w) => (
         <option key={w.id} value={w.id}>
           {workerLabel(w)}
