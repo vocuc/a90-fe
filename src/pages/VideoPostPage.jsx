@@ -55,7 +55,7 @@ export default function VideoPostPage() {
             <Skeleton className="h-64" />
           </div>
         ) : (
-          <VideoPostPanel key={`${post.id}-${post.status}`} post={post} onDone={goBack} onCancel={goBack} />
+          <VideoPostPanel key={`${post.id}-${post.status}`} post={post} onDone={goBack} />
         )}
       </section>
     </>

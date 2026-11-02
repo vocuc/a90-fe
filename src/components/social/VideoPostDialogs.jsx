@@ -559,7 +559,7 @@ function VideoImagePicker({ productId, selected, onChange, required, large = fal
 }
 
 /** Sửa bài video (worker chưa nhận / bài lỗi): mọi thứ. */
-function VideoPostForm({ post, onSaved, onCancel, footerExtra }) {
+function VideoPostForm({ post, onSaved, footerExtra }) {
   const templates = useQuery({ queryKey: ['social', 'video-templates'], queryFn: listVideoPostTemplates });
   const products = useQuery({ queryKey: ['creator', 'products', 'all-50'], queryFn: () => listProducts({ limit: 50 }) });
   const [form, setForm] = useState(() => ({
@@ -691,14 +691,11 @@ function VideoPostForm({ post, onSaved, onCancel, footerExtra }) {
       {/* Mobile có tab đáy cố định nên nút nằm cuối form; desktop dính đáy màn hình */}
       <div className="-mx-4 flex items-center gap-2 border-t border-surface-container bg-surface-container-lowest px-4 pt-3 lg:sticky lg:bottom-0 lg:pb-3">
         {footerExtra}
-        <button type="button" onClick={onCancel} disabled={saving} className="h-10 rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container disabled:opacity-50">
-          Quay lại
-        </button>
         <button
           type="button"
           onClick={submit}
           disabled={saving}
-          className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50 lg:flex-none lg:px-8"
+          className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50 lg:ml-auto lg:flex-none lg:px-8"
         >
           {saving && <Icon name="progress_activity" className="animate-spin text-lg" />}
           Lưu
@@ -710,9 +707,9 @@ function VideoPostForm({ post, onSaved, onCancel, footerExtra }) {
 
 /**
  * Nội dung trang bài video (/posts/:id/video): sửa (worker chưa nhận / lỗi), xoá, "Đăng lại" (lỗi), "Tạo lại" (worker
- * nhận rồi im lặng, có thể đăng trùng), xem (đã đăng). onDone: sau khi lưu / xoá / đăng lại xong. onCancel: nút Quay lại.
+ * nhận rồi im lặng, có thể đăng trùng), xem (đã đăng). onDone: sau khi lưu / xoá / đăng lại xong.
  */
-export function VideoPostPanel({ post, onDone, onCancel }) {
+export function VideoPostPanel({ post, onDone }) {
   const queryClient = useQueryClient();
   const { confirm, alert } = useConfirm();
   const [busy, setBusy] = useState(false);
@@ -794,7 +791,6 @@ export function VideoPostPanel({ post, onDone, onCancel }) {
         </div>
         <VideoPostForm
           post={post}
-          onCancel={onCancel}
           footerExtra={deleteButton}
           onSaved={async () => {
             await refresh();
