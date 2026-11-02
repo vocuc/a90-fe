@@ -759,77 +759,6 @@ function PostEditor({ post, type, worker }) {
           </p>
         )}
         {post.platforms.length > 0 && <PlatformStatusList platforms={post.platforms} showErrors />}
-        <SelectField
-          label="Worker làm việc"
-          value={workerId}
-          onChange={(e) => {
-            worker.setWorkerId(e.target.value);
-            setErrors((er) => ({ ...er, worker: undefined }));
-          }}
-          disabled={worker.isLoading || !worker.workers?.length}
-          error={errors.worker}
-          hint={
-            worker.error
-              ? worker.error.status === 403
-                ? 'Cần mở cửa hàng (hồ sơ người bán) để giao bài cho worker.'
-                : 'Không tải được danh sách worker, tải lại trang để thử lại.'
-              : !worker.isLoading && !worker.workers?.length
-                ? 'Shop chưa được gắn worker nào, liên hệ A51 để được gắn worker đăng bài.'
-                : 'Worker nhận bài khi tới giờ đăng và đăng lên các nền tảng đã chọn.'
-          }
-        >
-          {worker.isLoading ? (
-            <option value="">Đang tải worker...</option>
-          ) : !worker.workers?.length ? (
-            <option value="">Chưa có worker</option>
-          ) : (
-            worker.workers.map((w) => (
-              <option key={w.id} value={w.id}>
-                {workerLabel(w)}
-              </option>
-            ))
-          )}
-        </SelectField>
-        {video && (
-          <section className="space-y-2">
-            <SelectField
-              label="Video template"
-              value={form.templateId}
-              onChange={(e) => set('templateId')(e.target.value)}
-              error={errors.template}
-              hint={
-                templates.error
-                  ? 'Cần mở cửa hàng (hồ sơ người bán) để tạo bài video.'
-                  : templates.data && !templates.data.length
-                    ? 'Chưa có template nào đang bật và có số ảnh.'
-                    : 'Worker dựng video theo template từ ảnh của bài, đúng thứ tự ảnh.'
-              }
-            >
-              <option value="">{templates.isLoading ? 'Đang tải...' : 'Chọn template'}</option>
-              {!template && post.video?.template?.name && form.templateId && (
-                <option value={form.templateId} disabled>
-                  {post.video.template.name} (đã tắt / đã xoá)
-                </option>
-              )}
-              {(templates.data ?? []).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} · {t.imageCount} ảnh
-                </option>
-              ))}
-            </SelectField>
-            {template?.videoUrl && (
-              <a
-                href={template.videoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
-              >
-                <Icon name="play_circle" className="text-base" />
-                Xem video mẫu
-              </a>
-            )}
-          </section>
-        )}
         <section className="space-y-4">
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
@@ -849,6 +778,77 @@ function PostEditor({ post, type, worker }) {
               </button>
             )}
           </div>
+          <SelectField
+            label="Worker làm việc"
+            value={workerId}
+            onChange={(e) => {
+              worker.setWorkerId(e.target.value);
+              setErrors((er) => ({ ...er, worker: undefined }));
+            }}
+            disabled={worker.isLoading || !worker.workers?.length}
+            error={errors.worker}
+            hint={
+              worker.error
+                ? worker.error.status === 403
+                  ? 'Cần mở cửa hàng (hồ sơ người bán) để giao bài cho worker.'
+                  : 'Không tải được danh sách worker, tải lại trang để thử lại.'
+                : !worker.isLoading && !worker.workers?.length
+                  ? 'Shop chưa được gắn worker nào, liên hệ A51 để được gắn worker đăng bài.'
+                  : 'Worker nhận bài khi tới giờ đăng và đăng lên các nền tảng đã chọn.'
+            }
+          >
+            {worker.isLoading ? (
+              <option value="">Đang tải worker...</option>
+            ) : !worker.workers?.length ? (
+              <option value="">Chưa có worker</option>
+            ) : (
+              worker.workers.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {workerLabel(w)}
+                </option>
+              ))
+            )}
+          </SelectField>
+          {video && (
+            <section className="space-y-2">
+              <SelectField
+                label="Video template"
+                value={form.templateId}
+                onChange={(e) => set('templateId')(e.target.value)}
+                error={errors.template}
+                hint={
+                  templates.error
+                    ? 'Cần mở cửa hàng (hồ sơ người bán) để tạo bài video.'
+                    : templates.data && !templates.data.length
+                      ? 'Chưa có template nào đang bật và có số ảnh.'
+                      : 'Worker dựng video theo template từ ảnh của bài, đúng thứ tự ảnh.'
+                }
+              >
+                <option value="">{templates.isLoading ? 'Đang tải...' : 'Chọn template'}</option>
+                {!template && post.video?.template?.name && form.templateId && (
+                  <option value={form.templateId} disabled>
+                    {post.video.template.name} (đã tắt / đã xoá)
+                  </option>
+                )}
+                {(templates.data ?? []).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} · {t.imageCount} ảnh
+                  </option>
+                ))}
+              </SelectField>
+              {template?.videoUrl && (
+                <a
+                  href={template.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                >
+                  <Icon name="play_circle" className="text-base" />
+                  Xem video mẫu
+                </a>
+              )}
+            </section>
+          )}
           <TextField
             label="Tiêu đề"
             icon="title"
