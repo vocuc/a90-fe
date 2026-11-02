@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import Dialog from '../common/Dialog';
 import Icon from '../common/Icon';
 import CoverImage from '../common/CoverImage';
 import { ErrorState, Skeleton } from '../common/Feedback';
+import Pagination from '../common/Pagination';
 import { FormAlert, SelectField, TextArea, TextField } from '../common/Form';
 import { useConfirm } from '../common/ConfirmDialog';
 import { PlatformStatusList, PostStatusBadge } from './PostStatus';
@@ -375,21 +376,117 @@ export function CreateVideoDialog({ onClose, onCreated }) {
 export const createdMessage = (result) =>
   `Đã tạo ${result.created}/${result.requested} bài video.${result.stopped ? ` ${VIDEO_STOP_MESSAGES[result.stopped] ?? ''}` : ''}`;
 
-/** Chọn ảnh cho bài video: ảnh của sản phẩm hoặc mọi ảnh đã tạo, đúng số ảnh template cần (theo thứ tự chọn). */
+const MOVE_MIME = 'application/x-a51-video-image';
+const ORDER_BTN =
+  'flex h-6 flex-1 items-center justify-center rounded-md border border-outline-variant/50 text-on-surface-variant hover:border-primary-container hover:text-primary disabled:opacity-30';
+
+/**
+ * Ảnh đã chọn theo thứ tự trong video: kéo thả (máy tính) hoặc nút trái / phải để đổi thứ tự, nút x để bỏ.
+ */
+function SelectedImages({ selected, onChange, large }) {
+  // Vị trí đang kéo tới, null = không kéo
+  const [dropIndex, setDropIndex] = useState(null);
+  const sortable = selected.length > 1;
+
+  const move = (from, to) => {
+    if (to < 0 || to >= selected.length || from === to) return;
+    const next = [...selected];
+    const [img] = next.splice(from, 1);
+    next.splice(to, 0, img);
+    onChange(next);
+  };
+
+  const dragProps = (i) =>
+    sortable
+      ? {
+          draggable: true,
+          onDragStart: (e) => {
+            e.dataTransfer.setData(MOVE_MIME, String(i));
+            e.dataTransfer.effectAllowed = 'move';
+          },
+          onDragOver: (e) => {
+            if (![...e.dataTransfer.types].includes(MOVE_MIME)) return;
+            e.preventDefault();
+            if (dropIndex !== i) setDropIndex(i);
+          },
+          onDrop: (e) => {
+            e.preventDefault();
+            setDropIndex(null);
+            const from = Number(e.dataTransfer.getData(MOVE_MIME));
+            if (Number.isInteger(from)) move(from, i);
+          },
+          onDragEnd: () => setDropIndex(null),
+        }
+      : {};
+
+  return (
+    <div className="space-y-1">
+      {sortable && <p className="text-[11px] text-on-surface-variant">Thứ tự ảnh trong video. Kéo thả hoặc bấm mũi tên để đổi.</p>}
+      <ul className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+        {selected.map((img, i) => (
+          <li key={img.key} className={`shrink-0 space-y-1 ${large ? 'w-24' : 'w-16'}`} {...dragProps(i)}>
+            <div
+              className={`relative overflow-hidden rounded-lg ${dropIndex === i ? 'ring-2 ring-primary ring-offset-1' : ''} ${
+                sortable ? 'cursor-grab' : ''
+              }`}
+            >
+              <CoverImage src={img.thumbUrl} alt="" className="aspect-square w-full" />
+              <span className="absolute left-0.5 top-0.5 rounded bg-black/60 px-1 text-[10px] font-bold text-white">{i + 1}</span>
+              <button
+                type="button"
+                onClick={() => onChange(selected.filter((s) => s.key !== img.key))}
+                aria-label={`Bỏ ảnh ${i + 1}`}
+                className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-black/60 text-white hover:bg-error"
+              >
+                <Icon name="close" className="text-xs" />
+              </button>
+            </div>
+            {sortable && (
+              <div className="flex gap-1">
+                <button type="button" onClick={() => move(i, i - 1)} disabled={i === 0} aria-label={`Đưa ảnh ${i + 1} lên trước`} className={ORDER_BTN}>
+                  <Icon name="chevron_left" className="text-sm" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => move(i, i + 1)}
+                  disabled={i === selected.length - 1}
+                  aria-label={`Đưa ảnh ${i + 1} ra sau`}
+                  className={ORDER_BTN}
+                >
+                  <Icon name="chevron_right" className="text-sm" />
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Chọn ảnh cho bài video: ảnh của sản phẩm hoặc mọi ảnh đã tạo, đúng số ảnh template cần (theo thứ tự chọn, đổi thứ tự
+ * được). Ảnh để chọn chia trang 1 2 3 ... large: lưới ảnh to hơn (trang sửa bài).
+ */
 function VideoImagePicker({ productId, selected, onChange, required, large = false }) {
   const [source, setSource] = useState(productId ? 'product' : 'all');
+  const [page, setPage] = useState(1);
   const useProduct = source === 'product' && productId;
-  const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['social', 'video-images', useProduct ? productId : 'all'],
-    queryFn: ({ pageParam }) => listVideoImages({ productId: useProduct ? productId : undefined, page: pageParam }),
-    initialPageParam: 1,
-    getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
+  const { data, isLoading, isFetching, isPlaceholderData, error, refetch } = useQuery({
+    queryKey: ['social', 'video-images', useProduct ? productId : 'all', page],
+    queryFn: () => listVideoImages({ productId: useProduct ? productId : undefined, page }),
+    // Giữ trang cũ trong lúc tải trang mới, lưới không bị nhảy
+    placeholderData: keepPreviousData,
   });
-  const images = data?.pages.flatMap((p) => p.items) ?? [];
+  const images = data?.items ?? [];
   const order = (key) => selected.findIndex((s) => s.key === key);
   const toggle = (img) => {
     if (order(img.key) >= 0) onChange(selected.filter((s) => s.key !== img.key));
     else if (selected.length < required) onChange([...selected, img]);
+  };
+  const changeSource = (value) => {
+    setSource(value);
+    setPage(1);
   };
 
   return (
@@ -412,7 +509,7 @@ function VideoImagePicker({ productId, selected, onChange, required, large = fal
               role="tab"
               aria-selected={source === t.value}
               disabled={t.disabled}
-              onClick={() => setSource(t.value)}
+              onClick={() => changeSource(t.value)}
               className={`rounded-md px-2 py-1 disabled:opacity-40 ${source === t.value ? 'bg-surface-container-lowest text-on-surface shadow-sm' : 'text-on-surface-variant'}`}
             >
               {t.label}
@@ -420,16 +517,7 @@ function VideoImagePicker({ productId, selected, onChange, required, large = fal
           ))}
         </div>
       </div>
-      {selected.length > 0 && (
-        <ul className="no-scrollbar flex gap-1.5 overflow-x-auto">
-          {selected.map((img, i) => (
-            <li key={img.key} className={`relative shrink-0 ${large ? 'w-20' : 'w-14'}`}>
-              <CoverImage src={img.thumbUrl} alt="" className="aspect-square w-full rounded-lg" />
-              <span className="absolute left-0.5 top-0.5 rounded bg-black/60 px-1 text-[10px] font-bold text-white">{i + 1}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      {selected.length > 0 && <SelectedImages selected={selected} onChange={onChange} large={large} />}
       {error ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : isLoading ? (
@@ -437,8 +525,12 @@ function VideoImagePicker({ productId, selected, onChange, required, large = fal
       ) : !images.length ? (
         <p className="py-4 text-center text-xs text-on-surface-variant">Không có ảnh nào.</p>
       ) : (
-        <div className={`overflow-y-auto rounded-xl border border-outline-variant/30 p-1.5 ${large ? 'max-h-[60vh]' : 'max-h-64'}`}>
-          <div className={`grid gap-1.5 ${large ? 'grid-cols-3 sm:grid-cols-4 xl:grid-cols-5' : 'grid-cols-4 sm:grid-cols-5'}`}>
+        <div className="space-y-2 rounded-xl border border-outline-variant/30 p-1.5">
+          <div
+            className={`grid gap-1.5 transition-opacity ${isPlaceholderData ? 'opacity-50' : ''} ${
+              large ? 'grid-cols-3 sm:grid-cols-4 xl:grid-cols-5' : 'grid-cols-4 sm:grid-cols-5'
+            }`}
+          >
             {images.map((img) => {
               const idx = order(img.key);
               return (
@@ -459,17 +551,7 @@ function VideoImagePicker({ productId, selected, onChange, required, large = fal
               );
             })}
           </div>
-          {hasNextPage && (
-            <button
-              type="button"
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-              className="mx-auto mt-1.5 flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-bold text-primary hover:bg-surface-container disabled:opacity-60"
-            >
-              {isFetchingNextPage && <Icon name="progress_activity" className="animate-spin text-sm" />}
-              Xem thêm ảnh
-            </button>
-          )}
+          <Pagination page={page} lastPage={data?.lastPage} onChange={setPage} disabled={isFetching && isPlaceholderData} />
         </div>
       )}
     </div>
@@ -590,7 +672,7 @@ function VideoPostForm({ post, onSaved, onCancel, footerExtra }) {
         error={errors.hashtags ?? Object.entries(errors).find(([k]) => k.startsWith('hashtags.'))?.[1]}
       />
         </div>
-        <div className="space-y-2 lg:sticky lg:top-[136px]">
+        <div className="space-y-2">
           <VideoImagePicker
             key={form.productId || 'all'}
             productId={form.productId ? Number(form.productId) : null}
@@ -610,7 +692,7 @@ function VideoPostForm({ post, onSaved, onCancel, footerExtra }) {
       <div className="-mx-4 flex items-center gap-2 border-t border-surface-container bg-surface-container-lowest px-4 pt-3 lg:sticky lg:bottom-0 lg:pb-3">
         {footerExtra}
         <button type="button" onClick={onCancel} disabled={saving} className="h-10 rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container disabled:opacity-50">
-          Huỷ
+          Quay lại
         </button>
         <button
           type="button"
@@ -628,7 +710,7 @@ function VideoPostForm({ post, onSaved, onCancel, footerExtra }) {
 
 /**
  * Nội dung trang bài video (/posts/:id/video): sửa (worker chưa nhận / lỗi), xoá, "Đăng lại" (lỗi), "Tạo lại" (worker
- * nhận rồi im lặng, có thể đăng trùng), xem (đã đăng). onDone: sau khi lưu / xoá / đăng lại xong. onCancel: nút Huỷ.
+ * nhận rồi im lặng, có thể đăng trùng), xem (đã đăng). onDone: sau khi lưu / xoá / đăng lại xong. onCancel: nút Quay lại.
  */
 export function VideoPostPanel({ post, onDone, onCancel }) {
   const queryClient = useQueryClient();
