@@ -1,0 +1,34 @@
+CHỌN WORKER TẠO ẢNH KHI TẠO ẢNH / TẠO LÔ
+Ngày: 2026-11-02
+
+1. NGHIỆP VỤ
+------------
+- Bấm "Tạo ảnh" (/create), "Tạo lô ảnh" (/batches/new, bước nhập thông tin) hoặc "Tạo lô tự động" (popup ở /batches)
+  đều phải chọn "Worker tạo ảnh". Chỉ hiện worker loại Tạo ảnh, đang bật, admin đã gắn cho tài khoản (note/quan-ly-worker.txt).
+- Mặc định: worker chọn lần trước (localStorage a51_image_worker), không có thì worker online đầu tiên, rồi worker đầu tiên.
+- Tài khoản chưa được gắn worker tạo ảnh: không tạo được, hiện "Tài khoản chưa được gắn worker tạo ảnh, liên hệ A51 để được gắn."
+- Cả lô (và mọi lô của "Tạo tự động") dùng 1 worker.
+- Tạo lại / sửa nguyên liệu một ảnh của lô, tạo lại ảnh lỗi (retry): giữ worker của ảnh cũ.
+- Chỉ worker đã chọn nhận job. Worker đã chọn bị tắt / đổi loại / gỡ khỏi tài khoản thì worker tạo ảnh khác của tài khoản
+  nhận thay (ảnh không bị treo). Worker chỉ offline (máy tắt) thì ảnh chờ tới khi worker đó bật lại.
+- Creator tạo thử mẫu (không qua 3 màn trên): không chọn worker, worker tạo ảnh nào của tài khoản cũng nhận (như cũ).
+
+2. API
+------
+- GET /api/v1/image-workers (đã đăng nhập, không cần shop) -> { data: [{ id, name, online, last_seen_at }] } theo tên.
+- POST /generations, POST /image-batches, POST /image-batches/auto: thêm worker_id.
+    Không gửi -> null (worker nào cũng nhận, giữ tương thích). Frontend luôn gửi (bắt buộc ở giao diện).
+    Sai -> 422 errors["worker_id"]:
+      tài khoản không có worker tạo ảnh: "Tài khoản chưa được gắn worker tạo ảnh, liên hệ A51 để được gắn."
+      worker không thuộc tài khoản / không phải loại Tạo ảnh / đang tắt: "Worker tạo ảnh không còn được gắn cho tài khoản, chọn worker khác."
+- Lưu ở generations.worker_id (nullable, FK workers, xoá worker -> null).
+- GET /api/v1/jobs (WorkerJobService::claim): chỉ nhận job có generations.worker_id null, = mình, hoặc worker đã chọn
+  không còn hợp lệ.
+
+3. TRIỂN KHAI
+-------------
+Backend (a90.local): migration 2026_11_02_120000_add_worker_id_to_generations, Worker::imageWorkerIdFor,
+  ImageWorkerController, GenerationService / ImageBatchService / AutoBatchService nhận workerId, WorkerJobService::claim.
+  Test: tests/Feature/ImageWorkerSelectionTest.php.
+Frontend: src/api/workers.js (listImageWorkers), src/components/common/ImageWorkerSelect.jsx, CreatePage, BatchNewPage,
+  AutoBatchDialog.

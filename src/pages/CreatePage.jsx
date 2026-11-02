@@ -17,6 +17,7 @@ import {
 } from '../hooks/generationQueries';
 import { formatVnd } from '../utils/format';
 import DynamicForm, { initialValues, validateValues } from '../components/template/DynamicForm';
+import ImageWorkerSelect, { useImageWorker } from '../components/common/ImageWorkerSelect';
 
 // Mã lỗi từng ảnh (GenerationResource) -> thông báo, ảnh lỗi đều được hoàn tiền
 const OUTPUT_ERRORS = {
@@ -214,6 +215,9 @@ export default function CreatePage() {
   const { data: c, isLoading, error, refetch } = useCreative(slug);
   const { data: me } = useMe();
   const create = useCreateGeneration();
+  // Worker tạo ảnh bắt buộc chọn (note/chon-worker-tao-anh.txt)
+  const worker = useImageWorker();
+  const [workerError, setWorkerError] = useState(null);
 
   // Form người mua theo input_schema của Creative
   const schema = c?.inputSchema ?? null;
@@ -230,7 +234,7 @@ export default function CreatePage() {
   // Đổi dữ liệu gửi đi -> yêu cầu mới, khoá mới
   useEffect(() => {
     idempotencyKey.current = newKey();
-  }, [values, quantity]);
+  }, [values, quantity, worker.workerId]);
 
   if (!slug) {
     return (
@@ -262,10 +266,20 @@ export default function CreatePage() {
   const onSubmit = (e) => {
     e.preventDefault();
     setSubmitted(true);
-    if (notEnough || !schema || Object.keys(validateValues(schema, values)).length) return;
+    setWorkerError(worker.missingError);
+    if (notEnough || !schema || Object.keys(validateValues(schema, values)).length || worker.missingError) return;
     create.mutate(
-      { creativeId: c.creativeId, inputs: templateInputs(), quantity, idempotencyKey: idempotencyKey.current },
       {
+        creativeId: c.creativeId,
+        inputs: templateInputs(),
+        quantity,
+        idempotencyKey: idempotencyKey.current,
+        workerId: worker.workerId,
+      },
+      {
+        onError: (err) => {
+          if (err?.errors?.worker_id) setWorkerError([].concat(err.errors.worker_id)[0]);
+        },
         onSuccess: (generation) => {
           idempotencyKey.current = newKey();
           setRuns((list) => [
@@ -352,6 +366,7 @@ export default function CreatePage() {
               </Section>
 
               <Section title="Tuỳ chọn">
+                <ImageWorkerSelect worker={worker} error={workerError} onChange={() => setWorkerError(null)} />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold text-on-surface-variant">Số ảnh</p>

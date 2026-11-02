@@ -16,7 +16,8 @@ import { mapBatch } from './batches';
  * POST   /creator/creative-groups                 { name, creative_ids } -> 201 ; PUT /creator/creative-groups/{id}
  * DELETE /creator/creative-groups/{id}            -> 204
  * GET    /image-batches/auto/preview?count=&seed= -> { data: { seed, batches: AutoPlan[], total_cost, balance } }
- * POST   /image-batches/auto                      { count, insert_logo, idempotency_key, seed? }
+ * POST   /image-batches/auto                      { count, insert_logo, idempotency_key, seed?, worker_id }
+ *          worker_id: worker tạo ảnh cho mọi lô (note/chon-worker-tao-anh.txt), sai -> 422 errors["worker_id"]
  *          -> 201 { data: { batches: ImageBatch[], requested, stopped: null|insufficient_credit|no_valid_pair, required } }
  *          402 INSUFFICIENT_CREDIT (không tạo được lô nào), 422 AUTO_NOTHING_TO_CREATE.
  */
@@ -112,9 +113,9 @@ export const previewAuto = (count) =>
   }));
 
 /** seed: của lần xem trước (tạo đúng các lô đã xem); bỏ trống thì hệ thống tự chọn ngẫu nhiên. */
-export const createAuto = ({ count, insertLogo, seed }, idempotencyKey) =>
+export const createAuto = ({ count, insertLogo, seed, workerId }, idempotencyKey) =>
   client
-    .post('/image-batches/auto', { count, insert_logo: insertLogo, idempotency_key: idempotencyKey, seed })
+    .post('/image-batches/auto', { count, insert_logo: insertLogo, idempotency_key: idempotencyKey, seed, worker_id: workerId })
     .then(({ data }) => ({
       batches: data.batches.map(mapBatch),
       requested: data.requested,

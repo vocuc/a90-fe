@@ -9,6 +9,7 @@ import { initialValues, validateValues } from '../components/template/DynamicFor
 import CreativePicker from '../components/batch/CreativePicker';
 import CreativeInputCard from '../components/batch/CreativeInputCard';
 import LogoCard, { batchLogoUrl } from '../components/batch/LogoCard';
+import ImageWorkerSelect, { useImageWorker } from '../components/common/ImageWorkerSelect';
 import { useMe } from '../hooks/queries';
 import { creativeApi } from '../api/services';
 import { createBatch } from '../api/batches';
@@ -45,6 +46,9 @@ export default function BatchNewPage() {
   const logoUrl = batchLogoUrl(me);
   const [insertLogo, setInsertLogo] = useState(true);
   const [logoError, setLogoError] = useState(null);
+  // Worker tạo ảnh cho cả lô, bắt buộc chọn (note/chon-worker-tao-anh.txt)
+  const worker = useImageWorker();
+  const [workerError, setWorkerError] = useState(null);
 
   const step = params.get('step') === 'inputs' && picked.length ? 'inputs' : 'pick';
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/batches', { replace: true }));
@@ -79,6 +83,12 @@ export default function BatchNewPage() {
 
   const submit = async () => {
     setError(null);
+    setWorkerError(worker.missingError);
+    if (worker.missingError) {
+      setError(worker.missingError);
+      document.getElementById('batch-worker')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     if (incomplete.length) {
       // Mở các mẫu còn thiếu và cuộn tới mẫu đầu tiên
       setSubmitted(true);
@@ -101,6 +111,7 @@ export default function BatchNewPage() {
         })),
         idem.key.current,
         !!logoUrl && insertLogo,
+        worker.workerId,
       );
       idem.renew();
       // Đã trừ tiền -> tải lại số dư
@@ -123,6 +134,7 @@ export default function BatchNewPage() {
         setOpen((ids) => [...new Set([...ids, ...Object.keys(byRow)])]);
       }
       if (err?.errors?.insert_logo) setLogoError([].concat(err.errors.insert_logo)[0]);
+      if (err?.errors?.worker_id) setWorkerError([].concat(err.errors.worker_id)[0]);
       setError(err?.message || 'Không tạo được lô ảnh, vui lòng thử lại.');
       setLoading(false);
     }
@@ -190,6 +202,9 @@ export default function BatchNewPage() {
           }}
           error={logoError}
         />
+        <div id="batch-worker" className="rounded-2xl border border-outline-variant/40 p-4">
+          <ImageWorkerSelect worker={worker} error={workerError} onChange={() => setWorkerError(null)} />
+        </div>
         <ul className="space-y-3">
           {rows.map((r) => (
             <CreativeInputCard

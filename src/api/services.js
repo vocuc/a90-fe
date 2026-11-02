@@ -333,12 +333,14 @@ export const appendInputs = (form, inputs, prefix = 'inputs') =>
 
 export const generationApi = {
   // inputs: { [key]: File | giá trị } theo input_schema của Creative (gồm inputs.aspectRatio)
-  create: requireRealBackend(({ creativeId, inputs, quantity, idempotencyKey }) => {
+  // workerId: worker tạo ảnh người dùng chọn (note/chon-worker-tao-anh.txt), sai -> 422 errors["worker_id"]
+  create: requireRealBackend(({ creativeId, inputs, quantity, idempotencyKey, workerId }) => {
     const form = new FormData();
     form.append('creative_id', creativeId);
     appendInputs(form, inputs);
     form.append('quantity', quantity);
     form.append('idempotency_key', idempotencyKey);
+    if (workerId) form.append('worker_id', workerId);
     return client.post('/generations', form, { timeout: GENERATION_UPLOAD_TIMEOUT }).then(({ data }) => data);
   }),
   // tab: active | failed | disabled (không truyền: mọi đơn, kèm ảnh chưa tắt)

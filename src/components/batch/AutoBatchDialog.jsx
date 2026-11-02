@@ -6,6 +6,7 @@ import CoverImage from '../common/CoverImage';
 import Icon from '../common/Icon';
 import { ErrorState, Skeleton } from '../common/Feedback';
 import LogoCard, { batchLogoUrl } from './LogoCard';
+import ImageWorkerSelect, { useImageWorker } from '../common/ImageWorkerSelect';
 import { useMe } from '../../hooks/queries';
 import useIdempotencyKey from '../../hooks/useIdempotencyKey';
 import { AUTO_MAX_COUNT, createAuto, previewAuto } from '../../api/autoBatch';
@@ -28,6 +29,9 @@ export default function AutoBatchDialog({ onDone, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [logoError, setLogoError] = useState(null);
+  // Worker tạo ảnh cho mọi lô, bắt buộc chọn (note/chon-worker-tao-anh.txt)
+  const worker = useImageWorker();
+  const [workerError, setWorkerError] = useState(null);
 
   // Gõ xong mới gọi xem trước
   useEffect(() => {
@@ -58,10 +62,17 @@ export default function AutoBatchDialog({ onDone, onClose }) {
   const submit = async () => {
     setError(null);
     setLogoError(null);
+    setWorkerError(worker.missingError);
+    if (worker.missingError) return;
     setLoading(true);
     try {
       const result = await createAuto(
-        { count: Number(input), insertLogo: !!logoUrl && insertLogo, seed: planReady ? plan.seed : undefined },
+        {
+          count: Number(input),
+          insertLogo: !!logoUrl && insertLogo,
+          seed: planReady ? plan.seed : undefined,
+          workerId: worker.workerId,
+        },
         idem.key.current,
       );
       idem.renew();
@@ -69,6 +80,7 @@ export default function AutoBatchDialog({ onDone, onClose }) {
     } catch (err) {
       idem.renewAfter(err);
       if (err?.errors?.insert_logo) setLogoError(err.errors.insert_logo);
+      else if (err?.errors?.worker_id) setWorkerError([].concat(err.errors.worker_id)[0]);
       else setError(err);
       setLoading(false);
     }
@@ -130,6 +142,8 @@ export default function AutoBatchDialog({ onDone, onClose }) {
         }}
         error={logoError}
       />
+
+      <ImageWorkerSelect worker={worker} error={workerError} onChange={() => setWorkerError(null)} />
 
       <div>
         <div className="mb-1.5 flex items-center gap-1">

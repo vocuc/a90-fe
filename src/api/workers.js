@@ -29,3 +29,15 @@ const mapWorker = (w) => ({
 });
 
 export const listWorkers = () => client.get('/creator/workers').then(({ data }) => data.map(mapWorker));
+
+/*
+ * ---- Worker tạo ảnh để chọn khi tạo ảnh / tạo lô (note/chon-worker-tao-anh.txt), mọi tài khoản đã đăng nhập ----
+ * GET /image-workers -> { data: [{ id, name, online, last_seen_at }] } (loại image, đang bật, được gắn cho tài khoản, theo tên)
+ * Gửi worker_id khi POST /generations, /image-batches, /image-batches/auto. Sai -> 422 errors["worker_id"].
+ */
+export const IMAGE_WORKER_KEYS = { all: ['image-workers'] };
+
+export const listImageWorkers = () =>
+  client.get('/image-workers').then(({ data }) =>
+    data.map((w) => ({ id: w.id, name: w.name, online: w.online, lastSeenAt: w.last_seen_at })),
+  );
