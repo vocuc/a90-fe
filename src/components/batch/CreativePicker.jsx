@@ -239,7 +239,7 @@ function MarketplaceTab(props) {
   );
 }
 
-/** Tab Mẫu của tôi: Creative của chính creator (GET /creator/creatives), gồm cả mẫu riêng tư không có trên marketplace. */
+/** Tab Mẫu của tôi: Creative đang bán của chính creator (GET /creator/creatives?status=published), gồm cả mẫu riêng tư. */
 function MineTab(props) {
   const [input, setInput] = useState('');
   const [q, setQ] = useState('');
@@ -252,19 +252,20 @@ function MineTab(props) {
   }, [input]);
 
   const { data, isLoading, isFetching, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useCreatorCreatives(
-    { q: q || undefined, visibility: visibility || undefined, limit: 20 },
+    { status: 'published', q: q || undefined, visibility: visibility || undefined, limit: 20 },
     true,
   );
-  const creatives = useMemo(() => data?.pages.flatMap((p) => p.items.map(mapOwnCreative)) ?? [], [data]);
+  // Chỉ hiện mẫu đang hoạt động (đã đăng bán); lọc thêm ở client phòng khi backend bỏ qua status
+  const creatives = useMemo(() => data?.pages.flatMap((p) => p.items.map(mapOwnCreative)).filter(usable) ?? [], [data]);
   const hasFilter = Boolean(q || visibility);
 
   if (error) return <ErrorState error={error} onRetry={refetch} />;
   if (isLoading && !hasFilter) return <GridSkeleton />;
   if (!creatives.length && !hasFilter && !isFetching)
     return (
-      <EmptyState icon="palette" message="Bạn chưa có mẫu AI Creative nào.">
-        <Link to="/seller/creatives/new" className="mt-2 inline-block text-sm font-bold text-primary">
-          Tạo mẫu đầu tiên
+      <EmptyState icon="palette" message="Bạn chưa có mẫu AI Creative nào đang bán.">
+        <Link to="/seller/creatives" className="mt-2 inline-block text-sm font-bold text-primary">
+          Quản lý mẫu của tôi
         </Link>
       </EmptyState>
     );
@@ -309,9 +310,6 @@ function MineTab(props) {
           fetchNextPage={fetchNextPage}
           loadingLabel="Đang tải thêm mẫu của tôi..."
         />
-      )}
-      {creatives.length > 0 && !hasNextPage && (
-        <p className="text-center text-[11px] text-outline">Mẫu nháp hoặc tạm dừng cần đăng bán để tạo ảnh.</p>
       )}
     </>
   );

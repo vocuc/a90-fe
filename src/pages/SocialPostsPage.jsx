@@ -8,7 +8,7 @@ import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback'
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
 import { POST_STATUS, isPostLocked, isVideoPost, listPosts } from '../api/social';
 import { useMe } from '../hooks/queries';
-import { CreateVideoDialog, POSTS_KEY, VideoPostDialog, createdMessage, formatSchedule } from '../components/social/VideoPostDialogs';
+import { CreateVideoDialog, POSTS_KEY, createdMessage, formatSchedule } from '../components/social/VideoPostDialogs';
 
 const formatTime = (iso) =>
   new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -19,6 +19,9 @@ const imageCount = (post) => post.imageCount;
 const coverUrl = (post) => post.coverUrl ?? null;
 
 // Bài chờ gửi cần người dùng làm tiếp (xem lại rồi đăng): nút gọi hành động thay cho "Xem"
+// Bài video có trang riêng /posts/:id/video
+const postUrl = (post) => (isVideoPost(post) ? `/posts/${post.id}/video` : `/posts/${post.id}`);
+
 const actionLabel = (post) => {
   if (isVideoPost(post)) {
     // Bài video: sửa khi chờ tới giờ, sửa / đăng lại khi lỗi, tạo lại khi worker im lặng
@@ -74,20 +77,13 @@ function Hashtags({ tags }) {
 }
 
 // Mobile: mỗi bài là một thẻ, ảnh bìa bên trái, bấm vào để xem / đăng
-function PostCards({ posts, onOpen }) {
+function PostCards({ posts }) {
   return (
     <ul className="space-y-3 lg:hidden">
       {posts.map((post) => (
         <li key={post.id}>
           <Link
-            to={`/posts/${post.id}`}
-            onClick={(e) => {
-              // Bài video mở popup, không có trang chi tiết
-              if (isVideoPost(post)) {
-                e.preventDefault();
-                onOpen(post);
-              }
-            }}
+            to={postUrl(post)}
             className={`flex gap-3 rounded-2xl border p-3 transition-colors hover:bg-surface-container-low ${
               post.status === POST_STATUS.PENDING_REVIEW ? 'border-amber-200' : 'border-outline-variant/40'
             }`}
@@ -112,9 +108,9 @@ function PostCards({ posts, onOpen }) {
 }
 
 // Desktop: bảng nhiều cột
-function PostTable({ posts, onOpen }) {
+function PostTable({ posts }) {
   const navigate = useNavigate();
-  const open = (post) => (isVideoPost(post) ? onOpen(post) : navigate(`/posts/${post.id}`));
+  const open = (post) => navigate(postUrl(post));
   return (
     <div className="hidden overflow-hidden rounded-2xl border border-outline-variant/40 lg:block">
       <table className="w-full text-left text-sm">
@@ -164,14 +160,8 @@ function PostTable({ posts, onOpen }) {
               </td>
               <td className="px-4 py-3 text-right">
                 <Link
-                  to={`/posts/${post.id}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isVideoPost(post)) {
-                      e.preventDefault();
-                      onOpen(post);
-                    }
-                  }}
+                  to={postUrl(post)}
+                  onClick={(e) => e.stopPropagation()}
                   className={`inline-flex h-8 items-center whitespace-nowrap rounded-lg px-3 text-xs font-bold ${
                     post.status === POST_STATUS.PENDING_REVIEW
                       ? 'bg-primary-container text-on-primary hover:bg-primary'
@@ -203,9 +193,8 @@ export default function SocialPostsPage() {
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/tools'));
 
   const { data: me } = useMe();
-  // Popup "Tạo video" và popup bài video đang mở (id, lấy bài mới nhất từ danh sách)
+  // Popup "Tạo video"
   const [creatingVideo, setCreatingVideo] = useState(false);
-  const [openId, setOpenId] = useState(null);
   const [notice, setNotice] = useState(null);
 
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
@@ -219,8 +208,6 @@ export default function SocialPostsPage() {
   const posts = data ? data.pages.flatMap((p) => p.items) : null;
 
   const pendingCount = posts?.filter((p) => p.status === POST_STATUS.PENDING_REVIEW).length ?? 0;
-  const openPost = openId ? posts?.find((p) => p.id === openId) ?? null : null;
-  const onOpen = (post) => setOpenId(post.id);
 
   return (
     <>
@@ -290,8 +277,8 @@ export default function SocialPostsPage() {
           </EmptyState>
         ) : (
           <>
-            <PostCards posts={posts} onOpen={onOpen} />
-            <PostTable posts={posts} onOpen={onOpen} />
+            <PostCards posts={posts} />
+            <PostTable posts={posts} />
             {hasNextPage && (
               <button
                 type="button"
@@ -316,7 +303,6 @@ export default function SocialPostsPage() {
           }}
         />
       )}
-      {openPost && <VideoPostDialog key={`${openPost.id}-${openPost.status}`} post={openPost} onClose={() => setOpenId(null)} />}
     </>
   );
 }

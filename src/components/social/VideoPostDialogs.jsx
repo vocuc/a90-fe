@@ -376,7 +376,7 @@ export const createdMessage = (result) =>
   `Đã tạo ${result.created}/${result.requested} bài video.${result.stopped ? ` ${VIDEO_STOP_MESSAGES[result.stopped] ?? ''}` : ''}`;
 
 /** Chọn ảnh cho bài video: ảnh của sản phẩm hoặc mọi ảnh đã tạo, đúng số ảnh template cần (theo thứ tự chọn). */
-function VideoImagePicker({ productId, selected, onChange, required }) {
+function VideoImagePicker({ productId, selected, onChange, required, large = false }) {
   const [source, setSource] = useState(productId ? 'product' : 'all');
   const useProduct = source === 'product' && productId;
   const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
@@ -423,7 +423,7 @@ function VideoImagePicker({ productId, selected, onChange, required }) {
       {selected.length > 0 && (
         <ul className="no-scrollbar flex gap-1.5 overflow-x-auto">
           {selected.map((img, i) => (
-            <li key={img.key} className="relative w-14 shrink-0">
+            <li key={img.key} className={`relative shrink-0 ${large ? 'w-20' : 'w-14'}`}>
               <CoverImage src={img.thumbUrl} alt="" className="aspect-square w-full rounded-lg" />
               <span className="absolute left-0.5 top-0.5 rounded bg-black/60 px-1 text-[10px] font-bold text-white">{i + 1}</span>
             </li>
@@ -437,8 +437,8 @@ function VideoImagePicker({ productId, selected, onChange, required }) {
       ) : !images.length ? (
         <p className="py-4 text-center text-xs text-on-surface-variant">Không có ảnh nào.</p>
       ) : (
-        <div className="max-h-64 overflow-y-auto rounded-xl border border-outline-variant/30 p-1.5">
-          <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
+        <div className={`overflow-y-auto rounded-xl border border-outline-variant/30 p-1.5 ${large ? 'max-h-[60vh]' : 'max-h-64'}`}>
+          <div className={`grid gap-1.5 ${large ? 'grid-cols-3 sm:grid-cols-4 xl:grid-cols-5' : 'grid-cols-4 sm:grid-cols-5'}`}>
             {images.map((img) => {
               const idx = order(img.key);
               return (
@@ -540,6 +540,8 @@ function VideoPostForm({ post, onSaved, onCancel, footerExtra }) {
 
   return (
     <>
+      <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
+        <div className="space-y-3">
       <WorkerSelect value={form.workerId} onChange={set('workerId', 'worker_id')} error={errors.worker_id} />
       <SelectField label="Video template" value={form.templateId} onChange={set('templateId', 'video_template_id')} error={errors.video_template_id}>
         <option value="">{templates.isLoading ? 'Đang tải...' : 'Chọn template'}</option>
@@ -568,17 +570,6 @@ function VideoPostForm({ post, onSaved, onCancel, footerExtra }) {
           </option>
         ))}
       </SelectField>
-      <VideoImagePicker
-        key={form.productId || 'all'}
-        productId={form.productId ? Number(form.productId) : null}
-        selected={form.images}
-        onChange={(images) => {
-          setForm((f) => ({ ...f, images }));
-          setErrors((er) => ({ ...er, images: undefined }));
-        }}
-        required={required}
-      />
-      {imageError && <p className="text-xs text-error">{imageError}</p>}
       <TextField
         label="Giờ đăng"
         icon="schedule"
@@ -598,17 +589,34 @@ function VideoPostForm({ post, onSaved, onCancel, footerExtra }) {
         hint={`Cách nhau bằng dấu cách, tối đa ${HASHTAG_MAX}.`}
         error={errors.hashtags ?? Object.entries(errors).find(([k]) => k.startsWith('hashtags.'))?.[1]}
       />
+        </div>
+        <div className="space-y-2 lg:sticky lg:top-[136px]">
+          <VideoImagePicker
+            key={form.productId || 'all'}
+            productId={form.productId ? Number(form.productId) : null}
+            selected={form.images}
+            onChange={(images) => {
+              setForm((f) => ({ ...f, images }));
+              setErrors((er) => ({ ...er, images: undefined }));
+            }}
+            required={required}
+            large
+          />
+          {imageError && <p className="text-xs text-error">{imageError}</p>}
+        </div>
+      </div>
       {formError && <FormAlert>{formError}</FormAlert>}
-      <div className="sticky bottom-0 -mx-4 -mb-4 flex items-center gap-2 border-t border-surface-container bg-surface-container-lowest p-3">
+      {/* Mobile có tab đáy cố định nên nút nằm cuối form; desktop dính đáy màn hình */}
+      <div className="-mx-4 flex items-center gap-2 border-t border-surface-container bg-surface-container-lowest px-4 pt-3 lg:sticky lg:bottom-0 lg:pb-3">
         {footerExtra}
         <button type="button" onClick={onCancel} disabled={saving} className="h-10 rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container disabled:opacity-50">
-          Đóng
+          Huỷ
         </button>
         <button
           type="button"
           onClick={submit}
           disabled={saving}
-          className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+          className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50 lg:flex-none lg:px-8"
         >
           {saving && <Icon name="progress_activity" className="animate-spin text-lg" />}
           Lưu
@@ -619,10 +627,10 @@ function VideoPostForm({ post, onSaved, onCancel, footerExtra }) {
 }
 
 /**
- * Popup bài video: sửa (worker chưa nhận / lỗi), xoá, "Đăng lại" (lỗi), "Tạo lại" (worker nhận rồi im lặng, có thể đăng
- * trùng), xem (đã đăng).
+ * Nội dung trang bài video (/posts/:id/video): sửa (worker chưa nhận / lỗi), xoá, "Đăng lại" (lỗi), "Tạo lại" (worker
+ * nhận rồi im lặng, có thể đăng trùng), xem (đã đăng). onDone: sau khi lưu / xoá / đăng lại xong. onCancel: nút Huỷ.
  */
-export function VideoPostDialog({ post, onClose }) {
+export function VideoPostPanel({ post, onDone, onCancel }) {
   const queryClient = useQueryClient();
   const { confirm, alert } = useConfirm();
   const [busy, setBusy] = useState(false);
@@ -636,7 +644,7 @@ export function VideoPostDialog({ post, onClose }) {
     try {
       await action();
       await refresh();
-      onClose();
+      onDone();
     } catch (err) {
       alert(err?.message || failMessage);
       setBusy(false);
@@ -687,57 +695,37 @@ export function VideoPostDialog({ post, onClose }) {
 
   if (editable) {
     return (
-      <Dialog title={failed ? 'Bài video lỗi' : 'Sửa bài video'} subtitle={post.title || undefined} onClose={busy ? () => {} : onClose}>
-        {header}
-        {failed && (
-          <button
-            type="button"
-            onClick={retry}
-            disabled={busy}
-            className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-primary text-sm font-bold text-primary hover:bg-primary-fixed/30 disabled:opacity-50"
-          >
-            <Icon name="replay" className="text-lg" />
-            Đăng lại
-          </button>
-        )}
+      <div className="space-y-3">
+        <div className="space-y-3 lg:flex lg:items-start lg:gap-3 lg:space-y-0">
+          <div className="lg:flex-1">{header}</div>
+          {failed && (
+            <button
+              type="button"
+              onClick={retry}
+              disabled={busy}
+              className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-primary px-6 text-sm font-bold text-primary hover:bg-primary-fixed/30 disabled:opacity-50 lg:w-auto"
+            >
+              <Icon name="replay" className="text-lg" />
+              Đăng lại
+            </button>
+          )}
+        </div>
         <VideoPostForm
           post={post}
-          onCancel={onClose}
+          onCancel={onCancel}
           footerExtra={deleteButton}
           onSaved={async () => {
             await refresh();
-            onClose();
+            onDone();
           }}
         />
-      </Dialog>
+      </div>
     );
   }
 
   const tpl = post.video?.template;
   return (
-    <Dialog
-      title="Bài video"
-      subtitle={post.title || undefined}
-      onClose={busy ? () => {} : onClose}
-      footer={
-        <>
-          <button type="button" onClick={onClose} className="h-10 rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container">
-            Đóng
-          </button>
-          {post.status === POST_STATUS.PUBLISHING && (
-            <button
-              type="button"
-              onClick={retry}
-              disabled={busy}
-              className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
-            >
-              <Icon name={busy ? 'progress_activity' : 'replay'} className={`text-lg ${busy ? 'animate-spin' : ''}`} />
-              Tạo lại
-            </button>
-          )}
-        </>
-      }
-    >
+    <div className="space-y-3 lg:max-w-3xl">
       {header}
       {post.status === POST_STATUS.PUBLISHING && (
         <p className="text-xs text-on-surface-variant">
@@ -746,7 +734,7 @@ export function VideoPostDialog({ post, onClose }) {
         </p>
       )}
       {post.status === POST_STATUS.GENERATING && <p className="text-xs text-on-surface-variant">AI đang viết nội dung, chờ xong là sửa được.</p>}
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
         <dt className="text-on-surface-variant">Worker</dt>
         <dd className="font-semibold text-on-surface">{post.video?.worker?.name ?? '—'}</dd>
         <dt className="text-on-surface-variant">Template</dt>
@@ -762,9 +750,9 @@ export function VideoPostDialog({ post, onClose }) {
         <dt className="text-on-surface-variant">Sản phẩm</dt>
         <dd className="font-semibold text-on-surface">{post.video?.product?.name ?? '—'}</dd>
       </dl>
-      <ul className="no-scrollbar flex gap-1.5 overflow-x-auto">
+      <ul className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
         {post.images.map((img) => (
-          <li key={img.key} className="w-16 shrink-0">
+          <li key={img.key}>
             <CoverImage src={img.thumbUrl} alt="" className="aspect-square w-full rounded-lg" />
           </li>
         ))}
@@ -778,6 +766,17 @@ export function VideoPostDialog({ post, onClose }) {
         </Link>
         .
       </p>
-    </Dialog>
+      {post.status === POST_STATUS.PUBLISHING && (
+        <button
+          type="button"
+          onClick={retry}
+          disabled={busy}
+          className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-primary-container px-6 text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50 lg:w-auto"
+        >
+          <Icon name={busy ? 'progress_activity' : 'replay'} className={`text-lg ${busy ? 'animate-spin' : ''}`} />
+          Tạo lại
+        </button>
+      )}
+    </div>
   );
 }

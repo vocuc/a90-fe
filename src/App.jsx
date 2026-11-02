@@ -24,6 +24,7 @@ import TemplateBuilderPage from './pages/TemplateBuilderPage';
 import SupportPage from './pages/SupportPage';
 import TopUpPage from './pages/TopUpPage';
 import SocialPostPage from './pages/SocialPostPage';
+import VideoPostPage from './pages/VideoPostPage';
 import SocialPostsPage from './pages/SocialPostsPage';
 import SocialNewPage from './pages/SocialNewPage';
 import TikTokAuthorPage from './pages/TikTokAuthorPage';
@@ -84,6 +85,7 @@ export default function App() {
           <Route path="posts" element={<SocialPostsPage />} />
           <Route path="posts/new" element={<SocialNewPage />} />
           <Route path="posts/:id" element={<SocialPostPage />} />
+          <Route path="posts/:id/video" element={<VideoPostPage />} />
           {/* Tạo đơn GHN từ ảnh chat (note/tao-don-ghn-tu-anh.txt). Cần hồ sơ người bán + kết nối GHN */}
           <Route path="shipping-orders" element={<ShippingOrdersPage />} />
           <Route path="shipping-orders/new" element={<ShippingOrderNewPage />} />

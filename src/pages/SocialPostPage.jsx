@@ -955,9 +955,9 @@ export default function SocialPostPage() {
   }, [id]);
   useEffect(load, [load]);
 
-  // Bài video (note/lap-lich-worker.txt) không có trang chi tiết: xem / sửa bằng popup ở danh sách
+  // Bài video (note/lap-lich-worker.txt) có trang riêng /posts/:id/video
   useEffect(() => {
-    if (post && isVideoPost(post)) navigate('/posts', { replace: true });
+    if (post && isVideoPost(post)) navigate(`/posts/${post.id}/video`, { replace: true });
   }, [post, navigate]);
 
   // Đang chuẩn bị / chờ đăng / đang đăng: tự cập nhật tới khi xong
