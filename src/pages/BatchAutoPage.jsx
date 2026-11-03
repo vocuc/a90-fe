@@ -7,6 +7,7 @@ import Icon from '../components/common/Icon';
 import ActionBar from '../components/common/ActionBar';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import LogoCard, { batchLogoUrl } from '../components/batch/LogoCard';
+import ProductPickerDialog from '../components/batch/ProductPickerDialog';
 import ImageWorkerSelect, { useImageWorker } from '../components/common/ImageWorkerSelect';
 import { useMe } from '../hooks/queries';
 import useIdempotencyKey from '../hooks/useIdempotencyKey';
@@ -17,7 +18,8 @@ const PREVIEW_DELAY = 400;
 
 /**
  * /batches/auto: "Tạo tự động" (note/auto-tao-lo.txt): nhập số lô + chèn logo, xem trước các lô sẽ tạo
- * (sản phẩm x nhóm chọn ngẫu nhiên, creative, tiền), "Đổi ngẫu nhiên" để chọn lại, rồi tạo đúng các lô đang xem (gửi seed).
+ * (sản phẩm x nhóm chọn ngẫu nhiên, creative, tiền), "Chọn sản phẩm thủ công" để chỉ ghép lô từ các sản phẩm đã chọn
+ * (gửi product_ids, số lô = số sản phẩm đã chọn), rồi tạo đúng các lô đang xem (gửi seed).
  * Hệ thống tạo lần lượt, hết tiền thì dừng. Tạo xong về danh sách lô, kết quả hiện ở đầu danh sách (AUTO_RESULT_KEY).
  */
 export default function BatchAutoPage() {
@@ -37,6 +39,10 @@ export default function BatchAutoPage() {
   // Worker tạo ảnh cho mọi lô, bắt buộc chọn (note/chon-worker-tao-anh.txt)
   const worker = useImageWorker();
   const [workerError, setWorkerError] = useState(null);
+  // Sản phẩm chọn thủ công; rỗng = hệ thống chọn ngẫu nhiên trong mọi sản phẩm
+  const [products, setProducts] = useState([]);
+  const [picking, setPicking] = useState(false);
+  const productIds = products.map((p) => p.id);
 
   // Vào từ danh sách lô thì quay lại đúng trang đó (không để trang này lại trong lịch sử)
   const fromList = !!location.state?.fromList && window.history.state?.idx > 0;
@@ -49,7 +55,12 @@ export default function BatchAutoPage() {
     return () => clearTimeout(t);
   }, [input]);
 
-  const preview = useQuery({ queryKey: ['auto-preview', count], queryFn: () => previewAuto(count), placeholderData: (prev) => prev, gcTime: 0 });
+  const preview = useQuery({
+    queryKey: ['auto-preview', count, productIds.join(',')],
+    queryFn: () => previewAuto(count, productIds),
+    placeholderData: (prev) => prev,
+    gcTime: 0,
+  });
   const plan = preview.data;
   const empty = plan && !plan.batches.length;
   // Xem trước đúng số lô đang nhập và không đang đổi ngẫu nhiên thì tạo đúng các lô đó
@@ -83,6 +94,7 @@ export default function BatchAutoPage() {
           count: Number(input),
           insertLogo: !!logoUrl && insertLogo,
           seed: planReady ? plan.seed : undefined,
+          productIds,
           workerId: worker.workerId,
         },
         idem.key.current,
@@ -166,18 +178,34 @@ export default function BatchAutoPage() {
               Xem trước
               {preview.isFetching && <Icon name="progress_activity" className="animate-spin text-sm text-outline" />}
             </h2>
-            {plan && !empty && (
+            <button
+              type="button"
+              onClick={() => setPicking(true)}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-primary hover:bg-surface-container"
+            >
+              <Icon name="checklist" className="text-base" />
+              Chọn sản phẩm thủ công
+            </button>
+          </div>
+          {products.length > 0 && (
+            <div className="mb-2 flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs">
+              <Icon name="shopping_bag" className="text-base text-primary" />
+              <p className="min-w-0 flex-1 text-on-surface-variant">
+                Chỉ tạo từ <b className="text-on-surface">{products.length}</b> sản phẩm đã chọn:{' '}
+                {products.map((p) => p.name || `#${p.id}`).join(', ')}
+              </p>
               <button
                 type="button"
-                onClick={() => preview.refetch()}
-                disabled={preview.isFetching}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-primary hover:bg-surface-container disabled:opacity-50"
+                onClick={() => {
+                  setProducts([]);
+                  setInput('1');
+                }}
+                className="shrink-0 font-bold text-primary hover:underline"
               >
-                <Icon name="shuffle" className="text-base" />
-                Đổi ngẫu nhiên
+                Dùng ngẫu nhiên
               </button>
-            )}
-          </div>
+            </div>
+          )}
           {preview.error ? (
             <ErrorState error={preview.error} onRetry={preview.refetch} />
           ) : !plan ? (
@@ -256,6 +284,19 @@ export default function BatchAutoPage() {
           )}
         </div>
       </section>
+
+      {picking && (
+        <ProductPickerDialog
+          picked={products}
+          onClose={() => setPicking(false)}
+          onConfirm={(list) => {
+            setPicking(false);
+            setProducts(list);
+            // Mỗi sản phẩm 1 lô
+            setInput(String(list.length || 1));
+          }}
+        />
+      )}
 
       <ActionBar
         summary={

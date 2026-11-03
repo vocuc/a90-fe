@@ -15,8 +15,9 @@ import { mapBatch } from './batches';
  * GET    /creator/creative-groups                 -> { data: CreativeGroup[] } (cũ nhất trước = thứ tự tạo lô)
  * POST   /creator/creative-groups                 { name, creative_ids } -> 201 ; PUT /creator/creative-groups/{id}
  * DELETE /creator/creative-groups/{id}            -> 204
- * GET    /image-batches/auto/preview?count=&seed= -> { data: { seed, batches: AutoPlan[], total_cost, balance } }
- * POST   /image-batches/auto                      { count, insert_logo, idempotency_key, seed?, worker_id }
+ * GET    /image-batches/auto/preview?count=&seed=&product_ids[]= -> { data: { seed, batches: AutoPlan[], total_cost, balance } }
+ * POST   /image-batches/auto                      { count, insert_logo, idempotency_key, seed?, worker_id, product_ids? }
+ *          product_ids: chỉ ghép lô từ các sản phẩm người dùng chọn thủ công; bỏ trống = mọi sản phẩm
  *          worker_id: worker tạo ảnh cho mọi lô (note/chon-worker-tao-anh.txt), sai -> 422 errors["worker_id"]
  *          -> 201 { data: { batches: ImageBatch[], requested, stopped: null|insufficient_credit|no_valid_pair, required } }
  *          402 INSUFFICIENT_CREDIT (không tạo được lô nào), 422 AUTO_NOTHING_TO_CREATE.
@@ -117,8 +118,9 @@ export function saveGroup({ id, name, creativeIds }) {
 
 export const deleteGroup = (id) => client.delete(`/creator/creative-groups/${id}`);
 
-export const previewAuto = (count) =>
-  client.get('/image-batches/auto/preview', { params: { count } }).then(({ data }) => ({
+/** productIds: sản phẩm chọn thủ công, rỗng = mọi sản phẩm. */
+export const previewAuto = (count, productIds = []) =>
+  client.get('/image-batches/auto/preview', { params: { count, product_ids: productIds.length ? productIds : undefined } }).then(({ data }) => ({
     seed: data.seed,
     batches: data.batches.map((b) => ({
       product: { id: b.product.id, name: b.product.name, coverUrl: b.product.cover_url },
@@ -131,9 +133,16 @@ export const previewAuto = (count) =>
   }));
 
 /** seed: của lần xem trước (tạo đúng các lô đã xem); bỏ trống thì hệ thống tự chọn ngẫu nhiên. */
-export const createAuto = ({ count, insertLogo, seed, workerId }, idempotencyKey) =>
+export const createAuto = ({ count, insertLogo, seed, workerId, productIds = [] }, idempotencyKey) =>
   client
-    .post('/image-batches/auto', { count, insert_logo: insertLogo, idempotency_key: idempotencyKey, seed, worker_id: workerId })
+    .post('/image-batches/auto', {
+      count,
+      insert_logo: insertLogo,
+      idempotency_key: idempotencyKey,
+      seed,
+      worker_id: workerId,
+      product_ids: productIds.length ? productIds : undefined,
+    })
     .then(({ data }) => ({
       batches: data.batches.map(mapBatch),
       requested: data.requested,
