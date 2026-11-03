@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
@@ -6,9 +6,8 @@ import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { BatchStatusBadge } from '../components/batch/BatchStatus';
-import AutoBatchDialog from '../components/batch/AutoBatchDialog';
 import { BATCH_SOURCE, BATCH_STATUS, deleteBatch, listBatches } from '../api/batches';
-import { AUTO_KEYS, AUTO_STOP } from '../api/autoBatch';
+import { AUTO_RESULT_KEY, AUTO_STOP } from '../api/autoBatch';
 import { formatVnd } from '../utils/format';
 import { useConfirm } from '../components/common/ConfirmDialog';
 
@@ -95,9 +94,11 @@ export default function BatchesPage() {
   useSeo({ title: 'Tạo ảnh theo lô', noindex: true });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [autoOpen, setAutoOpen] = useState(false);
-  // Kết quả lần "Tạo tự động" gần nhất: { created, requested, stopped, required }
-  const [autoResult, setAutoResult] = useState(null);
+  // Kết quả lần "Tạo tự động" vừa xong ở /batches/auto: { created, requested, stopped, required }; đọc một lần rồi xoá
+  const [autoResult, setAutoResult] = useState(() => queryClient.getQueryData(AUTO_RESULT_KEY) ?? null);
+  useEffect(() => {
+    queryClient.removeQueries({ queryKey: AUTO_RESULT_KEY });
+  }, [queryClient]);
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/tools'));
 
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
@@ -123,24 +124,15 @@ export default function BatchesPage() {
   );
 
   const autoButton = (
-    <button
-      type="button"
-      onClick={() => setAutoOpen(true)}
+    <Link
+      to="/batches/auto"
+      state={{ fromList: true }}
       className="flex h-8 items-center gap-1 rounded-lg border border-primary-container px-3 text-xs font-bold text-primary hover:bg-primary-container/10"
     >
       <Icon name="auto_awesome" className="text-base" />
       Tạo tự động
-    </button>
+    </Link>
   );
-
-  const onAutoDone = (result) => {
-    setAutoOpen(false);
-    setAutoResult({ created: result.batches.length, requested: result.requested, stopped: result.stopped, required: result.required });
-    // Đã trừ tiền -> tải lại số dư; lượt tự động của sản phẩm đổi
-    queryClient.invalidateQueries({ queryKey: ['me'] });
-    queryClient.invalidateQueries({ queryKey: ['batches'] });
-    queryClient.invalidateQueries({ queryKey: AUTO_KEYS.products });
-  };
 
   return (
     <>
@@ -159,8 +151,6 @@ export default function BatchesPage() {
           {createButton}
         </span>
       </header>
-
-      {autoOpen && <AutoBatchDialog onDone={onAutoDone} onClose={() => setAutoOpen(false)} />}
 
       <section className="space-y-3 p-4 lg:py-6">
         {autoResult && (

@@ -32,6 +32,9 @@ export const AUTO_KEYS = {
 /** Số lô tối đa mỗi lần bấm (khớp AutoBatchService::MAX_COUNT). */
 export const AUTO_MAX_COUNT = 100;
 
+/** Kết quả lần "Tạo tự động" gần nhất, trang /batches/auto ghi, danh sách lô đọc để hiện thông báo. */
+export const AUTO_RESULT_KEY = ['auto-batch-result'];
+
 export const AUTO_STOP = {
   INSUFFICIENT_CREDIT: 'insufficient_credit',
   NO_VALID_PAIR: 'no_valid_pair',

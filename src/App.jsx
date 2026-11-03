@@ -28,6 +28,7 @@ import SocialPostsPage from './pages/SocialPostsPage';
 import SocialNewPage from './pages/SocialNewPage';
 import BatchesPage from './pages/BatchesPage';
 import BatchNewPage from './pages/BatchNewPage';
+import BatchAutoPage from './pages/BatchAutoPage';
 import BatchPage from './pages/BatchPage';
 import ProductsPage from './pages/ProductsPage';
 import CreativeGroupsPage from './pages/CreativeGroupsPage';
@@ -78,6 +79,7 @@ export default function App() {
           {/* Tạo ảnh theo lô (note/tach-lo-anh-dang-tiktok.txt). Trang rộng, tự chia cột trên desktop */}
           <Route path="batches" element={<BatchesPage />} />
           <Route path="batches/new" element={<BatchNewPage />} />
+          <Route path="batches/auto" element={<BatchAutoPage />} />
           <Route path="batches/:id" element={<BatchPage />} />
           {/* Bài đăng ảnh / video giao cho worker (note/gop-luong-dang-bai.txt). Trang rộng, tự chia cột trên desktop */}
           <Route path="posts" element={<SocialPostsPage />} />
