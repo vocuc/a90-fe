@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
-import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import useIdempotencyKey from '../hooks/useIdempotencyKey';
 import Icon from '../components/common/Icon';
+import CoverImage from '../components/common/CoverImage';
 import ActionBar from '../components/common/ActionBar';
 import { initialValues, validateValues } from '../components/template/DynamicForm';
 import CreativePicker from '../components/batch/CreativePicker';
@@ -14,6 +15,24 @@ import { useMe } from '../hooks/queries';
 import { creativeApi } from '../api/services';
 import { createBatch } from '../api/batches';
 import { formatVnd } from '../utils/format';
+import { getProductImageFile } from '../api/autoBatch';
+
+const IMAGE_FIELDS = ['image', 'image_list'];
+
+/**
+ * Điền ảnh sản phẩm vào form: trường ảnh có key = field_key của ảnh sản phẩm (giống tạo lô tự động).
+ * filesByKey: { [fieldKey]: File[] }.
+ */
+function prefillFromProduct(schema, values, filesByKey) {
+  if (!filesByKey) return values;
+  const next = { ...values };
+  schema.forEach((f) => {
+    const files = filesByKey[f.key];
+    if (!IMAGE_FIELDS.includes(f.type) || !(f.key in next) || !files?.length) return;
+    next[f.key] = f.type === 'image' ? files.slice(0, 1) : files.slice(0, f.validation?.max_files || undefined);
+  });
+  return next;
+}
 
 /**
  * /batches/new: tạo lô ảnh, 2 bước (?step=inputs là bước 2, nút quay lại của trình duyệt về bước 1):
@@ -30,6 +49,9 @@ export default function BatchNewPage() {
   const queryClient = useQueryClient();
   const idem = useIdempotencyKey();
   const [params, setParams] = useSearchParams();
+  // Vào từ nút "Tạo ảnh" của thẻ sản phẩm (/seller/items): ảnh sản phẩm tự điền vào trường ảnh trùng key.
+  // Giữ trong state vì đổi ?step làm mất location.state
+  const [product] = useState(() => location.state?.product ?? null);
   const [picked, setPicked] = useState([]);
   // Giá trị nhập theo mẫu: { [slug]: values }; chưa có thì lấy giá trị mặc định của form
   const [inputs, setInputs] = useState({});
@@ -59,18 +81,55 @@ export default function BatchNewPage() {
     queries: picked.map((c) => ({ queryKey: ['creative', c.id], queryFn: () => creativeApi.getById(c.id), enabled: step === 'inputs' })),
   });
 
+  // Tải ảnh sản phẩm thành File (gửi lên như ảnh người dùng tự chọn), nhóm theo field_key
+  const productFiles = useQuery({
+    queryKey: ['product-files', product?.id, product?.images.map((i) => i.id).join(',')],
+    queryFn: async () => {
+      const results = await Promise.allSettled(product.images.map((img) => getProductImageFile(product.id, img)));
+      const byKey = {};
+      let failed = 0;
+      results.forEach((r, i) => {
+        if (r.status !== 'fulfilled') {
+          failed += 1;
+          return;
+        }
+        const key = product.images[i].fieldKey;
+        (byKey[key] ??= []).push(r.value);
+      });
+      return { byKey, failed };
+    },
+    enabled: !!product?.images.length,
+    staleTime: Infinity,
+    gcTime: 0,
+    retry: false,
+  });
+  const loadingProductFiles = !!product?.images.length && productFiles.isLoading;
+
   const toggle = (c) => setPicked((prev) => (prev.some((p) => p.id === c.id) ? prev.filter((p) => p.id !== c.id) : [...prev, c]));
   const quantityOf = (c) => quantities[c.id] ?? 1;
   const imageTotal = picked.reduce((sum, c) => sum + quantityOf(c), 0);
   const total = picked.reduce((sum, c) => sum + (c.price ?? 0) * quantityOf(c), 0);
 
+  const productKeys = new Set(product?.images.map((img) => img.fieldKey) ?? []);
   const rows = picked.map((c, i) => {
     const schema = details[i]?.data?.inputSchema ?? null;
-    const values = inputs[c.id] ?? (schema ? initialValues(schema) : {});
+    // Chưa sửa gì thì lấy giá trị mặc định của form + ảnh sản phẩm (nếu có)
+    const values = inputs[c.id] ?? (schema ? prefillFromProduct(schema, initialValues(schema), productFiles.data?.byKey) : {});
     const allErrors = schema ? validateValues(schema, values) : {};
-    return { creative: c, detail: details[i] ?? {}, schema, values, allErrors, missing: Object.keys(allErrors).length };
+    return {
+      creative: c,
+      detail: details[i] ?? {},
+      schema,
+      values,
+      allErrors,
+      missing: Object.keys(allErrors).length,
+      // Mẫu có trường ảnh trùng key với ảnh sản phẩm (không phụ thuộc ảnh đã tải xong hay chưa)
+      keyMatched: !!schema?.some((f) => IMAGE_FIELDS.includes(f.type) && productKeys.has(f.key)),
+    };
   });
-  const loadingDetails = rows.some((r) => !r.schema);
+  const loadingDetails = rows.some((r) => !r.schema) || loadingProductFiles;
+  // Mẫu không có trường ảnh nào trùng key với ảnh sản phẩm
+  const unmatched = product ? rows.filter((r) => r.schema && !r.keyMatched) : [];
   const incomplete = rows.filter((r) => r.schema && r.missing);
 
   const goInputs = () => {
@@ -152,15 +211,53 @@ export default function BatchNewPage() {
       </button>
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-base font-bold text-on-surface">{step === 'inputs' ? 'Nhập thông tin tạo ảnh' : 'Tạo lô ảnh'}</h1>
-        {step === 'pick' && <p className="text-xs text-on-surface-variant">Chọn các mẫu AI Creative cho lô</p>}
+        {step === 'pick' && (
+          <p className="truncate text-xs text-on-surface-variant">
+            {product ? `Chọn mẫu AI Creative cho ${product.name || `sản phẩm #${product.id}`}` : 'Chọn các mẫu AI Creative cho lô'}
+          </p>
+        )}
       </div>
     </header>
+  );
+
+  const productBanner = product && (
+    <div className="flex items-start gap-3 rounded-2xl border border-primary-container/40 bg-surface-container-low p-3">
+      <CoverImage src={product.coverUrl} alt="" className="size-12 shrink-0 rounded-xl !object-contain" />
+      <div className="min-w-0 flex-1 space-y-0.5 text-xs">
+        <p className="truncate text-sm font-bold text-on-surface">{product.name || `Sản phẩm #${product.id}`}</p>
+        <p className="text-on-surface-variant">
+          Ảnh sản phẩm tự điền vào trường ảnh có key:{' '}
+          {product.images.length
+            ? [...new Set(product.images.map((img) => img.fieldKey))].map((k) => (
+                <span key={k} className="mr-1 rounded bg-surface-container px-1.5 py-0.5 font-mono text-[11px]">
+                  {k}
+                </span>
+              ))
+            : 'sản phẩm chưa có ảnh'}
+        </p>
+        {loadingProductFiles && (
+          <p className="flex items-center gap-1 text-outline">
+            <Icon name="progress_activity" className="animate-spin text-sm" />
+            Đang tải ảnh sản phẩm...
+          </p>
+        )}
+        {productFiles.data?.failed > 0 && (
+          <p className="text-amber-700">Không tải được {productFiles.data.failed} ảnh sản phẩm, vui lòng tự tải ảnh lên cho trường đó.</p>
+        )}
+        {step === 'inputs' && unmatched.length > 0 && (
+          <p className="text-amber-700">
+            Mẫu {unmatched.map((r) => `"${r.creative.title}"`).join(', ')} không có trường ảnh trùng key, vui lòng tự nhập.
+          </p>
+        )}
+      </div>
+    </div>
   );
 
   if (step === 'pick') {
     return (
       <>
         {header}
+        {productBanner && <div className="px-4 pt-4">{productBanner}</div>}
         <CreativePicker picked={picked} onToggle={toggle} hint="Chọn một hoặc nhiều mẫu, mỗi mẫu một lần. Số ảnh mỗi mẫu chọn ở bước sau." />
         <ActionBar
           summary={
@@ -192,6 +289,7 @@ export default function BatchNewPage() {
             các ảnh khác nhau từ cùng thông tin đã nhập.
           </p>
         </div>
+        {productBanner}
         <LogoCard
           hasShop={!!me?.creatorProfile}
           logoUrl={logoUrl}

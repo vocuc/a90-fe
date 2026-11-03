@@ -89,6 +89,21 @@ export function saveProduct({ id, name, hashtags = [], images }) {
 
 export const deleteProduct = (id) => client.delete(`/creator/products/${id}`);
 
+const IMAGE_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
+/**
+ * GET /creator/products/{id}/images/{imageId}/file -> file ảnh (qua API, cùng domain). Signed URL S3 không tải bằng
+ * fetch được (bucket không cho CORS). Trả File để gửi lên như ảnh người dùng tự chọn khi tạo lô tay.
+ */
+export async function getProductImageFile(productId, image) {
+  const blob = await client.get(`/creator/products/${productId}/images/${image.id}/file`, {
+    responseType: 'blob',
+    timeout: UPLOAD_TIMEOUT,
+  });
+  const type = blob.type || 'image/jpeg';
+  return new File([blob], `${image.fieldKey || `product_${image.id}`}.${IMAGE_EXT[type] ?? 'jpg'}`, { type, lastModified: Date.now() });
+}
+
 export const listGroups = () => client.get('/creator/creative-groups').then(({ data }) => data.map(mapGroup));
 
 export function saveGroup({ id, name, creativeIds }) {

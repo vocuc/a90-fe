@@ -55,6 +55,15 @@ function ProductCard({ product, onEdit }) {
         <p className="text-xs text-on-surface-variant">
           {product.images.length} ảnh · Đã tạo tự động {product.autoBatchCount} lô
         </p>
+        {/* Tạo lô tay cho sản phẩm này: chọn creative + số ảnh, ảnh sản phẩm tự điền vào trường ảnh trùng key */}
+        <Link
+          to="/batches/new"
+          state={{ product }}
+          className="!mt-2 flex h-8 w-fit items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary"
+        >
+          <Icon name="auto_awesome" className="text-base" />
+          Tạo ảnh
+        </Link>
       </div>
       <div className="flex shrink-0 flex-col gap-1 lg:absolute lg:right-5 lg:top-5 lg:flex-row lg:rounded-lg lg:bg-surface-container-lowest/90 lg:shadow">
         <button

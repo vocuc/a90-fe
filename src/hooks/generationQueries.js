@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { generationApi } from '../api/services';
+import { toFetchUrl } from '../utils/remoteFile';
 
 // Ảnh nhỏ để hiển thị; ảnh gốc (image_url) chỉ tải khi phóng to hoặc tải về
 export const thumbOf = (output) => output.thumb_url || output.image_url;
@@ -91,11 +92,6 @@ const clickLink = (href, filename) => {
   a.remove();
 };
 
-// Khi dev, ảnh trên disk local đi qua proxy /media của Vite (cùng origin, chữ ký là tương đối nên vẫn hợp lệ)
-const toFetchUrl = (url) => {
-  const u = new URL(url, window.location.href);
-  return import.meta.env.DEV && u.pathname.startsWith('/media/') ? u.pathname + u.search : url;
-};
 
 /*
  * Lấy link tải có ký số rồi lưu ảnh về máy.
