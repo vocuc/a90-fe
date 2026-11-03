@@ -33,7 +33,7 @@ const validateRows = (rows) => {
 export default function ProductFormDialog({ product, onSaved, onClose }) {
   const [name, setName] = useState(product?.name ?? '');
   const [hashtags, setHashtags] = useState(product?.hashtags ?? []);
-  const [rows, setRows] = useState(() => (product?.images ?? []).map((i) => newRow({ id: i.id, url: i.url, fieldKey: i.fieldKey })));
+  const [rows, setRows] = useState(() => (product?.images ?? []).map((i) => newRow({ id: i.id, url: i.thumbUrl, fieldKey: i.fieldKey })));
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);

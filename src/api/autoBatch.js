@@ -45,7 +45,7 @@ const mapProduct = (p) => ({
   id: p.id,
   name: p.name,
   coverUrl: p.cover_url,
-  images: p.images.map((i) => ({ id: i.id, url: i.url, fieldKey: i.field_key })),
+  images: p.images.map((i) => ({ id: i.id, url: i.url, thumbUrl: i.thumb_url ?? i.url, fieldKey: i.field_key })),
   hashtags: (p.hashtags ?? []).map((h) => h.name),
   autoBatchCount: p.auto_batch_count,
   createdAt: p.created_at,
