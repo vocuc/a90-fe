@@ -75,7 +75,7 @@ export default function ProductPickerDialog({ picked, onConfirm, onClose }) {
       ) : !products ? (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-16" />
+            <Skeleton key={i} className="h-20" />
           ))}
         </div>
       ) : !products.length ? (
@@ -110,7 +110,7 @@ export default function ProductPickerDialog({ picked, onConfirm, onClose }) {
                       on ? 'border-primary-container bg-primary-container/5 ring-1 ring-primary-container' : 'border-outline-variant/40 hover:bg-surface-container-low'
                     }`}
                   >
-                    <CoverImage src={p.coverUrl} alt="" className="size-12 shrink-0 rounded-lg bg-surface-container !object-contain" />
+                    <CoverImage src={p.coverUrl} alt="" className="size-16 shrink-0 rounded-lg bg-surface-container !object-contain" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-on-surface">{p.name || `Sản phẩm #${p.id}`}</span>
                       <span className="block truncate font-mono text-[11px] text-on-surface-variant">
@@ -130,7 +130,7 @@ export default function ProductPickerDialog({ picked, onConfirm, onClose }) {
               );
             })}
           </ul>
-          {isFetchingNextPage && <Skeleton className="h-16" />}
+          {isFetchingNextPage && <Skeleton className="h-20" />}
           {hasNextPage && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
         </>
       )}
