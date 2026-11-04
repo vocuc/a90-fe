@@ -149,7 +149,10 @@ export const useSaveTemplateCreative = () =>
     const saved = creative ? await creatorApi.updateCreative(creative.id, payload) : await creatorApi.createCreative(payload);
     const images = creative?.images ?? [];
     const current = images[0];
-    if (cover === (current?.url ?? null)) return { creative: saved, coverError: null };
+    // Chỉ data URL mới là ảnh vừa chọn; URL thường là ảnh đang có trên server (URL có thể đổi sau mỗi lần tải lại
+    // Creative, nên không so sánh chuỗi, và không fetch URL đó vì bị chặn CORS -> "Failed to fetch")
+    const isNewCover = typeof cover === 'string' && cover.startsWith('data:');
+    if (!isNewCover && (cover || !current)) return { creative: saved, coverError: null };
 
     try {
       if (cover) {

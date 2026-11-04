@@ -12,6 +12,7 @@ import { mapBatch } from './batches';
  * POST   /creator/products (multipart)            name?, hashtags[]?, images[i][file], images[i][field_key] -> 201 { data: Product }
  * POST   /creator/products/{id} (multipart)       như trên, images[i][id] (giữ ảnh cũ) thay cho file; không gửi hashtags = bỏ hết
  * DELETE /creator/products/{id}                   -> 204
+ * PUT    /creator/products/{id}/active            { is_active } -> { data: Product }; sản phẩm tắt không được tạo tự động
  * GET    /creator/creative-groups                 -> { data: CreativeGroup[] } (cũ nhất trước = thứ tự tạo lô)
  * POST   /creator/creative-groups                 { name, creative_ids } -> 201 ; PUT /creator/creative-groups/{id}
  * DELETE /creator/creative-groups/{id}            -> 204
@@ -44,6 +45,7 @@ export const AUTO_STOP = {
 const mapProduct = (p) => ({
   id: p.id,
   name: p.name,
+  isActive: p.is_active !== false,
   coverUrl: p.cover_url,
   images: p.images.map((i) => ({ id: i.id, url: i.url, thumbUrl: i.thumb_url ?? i.url, fieldKey: i.field_key })),
   hashtags: (p.hashtags ?? []).map((h) => h.name),
@@ -92,6 +94,10 @@ export function saveProduct({ id, name, hashtags = [], images }) {
 }
 
 export const deleteProduct = (id) => client.delete(`/creator/products/${id}`);
+
+/** Công tắc Hoạt động / Tắt: tạo lô tự động chỉ dùng sản phẩm đang hoạt động. */
+export const setProductActive = (id, isActive) =>
+  client.put(`/creator/products/${id}/active`, { is_active: isActive }).then(({ data }) => mapProduct(data));
 
 const IMAGE_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 

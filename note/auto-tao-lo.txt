@@ -326,3 +326,14 @@ Người dùng chốt: sản phẩm có hashtag; tạo tự động chỉ ghép 
 Backend: migration 2026_10_21_110000_create_product_hashtag_table, Hashtag::syncPivot (dùng chung với
 CreativeService), Product::hashtags, ProductController, AutoBatchService::items.
 Frontend: ProductFormDialog (HashtagInput), ProductsPage, api/autoBatch.js.
+
+CÔNG TẮC HOẠT ĐỘNG SẢN PHẨM (2026-11-04)
+========================================
+
+- Product thêm "is_active": bool (mặc định true, sản phẩm cũ đều đang hoạt động).
+- PUT /creator/products/{id}/active { is_active } -> 200 { data: Product }; sản phẩm của người khác -> 404.
+- Tạo tự động (xem trước + tạo) chỉ dùng sản phẩm đang hoạt động; product_ids chọn thủ công có sản phẩm đang tắt
+  thì sản phẩm đó bị bỏ qua (không còn sản phẩm nào -> 422 AUTO_NOTHING_TO_CREATE). Tạo lô tay ("Tạo ảnh") không xét.
+Backend: migration 2026_11_04_100000_add_is_active_to_products_table, Product::scopeActive,
+  ProductController::setActive, AutoBatchService::planner, AutoBatchTest::test_inactive_products_are_skipped.
+Frontend: ProductsPage (công tắc trên thẻ sản phẩm), ProductPickerDialog (sản phẩm tắt không chọn được), api/autoBatch.js.

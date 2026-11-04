@@ -26,6 +26,8 @@ export default function ProductPickerDialog({ picked, onConfirm, onClose }) {
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
   });
   const products = data ? data.pages.flatMap((p) => p.items) : null;
+  // Sản phẩm đang tắt không được tạo tự động nên không cho chọn
+  const activeProducts = products?.filter((p) => p.isActive) ?? null;
 
   // Cuộn gần tới cuối danh sách thì tự tải trang tiếp
   const sentinelRef = useRef(null);
@@ -38,7 +40,7 @@ export default function ProductPickerDialog({ picked, onConfirm, onClose }) {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const allLoaded = products && !hasNextPage;
-  const allOn = !!products?.length && products.every(isOn);
+  const allOn = !!activeProducts?.length && activeProducts.every(isOn);
 
   return (
     <Dialog
@@ -86,10 +88,10 @@ export default function ProductPickerDialog({ picked, onConfirm, onClose }) {
         </EmptyState>
       ) : (
         <>
-          {allLoaded && products.length <= AUTO_MAX_COUNT && (
+          {allLoaded && activeProducts.length > 0 && activeProducts.length <= AUTO_MAX_COUNT && (
             <button
               type="button"
-              onClick={() => setSelected(allOn ? [] : products)}
+              onClick={() => setSelected(allOn ? [] : activeProducts)}
               className="flex items-center gap-1 text-xs font-bold text-primary hover:underline"
             >
               <Icon name={allOn ? 'deselect' : 'select_all'} className="text-base" />
@@ -104,7 +106,7 @@ export default function ProductPickerDialog({ picked, onConfirm, onClose }) {
                   <button
                     type="button"
                     onClick={() => toggle(p)}
-                    disabled={!on && full}
+                    disabled={!on && (full || !p.isActive)}
                     aria-pressed={on}
                     className={`flex w-full items-center gap-3 rounded-xl border p-2 text-left transition-colors disabled:opacity-40 ${
                       on ? 'border-primary-container bg-primary-container/5 ring-1 ring-primary-container' : 'border-outline-variant/40 hover:bg-surface-container-low'
@@ -116,7 +118,9 @@ export default function ProductPickerDialog({ picked, onConfirm, onClose }) {
                       <span className="block truncate font-mono text-[11px] text-on-surface-variant">
                         {p.images.map((img) => img.fieldKey).join(', ')}
                       </span>
-                      <span className="block text-[11px] text-outline">Đã tạo tự động {p.autoBatchCount} lô</span>
+                      <span className="block text-[11px] text-outline">
+                        {p.isActive ? `Đã tạo tự động ${p.autoBatchCount} lô` : 'Đã tắt, bật lại ở Quản lý sản phẩm để tạo tự động'}
+                      </span>
                     </span>
                     <span
                       className={`flex size-6 shrink-0 items-center justify-center rounded-md border-2 ${

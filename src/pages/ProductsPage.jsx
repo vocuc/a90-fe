@@ -7,7 +7,8 @@ import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import ProductFormDialog from '../components/product/ProductFormDialog';
 import { useCreatorProfile } from '../hooks/creatorQueries';
-import { AUTO_KEYS, deleteProduct, listProducts } from '../api/autoBatch';
+import { AUTO_KEYS, deleteProduct, listProducts, setProductActive } from '../api/autoBatch';
+import { Switch } from '../components/template/inputs';
 import { useConfirm } from '../components/common/ConfirmDialog';
 
 const PAGE_SIZE = 20;
@@ -15,6 +16,7 @@ const PAGE_SIZE = 20;
 function ProductCard({ product, onEdit }) {
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
+  const [toggling, setToggling] = useState(false);
   const { confirm, alert } = useConfirm();
   const title = product.name || `Sản phẩm #${product.id}`;
 
@@ -30,13 +32,41 @@ function ProductCard({ product, onEdit }) {
     }
   };
 
+  // Cập nhật ngay trong cache, lỗi thì trả lại như cũ
+  const patchCache = (isActive) =>
+    queryClient.setQueryData(AUTO_KEYS.products, (old) =>
+      old && {
+        ...old,
+        pages: old.pages.map((pg) => ({ ...pg, items: pg.items.map((it) => (it.id === product.id ? { ...it, isActive } : it)) })),
+      },
+    );
+
+  const toggleActive = async (isActive) => {
+    setToggling(true);
+    patchCache(isActive);
+    try {
+      await setProductActive(product.id, isActive);
+    } catch (err) {
+      patchCache(!isActive);
+      alert(err?.message || 'Không đổi được trạng thái sản phẩm, vui lòng thử lại.');
+    } finally {
+      setToggling(false);
+    }
+  };
+
   return (
-    <div className="relative flex gap-3 rounded-2xl border border-outline-variant/40 p-3 lg:flex-col">
+    <div
+      className={`relative flex gap-3 rounded-2xl border border-outline-variant/40 p-3 lg:flex-col ${
+        product.isActive ? '' : 'bg-surface-container-low'
+      }`}
+    >
       {/* Ảnh giữ nguyên tỷ lệ gốc, không cắt: desktop cao theo ảnh, mobile vừa khung 80px */}
       <CoverImage
         src={product.coverUrl}
         alt=""
-        className="size-20 shrink-0 rounded-xl bg-surface-container !object-contain lg:h-auto lg:min-h-40 lg:w-full"
+        className={`size-20 shrink-0 rounded-xl bg-surface-container !object-contain lg:h-auto lg:min-h-40 lg:w-full ${
+          product.isActive ? '' : 'opacity-50 grayscale'
+        }`}
       />
       <div className="min-w-0 flex-1 space-y-1">
         <p className="truncate text-sm font-bold text-on-surface">{title}</p>
@@ -55,6 +85,15 @@ function ProductCard({ product, onEdit }) {
         <p className="text-xs text-on-surface-variant">
           {product.images.length} ảnh · Đã tạo tự động {product.autoBatchCount} lô
         </p>
+        <div className="!mt-2 rounded-lg bg-surface-container-low px-2 py-1.5">
+          <Switch
+            label={product.isActive ? 'Đang hoạt động' : 'Đã tắt'}
+            hint={product.isActive ? 'Được tạo lô tự động' : 'Không được tạo lô tự động'}
+            checked={product.isActive}
+            disabled={toggling}
+            onChange={toggleActive}
+          />
+        </div>
         {/* Tạo lô tay cho sản phẩm này: chọn creative + số ảnh, ảnh sản phẩm tự điền vào trường ảnh trùng key */}
         <Link
           to="/batches/new"
@@ -166,7 +205,7 @@ export default function ProductsPage() {
                 <Link to="/batches" className="font-bold text-primary hover:underline">
                   Lô ảnh
                 </Link>{' '}
-                để tạo lô: mỗi lô là 1 sản phẩm với các creative của 1{' '}
+                để tạo lô (chỉ sản phẩm đang hoạt động): mỗi lô là 1 sản phẩm với các creative của 1{' '}
                 <Link to="/seller/creative-groups" className="font-bold text-primary hover:underline">
                   nhóm creative
                 </Link>
