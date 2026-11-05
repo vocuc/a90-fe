@@ -362,7 +362,7 @@ function FilterPicker({ label, allLabel, icon, value, options, onChange }) {
   );
 }
 
-/** Lọc theo creative / sản phẩm (kèm ảnh). Chỉ hiện ô sản phẩm khi người dùng có sản phẩm đã tạo lô ảnh. */
+/** Lọc theo creative / sản phẩm (kèm ảnh): mọi creative đang hoạt động, mọi sản phẩm đang hoạt động của mình. Không có sản phẩm thì ẩn ô sản phẩm. */
 function HistoryFilters({ creativeId, productId, onChange }) {
   const { data } = useGenerationFilters();
   const creatives = data?.creatives ?? [];
