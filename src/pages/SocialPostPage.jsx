@@ -852,6 +852,7 @@ function PostEditor({ post, type, worker }) {
           <TextField
             label="Tiêu đề"
             icon="title"
+            multiline
             placeholder="Tiêu đề bài đăng"
             maxLength={PHOTO_TITLE_MAX}
             value={form.title}

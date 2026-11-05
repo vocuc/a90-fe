@@ -317,8 +317,10 @@ export const creatorPageApi = {
  *   outputs của lịch sử, không tải về, không chọn cho bài đăng, không gửi worker. 409 IMAGE_NOT_READY nếu ảnh chưa xong.
  * POST /generations/{id}/outputs/{outputId}/enable -> 204. Bật lại ảnh đã tắt.
  *   Tab failed không trả ảnh lỗi đã "Tạo lại" (retry) để không hiện trùng.
- * generation: { id, status, creative: { id, slug, title }, quantity, aspect_ratio, price_per_image, total_charged,
- *               success_count, failed_count, outputs?: [{ id, position, status, image_url, thumb_url, error_message }], created_at }
+ * generation: { id, status, creative: { id, slug, title, cover_url }, product: { id, name, cover_url } | null, quantity,
+ *               aspect_ratio, price_per_image, total_charged, success_count, failed_count,
+ *               outputs?: [{ id, position, status, image_url, thumb_url, error_message, product?: { id, name, cover_url } | null }], created_at }
+ *   creative.cover_url / product: ảnh creative và ảnh sản phẩm hiện ở Lịch sử mua (note/anh-lich-su-mua.txt)
  *   thumb_url: ảnh nhỏ để hiển thị, image_url: ảnh gốc (chỉ dùng khi phóng to)
  */
 const GENERATION_UPLOAD_TIMEOUT = 60_000;

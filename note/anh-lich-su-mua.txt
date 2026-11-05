@@ -1,0 +1,14 @@
+ẢNH CREATIVE VÀ ẢNH SẢN PHẨM Ở LỊCH SỬ MUA (2026-11-05)
+=====================================================
+
+Trang /account/history (Lịch sử mua hàng): mỗi thẻ ảnh hiện thêm 2 ảnh nhỏ có nhãn "Creative" và "Sản phẩm"
+(tên bên cạnh), bấm vào để phóng to. Thiếu ảnh nào thì ẩn ô đó; thiếu cả hai thì ẩn cả hàng.
+
+API cần bổ sung ở GET /generations (GenerationResource):
+- creative.cover_url: ảnh bìa của creative (cùng trường cover_url như ở các API creative khác). Creative đã gỡ -> creative null.
+- product: { id, name, cover_url } | null — sản phẩm (của chính người dùng) gắn lô ảnh tự động chứa đơn này
+  (image_batches.product_id). null khi tạo tay hoặc sản phẩm đã xoá.
+- Nếu một đơn có ảnh thuộc nhiều lô / sản phẩm khác nhau: trả thêm outputs[].product cùng dạng; frontend ưu tiên
+  outputs[].product, rồi mới tới product của đơn.
+
+Frontend: pages/PurchaseHistoryPage.jsx (SourceThumb), api/services.js (chú thích generation).

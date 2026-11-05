@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import Icon from './Icon';
 import { MAINTENANCE_MESSAGE } from '../../api/client';
 
@@ -53,7 +53,35 @@ export function TextArea({ label, error, hint, maxLength, value, ...props }) {
   );
 }
 
-export function TextField({ label, icon, error, hint, type = 'text', ...inputProps }) {
+/** Textarea 1 dòng tự giãn chiều cao theo nội dung, chặn xuống dòng (dùng cho tiêu đề dài). */
+function AutoGrowInput({ value, onChange, onKeyDown, className, ...props }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      className={`${className} resize-none overflow-hidden`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.preventDefault();
+        onKeyDown?.(e);
+      }}
+      onChange={(e) => {
+        if (/[\r\n]/.test(e.target.value)) e.target.value = e.target.value.replace(/[\r\n]+/g, ' ');
+        onChange?.(e);
+      }}
+      {...props}
+    />
+  );
+}
+
+export function TextField({ label, icon, error, hint, type = 'text', multiline = false, ...inputProps }) {
   const id = useId();
   const [reveal, setReveal] = useState(false);
   const isPassword = type === 'password';
@@ -63,16 +91,26 @@ export function TextField({ label, icon, error, hint, type = 'text', ...inputPro
       <label htmlFor={id} className="mb-1.5 block text-xs font-semibold text-on-surface">
         {label}
       </label>
-      <div className={`${boxCls(error)} items-center`}>
+      <div className={`${boxCls(error)} ${multiline ? 'items-start' : 'items-center'}`}>
         <Icon name={icon} className="mr-2 text-[20px] text-outline" />
-        <input
-          id={id}
-          type={isPassword && reveal ? 'text' : type}
-          aria-invalid={!!error}
-          aria-describedby={error ? `${id}-error` : undefined}
-          className={inputCls}
-          {...inputProps}
-        />
+        {multiline ? (
+          <AutoGrowInput
+            id={id}
+            aria-invalid={!!error}
+            aria-describedby={error ? `${id}-error` : undefined}
+            className={inputCls}
+            {...inputProps}
+          />
+        ) : (
+          <input
+            id={id}
+            type={isPassword && reveal ? 'text' : type}
+            aria-invalid={!!error}
+            aria-describedby={error ? `${id}-error` : undefined}
+            className={inputCls}
+            {...inputProps}
+          />
+        )}
         {isPassword && (
           <button
             type="button"

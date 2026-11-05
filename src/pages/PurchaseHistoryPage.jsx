@@ -38,6 +38,27 @@ const formatDateTime = (iso) =>
 
 const isPending = (o) => o.status === 'queued' || o.status === 'processing';
 
+/** Ảnh nhỏ kèm nhãn (ảnh creative / ảnh sản phẩm), bấm để phóng to. Không có ảnh thì không hiện. */
+function SourceThumb({ label, name, src, onView }) {
+  const [broken, setBroken] = useState(false);
+  if (!src || broken) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => onView({ src, alt: `${label}: ${name}` })}
+      title={`${label}: ${name}`}
+      aria-label={`Xem ảnh ${label.toLowerCase()} ${name}`}
+      className="flex min-w-0 flex-1 cursor-zoom-in items-center gap-1.5 rounded-lg bg-surface-container-low p-1 text-left hover:bg-surface-container"
+    >
+      <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} className="size-8 shrink-0 rounded-md object-cover" />
+      <span className="min-w-0">
+        <span className="block text-[10px] font-semibold leading-tight text-outline">{label}</span>
+        <span className="block truncate text-[11px] font-bold leading-tight text-on-surface">{name}</span>
+      </span>
+    </button>
+  );
+}
+
 /**
  * Một thẻ của lịch sử. kind:
  * - image: ảnh đang dùng (xem, tải về, tắt ảnh)
@@ -68,6 +89,8 @@ function HistoryCard({ kind, order, output, onView }) {
   };
   const status = STATUS[order.status] ?? { label: order.status, className: 'bg-surface-container text-on-surface-variant' };
   const hasImage = (kind === 'image' || kind === 'disabled') && !broken;
+  // Sản phẩm của lô tự động chứa ảnh (theo từng ảnh, rồi theo đơn); null khi tạo tay
+  const product = output?.product ?? order.product ?? null;
 
   const handleDisable = async () => {
     const ok = await confirm('Ảnh sẽ chuyển sang tab "Đã tắt", không tải về và không dùng để đăng bài được nữa. Không hoàn tiền.', {
@@ -98,7 +121,7 @@ function HistoryCard({ kind, order, output, onView }) {
     media = (
       <button
         type="button"
-        onClick={() => onView(output)}
+        onClick={() => onView({ src: output.image_url, alt: `Ảnh ${output.position}` })}
         aria-label={`Xem ảnh ${output.position}`}
         className="group relative block w-full cursor-zoom-in overflow-hidden bg-surface-container"
       >
@@ -144,6 +167,12 @@ function HistoryCard({ kind, order, output, onView }) {
         <p className="text-[11px] text-outline">
           #{order.id} · {formatDateTime(order.created_at)}
         </p>
+        {(order.creative?.cover_url || product?.cover_url) && (
+          <div className="mt-2 flex gap-1.5">
+            <SourceThumb label="Creative" name={order.creative?.title} src={order.creative?.cover_url} onView={onView} />
+            <SourceThumb label="Sản phẩm" name={product?.name || `Sản phẩm #${product?.id}`} src={product?.cover_url} onView={onView} />
+          </div>
+        )}
         {actionError && <p className="text-[11px] text-error">{actionError.message}</p>}
         <div className="mt-auto pt-2.5">
           <div className="space-y-2 border-t border-surface-container pt-2.5">
@@ -341,7 +370,7 @@ export default function PurchaseHistoryPage() {
         <HistoryFilters creativeId={creativeId} productId={productId} onChange={setParam} />
       </header>
 
-      <ImageViewer src={viewing?.image_url} alt={`Ảnh ${viewing?.position}`} onClose={() => setViewing(null)} />
+      <ImageViewer src={viewing?.src} alt={viewing?.alt} onClose={() => setViewing(null)} />
       <div className="p-4">
         {error ? (
           <ErrorState error={error} onRetry={refetch} />
