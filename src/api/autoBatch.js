@@ -76,6 +76,15 @@ export const listProducts = ({ page = 1, limit = 20 } = {}) =>
     total: meta.total,
   }));
 
+/** Mọi sản phẩm của mình (tải hết các trang, 50 sản phẩm / trang), dùng cho ô chọn sản phẩm. */
+export async function listAllProducts() {
+  const first = await listProducts({ page: 1, limit: 50 });
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(0, first.lastPage - 1) }, (_, i) => listProducts({ page: i + 2, limit: 50 })),
+  );
+  return [first, ...rest].flatMap((p) => p.items);
+}
+
 /**
  * Lưu sản phẩm. images: [{ id?, file?, fieldKey }] theo thứ tự hiển thị; ảnh đã lưu gửi id, ảnh mới gửi file.
  * hashtags: tên không có #. id: sửa sản phẩm, bỏ trống: tạo mới.

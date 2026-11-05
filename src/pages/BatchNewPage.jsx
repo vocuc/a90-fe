@@ -11,11 +11,12 @@ import CreativePicker from '../components/batch/CreativePicker';
 import CreativeInputCard from '../components/batch/CreativeInputCard';
 import LogoCard, { batchLogoUrl } from '../components/batch/LogoCard';
 import ImageWorkerSelect, { useImageWorker } from '../components/common/ImageWorkerSelect';
+import ImageSelectField from '../components/common/ImageSelectField';
 import { useMe } from '../hooks/queries';
 import { creativeApi } from '../api/services';
 import { createBatch } from '../api/batches';
 import { formatVnd } from '../utils/format';
-import { getProductImageFile } from '../api/autoBatch';
+import { getProductImageFile, listAllProducts } from '../api/autoBatch';
 
 const IMAGE_FIELDS = ['image', 'image_list'];
 
@@ -49,11 +50,12 @@ export default function BatchNewPage() {
   const queryClient = useQueryClient();
   const idem = useIdempotencyKey();
   const [params, setParams] = useSearchParams();
-  // Vào từ nút "Tạo ảnh" của thẻ sản phẩm (/seller/items): ảnh sản phẩm tự điền vào trường ảnh trùng key.
-  // Giữ trong state vì đổi ?step làm mất location.state
-  const [product] = useState(() => location.state?.product ?? null);
+  // Sản phẩm của lô: ảnh sản phẩm tự điền vào trường ảnh trùng key, gửi product_id (lưu vào generations.product_id).
+  // Chọn ở bước nhập thông tin (dưới ô worker); vào từ nút "Tạo ảnh" của thẻ sản phẩm (/seller/items) thì chọn sẵn.
+  // Giữ trong state vì đổi ?step làm mất location.state. null: không theo sản phẩm, người dùng tự nhập, product_id = 0
+  const [product, setProduct] = useState(() => location.state?.product ?? null);
   const [picked, setPicked] = useState([]);
-  // Giá trị nhập theo mẫu: { [slug]: values }; chưa có thì lấy giá trị mặc định của form
+  // Giá trị người dùng đã sửa theo mẫu: { [id]: { [key]: value } }; trường chưa sửa lấy mặc định của form + ảnh sản phẩm
   const [inputs, setInputs] = useState({});
   // Số ảnh theo mẫu: { [id]: n }, mặc định 1
   const [quantities, setQuantities] = useState({});
@@ -105,6 +107,24 @@ export default function BatchNewPage() {
   });
   const loadingProductFiles = !!product?.images.length && productFiles.isLoading;
 
+  // Danh sách sản phẩm cho ô chọn (chỉ tài khoản có shop mới có sản phẩm; lỗi thì ẩn ô chọn)
+  const products = useQuery({ queryKey: ['creator', 'products', 'all'], queryFn: listAllProducts, enabled: step === 'inputs' });
+  const [productError, setProductError] = useState(null);
+
+  /**
+   * Đổi sản phẩm: bỏ giá trị đã sửa ở các trường ảnh trùng key của sản phẩm cũ và mới, để các trường đó
+   * điền lại theo sản phẩm mới (bỏ chọn sản phẩm: các trường đó về trống, người dùng tự nhập).
+   */
+  const changeProduct = (id) => {
+    const next = (products.data ?? []).find((p) => String(p.id) === String(id)) ?? null;
+    const keys = new Set([...(product?.images ?? []), ...(next?.images ?? [])].map((img) => img.fieldKey));
+    const strip = (obj) => Object.fromEntries(Object.entries(obj ?? {}).filter(([k]) => !keys.has(k)));
+    setInputs((prev) => Object.fromEntries(Object.entries(prev).map(([cid, v]) => [cid, strip(v)])));
+    setServerErrors((prev) => Object.fromEntries(Object.entries(prev).map(([cid, v]) => [cid, strip(v)])));
+    setProduct(next);
+    setProductError(null);
+  };
+
   const toggle = (c) => setPicked((prev) => (prev.some((p) => p.id === c.id) ? prev.filter((p) => p.id !== c.id) : [...prev, c]));
   const quantityOf = (c) => quantities[c.id] ?? 1;
   const imageTotal = picked.reduce((sum, c) => sum + quantityOf(c), 0);
@@ -113,8 +133,10 @@ export default function BatchNewPage() {
   const productKeys = new Set(product?.images.map((img) => img.fieldKey) ?? []);
   const rows = picked.map((c, i) => {
     const schema = details[i]?.data?.inputSchema ?? null;
-    // Chưa sửa gì thì lấy giá trị mặc định của form + ảnh sản phẩm (nếu có)
-    const values = inputs[c.id] ?? (schema ? prefillFromProduct(schema, initialValues(schema), productFiles.data?.byKey) : {});
+    // Trường chưa sửa lấy giá trị mặc định của form + ảnh sản phẩm (nếu có), đè bằng giá trị người dùng đã sửa
+    const values = schema
+      ? { ...prefillFromProduct(schema, initialValues(schema), productFiles.data?.byKey), ...inputs[c.id] }
+      : (inputs[c.id] ?? {});
     const allErrors = schema ? validateValues(schema, values) : {};
     return {
       creative: c,
@@ -171,6 +193,7 @@ export default function BatchNewPage() {
         idem.key.current,
         !!logoUrl && insertLogo,
         worker.workerId,
+        product?.id ?? null,
       );
       idem.renew();
       // Đã trừ tiền -> tải lại số dư
@@ -194,6 +217,7 @@ export default function BatchNewPage() {
       }
       if (err?.errors?.insert_logo) setLogoError([].concat(err.errors.insert_logo)[0]);
       if (err?.errors?.worker_id) setWorkerError([].concat(err.errors.worker_id)[0]);
+      if (err?.errors?.product_id) setProductError([].concat(err.errors.product_id)[0]);
       setError(err?.message || 'Không tạo được lô ảnh, vui lòng thử lại.');
       setLoading(false);
     }
@@ -289,7 +313,6 @@ export default function BatchNewPage() {
             các ảnh khác nhau từ cùng thông tin đã nhập.
           </p>
         </div>
-        {productBanner}
         <LogoCard
           hasShop={!!me?.creatorProfile}
           logoUrl={logoUrl}
@@ -303,6 +326,30 @@ export default function BatchNewPage() {
         <div id="batch-worker" className="rounded-2xl border border-outline-variant/40 p-4">
           <ImageWorkerSelect worker={worker} error={workerError} onChange={() => setWorkerError(null)} />
         </div>
+        {(!products.isError || product) && (
+          <div id="batch-product" className="space-y-3 rounded-2xl border border-outline-variant/40 p-4">
+            <ImageSelectField
+              label="Sản phẩm"
+              icon="inventory_2"
+              value={product ? String(product.id) : ''}
+              onChange={changeProduct}
+              emptyLabel={products.isLoading ? 'Đang tải sản phẩm...' : 'Không theo sản phẩm'}
+              // Sản phẩm chọn sẵn (vào từ thẻ sản phẩm) luôn có trong danh sách, kể cả khi danh sách chưa tải xong
+              options={[
+                ...(product && !(products.data ?? []).some((p) => p.id === product.id) ? [product] : []),
+                ...(products.data ?? []),
+              ].map((p) => ({
+                value: String(p.id),
+                label: p.name || `Sản phẩm #${p.id}`,
+                image: p.coverUrl ?? p.images?.[0]?.thumbUrl,
+                description: p.images?.length ? `${p.images.length} ảnh` : 'Chưa có ảnh',
+              }))}
+              error={productError}
+              hint="Chọn sản phẩm để tự điền ảnh sản phẩm vào các trường trùng key. Không chọn thì tự nhập thông tin."
+            />
+            {productBanner}
+          </div>
+        )}
         <ul className="space-y-3">
           {rows.map((r) => (
             <CreativeInputCard
@@ -315,7 +362,7 @@ export default function BatchNewPage() {
               open={open.includes(r.creative.id)}
               onToggleOpen={() => toggleOpen(r.creative.id)}
               onChange={(key, v) => {
-                setInputs((prev) => ({ ...prev, [r.creative.id]: { ...r.values, [key]: v } }));
+                setInputs((prev) => ({ ...prev, [r.creative.id]: { ...prev[r.creative.id], [key]: v } }));
                 setServerErrors((prev) => ({ ...prev, [r.creative.id]: { ...prev[r.creative.id], [key]: undefined } }));
               }}
               // Bước này luôn giữ ít nhất 1 mẫu; muốn đổi hết thì quay lại bước chọn mẫu
