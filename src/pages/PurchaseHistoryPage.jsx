@@ -345,11 +345,11 @@ function FilterPicker({ label, allLabel, icon, value, options, onChange }) {
                 } ${isSelected ? 'font-bold text-primary' : 'font-semibold text-on-surface'}`}
               >
                 {item.value === '' ? (
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-container-low text-outline">
+                  <span className="flex size-20 shrink-0 items-center justify-center rounded-md bg-surface-container-low text-outline">
                     <Icon name="apps" className="text-lg" />
                   </span>
                 ) : (
-                  <FilterThumb src={item.image} icon={icon} size="size-9" />
+                  <FilterThumb src={item.image} icon={icon} size="size-20" />
                 )}
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 {isSelected && <Icon name="check" className="shrink-0 text-lg" />}
