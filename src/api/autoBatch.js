@@ -50,6 +50,8 @@ const mapProduct = (p) => ({
   images: p.images.map((i) => ({ id: i.id, url: i.url, thumbUrl: i.thumb_url ?? i.url, fieldKey: i.field_key })),
   hashtags: (p.hashtags ?? []).map((h) => h.name),
   autoBatchCount: p.auto_batch_count,
+  // Số ảnh đã tạo xong cho sản phẩm (không tính ảnh lỗi / đang tạo / đã tắt)
+  generatedImageCount: p.generated_image_count ?? 0,
   createdAt: p.created_at,
 });
 

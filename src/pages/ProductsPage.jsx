@@ -86,7 +86,7 @@ function ProductCard({ product, onEdit }) {
           ))}
         </div>
         <p className="text-xs text-on-surface-variant">
-          {product.images.length} ảnh · Đã tạo tự động {product.autoBatchCount} lô
+          {product.images.length} ảnh sản phẩm · Đã tạo {product.generatedImageCount} ảnh
         </p>
         <div className="!mt-2 rounded-lg bg-surface-container-low px-2 py-1.5">
           <Switch
