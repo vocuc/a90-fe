@@ -18,7 +18,7 @@ const PREVIEW_DELAY = 400;
 
 /**
  * /batches/auto: "Tạo tự động" (note/auto-tao-lo.txt): nhập số lô + chèn logo, xem trước các lô sẽ tạo
- * (sản phẩm x nhóm chọn ngẫu nhiên, creative, tiền), "Chọn sản phẩm thủ công" để chỉ ghép lô từ các sản phẩm đã chọn
+ * (sản phẩm ít ảnh nhất trước x nhóm ít dùng nhất với sản phẩm, bằng nhau thì ngẫu nhiên; creative, tiền), "Chọn sản phẩm thủ công" để chỉ ghép lô từ các sản phẩm đã chọn
  * (gửi product_ids, số lô = số sản phẩm đã chọn), rồi tạo đúng các lô đang xem (gửi seed).
  * Hệ thống tạo lần lượt, hết tiền thì dừng. Tạo xong về danh sách lô, kết quả hiện ở đầu danh sách (AUTO_RESULT_KEY).
  */
@@ -133,7 +133,7 @@ export default function BatchAutoPage() {
         </button>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-base font-bold text-on-surface">Tạo lô tự động</h1>
-          <p className="truncate text-xs text-on-surface-variant">Mỗi lô = 1 sản phẩm ngẫu nhiên x các creative Đang bán của 1 nhóm ngẫu nhiên</p>
+          <p className="truncate text-xs text-on-surface-variant">Mỗi lô = 1 sản phẩm (ít ảnh nhất trước) x các creative Đang bán của 1 nhóm (ít dùng nhất với sản phẩm đó)</p>
         </div>
       </header>
 

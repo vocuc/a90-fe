@@ -45,7 +45,7 @@ export default function ProductPickerDialog({ picked, onConfirm, onClose }) {
   return (
     <Dialog
       title="Chọn sản phẩm"
-      subtitle="Mỗi sản phẩm tạo 1 lô với các creative của 1 nhóm ngẫu nhiên"
+      subtitle="Mỗi sản phẩm tạo 1 lô với các creative của nhóm ít dùng nhất với sản phẩm đó"
       onClose={onClose}
       footer={
         <>
