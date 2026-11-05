@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
@@ -12,6 +12,11 @@ import { Switch } from '../components/template/inputs';
 import { useConfirm } from '../components/common/ConfirmDialog';
 
 const PAGE_SIZE = 20;
+
+const TABS = [
+  { value: 'active', label: 'Đang hoạt động', icon: 'toggle_on', isActive: true },
+  { value: 'inactive', label: 'Không hoạt động', icon: 'toggle_off', isActive: false },
+];
 
 function ProductCard({ product, onEdit }) {
   const queryClient = useQueryClient();
@@ -142,7 +147,24 @@ export default function ProductsPage() {
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
     enabled: hasProfile,
   });
-  const products = data ? data.pages.flatMap((p) => p.items) : null;
+  const allProducts = data ? data.pages.flatMap((p) => p.items) : null;
+
+  // API chưa lọc theo trạng thái nên lọc trên các trang đã tải; tab lưu trong URL (?tab=inactive)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = TABS.find((t) => t.value === searchParams.get('tab')) ?? TABS[0];
+  const selectTab = (value) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === TABS[0].value) next.delete('tab');
+        else next.set('tab', value);
+        return next;
+      },
+      { replace: true },
+    );
+  const products = allProducts && allProducts.filter((p) => p.isActive === tab.isActive);
+  // Chỉ hiện số lượng khi đã tải hết, tránh hiện số thiếu
+  const countOf = (t) => (allProducts && !hasNextPage ? allProducts.filter((p) => p.isActive === t.isActive).length : null);
 
   // Cuộn gần tới cuối danh sách thì tự tải trang tiếp, hết trang thì thôi
   const sentinelRef = useRef(null);
@@ -210,10 +232,41 @@ export default function ProductsPage() {
                 {' '}có creative trùng hashtag với sản phẩm. Sản phẩm ít lô nhất được tạo trước.
               </span>
             </p>
-            {!products.length ? (
+            <div role="tablist" aria-label="Trạng thái sản phẩm" className="flex gap-1 rounded-xl bg-surface-container-low p-1 lg:w-fit">
+              {TABS.map((t) => {
+                const count = countOf(t);
+                return (
+                  <button
+                    key={t.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab.value === t.value}
+                    onClick={() => selectTab(t.value)}
+                    className={`flex h-9 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-3 text-xs font-bold transition-colors sm:text-sm ${
+                      tab.value === t.value ? 'bg-surface-container-lowest text-on-surface shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <Icon name={t.icon} className="text-lg" />
+                    <span className="truncate">
+                      {t.label}
+                      {count !== null && ` (${count})`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {!allProducts.length ? (
               <EmptyState icon="shopping_bag" message="Chưa có sản phẩm nào.">
                 {hasProfile && <div className="mt-2">{addButton}</div>}
               </EmptyState>
+            ) : !products.length ? (
+              // Còn trang chưa tải thì chờ tải tiếp (sentinel bên dưới), hết rồi mới báo trống
+              !hasNextPage && (
+                <EmptyState
+                  icon={tab.icon}
+                  message={tab.isActive ? 'Không có sản phẩm nào đang hoạt động.' : 'Không có sản phẩm nào bị tắt.'}
+                />
+              )
             ) : (
               <ul className="grid gap-3 lg:grid-cols-4">
                 {products.map((p) => (

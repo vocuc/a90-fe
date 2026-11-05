@@ -54,8 +54,9 @@ function ProductCard({ creative }) {
         aria-label={`Sửa ${title}`}
         className="flex flex-1 flex-col transition-colors hover:bg-surface-container-low"
       >
-        <div className="relative aspect-square w-full bg-surface-container">
-          <CoverImage src={cover_url} alt={title} className="h-full w-full" />
+        {/* Ảnh giữ nguyên tỷ lệ gốc, không cắt; khung trống (chưa có ảnh) cao tối thiểu để không bị dẹt */}
+        <div className="relative w-full bg-surface-container">
+          <CoverImage src={cover_url} alt={title} className="block h-auto min-h-32 w-full !object-contain" />
           <div className="absolute left-2 top-2 flex flex-wrap gap-1">
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge.cls}`}>{badge.label}</span>
             <span className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${visibility.cls}`}>
