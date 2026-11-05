@@ -70,10 +70,8 @@ function ProductCard({ product, onEdit }) {
       />
       <div className="min-w-0 flex-1 space-y-1">
         <p className="truncate text-sm font-bold text-on-surface">{title}</p>
-        {product.hashtags.length ? (
+        {product.hashtags.length > 0 && (
           <p className="truncate text-xs font-semibold text-primary">{product.hashtags.map((h) => `#${h}`).join(' ')}</p>
-        ) : (
-          <p className="text-xs text-amber-700">Chưa có hashtag, không được tạo tự động</p>
         )}
         <div className="flex flex-wrap gap-1">
           {product.images.map((img) => (
