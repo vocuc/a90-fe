@@ -249,7 +249,7 @@ const cardsOf = (tab, orders) =>
   });
 
 /** Ảnh nhỏ trong ô lọc; không có ảnh / ảnh lỗi thì hiện biểu tượng thay thế. */
-function FilterThumb({ src, icon, size = 'size-6' }) {
+function FilterThumb({ src, icon, size = 'size-5' }) {
   const [broken, setBroken] = useState(false);
   useEffect(() => setBroken(false), [src]);
   if (!src || broken) {
