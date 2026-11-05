@@ -306,7 +306,8 @@ export const creatorPageApi = {
  *   &tab=active (ảnh chưa tắt, không lỗi, gồm ảnh đang tạo) | failed (ảnh tạo lỗi) | disabled (ảnh đã tắt):
  *   mỗi đơn chỉ kèm ảnh của tab, đơn không có ảnh nào của tab thì không trả về
  *   &creative_id= (chỉ đơn của creative đó) &product_id= (chỉ ảnh trong các lô gắn sản phẩm đó của mình)
- * GET  /generations/filters -> { data: { creatives: [{ id, title }] (đã mua), products: [{ id, name }] (của mình, có lô ảnh) } }
+ * GET  /generations/filters -> { data: { creatives: [{ id, title, cover_url }] (đã mua), products: [{ id, name, cover_url }] (của mình, có lô ảnh) } }
+ *   cover_url: ảnh bìa để hiện trong ô lọc (null nếu không có)
  * GET  /generations/{id}/status  -> { data: { id, status, success_count, failed_count,
  *                                             outputs: [{ id, position, status, image_url, thumb_url, error_code }] } }
  *   status (generation và output): queued | processing | completed | failed (generation có thêm cancelled)

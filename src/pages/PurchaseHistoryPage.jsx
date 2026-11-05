@@ -248,10 +248,121 @@ const cardsOf = (tab, orders) =>
       : [{ key: `${order.id}`, kind: 'pending', order }];
   });
 
-const FILTER_SELECT =
-  'h-9 min-w-0 flex-1 truncate rounded-lg border-outline-variant/40 bg-surface-container-low py-0 pl-3 pr-8 text-xs font-semibold text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 sm:text-sm';
+/** Ảnh nhỏ trong ô lọc; không có ảnh / ảnh lỗi thì hiện biểu tượng thay thế. */
+function FilterThumb({ src, icon, size = 'size-6' }) {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [src]);
+  if (!src || broken) {
+    return (
+      <span className={`${size} flex shrink-0 items-center justify-center rounded-md bg-surface-container text-outline`}>
+        <Icon name={icon} className="text-base" />
+      </span>
+    );
+  }
+  return <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} className={`${size} shrink-0 rounded-md object-cover`} />;
+}
 
-/** Lọc theo creative / sản phẩm. Chỉ hiện ô sản phẩm khi người dùng có sản phẩm đã tạo lô ảnh. */
+/**
+ * Ô chọn có ảnh (thay <select> vì <option> không hiện được ảnh).
+ * options: [{ value, label, image }]; value '' = tất cả. Hỗ trợ phím mũi tên / Enter / Esc, bấm ra ngoài thì đóng.
+ */
+function FilterPicker({ label, allLabel, icon, value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const rootRef = useRef(null);
+  const listRef = useRef(null);
+  const items = [{ value: '', label: allLabel, image: null }, ...options];
+  const selected = items.find((o) => String(o.value) === String(value ?? ''));
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e) => !rootRef.current?.contains(e.target) && setOpen(false);
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) listRef.current?.children[active]?.scrollIntoView({ block: 'nearest' });
+  }, [open, active]);
+
+  const toggle = () => {
+    if (!open) setActive(Math.max(0, items.indexOf(selected)));
+    setOpen(!open);
+  };
+  const pick = (item) => {
+    onChange(item.value === '' ? '' : String(item.value));
+    setOpen(false);
+  };
+  const onKeyDown = (e) => {
+    if (e.key === 'Escape' && open) {
+      e.preventDefault();
+      setOpen(false);
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!open) return toggle();
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      setActive((i) => (i + step + items.length) % items.length);
+    } else if ((e.key === 'Enter' || e.key === ' ') && open) {
+      e.preventDefault();
+      pick(items[active]);
+    }
+    return undefined;
+  };
+
+  return (
+    <div ref={rootRef} className="relative min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={toggle}
+        onKeyDown={onKeyDown}
+        aria-label={label}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg border border-outline-variant/40 bg-surface-container-low pl-1.5 pr-2 text-left text-xs font-semibold text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20 sm:text-sm"
+      >
+        {selected?.value ? <FilterThumb src={selected.image} icon={icon} /> : <Icon name={icon} className="ml-1 text-lg text-outline" />}
+        <span className="min-w-0 flex-1 truncate">{selected?.label ?? allLabel}</span>
+        <Icon name={open ? 'expand_less' : 'expand_more'} className="shrink-0 text-lg text-outline" />
+      </button>
+      {open && (
+        <ul
+          ref={listRef}
+          role="listbox"
+          aria-label={label}
+          className="absolute left-0 right-0 top-full z-40 mt-1 max-h-72 min-w-[14rem] overflow-y-auto rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-1 shadow-lg"
+        >
+          {items.map((item, i) => {
+            const isSelected = item === selected;
+            return (
+              <li
+                key={item.value || 'all'}
+                role="option"
+                aria-selected={isSelected}
+                onPointerEnter={() => setActive(i)}
+                onClick={() => pick(item)}
+                className={`flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs sm:text-sm ${
+                  i === active ? 'bg-surface-container' : ''
+                } ${isSelected ? 'font-bold text-primary' : 'font-semibold text-on-surface'}`}
+              >
+                {item.value === '' ? (
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-container-low text-outline">
+                    <Icon name="apps" className="text-lg" />
+                  </span>
+                ) : (
+                  <FilterThumb src={item.image} icon={icon} size="size-9" />
+                )}
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                {isSelected && <Icon name="check" className="shrink-0 text-lg" />}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Lọc theo creative / sản phẩm (kèm ảnh). Chỉ hiện ô sản phẩm khi người dùng có sản phẩm đã tạo lô ảnh. */
 function HistoryFilters({ creativeId, productId, onChange }) {
   const { data } = useGenerationFilters();
   const creatives = data?.creatives ?? [];
@@ -261,23 +372,23 @@ function HistoryFilters({ creativeId, productId, onChange }) {
 
   return (
     <div className="mt-2 flex items-center gap-2">
-      <select aria-label="Lọc theo creative" value={creativeId ?? ''} onChange={(e) => onChange('creative', e.target.value)} className={FILTER_SELECT}>
-        <option value="">Tất cả creative</option>
-        {creatives.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.title}
-          </option>
-        ))}
-      </select>
+      <FilterPicker
+        label="Lọc theo creative"
+        allLabel="Tất cả creative"
+        icon="palette"
+        value={creativeId}
+        options={creatives.map((c) => ({ value: c.id, label: c.title, image: c.cover_url }))}
+        onChange={(v) => onChange('creative', v)}
+      />
       {(products.length > 0 || productId) && (
-        <select aria-label="Lọc theo sản phẩm" value={productId ?? ''} onChange={(e) => onChange('product', e.target.value)} className={FILTER_SELECT}>
-          <option value="">Tất cả sản phẩm</option>
-          {products.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name || `Sản phẩm #${p.id}`}
-            </option>
-          ))}
-        </select>
+        <FilterPicker
+          label="Lọc theo sản phẩm"
+          allLabel="Tất cả sản phẩm"
+          icon="inventory_2"
+          value={productId}
+          options={products.map((p) => ({ value: p.id, label: p.name || `Sản phẩm #${p.id}`, image: p.cover_url }))}
+          onChange={(v) => onChange('product', v)}
+        />
       )}
       {filtered && (
         <button

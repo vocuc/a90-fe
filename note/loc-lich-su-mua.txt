@@ -18,3 +18,10 @@ Backend: GenerationController::index / filters, routes/api.php,
   tests/Feature/GenerationTest::test_history_filters_by_creative_and_product.
 Frontend: api/services.js (generationApi.list / filters), hooks/generationQueries.js (useGenerationFilters),
   pages/PurchaseHistoryPage.jsx (HistoryFilters).
+
+ẢNH TRONG Ô LỌC (2026-11-05)
+- Hai ô lọc đổi từ <select> sang dropdown tự làm (FilterPicker), mỗi dòng có ảnh nhỏ + tên.
+- GET /generations/filters cần trả thêm cover_url:
+    creatives: [{ id, title, cover_url }]  (cùng cover_url như các API creative khác)
+    products:  [{ id, name, cover_url }]   (cùng cover_url như product ở GET /generations)
+  Thiếu cover_url / ảnh lỗi thì frontend hiện biểu tượng thay thế, không vỡ giao diện.
