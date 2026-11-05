@@ -11,6 +11,7 @@ import {
   useDisableOutput,
   useDownloadOutput,
   useEnableOutput,
+  useGenerationFilters,
   useGenerationHistory,
   useRetryFromHistory,
 } from '../hooks/generationQueries';
@@ -218,15 +219,79 @@ const cardsOf = (tab, orders) =>
       : [{ key: `${order.id}`, kind: 'pending', order }];
   });
 
-/** /account/history: các lần tạo ảnh đã mua, mới nhất trước, chia tab đang hoạt động / bị lỗi / đã tắt. */
+const FILTER_SELECT =
+  'h-9 min-w-0 flex-1 truncate rounded-lg border-outline-variant/40 bg-surface-container-low py-0 pl-3 pr-8 text-xs font-semibold text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 sm:text-sm';
+
+/** Lọc theo creative / sản phẩm. Chỉ hiện ô sản phẩm khi người dùng có sản phẩm đã tạo lô ảnh. */
+function HistoryFilters({ creativeId, productId, onChange }) {
+  const { data } = useGenerationFilters();
+  const creatives = data?.creatives ?? [];
+  const products = data?.products ?? [];
+  const filtered = creativeId || productId;
+  if (!creatives.length && !products.length && !filtered) return null;
+
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <select aria-label="Lọc theo creative" value={creativeId ?? ''} onChange={(e) => onChange('creative', e.target.value)} className={FILTER_SELECT}>
+        <option value="">Tất cả creative</option>
+        {creatives.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.title}
+          </option>
+        ))}
+      </select>
+      {(products.length > 0 || productId) && (
+        <select aria-label="Lọc theo sản phẩm" value={productId ?? ''} onChange={(e) => onChange('product', e.target.value)} className={FILTER_SELECT}>
+          <option value="">Tất cả sản phẩm</option>
+          {products.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name || `Sản phẩm #${p.id}`}
+            </option>
+          ))}
+        </select>
+      )}
+      {filtered && (
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          aria-label="Bỏ lọc"
+          title="Bỏ lọc"
+          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
+        >
+          <Icon name="filter_alt_off" className="text-lg" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** /account/history: các lần tạo ảnh đã mua, mới nhất trước, chia tab đang hoạt động / bị lỗi / đã tắt, lọc theo creative / sản phẩm. */
 export default function PurchaseHistoryPage() {
   useSeo({ title: 'Lịch sử mua', noindex: true });
   const navigate = useNavigate();
   const location = useLocation();
-  // Tab giữ trên URL để tải lại / quay lại vẫn đúng tab
+  // Tab và bộ lọc giữ trên URL để tải lại / quay lại vẫn đúng
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = TABS.find((t) => t.value === searchParams.get('tab')) ?? TABS[0];
-  const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useGenerationHistory(10, tab.value);
+  const creativeId = searchParams.get('creative') || undefined;
+  const productId = searchParams.get('product') || undefined;
+  const filtered = !!(creativeId || productId);
+  const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useGenerationHistory(10, tab.value, {
+    creativeId,
+    productId,
+  });
+  // key = null: bỏ mọi bộ lọc; value rỗng: bỏ bộ lọc đó
+  const setParam = (key, value) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (key === null) ['creative', 'product'].forEach((k) => next.delete(k));
+        else if (value) next.set(key, value);
+        else next.delete(key);
+        return next;
+      },
+      { replace: true },
+    );
   const orders = data?.pages.flatMap((p) => p.items) ?? [];
   const [viewing, setViewing] = useState(null);
   const cards = cardsOf(tab.value, orders);
@@ -263,7 +328,7 @@ export default function PurchaseHistoryPage() {
               type="button"
               role="tab"
               aria-selected={tab.value === t.value}
-              onClick={() => setSearchParams(t.value === TABS[0].value ? {} : { tab: t.value }, { replace: true })}
+              onClick={() => setParam('tab', t.value === TABS[0].value ? '' : t.value)}
               className={`flex h-9 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1 text-xs font-bold transition-colors sm:text-sm ${
                 tab.value === t.value ? 'bg-surface-container-lowest text-on-surface shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
               }`}
@@ -273,6 +338,7 @@ export default function PurchaseHistoryPage() {
             </button>
           ))}
         </div>
+        <HistoryFilters creativeId={creativeId} productId={productId} onChange={setParam} />
       </header>
 
       <ImageViewer src={viewing?.image_url} alt={`Ảnh ${viewing?.position}`} onClose={() => setViewing(null)} />
@@ -286,8 +352,12 @@ export default function PurchaseHistoryPage() {
             ))}
           </div>
         ) : cards.length === 0 ? (
-          <EmptyState icon={tab.icon} message={tab.empty}>
-            {tab.value === 'active' && (
+          <EmptyState icon={filtered ? 'filter_alt_off' : tab.icon} message={filtered ? 'Không có ảnh nào khớp bộ lọc.' : tab.empty}>
+            {filtered ? (
+              <button type="button" onClick={() => setParam(null)} className="text-sm font-bold text-primary">
+                Bỏ lọc
+              </button>
+            ) : tab.value === 'active' && (
               <Link to="/explore" className="text-sm font-bold text-primary">
                 Khám phá mẫu
               </Link>

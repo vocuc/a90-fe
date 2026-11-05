@@ -1,0 +1,20 @@
+LỌC LỊCH SỬ MUA THEO CREATIVE / SẢN PHẨM (2026-11-05)
+=====================================================
+
+Trang /account/history (Lịch sử mua hàng): dưới các tab có 2 ô lọc "Tất cả creative" / "Tất cả sản phẩm" và nút bỏ lọc.
+Bộ lọc giữ trên URL (?creative=&product=), đổi tab vẫn giữ bộ lọc. Ô sản phẩm chỉ hiện khi người dùng có sản phẩm
+đã tạo lô ảnh.
+
+API
+- GET /generations thêm:
+    creative_id: chỉ đơn của creative đó.
+    product_id:  chỉ ảnh nằm trong các lô ảnh (image_batches.product_id) của chính người dùng gắn sản phẩm đó
+                 (lô tự động). Lọc theo từng ảnh: đơn chỉ kèm ảnh thuộc sản phẩm, đơn không còn ảnh nào thì không trả về.
+                 Kết hợp được với tab và creative_id.
+- GET /generations/filters -> { data: { creatives: [{ id, title }], products: [{ id, name }] } }
+    creatives: creative người dùng đã mua (theo tên); products: sản phẩm của người dùng có lô ảnh (mới nhất trước).
+
+Backend: GenerationController::index / filters, routes/api.php,
+  tests/Feature/GenerationTest::test_history_filters_by_creative_and_product.
+Frontend: api/services.js (generationApi.list / filters), hooks/generationQueries.js (useGenerationFilters),
+  pages/PurchaseHistoryPage.jsx (HistoryFilters).

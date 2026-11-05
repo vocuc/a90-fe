@@ -305,6 +305,8 @@ export const creatorPageApi = {
  * GET  /generations?page=&per_page= (<= 50, mới nhất trước) -> { data: generation[] (kèm outputs), meta: { current_page, last_page, ... } }
  *   &tab=active (ảnh chưa tắt, không lỗi, gồm ảnh đang tạo) | failed (ảnh tạo lỗi) | disabled (ảnh đã tắt):
  *   mỗi đơn chỉ kèm ảnh của tab, đơn không có ảnh nào của tab thì không trả về
+ *   &creative_id= (chỉ đơn của creative đó) &product_id= (chỉ ảnh trong các lô gắn sản phẩm đó của mình)
+ * GET  /generations/filters -> { data: { creatives: [{ id, title }] (đã mua), products: [{ id, name }] (của mình, có lô ảnh) } }
  * GET  /generations/{id}/status  -> { data: { id, status, success_count, failed_count,
  *                                             outputs: [{ id, position, status, image_url, thumb_url, error_code }] } }
  *   status (generation và output): queued | processing | completed | failed (generation có thêm cancelled)
@@ -344,13 +346,14 @@ export const generationApi = {
     return client.post('/generations', form, { timeout: GENERATION_UPLOAD_TIMEOUT }).then(({ data }) => data);
   }),
   // tab: active | failed | disabled (không truyền: mọi đơn, kèm ảnh chưa tắt)
-  list: requireRealBackend(({ page, limit, tab } = {}) =>
-    client.get('/generations', { params: { page, per_page: limit, tab } }).then(({ data, meta }) => ({
+  list: requireRealBackend(({ page, limit, tab, creativeId, productId } = {}) =>
+    client.get('/generations', { params: { page, per_page: limit, tab, creative_id: creativeId, product_id: productId } }).then(({ data, meta }) => ({
       items: data,
       page: meta.current_page,
       lastPage: meta.last_page,
     })),
   ),
+  filters: requireRealBackend(() => client.get('/generations/filters').then(({ data }) => data)),
   status: requireRealBackend((id) => client.get(`/generations/${id}/status`).then(({ data }) => data)),
   retry: requireRealBackend(({ id, outputIds, idempotencyKey }) =>
     client

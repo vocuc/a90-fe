@@ -49,14 +49,18 @@ export const useGenerationStatus = (id) => {
   return query;
 };
 
-/** Lịch sử tạo ảnh (mua hàng) của tài khoản, tải thêm theo trang. */
-export const useGenerationHistory = (limit = 10, tab) =>
+/** Lịch sử tạo ảnh (mua hàng) của tài khoản, tải thêm theo trang. filters: { creativeId, productId } (bỏ trống = tất cả). */
+export const useGenerationHistory = (limit = 10, tab, { creativeId, productId } = {}) =>
   useInfiniteQuery({
-    queryKey: ['generations', 'history', limit, tab ?? 'all'],
-    queryFn: ({ pageParam }) => generationApi.list({ page: pageParam, limit, tab }),
+    queryKey: ['generations', 'history', limit, tab ?? 'all', creativeId ?? null, productId ?? null],
+    queryFn: ({ pageParam }) => generationApi.list({ page: pageParam, limit, tab, creativeId, productId }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
   });
+
+/** Lựa chọn cho bộ lọc lịch sử mua: creative đã mua, sản phẩm của mình có lô ảnh. */
+export const useGenerationFilters = () =>
+  useQuery({ queryKey: ['generations', 'filters'], queryFn: generationApi.filters, staleTime: 60_000 });
 
 /** Tắt ảnh đã tạo (không hoàn tiền): ảnh biến khỏi lịch sử và các nơi chọn ảnh. */
 export const useDisableOutput = () => {
