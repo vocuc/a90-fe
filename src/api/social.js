@@ -17,7 +17,7 @@ import client from './client';
  * POST   /social/posts/{id}/ai-content                   -> { data: { title, content, hashtags, credit_balance } }
  *        "Viết lại bằng AI": không lưu vào bài, trừ phí khi AI viết được (note/ai-viet-noi-dung-bai-dang.txt)
  * GET    /creator/ai-content                             -> { data: AiContentSettings }  (trang "AI viết nội dung", chủ shop)
- * PUT    /creator/ai-content { hashtags, samples, title_max, content_max } -> như trên
+ * PUT    /creator/ai-content { hashtags, samples, requirements, title_max, content_max } -> như trên
  * DELETE /social/posts/{id}                              -> 204
  */
 
@@ -225,6 +225,7 @@ export const saveAiContentPref = (on) => {
 const mapAiContentSettings = (d) => ({
   hashtags: d.hashtags ?? [],
   samples: d.samples ?? [],
+  requirements: d.requirements ?? '',
   titleMax: d.title_max,
   contentMax: d.content_max,
   productHashtags: d.product_hashtags ?? [],
@@ -234,6 +235,7 @@ const mapAiContentSettings = (d) => ({
     samples: d.limits.samples,
     sampleTitle: d.limits.sample_title,
     sampleContent: d.limits.sample_content,
+    requirements: d.limits.requirements ?? 1000,
     titleMax: d.limits.title_max,
     contentMax: d.limits.content_max,
   },
@@ -241,9 +243,9 @@ const mapAiContentSettings = (d) => ({
 
 export const getAiContentSettings = () => client.get('/creator/ai-content').then(({ data }) => mapAiContentSettings(data));
 
-export const saveAiContentSettings = ({ hashtags, samples, titleMax, contentMax }) =>
+export const saveAiContentSettings = ({ hashtags, samples, requirements, titleMax, contentMax }) =>
   client
-    .put('/creator/ai-content', { hashtags, samples, title_max: titleMax, content_max: contentMax })
+    .put('/creator/ai-content', { hashtags, samples, requirements, title_max: titleMax, content_max: contentMax })
     .then(({ data }) => mapAiContentSettings(data));
 
 /**

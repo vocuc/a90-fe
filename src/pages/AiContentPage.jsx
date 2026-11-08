@@ -46,6 +46,7 @@ function LimitField({ label, value, onChange, range, error, hint }) {
  * - Kho hashtag: AI chọn tối đa 5 hashtag hợp với ảnh, kho rỗng thì bài không có hashtag.
  * - Bài viết mẫu: AI học giọng văn, cách trình bày, không chép nguyên.
  * - Số ký tự tối đa của tiêu đề / nội dung.
+ * - Yêu cầu bắt buộc: AI luôn làm theo trong mọi bài (ưu tiên hơn bài mẫu).
  */
 export default function AiContentPage() {
   useSeo({ title: 'AI viết nội dung', noindex: true });
@@ -150,6 +151,7 @@ export default function AiContentPage() {
     mutation.mutate({
       hashtags: form.hashtags,
       samples: form.samples.map((s) => ({ title: s.title.trim(), content: s.content.trim() })),
+      requirements: form.requirements.trim(),
       titleMax: Number(form.titleMax),
       contentMax: Number(form.contentMax),
     });
@@ -187,6 +189,25 @@ export default function AiContentPage() {
               error={errors.contentMax}
             />
           </div>
+        </Section>
+
+        <Section
+          title="Yêu cầu bắt buộc"
+          subtitle="AI luôn làm đúng các yêu cầu này trong mọi bài, ưu tiên hơn bài viết mẫu."
+        >
+          <TextArea
+            label="Yêu cầu"
+            placeholder={'Mỗi yêu cầu một dòng, vd:\n- Luôn xưng "shop", gọi khách là "bạn"\n- Cuối bài mời mọi người theo dõi shop\n- Không dùng quá 3 emoji'}
+            maxLength={limits.requirements}
+            rows={5}
+            value={form.requirements}
+            error={errors.requirements}
+            hint="Để trống nếu không có."
+            onChange={(e) => {
+              change({ requirements: e.target.value });
+              setErrors((er) => ({ ...er, requirements: undefined }));
+            }}
+          />
         </Section>
 
         <Section
@@ -288,6 +309,7 @@ const newSample = (s = {}) => ({ key: `s${++sampleSeq}`, title: s.title ?? '', c
 const toForm = (d) => ({
   hashtags: d.hashtags,
   samples: d.samples.map(newSample),
+  requirements: d.requirements,
   titleMax: String(d.titleMax),
   contentMax: String(d.contentMax),
 });

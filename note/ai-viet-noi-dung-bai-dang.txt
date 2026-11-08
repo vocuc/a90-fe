@@ -33,6 +33,8 @@ Lưu một lần cả trang (bảng shop_ai_settings + shop_hashtag):
   - Bài viết mẫu: tối đa 10 bài { tiêu đề (không bắt buộc), nội dung (bắt buộc) }. AI học giọng văn, cách xưng hô,
     cách trình bày (xuống dòng, emoji), độ dài tương tự; không chép nguyên. Không có bài mẫu: AI viết 2-5 câu.
   - Kho hashtag: tối đa 100, AI chọn tối đa 5 hợp với ảnh. Kho rỗng: bài không có hashtag.
+  - Yêu cầu bắt buộc (2026-11-08): ô văn bản tự do, tối đa 1000 ký tự, không bắt buộc nhập. Đưa vào prompt như quy tắc
+    AI PHẢI tuân theo trong mọi bài, ưu tiên hơn bài viết mẫu (vẫn không được vượt số ký tự tối đa).
 
 
 2. LUỒNG
@@ -68,13 +70,15 @@ bỏ #tag lẫn trong nội dung, hashtag ngoài kho bị bỏ (schema JSON cũn
 POST /social/posts/from-images  thêm ai_content (boolean, không bắt buộc, mặc định false)
 SocialPost                      thêm ai_content (boolean)
 POST /social/posts/{id}/ai-content -> { data: { title, content, hashtags, credit_balance } }
-GET  /creator/ai-content        -> { data: { hashtags: string[], samples: [{ title, content }], title_max, content_max,
+GET  /creator/ai-content        -> { data: { hashtags: string[], samples: [{ title, content }], requirements: string,
+                                    title_max, content_max,
                                     product_hashtags: string[], limits: { hashtags: 100, ai_hashtags: 5, samples: 10,
-                                    sample_title: 90, sample_content: 4000, title_max: { min, max },
-                                    content_max: { min, max } } } }   (chưa lưu: mặc định)
-PUT  /creator/ai-content { hashtags, samples, title_max, content_max } -> như trên. Gửi đủ cả trang, rỗng = xoá hết.
-     Chỉ chủ shop (middleware creator, khác -> 403). Quy tắc hashtag như Creative.
-     422: hashtags.N, samples (quá 10), samples.N.content (bắt buộc), title_max, content_max (ngoài khoảng).
+                                    sample_title: 90, sample_content: 4000, requirements: 1000, title_max: { min, max },
+                                    content_max: { min, max } } } }   (chưa lưu: mặc định, requirements = '')
+PUT  /creator/ai-content { hashtags, samples, requirements, title_max, content_max } -> như trên. Gửi đủ cả trang,
+     rỗng = xoá hết. Chỉ chủ shop (middleware creator, khác -> 403). Quy tắc hashtag như Creative.
+     422: hashtags.N, samples (quá 10), samples.N.content (bắt buộc), requirements (quá 1000), title_max, content_max
+     (ngoài khoảng).
 GET  /auth/me                   thêm social_ai: { enabled, price }
 Ledger Credit: social_content_charge (trừ), social_content_refund (hoàn), reference social_post #id.
 
