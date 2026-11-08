@@ -12,6 +12,7 @@ import { mapImage } from './social';
  * GET    /image-batches/{id}                                    -> { data: ImageBatch }
  * POST   /image-batches (multipart)                             -> 201 { data: ImageBatch }
  * DELETE /image-batches/{id}                                    -> 204
+ * POST   /image-batches/{id}/cancel                             -> { data: ImageBatch, meta: { cancelled } }  (hủy ảnh đang chờ, hoàn tiền)
  * GET    /image-batches/{id}/images/{imageId}/inputs            -> { data: { creative, inputs } }
  * POST   /image-batches/{id}/images/{imageId}/regenerate        -> 202 { data: Image }
  * DELETE /image-batches/{id}/images/{imageId}                   -> 204
@@ -39,6 +40,8 @@ export const mapBatch = (b) => ({
   group: b.group ?? null,
   imageCount: b.image_count ?? 0,
   generatingCount: b.generating_count ?? 0,
+  // Ảnh chưa worker nào nhận: hủy được bằng cancelBatch
+  queuedCount: b.queued_count ?? 0,
   failedCount: b.failed_count ?? 0,
   coverUrl: b.cover_url ?? null,
   postCount: b.post_count ?? 0,
@@ -170,6 +173,13 @@ export function uploadBatchImage(batchId, image, file) {
 
 /** Xoá một ảnh khỏi lô (ảnh vẫn còn trong lịch sử tạo ảnh). Lô phải còn ít nhất 1 ảnh. */
 export const deleteBatchImage = (batchId, image) => client.delete(`/image-batches/${batchId}/images/${image.id}`);
+
+/**
+ * "Hủy ảnh đang chờ": ảnh chưa worker nào nhận thành lỗi và được hoàn tiền; ảnh đang tạo / đã xong giữ nguyên.
+ * Trả { batch, cancelled } (số ảnh đã hủy, 0 khi không còn ảnh chờ).
+ */
+export const cancelBatch = (id) =>
+  client.post(`/image-batches/${id}/cancel`).then(({ data, meta }) => ({ batch: mapBatch(data), cancelled: meta?.cancelled ?? 0 }));
 
 /** Xoá lô khi không còn ảnh đang tạo. Bài đăng đã tạo và ảnh trong lịch sử tạo ảnh vẫn giữ. */
 export const deleteBatch = (id) => client.delete(`/image-batches/${id}`);

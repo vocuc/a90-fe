@@ -168,6 +168,9 @@ POST   /image-batches                                   multipart, throttle gene
          idempotency_key (<= 80). Mỗi creative_id một lần (422 errors["items.1.creative_id"]).
          Trừ tổng phí ngay (402 INSUFFICIENT_CREDIT context.required = tổng). -> 201 { data: ImageBatch }
 DELETE /image-batches/{id}                              409 BATCH_NOT_DELETABLE khi còn ảnh đang tạo. -> 204
+POST   /image-batches/{id}/cancel                       (2026-11-08) Nút "Hủy N ảnh đang chờ" ở trang lô: ảnh queued (chưa
+         worker nào nhận) -> failed CANCELLED + hoàn Credit; ảnh processing / đã xong giữ nguyên. Ảnh queued không còn
+         tự thất bại sau 30 phút. -> { data: ImageBatch, meta: { cancelled } }
 GET    /image-batches/{id}/images/{imageId}/inputs      như 5.6 cũ
 POST   /image-batches/{id}/images/{imageId}/regenerate  như 5.7 cũ (không còn POST_NOT_EDITABLE). -> 202 { data: Image }
 DELETE /image-batches/{id}/images/{imageId}             409 IMAGE_NOT_READY (đang tạo), 409 BATCH_LAST_IMAGE. -> 204

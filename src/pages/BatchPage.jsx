@@ -17,6 +17,7 @@ import {
   BATCH_SOURCE,
   UPLOAD_IMAGE_MAX_MB,
   UPLOAD_IMAGE_TYPES,
+  cancelBatch,
   deleteBatchImage,
   getBatch,
   regenerateBatchImage,
@@ -199,6 +200,29 @@ export default function BatchPage() {
   // Ảnh dùng được để đăng: đã xong và chưa bị tắt
   const completed = batch?.images.filter((i) => i.status === IMAGE_STATUS.COMPLETED && !i.disabled) ?? [];
   const generating = batch?.images.some(isImageBusy) ?? false;
+  // Ảnh chưa worker nào nhận: hủy được, hoàn tiền
+  const queued = batch?.images.filter((i) => i.status === IMAGE_STATUS.QUEUED) ?? [];
+  const queuedCost = queued.reduce((sum, i) => sum + (i.price || 0), 0);
+
+  const cancelQueued = async () => {
+    const refund = queuedCost > 0 ? ` Hoàn lại ${formatVnd(queuedCost)}.` : '';
+    const ok = await confirm(`Hủy ${queued.length} ảnh đang chờ tạo trong lô?${refund} Ảnh đang tạo dở và ảnh đã xong vẫn giữ nguyên.`, {
+      confirmLabel: 'Hủy ảnh',
+      danger: true,
+    });
+    if (!ok) return;
+    setBusy('cancel');
+    setError(null);
+    try {
+      const { batch: fresh } = await cancelBatch(batch.id);
+      queryClient.setQueryData(['batches', id], fresh);
+      refresh();
+    } catch (err) {
+      setError(err?.message || 'Không hủy được ảnh, vui lòng thử lại.');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   // Tạo lại một ảnh: chạy lại mẫu đã tạo ra ảnh đó (tính phí), ảnh mới thay vào đúng vị trí cũ.
   // edit: { schema, values } từ popup "Sửa nguyên liệu" (popup đã hiện phí nên không hỏi lại)
@@ -410,6 +434,20 @@ export default function BatchPage() {
                   </Link>
                 )}
                 {generating && <span>Bạn có thể rời trang này, ảnh vẫn được tạo tiếp.</span>}
+                {queued.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={cancelQueued}
+                    disabled={busy === 'cancel'}
+                    className="ml-auto flex h-8 items-center gap-1 rounded-lg border border-error/40 px-3 font-bold text-error hover:bg-error-container/40 disabled:opacity-60"
+                  >
+                    <Icon
+                      name={busy === 'cancel' ? 'progress_activity' : 'cancel'}
+                      className={`text-base ${busy === 'cancel' ? 'animate-spin' : ''}`}
+                    />
+                    Hủy {queued.length} ảnh đang chờ
+                  </button>
+                )}
               </div>
             )}
 

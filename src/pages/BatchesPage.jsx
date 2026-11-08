@@ -6,7 +6,7 @@ import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { BatchStatusBadge } from '../components/batch/BatchStatus';
-import { BATCH_SOURCE, BATCH_STATUS, deleteBatch, listBatches } from '../api/batches';
+import { BATCH_SOURCE, BATCH_STATUS, cancelBatch, deleteBatch, listBatches } from '../api/batches';
 import { AUTO_RESULT_KEY, AUTO_STOP } from '../api/autoBatch';
 import { formatVnd } from '../utils/format';
 import { useConfirm } from '../components/common/ConfirmDialog';
@@ -20,8 +20,31 @@ const formatTime = (iso) =>
 function BatchCard({ batch }) {
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const { confirm, alert } = useConfirm();
   const generating = batch.status === BATCH_STATUS.GENERATING;
+
+  // Hủy ảnh chưa worker nào nhận: hoàn tiền, ảnh đang tạo dở / đã xong giữ nguyên
+  const cancel = async () => {
+    const ok = await confirm(
+      `Hủy ${batch.queuedCount} ảnh đang chờ tạo của lô #${batch.id}? Tiền của các ảnh này được hoàn lại, ảnh đang tạo dở và ảnh đã xong vẫn giữ nguyên.`,
+      { confirmLabel: 'Hủy ảnh', danger: true },
+    );
+    if (!ok) return;
+    setCancelling(true);
+    try {
+      const { batch: fresh } = await cancelBatch(batch.id);
+      queryClient.setQueryData(['batches', String(batch.id)], fresh);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['batches'] }),
+        queryClient.invalidateQueries({ queryKey: ['me'] }),
+      ]);
+    } catch (err) {
+      alert(err?.message || 'Không hủy được ảnh, vui lòng thử lại.');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const remove = async () => {
     if (!(await confirm(`Xoá lô #${batch.id}? Ảnh vẫn còn trong lịch sử tạo ảnh, bài đăng đã tạo không đổi.`, { confirmLabel: 'Xoá', danger: true }))) return;
@@ -74,6 +97,18 @@ function BatchCard({ batch }) {
           {batch.failedCount > 0 && <span className="text-error">{batch.failedCount} ảnh lỗi</span>}
           {batch.postCount > 0 && <span className="text-primary">Đã tạo {batch.postCount} bài đăng</span>}
         </p>
+        {batch.queuedCount > 0 && (
+          // z-10: nằm trên lớp bấm mở lô của Link
+          <button
+            type="button"
+            onClick={cancel}
+            disabled={cancelling}
+            className="relative z-10 flex h-7 items-center gap-1 rounded-lg border border-error/40 px-2 text-xs font-bold text-error hover:bg-error-container/40 disabled:opacity-60"
+          >
+            <Icon name={cancelling ? 'progress_activity' : 'cancel'} className={`text-sm ${cancelling ? 'animate-spin' : ''}`} />
+            Hủy {batch.queuedCount} ảnh đang chờ
+          </button>
+        )}
       </div>
       <button
         type="button"
