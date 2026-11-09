@@ -505,7 +505,7 @@ export default function ShippingOrderPage() {
                     icon="scale"
                     inputMode="numeric"
                     disabled={disabled}
-                    hint="Dưới 20kg. Mặc định 2000g."
+                    hint="Dưới 20kg. Mặc định 1000g (1kg)."
                     value={form.weight ?? ''}
                     error={errors.weight}
                     onChange={(e) => setField('weight', digits(e.target.value) ? Math.min(Number(digits(e.target.value)), MAX_WEIGHT) : '')}
