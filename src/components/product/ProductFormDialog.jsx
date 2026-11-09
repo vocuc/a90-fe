@@ -125,7 +125,7 @@ export default function ProductFormDialog({ product, onSaved, onClose }) {
       />
 
       <TextArea
-        label="Yêu cầu cho AI (không bắt buộc)"
+        label="Yêu cầu cho AI (không bắt buộc và được thêm vào cuối câu lệnh)"
         value={promptNote}
         maxLength={PROMPT_NOTE_MAX}
         onChange={(e) => setPromptNote(e.target.value)}
