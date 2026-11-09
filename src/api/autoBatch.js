@@ -9,8 +9,10 @@ import { mapBatch } from './batches';
  * Xem trước trả seed; gửi lại seed khi tạo để tạo đúng các lô đã xem.
  *
  * GET    /creator/products?page=&per_page=        -> { data: Product[], meta }
- * POST   /creator/products (multipart)            name?, hashtags[]?, images[i][file], images[i][field_key] -> 201 { data: Product }
- * POST   /creator/products/{id} (multipart)       như trên, images[i][id] (giữ ảnh cũ) thay cho file; không gửi hashtags = bỏ hết
+ * POST   /creator/products (multipart)            name?, prompt_note?, hashtags[]?, images[i][file], images[i][field_key] -> 201 { data: Product }
+ * POST   /creator/products/{id} (multipart)       như trên, images[i][id] (giữ ảnh cũ) thay cho file; không gửi hashtags / prompt_note = bỏ
+ *          prompt_note: "Yêu cầu" (tối đa PROMPT_NOTE_MAX ký tự), backend nối vào cuối prompt của mọi Creative khi tạo ảnh
+ *          cho sản phẩm (generations.product_id: lô tay, lô tự động, tạo lại); quá dài -> 422 errors["prompt_note"]
  * DELETE /creator/products/{id}                   -> 204
  * PUT    /creator/products/{id}/active            { is_active } -> { data: Product }; sản phẩm tắt không được tạo tự động
  * GET    /creator/creative-groups                 -> { data: CreativeGroup[] } (cũ nhất trước = thứ tự tạo lô)
@@ -42,9 +44,13 @@ export const AUTO_STOP = {
   NO_VALID_PAIR: 'no_valid_pair',
 };
 
+// Product::PROMPT_NOTE_MAX ở backend
+export const PROMPT_NOTE_MAX = 2000;
+
 const mapProduct = (p) => ({
   id: p.id,
   name: p.name,
+  promptNote: p.prompt_note ?? '',
   isActive: p.is_active !== false,
   coverUrl: p.cover_url,
   images: p.images.map((i) => ({ id: i.id, url: i.url, thumbUrl: i.thumb_url ?? i.url, fieldKey: i.field_key })),
@@ -91,9 +97,10 @@ export async function listAllProducts() {
  * Lưu sản phẩm. images: [{ id?, file?, fieldKey }] theo thứ tự hiển thị; ảnh đã lưu gửi id, ảnh mới gửi file.
  * hashtags: tên không có #. id: sửa sản phẩm, bỏ trống: tạo mới.
  */
-export function saveProduct({ id, name, hashtags = [], images }) {
+export function saveProduct({ id, name, promptNote = '', hashtags = [], images }) {
   const form = new FormData();
   if (name) form.append('name', name);
+  if (promptNote) form.append('prompt_note', promptNote);
   hashtags.forEach((h) => form.append('hashtags[]', h));
   images.forEach((img, i) => {
     if (img.file) form.append(`images[${i}][file]`, img.file);

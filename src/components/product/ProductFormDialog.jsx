@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import Dialog from '../common/Dialog';
 import Icon from '../common/Icon';
-import { TextField } from '../common/Form';
+import { TextArea, TextField } from '../common/Form';
 import HashtagInput from '../template/HashtagInput';
-import { saveProduct } from '../../api/autoBatch';
+import { PROMPT_NOTE_MAX, saveProduct } from '../../api/autoBatch';
 
 const KEY_PATTERN = /^[A-Za-z0-9_]+$/;
 const DEFAULT_KEY = 'product_image';
@@ -29,9 +29,11 @@ const validateRows = (rows) => {
  * Thêm / sửa sản phẩm (note/auto-tao-lo.txt): tên (không bắt buộc) + các ảnh, mỗi ảnh gắn key một trường ảnh trong
  * Creative của mình. Tạo lô tự động điền ảnh vào trường có key trùng, creative không có trường nào trùng thì bỏ qua.
  * Hashtag: chỉ lưu, tạo lô tự động không xét (mọi sản phẩm ghép với mọi nhóm).
+ * Yêu cầu (prompt_note): backend nối vào cuối prompt của mọi Creative khi tạo ảnh cho sản phẩm.
  */
 export default function ProductFormDialog({ product, onSaved, onClose }) {
   const [name, setName] = useState(product?.name ?? '');
+  const [promptNote, setPromptNote] = useState(product?.promptNote ?? '');
   const [hashtags, setHashtags] = useState(product?.hashtags ?? []);
   const [rows, setRows] = useState(() => (product?.images ?? []).map((i) => newRow({ id: i.id, url: i.thumbUrl, fieldKey: i.fieldKey })));
   const [submitted, setSubmitted] = useState(false);
@@ -76,6 +78,7 @@ export default function ProductFormDialog({ product, onSaved, onClose }) {
       const saved = await saveProduct({
         id: product?.id,
         name: name.trim(),
+        promptNote: promptNote.trim(),
         hashtags,
         images: rows.map((r) => ({ id: r.id, file: r.file, fieldKey: r.fieldKey.trim() })),
       });
@@ -119,6 +122,16 @@ export default function ProductFormDialog({ product, onSaved, onClose }) {
         maxLength={255}
         onChange={(e) => setName(e.target.value)}
         placeholder="VD: Áo thun trắng"
+      />
+
+      <TextArea
+        label="Yêu cầu cho AI (không bắt buộc)"
+        value={promptNote}
+        maxLength={PROMPT_NOTE_MAX}
+        onChange={(e) => setPromptNote(e.target.value)}
+        placeholder="VD: Giữ nguyên màu và logo trên áo, nền sáng, không thêm chữ."
+        error={serverErrors.prompt_note && [].concat(serverErrors.prompt_note)[0]}
+        hint="Được thêm vào cuối prompt của mọi Creative khi tạo ảnh cho sản phẩm này."
       />
 
       <HashtagInput

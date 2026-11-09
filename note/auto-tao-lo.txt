@@ -337,3 +337,20 @@ CÔNG TẮC HOẠT ĐỘNG SẢN PHẨM (2026-11-04)
 Backend: migration 2026_11_04_100000_add_is_active_to_products_table, Product::scopeActive,
   ProductController::setActive, AutoBatchService::planner, AutoBatchTest::test_inactive_products_are_skipped.
 Frontend: ProductsPage (công tắc trên thẻ sản phẩm), ProductPickerDialog (sản phẩm tắt không chọn được), api/autoBatch.js.
+
+YÊU CẦU CHO AI CỦA SẢN PHẨM (2026-11-09)
+========================================
+
+Người dùng chốt: ô "Yêu cầu" cố định trong form sản phẩm, backend tự nối vào cuối prompt của mọi Creative.
+- Product thêm "prompt_note": string | null (tối đa Product::PROMPT_NOTE_MAX = 2000 ký tự, cắt khoảng trắng,
+  rỗng -> null). POST /creator/products và /creator/products/{id} nhận prompt_note; sửa mà không gửi = bỏ
+  (như name / hashtags). Quá dài -> 422 errors["prompt_note"].
+- Khi tạo ảnh có generations.product_id (lô tay chọn sản phẩm, lô tự động, Tạo lại, Sửa nguyên liệu):
+  prompt_snapshot = prompt Creative đã render + "\n\n" + prompt_note hiện tại của sản phẩm. Worker nhận prompt này.
+  Tạo thử của Creator, ảnh không gắn sản phẩm, sản phẩm đã xoá hoặc không có yêu cầu -> giữ nguyên prompt.
+  Sửa yêu cầu không đổi prompt của ảnh đã tạo (prompt_snapshot lưu lúc tạo).
+Backend: migration 2026_11_09_100000_add_prompt_note_to_products_table, Product::appendPromptNote,
+  GenerationService::start, ProductController (rules / attributes), ProductResource,
+  GenerationProductTest::test_product_prompt_note_is_appended_to_prompt / test_product_api_saves_and_clears_prompt_note.
+Frontend: ProductFormDialog (ô "Yêu cầu cho AI"), api/autoBatch.js (promptNote, PROMPT_NOTE_MAX),
+  BatchNewPage (banner sản phẩm hiện yêu cầu).

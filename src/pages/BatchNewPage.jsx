@@ -259,6 +259,11 @@ export default function BatchNewPage() {
               ))
             : 'sản phẩm chưa có ảnh'}
         </p>
+        {product.promptNote && (
+          <p className="line-clamp-2 text-on-surface-variant" title={product.promptNote}>
+            Yêu cầu thêm vào cuối prompt: <span className="text-on-surface">{product.promptNote}</span>
+          </p>
+        )}
         {loadingProductFiles && (
           <p className="flex items-center gap-1 text-outline">
             <Icon name="progress_activity" className="animate-spin text-sm" />
