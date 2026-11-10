@@ -6,6 +6,7 @@ import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import ProductFormDialog from '../components/product/ProductFormDialog';
+import ProductShareDialog from '../components/product/ProductShareDialog';
 import { useCreatorProfile } from '../hooks/creatorQueries';
 import { AUTO_KEYS, deleteProduct, listProducts, setProductActive } from '../api/autoBatch';
 import { Switch } from '../components/template/inputs';
@@ -18,7 +19,7 @@ const TABS = [
   { value: 'inactive', label: 'Không hoạt động', icon: 'toggle_off', isActive: false },
 ];
 
-function ProductCard({ product, onEdit }) {
+function ProductCard({ product, onEdit, onShare }) {
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -75,6 +76,18 @@ function ProductCard({ product, onEdit }) {
       />
       <div className="min-w-0 flex-1 space-y-1">
         <p className="truncate text-sm font-bold text-on-surface">{title}</p>
+        {!product.isOwner && (
+          <p className="flex w-fit max-w-full items-center gap-1 rounded-full bg-tertiary-fixed px-2 py-0.5 text-[11px] font-semibold text-on-tertiary-fixed-variant">
+            <Icon name="group" className="text-sm" />
+            <span className="truncate">Được chia sẻ bởi {product.ownerName || 'shop khác'}</span>
+          </p>
+        )}
+        {product.isOwner && product.shareCount > 0 && (
+          <p className="flex items-center gap-1 text-[11px] font-semibold text-primary">
+            <Icon name="share" className="text-sm" />
+            Đang chia sẻ cho {product.shareCount} tài khoản
+          </p>
+        )}
         {product.hashtags.length > 0 && (
           <p className="truncate text-xs font-semibold text-primary">{product.hashtags.map((h) => `#${h}`).join(' ')}</p>
         )}
@@ -88,12 +101,19 @@ function ProductCard({ product, onEdit }) {
         <p className="text-xs text-on-surface-variant">
           {product.images.length} ảnh sản phẩm · Đã tạo {product.generatedImageCount} ảnh
         </p>
+        {/* Bật tắt là của chủ sản phẩm; người được chia sẻ chỉ xem trạng thái */}
         <div className="!mt-2 rounded-lg bg-surface-container-low px-2 py-1.5">
           <Switch
             label={product.isActive ? 'Đang hoạt động' : 'Đã tắt'}
-            hint={product.isActive ? 'Được tạo lô tự động' : 'Không được tạo lô tự động'}
+            hint={
+              !product.isOwner
+                ? 'Chủ sản phẩm bật / tắt'
+                : product.isActive
+                  ? 'Được tạo lô tự động'
+                  : 'Không được tạo lô tự động'
+            }
             checked={product.isActive}
-            disabled={toggling}
+            disabled={toggling || !product.isOwner}
             onChange={toggleActive}
           />
         </div>
@@ -107,7 +127,18 @@ function ProductCard({ product, onEdit }) {
           Tạo ảnh
         </Link>
       </div>
+      {/* Sản phẩm được chia sẻ: không sửa / xoá / chia sẻ tiếp */}
+      {product.isOwner && (
       <div className="flex shrink-0 flex-col gap-1 lg:absolute lg:right-5 lg:top-5 lg:flex-row lg:rounded-lg lg:bg-surface-container-lowest/90 lg:shadow">
+        <button
+          type="button"
+          onClick={onShare}
+          aria-label={`Chia sẻ ${title}`}
+          title="Chia sẻ cho tài khoản khác"
+          className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
+        >
+          <Icon name="share" className="text-lg" />
+        </button>
         <button
           type="button"
           onClick={onEdit}
@@ -125,7 +156,8 @@ function ProductCard({ product, onEdit }) {
         >
           <Icon name={deleting ? 'progress_activity' : 'delete'} className={`text-lg ${deleting ? 'animate-spin' : ''}`} />
         </button>
-        </div>
+      </div>
+      )}
     </div>
   );
 }
@@ -139,6 +171,8 @@ export default function ProductsPage() {
   const { hasProfile, meLoaded } = useCreatorProfile();
   // null: đóng, {}: thêm mới, { product }: sửa
   const [editing, setEditing] = useState(null);
+  // Sản phẩm đang mở hộp thoại chia sẻ
+  const [sharing, setSharing] = useState(null);
 
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: AUTO_KEYS.products,
@@ -271,7 +305,7 @@ export default function ProductsPage() {
               <ul className="grid gap-3 lg:grid-cols-4">
                 {products.map((p) => (
                   <li key={p.id}>
-                    <ProductCard product={p} onEdit={() => setEditing({ product: p })} />
+                    <ProductCard product={p} onEdit={() => setEditing({ product: p })} onShare={() => setSharing(p)} />
                   </li>
                 ))}
               </ul>
@@ -287,6 +321,17 @@ export default function ProductsPage() {
           </>
         )}
       </section>
+
+      {sharing && (
+        <ProductShareDialog
+          product={sharing}
+          onClose={() => setSharing(null)}
+          onSaved={() => {
+            setSharing(null);
+            queryClient.invalidateQueries({ queryKey: AUTO_KEYS.products });
+          }}
+        />
+      )}
 
       {editing && (
         <ProductFormDialog
