@@ -337,6 +337,9 @@ CÔNG TẮC HOẠT ĐỘNG SẢN PHẨM (2026-11-04)
 Backend: migration 2026_11_04_100000_add_is_active_to_products_table, Product::scopeActive,
   ProductController::setActive, AutoBatchService::planner, AutoBatchTest::test_inactive_products_are_skipped.
 Frontend: ProductsPage (công tắc trên thẻ sản phẩm), ProductPickerDialog (sản phẩm tắt không chọn được), api/autoBatch.js.
+- (2026-11-10) Sửa lỗi: tạo bài video tự động (POST /social/video-posts/auto) và API ảnh cho worker (GET /video-images)
+  vẫn chọn sản phẩm đang tắt. ShopImageLibrary::countsPerProduct giờ chỉ đếm sản phẩm đang hoạt động (và còn tồn tại).
+  Chọn tay (tab Thủ công, popup Sửa bài) không xét. Test: VideoPostTest::test_auto_skips_inactive_products.
 
 YÊU CẦU CHO AI CỦA SẢN PHẨM (2026-11-09)
 ========================================
