@@ -170,7 +170,7 @@ export const hashtagApi = {
  * PATCH /creator/creatives/{id}/images/order  { image_ids } (ảnh đầu tiên là ảnh đại diện)
  * PUT  /creator/creatives/{id}  (các trường như POST, gửi trường nào sửa trường đó)
  * POST /creator/creatives/{id}/images  multipart image (jpg/png/webp, <= 10MB, tối đa 10 ảnh) -> 201 { data: { id, url, sort_order } }
- * DELETE /creator/creatives/{id}/images/{imageId}  (Creative đang bán phải còn ít nhất 1 ảnh -> 409 INVALID_STATE)
+ * DELETE /creator/creatives/{id}/images/{imageId}  (xoá được cả ảnh cuối; không có ảnh -> cover_url null, hiện ảnh mặc định)
  * GET  /creator/template-limits  -> { data: { max_hidden_images (admin cấu hình), input_max_size_kb } }
  * POST /creator/creative-assets  multipart image -> 201 { data: { id, url } }
  *   Nguyên liệu ẩn: tải ảnh trước, gửi asset_id trong trường { type: 'hidden_image', key, label, asset_id } của input_schema.

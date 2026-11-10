@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
+  <!-- Ảnh mặc định của Creative chưa có ảnh đại diện -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F3F4F8"/>
+      <stop offset="1" stop-color="#E3E6EE"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" fill="url(#bg)"/>
+  <g fill="none" stroke="#A3ABBA" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="260" y="250" width="280" height="230" rx="36"/>
+    <circle cx="335" cy="320" r="26"/>
+    <path d="M272 452l92-92 70 70 40-40 66 66"/>
+  </g>
+  <text x="400" y="565" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="40" font-weight="700" fill="#8A93A3">AI Creative</text>
+</svg>
