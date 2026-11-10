@@ -123,17 +123,15 @@ export const setProductActive = (id, isActive) =>
   client.put(`/creator/products/${id}/active`, { is_active: isActive }).then(({ data }) => mapProduct(data));
 
 /**
- * Chia sẻ sản phẩm cho tài khoản A51 khác (chỉ chủ sản phẩm):
- * GET /creator/products/{id}/shares -> { data: [{ id, email, name, shared_at }] }
- * PUT /creator/products/{id}/shares { emails: string[] } ghi đè cả danh sách ([] = bỏ hết);
- *   422 errors["emails.i"]: email không phải tài khoản A51 / là chính mình / sai định dạng.
+ * Chia sẻ / bỏ chia sẻ hàng loạt (nút "Chia sẻ" cạnh "Thêm sản phẩm"):
+ * POST /creator/products/shares { action: share|unshare, emails, all?: true, product_ids?: [] } -> { data: { product_count } }
+ * Chỉ thêm / bớt các email gửi lên, người đang được chia sẻ khác giữ nguyên. all: mọi sản phẩm hiện có của mình.
+ * 422: errors["emails.i"] theo dòng email, errors.product_ids.
  */
-const mapShare = (u) => ({ id: u.id, email: u.email, name: u.name, sharedAt: u.shared_at });
-
-export const listProductShares = (id) => client.get(`/creator/products/${id}/shares`).then(({ data }) => data.map(mapShare));
-
-export const saveProductShares = (id, emails) =>
-  client.put(`/creator/products/${id}/shares`, { emails }).then(({ data }) => data.map(mapShare));
+export const bulkShareProducts = ({ action, emails, all = false, productIds = [] }) =>
+  client
+    .post('/creator/products/shares', all ? { action, emails, all: true } : { action, emails, product_ids: productIds })
+    .then(({ data }) => ({ productCount: data.product_count }));
 
 const IMAGE_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 

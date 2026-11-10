@@ -19,7 +19,7 @@ const TABS = [
   { value: 'inactive', label: 'Không hoạt động', icon: 'toggle_off', isActive: false },
 ];
 
-function ProductCard({ product, onEdit, onShare }) {
+function ProductCard({ product, onEdit }) {
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -127,18 +127,9 @@ function ProductCard({ product, onEdit, onShare }) {
           Tạo ảnh
         </Link>
       </div>
-      {/* Sản phẩm được chia sẻ: không sửa / xoá / chia sẻ tiếp */}
+      {/* Sản phẩm được chia sẻ: không sửa / xoá */}
       {product.isOwner && (
       <div className="flex shrink-0 flex-col gap-1 lg:absolute lg:right-5 lg:top-5 lg:flex-row lg:rounded-lg lg:bg-surface-container-lowest/90 lg:shadow">
-        <button
-          type="button"
-          onClick={onShare}
-          aria-label={`Chia sẻ ${title}`}
-          title="Chia sẻ cho tài khoản khác"
-          className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
-        >
-          <Icon name="share" className="text-lg" />
-        </button>
         <button
           type="button"
           onClick={onEdit}
@@ -171,8 +162,8 @@ export default function ProductsPage() {
   const { hasProfile, meLoaded } = useCreatorProfile();
   // null: đóng, {}: thêm mới, { product }: sửa
   const [editing, setEditing] = useState(null);
-  // Sản phẩm đang mở hộp thoại chia sẻ
-  const [sharing, setSharing] = useState(null);
+  // Hộp thoại chia sẻ hàng loạt
+  const [sharing, setSharing] = useState(false);
 
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: AUTO_KEYS.products,
@@ -230,7 +221,19 @@ export default function ProductsPage() {
           <Icon name="arrow_back" />
         </Link>
         <h1 className="flex-1 text-base font-bold text-on-surface">Quản lý sản phẩm</h1>
-        {hasProfile && <span className="mr-2">{addButton}</span>}
+        {hasProfile && (
+          <span className="mr-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSharing(true)}
+              className="flex h-8 items-center gap-1 rounded-lg border border-outline-variant/60 px-3 text-xs font-bold text-on-surface hover:border-primary-container hover:text-primary"
+            >
+              <Icon name="share" className="text-base" />
+              Chia sẻ
+            </button>
+            {addButton}
+          </span>
+        )}
       </header>
 
       <section className="space-y-3 p-4 lg:py-6">
@@ -305,7 +308,7 @@ export default function ProductsPage() {
               <ul className="grid gap-3 lg:grid-cols-4">
                 {products.map((p) => (
                   <li key={p.id}>
-                    <ProductCard product={p} onEdit={() => setEditing({ product: p })} onShare={() => setSharing(p)} />
+                    <ProductCard product={p} onEdit={() => setEditing({ product: p })} />
                   </li>
                 ))}
               </ul>
@@ -324,12 +327,9 @@ export default function ProductsPage() {
 
       {sharing && (
         <ProductShareDialog
-          product={sharing}
-          onClose={() => setSharing(null)}
-          onSaved={() => {
-            setSharing(null);
-            queryClient.invalidateQueries({ queryKey: AUTO_KEYS.products });
-          }}
+          onClose={() => setSharing(false)}
+          // Giữ hộp thoại mở để xem kết quả / chia sẻ tiếp; danh sách tải lại số tài khoản đang chia sẻ
+          onSaved={() => queryClient.invalidateQueries({ queryKey: AUTO_KEYS.products })}
         />
       )}
 
