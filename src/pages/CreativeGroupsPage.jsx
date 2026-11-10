@@ -63,8 +63,10 @@ function GroupCard({ group, index, onEdit, onDeleted }) {
       <ul className="mt-2 flex gap-2 overflow-x-auto pb-1">
         {group.creatives.map((c) => (
           <li key={c.id} className={`w-20 shrink-0 ${isRunnable(c) ? '' : 'opacity-50'}`} title={isRunnable(c) ? c.title : `${c.title} (không Đang bán, bị bỏ qua)`}>
-            <CoverImage src={c.coverUrl} alt="" className="aspect-square w-full rounded-lg" />
-            <p className="mt-1 line-clamp-2 text-[11px] text-on-surface">{c.title}</p>
+            <a href={`/seller/creatives/${c.id}/edit`} target="_blank" rel="noopener noreferrer" className="block hover:opacity-80">
+              <CoverImage src={c.coverUrl} alt="" className="aspect-square w-full rounded-lg" />
+              <p className="mt-1 line-clamp-2 text-[11px] text-on-surface">{c.title}</p>
+            </a>
           </li>
         ))}
       </ul>
