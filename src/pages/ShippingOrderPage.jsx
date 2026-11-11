@@ -378,7 +378,7 @@ export default function ShippingOrderPage() {
           <Icon name="arrow_back" />
         </button>
         <h1 className="min-w-0 flex-1 truncate text-base font-bold text-on-surface">{order ? `Đơn ${order.code}` : 'Đơn GHN'}</h1>
-        {order && <OrderStatusBadge status={order.status} />}
+        {order && <OrderStatusBadge status={order.status} ghnStatus={order.ghnStatus} />}
         {deletable && (
           <button
             type="button"

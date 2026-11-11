@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import Icon from '../components/common/Icon';
@@ -7,7 +7,7 @@ import CoverImage from '../components/common/CoverImage';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { OrderStatusBadge } from '../components/shipping/OrderStatus';
 import { formatVnd } from '../utils/format';
-import { ORDER_STATUS, listOrders } from '../api/shipping';
+import { ORDER_STATUS, listOrders, syncOrderStatuses } from '../api/shipping';
 
 const PAGE_SIZE = 20;
 
@@ -23,6 +23,11 @@ const formatTime = (iso) =>
 
 const POLL_INTERVAL = 5000;
 
+const syncSummary = ({ total, updated, failed }) => {
+  if (!total) return 'Không có đơn nào gửi GHN trong 5 ngày gần đây.';
+  return `Đã kiểm tra ${total} đơn, có ${updated} đơn đổi trạng thái${failed ? `, ${failed} đơn không lấy được` : ''}.`;
+};
+
 const receiver = (o) => [o.toName, o.toPhone].filter(Boolean).join(' · ') || 'Chưa có người nhận';
 const address = (o) => [o.toAddress, o.toWardName, o.toDistrictName, o.toProvinceName].filter(Boolean).join(', ');
 
@@ -32,6 +37,23 @@ export default function ShippingOrdersPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState(undefined);
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/tools'));
+  const queryClient = useQueryClient();
+  const [syncing, setSyncing] = useState(false);
+  const [syncNotice, setSyncNotice] = useState(null); // { text, isError }
+
+  const syncStatuses = async () => {
+    setSyncing(true);
+    setSyncNotice(null);
+    try {
+      const result = await syncOrderStatuses();
+      setSyncNotice({ text: syncSummary(result), isError: false });
+      await queryClient.invalidateQueries({ queryKey: ['shipping', 'orders', 'list'] });
+    } catch (err) {
+      setSyncNotice({ text: err.message, isError: true });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['shipping', 'orders', 'list', status ?? 'all'],
@@ -56,6 +78,18 @@ export default function ShippingOrdersPage() {
           <Icon name="arrow_back" />
         </button>
         <h1 className="flex-1 text-base font-bold text-on-surface">Đơn GHN</h1>
+        <button
+          type="button"
+          onClick={syncStatuses}
+          disabled={syncing}
+          aria-label="Cập nhật trạng thái"
+          title="Lấy trạng thái mới nhất từ GHN cho các đơn trong 5 ngày gần đây"
+          className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-surface-container px-2 text-xs font-bold text-primary hover:bg-primary-fixed/60 disabled:opacity-60 sm:px-3"
+        >
+          <Icon name={syncing ? 'progress_activity' : 'sync'} className={`text-base ${syncing ? 'animate-spin' : ''}`} />
+          {/* Màn hình nhỏ không đủ chỗ cho cả 2 nút có chữ */}
+          <span className="hidden sm:inline">{syncing ? 'Đang cập nhật...' : 'Cập nhật trạng thái'}</span>
+        </button>
         <Link
           to="/shipping-orders/new"
           className="mr-2 flex h-8 items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary"
@@ -66,6 +100,16 @@ export default function ShippingOrdersPage() {
       </header>
 
       <section className="space-y-3 p-4 lg:py-6">
+        {syncNotice && (
+          <p
+            role="status"
+            className={`rounded-xl px-3 py-2 text-xs font-semibold ${
+              syncNotice.isError ? 'bg-error-container/60 text-on-error-container' : 'bg-emerald-50 text-emerald-800'
+            }`}
+          >
+            {syncNotice.text}
+          </p>
+        )}
         <div className="flex gap-2 overflow-x-auto">
           {FILTERS.map((f) => (
             <button
@@ -122,7 +166,7 @@ export default function ShippingOrdersPage() {
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <p className="min-w-0 flex-1 truncate text-sm font-bold text-on-surface">{receiver(o)}</p>
-                        <OrderStatusBadge status={o.status} />
+                        <OrderStatusBadge status={o.status} ghnStatus={o.ghnStatus} />
                       </div>
                       <p className="line-clamp-1 text-xs text-on-surface-variant">{address(o) || o.rawAddress || '—'}</p>
                       <p className="text-xs text-on-surface-variant">

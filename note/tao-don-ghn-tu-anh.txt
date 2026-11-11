@@ -148,5 +148,11 @@ BE: app/Services/Shipping (GhnClient, GhnCatalog, ClaudeShippingOrderReader, Shi
 - ShippingOrderPage: ảnh bên trái, form bên phải (trường AI không chắc tô vàng), chọn ai trả ship, nút "Tạo đơn GHN".
 - ShippingOrdersPage: danh sách đơn (nháp / đã gửi / lỗi), mã đơn GHN, phí ship.
 
+---- 3.6b. Cập nhật trạng thái từ GHN (nút trên trang danh sách đơn) ----
+POST /creator/shipping-orders/sync-statuses -> { data: { total, updated, failed } }   (tối đa 10 lần / phút)
+    BE lấy các đơn status submitted có submitted_at trong 5 ngày gần đây, gọi GET GHN /v2/shipping-order/detail
+    cho từng đơn và lưu vào cột ghn_status (trả về trong ShippingOrder.ghn_status). Cột status của a51 giữ nguyên.
+    Vài đơn lỗi -> vẫn lưu các đơn còn lại, đếm vào failed. Tất cả đều lỗi -> 422 GHN_ERROR.
+
 ---- 3.7. Để sau (ngoài phạm vi bản đầu) ----
 Hủy đơn, sửa đơn sau khi đã gửi GHN, in vận đơn, webhook theo dõi trạng thái, xem trước phí ship.

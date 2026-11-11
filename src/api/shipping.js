@@ -17,6 +17,7 @@ import client from './client';
  * GET    /creator/shipping-orders/{id}
  * PUT    /creator/shipping-orders/{id}                  (gửi trường nào sửa trường đó; chỉ khi draft | failed, reading -> 409)
  * DELETE /creator/shipping-orders/{id}
+ * POST   /creator/shipping-orders/sync-statuses         -> { data: { total, updated, failed } } (đơn đã gửi GHN trong 5 ngày)
  * POST   /creator/shipping-orders/{id}/submit           { payment_type_id } -> đơn submitted | 422 GHN_ERROR (đơn failed)
  */
 
@@ -29,6 +30,8 @@ export const MAX_COD = 50_000_000;
 
 // Tải lên tới 10 ảnh 10MB: không dùng timeout 15s mặc định
 const PARSE_TIMEOUT = 120_000;
+// Backend gọi GHN cho từng đơn trong 5 ngày gần đây, nhiều đơn sẽ lâu hơn 15s
+const SYNC_TIMEOUT = 120_000;
 
 export const ORDER_STATUS = { READING: 'reading', DRAFT: 'draft', SUBMITTED: 'submitted', FAILED: 'failed' };
 export const isOrderEditable = (order) => order.status === ORDER_STATUS.DRAFT || order.status === ORDER_STATUS.FAILED;
@@ -99,6 +102,7 @@ const mapOrder = (o) => ({
   lowConfidenceFields: o.low_confidence_fields ?? [],
   images: o.images ?? [],
   ghnOrderCode: o.ghn_order_code,
+  ghnStatus: o.ghn_status,
   shippingFee: o.shipping_fee,
   expectedDeliveryTime: o.expected_delivery_time,
   errorMessage: o.error_message,
@@ -164,3 +168,7 @@ export const submitOrder = (id, paymentTypeId) =>
   client.post(`/creator/shipping-orders/${id}/submit`, { payment_type_id: paymentTypeId }).then(({ data }) => mapOrder(data));
 
 export const deleteOrder = (id) => client.delete(`/creator/shipping-orders/${id}`);
+
+/** Backend lấy lại trạng thái từ GHN cho các đơn đã gửi trong 5 ngày gần đây và lưu vào DB. */
+export const syncOrderStatuses = () =>
+  client.post('/creator/shipping-orders/sync-statuses', null, { timeout: SYNC_TIMEOUT }).then(({ data }) => data);
