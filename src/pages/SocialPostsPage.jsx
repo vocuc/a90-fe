@@ -182,9 +182,11 @@ function PostTable({ posts }) {
   );
 }
 
-/** Lọc bài theo worker đã giao bài (worker đăng bài của shop). Không có worker thì ẩn. */
-function WorkerFilter({ workers, value, onChange }) {
-  if (!workers?.length) return null;
+/**
+ * Lọc bài theo worker đã giao bài (worker đăng bài của shop) và chip "Lookbook" (bài do skill FlowKit tạo lookbook,
+ * source = lookbook). Không có worker thì chỉ còn chip Lookbook.
+ */
+function WorkerFilter({ workers, value, onChange, lookbook, onLookbookChange }) {
   const chip = (active) =>
     `flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-semibold transition-colors ${
       active ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface hover:bg-primary-fixed/60'
@@ -192,10 +194,16 @@ function WorkerFilter({ workers, value, onChange }) {
   return (
     <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4" role="group" aria-label="Lọc theo worker">
       <Icon name="filter_list" className="shrink-0 text-lg text-outline" />
-      <button type="button" aria-pressed={!value} onClick={() => onChange('')} className={chip(!value)}>
-        Tất cả worker
+      <button type="button" aria-pressed={lookbook} onClick={() => onLookbookChange(!lookbook)} className={chip(lookbook)}>
+        <Icon name="checkroom" className="text-sm" />
+        Lookbook
       </button>
-      {workers.map((w) => {
+      {!!workers?.length && (
+        <button type="button" aria-pressed={!value} onClick={() => onChange('')} className={chip(!value)}>
+          Tất cả worker
+        </button>
+      )}
+      {(workers ?? []).map((w) => {
         const active = value === String(w.id);
         return (
           <button
@@ -237,23 +245,27 @@ export default function SocialPostsPage() {
   // Worker đang lọc nằm trên URL (?worker=id): giữ khi tải lại / quay lại trang
   const [searchParams, setSearchParams] = useSearchParams();
   const workerId = searchParams.get('worker') ?? '';
-  const setWorkerId = (id) =>
+  // ?source=lookbook: chỉ bài lookbook
+  const source = searchParams.get('source') === 'lookbook' ? 'lookbook' : '';
+  const setParam = (key, value) =>
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        if (id) next.set('worker', id);
-        else next.delete('worker');
+        if (value) next.set(key, value);
+        else next.delete(key);
         return next;
       },
       { replace: true },
     );
+  const setWorkerId = (id) => setParam('worker', id);
+  const setLookbook = (on) => setParam('source', on ? 'lookbook' : '');
   // Worker chỉ có khi đã có hồ sơ người bán (API trả 403 khi chưa có shop)
   const { data: workers } = useShopWorkers({ enabled: !!me?.creatorProfile });
   const filterWorker = workers?.find((w) => String(w.id) === workerId);
 
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: [...POSTS_KEY, { workerId }],
-    queryFn: ({ pageParam }) => listPosts({ page: pageParam, limit: PAGE_SIZE, workerId }),
+    queryKey: [...POSTS_KEY, { workerId, source }],
+    queryFn: ({ pageParam }) => listPosts({ page: pageParam, limit: PAGE_SIZE, workerId, source }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
     // Còn bài đang chuẩn bị / chờ đăng / đang đăng thì tự cập nhật trạng thái mỗi 5 giây
@@ -296,7 +308,13 @@ export default function SocialPostsPage() {
       </header>
 
       <section className="space-y-3 p-4 lg:py-6">
-        <WorkerFilter workers={workers} value={workerId} onChange={setWorkerId} />
+        <WorkerFilter
+          workers={workers}
+          value={workerId}
+          onChange={setWorkerId}
+          lookbook={!!source}
+          onLookbookChange={setLookbook}
+        />
         {notice && (
           <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
             <Icon name="check_circle" className="text-base" />
@@ -320,14 +338,21 @@ export default function SocialPostsPage() {
               <Skeleton key={i} className="h-28" />
             ))}
           </div>
-        ) : !posts.length && workerId ? (
+        ) : !posts.length && (workerId || source) ? (
           <EmptyState
             icon="filter_list_off"
-            message={`${filterWorker ? `Worker "${filterWorker.name}"` : 'Worker này'} chưa có bài đăng nào.`}
+            message={
+              workerId
+                ? `${filterWorker ? `Worker "${filterWorker.name}"` : 'Worker này'} chưa có bài ${source ? 'lookbook ' : ''}nào.`
+                : 'Chưa có bài lookbook nào.'
+            }
           >
             <button
               type="button"
-              onClick={() => setWorkerId('')}
+              onClick={() => {
+                setWorkerId('');
+                setLookbook(false);
+              }}
               className="mt-2 flex h-10 items-center gap-1 rounded-xl px-4 text-sm font-bold text-primary hover:bg-surface-container"
             >
               Xem tất cả bài đăng

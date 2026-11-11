@@ -8,7 +8,8 @@ import client from './client';
  * (mặc định bây giờ). Bài sang "Chờ đăng" (còn sửa / xoá được); tới giờ worker nhận 1 job chứa mọi nền tảng, tự đăng
  * bằng tài khoản trên máy rồi báo lại 1 lần. Lỗi -> "Chờ gửi" kèm last_error; worker im lặng -> "Tạo lại".
  *
- * GET    /social/posts?page=&per_page=&status=&type=&worker_id= -> { data: SocialPost[], meta }
+ * GET    /social/posts?page=&per_page=&status=&type=&worker_id=&source= -> { data: SocialPost[], meta }
+ *        (source: batch | existing | video | lookbook; lookbook = bài skill FlowKit tạo, ảnh upload thẳng)
  * GET    /social/posts/{id}                              -> { data: SocialPost }
  * POST   /social/posts/from-images                       -> 201 { data: SocialPost }
  * POST   /social/posts/{id}/publish { worker_id, type, video_template_id?, product_id?, platforms, scheduled_at, images,
@@ -89,8 +90,9 @@ const mapCreative = (c) => (c ? { creativeId: c.id, creativeSlug: c.slug, creati
 export const mapImage = (img) => ({
   // id ảnh trong bài, giữ nguyên khi tạo lại; ảnh vừa thêm ở bước duyệt (chưa lưu) có id null
   id: img.id,
-  // Khoá theo ảnh gốc trong lịch sử tạo ảnh, dùng để không chọn trùng
-  key: `${img.generation_id}_${img.output_id}`,
+  // Khoá theo ảnh gốc trong lịch sử tạo ảnh, dùng để không chọn trùng. Ảnh upload thẳng (bài lookbook) không có
+  // generation / output: khoá theo id ảnh trong bài
+  key: img.output_id ? `${img.generation_id}_${img.output_id}` : `upload_${img.id}`,
   position: img.position,
   generationId: img.generation_id,
   outputId: img.output_id,
@@ -160,8 +162,10 @@ const mapPost = (p) => ({
 });
 
 /** Mới nhất trước, có phân trang. */
-export const listPosts = ({ page = 1, limit = 20, status, type, workerId } = {}) =>
-  client.get('/social/posts', { params: { page, per_page: limit, status, type, worker_id: workerId || undefined } }).then(({ data, meta }) => ({
+export const listPosts = ({ page = 1, limit = 20, status, type, workerId, source } = {}) =>
+  client.get('/social/posts', {
+    params: { page, per_page: limit, status, type, worker_id: workerId || undefined, source: source || undefined },
+  }).then(({ data, meta }) => ({
     items: data.map(mapPost),
     page: meta.current_page,
     lastPage: meta.last_page,
