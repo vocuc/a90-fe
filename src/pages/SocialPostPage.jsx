@@ -14,12 +14,14 @@ import { hashtagSlug } from '../utils/hashtag';
 import { readHashtagHistory, recordHashtags, suggestHashtags } from '../utils/hashtagHistory';
 import A51ImagePicker from '../components/social/A51ImagePicker';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
+import PlanScript from '../components/social/PlanScript';
 import {
   HASHTAG_MAX,
   IMAGE_STATUS,
   PHOTO_DESCRIPTION_MAX,
   PHOTO_MAX_COUNT,
   PHOTO_TITLE_MAX,
+  PLAN_IMAGES_FAILED,
   PLATFORMS,
   PLATFORM_STATUS,
   POST_STATUS,
@@ -316,8 +318,12 @@ function AddImagesDialog({ exclude, max, onAdd, onClose }) {
   );
 }
 
-/** Đang chuẩn bị: ảnh đã có, AI đang viết sẵn tiêu đề / nội dung / hashtag (chỉ khi bật AI viết nội dung lúc tạo bài). */
+/**
+ * Đang chuẩn bị: ảnh đã có, AI đang viết sẵn tiêu đề / nội dung / hashtag (chỉ khi bật AI viết nội dung lúc tạo bài).
+ * Bài kế hoạch: đang tạo ảnh theo kịch bản rồi AI viết nội dung.
+ */
 function GeneratingPanel({ post }) {
+  const imagesBusy = post.images.some(isImageBusy);
   return (
     <section className="space-y-5 p-4 lg:mx-auto lg:w-full lg:max-w-[640px] lg:py-10">
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-6 text-center">
@@ -325,7 +331,9 @@ function GeneratingPanel({ post }) {
           <Icon name="auto_awesome" className="animate-pulse text-3xl" />
         </span>
         <div>
-          <h2 className="text-base font-bold text-on-surface">AI đang viết tiêu đề, nội dung, hashtag</h2>
+          <h2 className="text-base font-bold text-on-surface">
+            {post.plan && imagesBusy ? 'Đang tạo ảnh theo kịch bản' : 'AI đang viết tiêu đề, nội dung, hashtag'}
+          </h2>
           <p className="mt-1 text-xs text-on-surface-variant">
             Bạn có thể rời trang này. Xong, bài chuyển sang <b>Chờ gửi</b> để bạn xem lại và đăng bài.
           </p>
@@ -347,6 +355,7 @@ function GeneratingPanel({ post }) {
         <Icon name="list" className="text-lg" />
         Về danh sách bài đăng
       </Link>
+      <PlanScript post={post} />
     </section>
   );
 }
@@ -399,6 +408,7 @@ function PostPreview({ post, onChanged }) {
     <div className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8 lg:py-6">
       <ImageStrip images={post.images} />
       <section className="space-y-4">
+        <PlanScript post={post} />
         {post.status === POST_STATUS.PUBLISHING ? (
           <div className="space-y-2 rounded-xl bg-primary-fixed/40 px-3 py-2 text-xs text-primary">
             <p className="flex items-center gap-2 font-semibold">
@@ -511,7 +521,7 @@ function PlatformPicker({ value, onChange, done, limitError, error }) {
  * yêu cầu thêm ảnh, thừa thì bỏ bớt. Chọn nền tảng, giờ đăng (mặc định bây giờ) rồi bấm Đăng bài: bài sang "Chờ đăng",
  * tới giờ worker nhận và đăng. Chuyển tab Ảnh / Video không mất chỉnh sửa.
  */
-function PostEditor({ post, type, worker }) {
+function PostEditor({ post, type, worker, onChanged }) {
   const { workerId } = worker;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -525,8 +535,14 @@ function PostEditor({ post, type, worker }) {
     templateId: post.video?.template?.id ? String(post.video.template.id) : '',
     // Bài mới: mặc định TikTok
     platforms: (post.selectedPlatforms.length ? post.selectedPlatforms : ['tiktok']).filter((p) => !done.includes(p)),
-    // Chờ tới giờ: giữ giờ đã hẹn; còn lại: bây giờ
-    scheduledAt: toLocalInput(post.status === POST_STATUS.QUEUED && post.scheduledAt ? post.scheduledAt : Date.now()),
+    // Chờ tới giờ: giữ giờ đã hẹn; bài kế hoạch: giờ theo kế hoạch (đã qua thì bây giờ); còn lại: bây giờ
+    scheduledAt: toLocalInput(
+      post.status === POST_STATUS.QUEUED && post.scheduledAt
+        ? post.scheduledAt
+        : post.plan && post.scheduledAt
+          ? Math.max(new Date(post.scheduledAt).getTime(), Date.now())
+          : Date.now(),
+    ),
   }));
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
@@ -736,7 +752,8 @@ function PostEditor({ post, type, worker }) {
 
       {/* Cột phải: worker, template, nội dung, nền tảng, giờ đăng, nút đăng */}
       <div className="space-y-6">
-        {post.lastError && !formError && (
+        <PlanScript post={post} onRedone={onChanged} />
+        {post.lastError && post.lastError.code !== PLAN_IMAGES_FAILED && !formError && (
           <p className="flex items-start gap-2 rounded-xl bg-error-container/60 px-3 py-2 text-xs text-on-error-container">
             <Icon name="error" className="text-base" />
             <span>
@@ -1031,6 +1048,7 @@ export default function SocialPostPage() {
           post={post}
           type={type}
           worker={worker}
+          onChanged={setPost}
         />
       ) : (
         <PostPreview post={post} onChanged={setPost} />

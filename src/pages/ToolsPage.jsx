@@ -56,6 +56,8 @@ export default function ToolsPage() {
     { to: '/seller/video-templates', icon: 'movie', title: 'Quản lý video template', description: 'Tên và video TikTok mẫu của từng template', locked: noShop },
     // note/quan-ly-worker.txt
     { to: '/seller/workers', icon: 'dns', title: 'Quản lý worker', description: 'Worker được cấp, chức năng và trạng thái online', locked: noShop },
+    // Kế hoạch nội dung (src/api/planner.js): bối cảnh cố định cho ảnh của bài kế hoạch
+    { to: '/plan-contexts', icon: 'event_note', title: 'Bối cảnh kế hoạch', description: 'Bối cảnh cố định cho ảnh của bài kế hoạch nội dung' },
     // AI viết nội dung bài đăng (note/ai-viet-noi-dung-bai-dang.txt): chỉ hiện khi backend bật tính năng
     ...(me?.socialAi?.enabled
       ? [{ to: '/seller/ai-content', icon: 'auto_awesome', title: 'AI viết nội dung', description: 'Kho hashtag, bài mẫu và độ dài nội dung bài đăng', locked: noShop }]

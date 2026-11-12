@@ -8,13 +8,16 @@ import client from './client';
  * (mặc định bây giờ). Bài sang "Chờ đăng" (còn sửa / xoá được); tới giờ worker nhận 1 job chứa mọi nền tảng, tự đăng
  * bằng tài khoản trên máy rồi báo lại 1 lần. Lỗi -> "Chờ gửi" kèm last_error; worker im lặng -> "Tạo lại".
  *
- * GET    /social/posts?page=&per_page=&status=&type=&worker_id=&source= -> { data: SocialPost[], meta }
- *        (source: batch | existing | video | lookbook; lookbook = bài skill FlowKit tạo, ảnh upload thẳng)
+ * GET    /social/posts?page=&per_page=&status=&type=&worker_id=&source=&date_from=&date_to= -> { data: SocialPost[], meta }
+ *        (source: batch | existing | video | lookbook | plan; lookbook = bài skill FlowKit tạo, ảnh upload thẳng;
+ *        plan = bài skill kế hoạch nội dung tạo, src/api/planner.js. date_from / date_to: YYYY-MM-DD, lọc theo giờ đăng)
  * GET    /social/posts/{id}                              -> { data: SocialPost }
  * POST   /social/posts/from-images                       -> 201 { data: SocialPost }
  * POST   /social/posts/{id}/publish { worker_id, type, video_template_id?, product_id?, platforms, scheduled_at, images,
  *        title, content, hashtags }                       -> { data: SocialPost }   (bài sang queued)
  * POST   /social/posts/{id}/retry                        -> { data: SocialPost }   "Đăng lại" (lỗi) / "Tạo lại" (đang đăng)
+ * POST   /social/posts/{id}/redo                         -> { data: SocialPost }   "Làm lại" bài kế hoạch đang chờ gửi:
+ *        tạo lại ảnh theo đúng kịch bản, miễn phí, bài về generating. 409 PLAN_POST_NOT_REDOABLE, 422 PLAN_CONTEXT_UNAVAILABLE
  * POST   /social/posts/{id}/ai-content                   -> { data: { title, content, hashtags, credit_balance } }
  *        "Viết lại bằng AI": không lưu vào bài, trừ phí khi AI viết được (note/ai-viet-noi-dung-bai-dang.txt)
  * GET    /creator/ai-content                             -> { data: AiContentSettings }  (trang "AI viết nội dung", chủ shop)
@@ -137,8 +140,26 @@ const mapVideo = (v) =>
       }
     : null;
 
+/** Bài kế hoạch (source plan): kịch bản + bối cảnh + sản phẩm. Bài khác: null. */
+const mapPlan = (plan) =>
+  plan
+    ? {
+        idea: plan.script?.y_chinh ?? '',
+        items: plan.script?.items ?? [],
+        context: plan.context ? { id: plan.context.id, name: plan.context.name } : null,
+        product: plan.product ? { id: plan.product.id, name: plan.product.name } : null,
+      }
+    : null;
+
+// Mã last_error của bài kế hoạch có ảnh tạo lỗi: chờ "Làm lại", không phải lỗi đăng bài
+export const PLAN_IMAGES_FAILED = 'PLAN_IMAGES_FAILED';
+
+export const SOURCE_PLAN = 'plan';
+export const isPlanPost = (post) => post.source === SOURCE_PLAN;
+
 const mapPost = (p) => ({
   id: p.id,
+  plan: mapPlan(p.plan),
   type: p.type ?? POST_TYPE.PHOTO,
   video: mapVideo(p.video),
   // Worker được giao, giờ đăng, nền tảng đã chọn (note/gop-luong-dang-bai.txt)
@@ -162,9 +183,18 @@ const mapPost = (p) => ({
 });
 
 /** Mới nhất trước, có phân trang. */
-export const listPosts = ({ page = 1, limit = 20, status, type, workerId, source } = {}) =>
+export const listPosts = ({ page = 1, limit = 20, status, type, workerId, source, dateFrom, dateTo } = {}) =>
   client.get('/social/posts', {
-    params: { page, per_page: limit, status, type, worker_id: workerId || undefined, source: source || undefined },
+    params: {
+      page,
+      per_page: limit,
+      status,
+      type,
+      worker_id: workerId || undefined,
+      source: source || undefined,
+      date_from: dateFrom || undefined,
+      date_to: dateTo || undefined,
+    },
   }).then(({ data, meta }) => ({
     items: data.map(mapPost),
     page: meta.current_page,
@@ -277,6 +307,9 @@ export const publishPost = (id, form) =>
 
 /** "Đăng lại" (bài lỗi) / "Tạo lại" (worker nhận rồi im lặng, có thể đăng trùng): bài về "Chờ đăng". */
 export const retryPost = (id) => client.post(`/social/posts/${id}/retry`).then(({ data }) => mapPost(data));
+
+/** "Làm lại" bài kế hoạch: tạo lại ảnh theo đúng kịch bản (miễn phí), bài về "Đang chuẩn bị". */
+export const redoPlanPost = (id) => client.post(`/social/posts/${id}/redo`).then(({ data }) => mapPost(data));
 
 export const deletePost = (id) => client.delete(`/social/posts/${id}`);
 

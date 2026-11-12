@@ -6,6 +6,7 @@ import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
+import { PlanBadge } from '../components/social/PlanScript';
 import { POST_STATUS, isPostLocked, isVideoPost, listPosts } from '../api/social';
 import { useMe } from '../hooks/queries';
 import { CreateVideoDialog, POSTS_KEY, createdMessage, formatSchedule, useShopWorkers } from '../components/social/VideoPostDialogs';
@@ -29,11 +30,17 @@ const actionLabel = (post) =>
     [POST_STATUS.PUBLISHING]: 'Tạo lại',
   })[post.status] ?? 'Xem';
 
-/** Nhãn bài video + giờ đăng + worker (bài đã giao cho worker). */
+/** Nhãn bài video / kế hoạch + giờ đăng + worker (bài đã giao cho worker). */
 function VideoInfo({ post }) {
-  if (!isVideoPost(post) && !post.worker) return null;
+  if (!isVideoPost(post) && !post.worker && !post.plan) return null;
   return (
     <p className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-on-surface-variant">
+      {post.plan && <PlanBadge />}
+      {post.plan && !post.worker && (
+        <span>
+          Dự kiến <b className="text-on-surface">{formatSchedule(post.scheduledAt)}</b>
+        </span>
+      )}
       {isVideoPost(post) && (
         <span className="inline-flex items-center gap-0.5 rounded bg-primary-fixed/40 px-1 font-bold text-primary">
           <Icon name="movie" className="text-xs" />
@@ -182,11 +189,18 @@ function PostTable({ posts }) {
   );
 }
 
+// Chip lọc theo nguồn bài (?source=): lookbook = skill FlowKit tạo lookbook, plan = skill kế hoạch nội dung
+const SOURCE_CHIPS = [
+  ['plan', 'event_note', 'Kế hoạch'],
+  ['lookbook', 'checkroom', 'Lookbook'],
+];
+const SOURCE_LABEL = { plan: 'kế hoạch', lookbook: 'lookbook' };
+
 /**
- * Lọc bài theo worker đã giao bài (worker đăng bài của shop) và chip "Lookbook" (bài do skill FlowKit tạo lookbook,
- * source = lookbook). Không có worker thì chỉ còn chip Lookbook.
+ * Lọc bài theo nguồn (chip Kế hoạch / Lookbook), ngày đăng và worker đã giao bài (worker đăng bài của shop).
+ * Không có worker thì chỉ còn chip nguồn + ngày.
  */
-function WorkerFilter({ workers, value, onChange, lookbook, onLookbookChange }) {
+function WorkerFilter({ workers, value, onChange, source, onSourceChange, date, onDateChange }) {
   const chip = (active) =>
     `flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-semibold transition-colors ${
       active ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface hover:bg-primary-fixed/60'
@@ -194,10 +208,42 @@ function WorkerFilter({ workers, value, onChange, lookbook, onLookbookChange }) 
   return (
     <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4" role="group" aria-label="Lọc theo worker">
       <Icon name="filter_list" className="shrink-0 text-lg text-outline" />
-      <button type="button" aria-pressed={lookbook} onClick={() => onLookbookChange(!lookbook)} className={chip(lookbook)}>
-        <Icon name="checkroom" className="text-sm" />
-        Lookbook
-      </button>
+      {SOURCE_CHIPS.map(([key, icon, label]) => (
+        <button
+          key={key}
+          type="button"
+          aria-pressed={source === key}
+          onClick={() => onSourceChange(source === key ? '' : key)}
+          className={chip(source === key)}
+        >
+          <Icon name={icon} className="text-sm" />
+          {label}
+        </button>
+      ))}
+      <label className={`${chip(!!date)} cursor-pointer`}>
+        <Icon name="calendar_month" className="text-sm" />
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => onDateChange(e.target.value)}
+          aria-label="Lọc theo ngày đăng"
+          className="w-[7.5rem] border-none bg-transparent p-0 text-xs font-semibold focus:ring-0"
+        />
+        {date && (
+          <span
+            role="button"
+            tabIndex={0}
+            aria-label="Bỏ lọc ngày"
+            onClick={(e) => {
+              e.preventDefault();
+              onDateChange('');
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && onDateChange('')}
+          >
+            <Icon name="close" className="text-sm" />
+          </span>
+        )}
+      </label>
       {!!workers?.length && (
         <button type="button" aria-pressed={!value} onClick={() => onChange('')} className={chip(!value)}>
           Tất cả worker
@@ -245,8 +291,9 @@ export default function SocialPostsPage() {
   // Worker đang lọc nằm trên URL (?worker=id): giữ khi tải lại / quay lại trang
   const [searchParams, setSearchParams] = useSearchParams();
   const workerId = searchParams.get('worker') ?? '';
-  // ?source=lookbook: chỉ bài lookbook
-  const source = searchParams.get('source') === 'lookbook' ? 'lookbook' : '';
+  // ?source=lookbook | plan: chỉ bài lookbook / bài kế hoạch. ?date=YYYY-MM-DD: chỉ bài có giờ đăng trong ngày đó
+  const source = SOURCE_LABEL[searchParams.get('source')] ? searchParams.get('source') : '';
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.get('date') ?? '') ? searchParams.get('date') : '';
   const setParam = (key, value) =>
     setSearchParams(
       (prev) => {
@@ -258,14 +305,15 @@ export default function SocialPostsPage() {
       { replace: true },
     );
   const setWorkerId = (id) => setParam('worker', id);
-  const setLookbook = (on) => setParam('source', on ? 'lookbook' : '');
+  const setSource = (value) => setParam('source', value);
+  const setDate = (value) => setParam('date', value);
   // Worker chỉ có khi đã có hồ sơ người bán (API trả 403 khi chưa có shop)
   const { data: workers } = useShopWorkers({ enabled: !!me?.creatorProfile });
   const filterWorker = workers?.find((w) => String(w.id) === workerId);
 
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: [...POSTS_KEY, { workerId, source }],
-    queryFn: ({ pageParam }) => listPosts({ page: pageParam, limit: PAGE_SIZE, workerId, source }),
+    queryKey: [...POSTS_KEY, { workerId, source, date }],
+    queryFn: ({ pageParam }) => listPosts({ page: pageParam, limit: PAGE_SIZE, workerId, source, dateFrom: date, dateTo: date }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
     // Còn bài đang chuẩn bị / chờ đăng / đang đăng thì tự cập nhật trạng thái mỗi 5 giây
@@ -312,8 +360,10 @@ export default function SocialPostsPage() {
           workers={workers}
           value={workerId}
           onChange={setWorkerId}
-          lookbook={!!source}
-          onLookbookChange={setLookbook}
+          source={source}
+          onSourceChange={setSource}
+          date={date}
+          onDateChange={setDate}
         />
         {notice && (
           <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
@@ -338,20 +388,17 @@ export default function SocialPostsPage() {
               <Skeleton key={i} className="h-28" />
             ))}
           </div>
-        ) : !posts.length && (workerId || source) ? (
+        ) : !posts.length && (workerId || source || date) ? (
           <EmptyState
             icon="filter_list_off"
-            message={
-              workerId
-                ? `${filterWorker ? `Worker "${filterWorker.name}"` : 'Worker này'} chưa có bài ${source ? 'lookbook ' : ''}nào.`
-                : 'Chưa có bài lookbook nào.'
-            }
+            message={`${
+              workerId ? `${filterWorker ? `Worker "${filterWorker.name}"` : 'Worker này'} chưa có` : 'Chưa có'
+            } bài ${source ? `${SOURCE_LABEL[source]} ` : ''}nào${date ? ` đăng ngày ${date.split('-').reverse().join('/')}` : ''}.`}
           >
             <button
               type="button"
               onClick={() => {
-                setWorkerId('');
-                setLookbook(false);
+                setSearchParams({}, { replace: true });
               }}
               className="mt-2 flex h-10 items-center gap-1 rounded-xl px-4 text-sm font-bold text-primary hover:bg-surface-container"
             >

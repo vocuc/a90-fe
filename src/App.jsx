@@ -34,6 +34,7 @@ import ProductsPage from './pages/ProductsPage';
 import CreativeGroupsPage from './pages/CreativeGroupsPage';
 import VideoTemplatesPage from './pages/VideoTemplatesPage';
 import WorkersPage from './pages/WorkersPage';
+import PlanContextsPage from './pages/PlanContextsPage';
 import VideoTemplateFormPage from './pages/VideoTemplateFormPage';
 import ShippingOrdersPage from './pages/ShippingOrdersPage';
 import ShippingOrderNewPage from './pages/ShippingOrderNewPage';
@@ -76,6 +77,8 @@ export default function App() {
           <Route path="seller/video-templates" element={<VideoTemplatesPage />} />
           {/* Worker admin gắn cho shop, chỉ xem (note/quan-ly-worker.txt) */}
           <Route path="seller/workers" element={<WorkersPage />} />
+          {/* Bối cảnh cố định cho bài kế hoạch nội dung (src/api/planner.js) */}
+          <Route path="plan-contexts" element={<PlanContextsPage />} />
           {/* Tạo ảnh theo lô (note/tach-lo-anh-dang-tiktok.txt). Trang rộng, tự chia cột trên desktop */}
           <Route path="batches" element={<BatchesPage />} />
           <Route path="batches/new" element={<BatchNewPage />} />
