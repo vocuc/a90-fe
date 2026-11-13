@@ -14,7 +14,7 @@ import { hashtagSlug } from '../utils/hashtag';
 import { readHashtagHistory, recordHashtags, suggestHashtags } from '../utils/hashtagHistory';
 import A51ImagePicker from '../components/social/A51ImagePicker';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
-import PlanScript, { canRedoPlan, canUnapprovePlan } from '../components/social/PlanScript';
+import PlanScript, { canCancelQueuedPlan, canRedoPlan, canUnapprovePlan } from '../components/social/PlanScript';
 import CancelPostButton from '../components/social/CancelPostButton';
 import CropImageDialog from '../components/batch/CropImageDialog';
 import ImagePromptButton from '../components/social/ImagePromptButton';
@@ -744,12 +744,22 @@ function PostEditor({ post, type, worker, onChanged }) {
     });
   };
 
-  // "Bỏ duyệt": về "Chờ duyệt" để làm lại ảnh; chỉnh sửa chưa đăng trên trang sẽ mất
-  const unapprove = () =>
+  // "Bỏ duyệt" (chờ gửi) / "Hủy đăng" (chờ đăng, worker chưa nhận): về "Chờ duyệt" để xem lại, làm lại ảnh;
+  // chỉnh sửa chưa lưu trên trang sẽ mất
+  const cancelQueued = canCancelQueuedPlan(post);
+  const unapprove = async () => {
+    if (
+      cancelQueued &&
+      !(await confirm('Hủy đăng bài này và đưa về Chờ duyệt? Worker sẽ không đăng bài cho tới khi bạn duyệt và đăng lại.', {
+        confirmLabel: 'Hủy đăng',
+      }))
+    )
+      return;
     run('unapprove', async () => {
       onChanged(await unapprovePlanPost(post.id));
       queryClient.invalidateQueries({ queryKey: POSTS_KEY });
     });
+  };
 
   const submit = (ev) => {
     ev.preventDefault();
@@ -1075,16 +1085,16 @@ function PostEditor({ post, type, worker, onChanged }) {
               {submitLabel}
             </SubmitButton>
           )}
-          {canUnapprovePlan(post) && (
+          {(canUnapprovePlan(post) || cancelQueued) && (
             <button
               type="button"
               onClick={unapprove}
               disabled={!!busy}
-              title="Về Chờ duyệt để làm lại ảnh"
+              title="Về Chờ duyệt để xem lại, làm lại ảnh"
               className="flex h-11 w-full items-center justify-center gap-1 rounded-xl text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-60"
             >
               <Icon name={busy === 'unapprove' ? 'progress_activity' : 'undo'} className={`text-lg ${busy === 'unapprove' ? 'animate-spin' : ''}`} />
-              Bỏ duyệt
+              {cancelQueued ? 'Hủy đăng, về Chờ duyệt' : 'Bỏ duyệt'}
             </button>
           )}
           {/* Đã đăng lên nền tảng nào đó: không xoá được trên A51 */}

@@ -20,6 +20,10 @@ export const canRedoPlan = (post) => !!post.plan && post.status === POST_STATUS.
 // Bỏ duyệt được: đã duyệt (chờ gửi) và chưa bấm đăng lần nào
 export const canUnapprovePlan = (post) => !!post.plan && post.status === POST_STATUS.PENDING_REVIEW && !post.platforms.length;
 
+// Hủy đăng được: đã bấm đăng nhưng worker chưa nhận (chờ đăng, mọi nền tảng đều đang chờ)
+export const canCancelQueuedPlan = (post) =>
+  !!post.plan && post.status === POST_STATUS.QUEUED && post.platforms.length > 0 && post.platforms.every((p) => p.status === 'queued');
+
 /**
  * Kịch bản của bài kế hoạch: bối cảnh, sản phẩm, giờ đăng theo kế hoạch, ý chính, câu lệnh từng ảnh.
  * onRedone(post): có thì hiện nút "Làm lại" (khi canRedoPlan).
