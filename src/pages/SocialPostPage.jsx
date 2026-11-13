@@ -14,7 +14,7 @@ import { hashtagSlug } from '../utils/hashtag';
 import { readHashtagHistory, recordHashtags, suggestHashtags } from '../utils/hashtagHistory';
 import A51ImagePicker from '../components/social/A51ImagePicker';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
-import PlanScript from '../components/social/PlanScript';
+import PlanScript, { canRedoPlan } from '../components/social/PlanScript';
 import CancelPostButton from '../components/social/CancelPostButton';
 import CropImageDialog from '../components/batch/CropImageDialog';
 import ImagePromptButton from '../components/social/ImagePromptButton';
@@ -36,6 +36,7 @@ import {
   isPostEditable,
   listVideoPostTemplates,
   publishPost,
+  redoPlanImage,
   retryPost,
   rewritePostContent,
 } from '../api/social';
@@ -121,8 +122,10 @@ const STRIP_BTN =
  * Ảnh của bài: ảnh đầu là ảnh bìa, bấm để phóng to. editable: cho xoá ảnh, thêm ảnh từ A51 và đổi thứ tự
  * (nút trái / phải / đặt làm bìa, máy tính kéo thả được). onMove(from, to): chuyển ảnh ở vị trí from sang to.
  * postId + onCropped(ảnhMới): cho "Cắt ảnh" khi phóng to ảnh đã lưu trong bài (ảnh vừa thêm chưa lưu thì chưa cắt được).
+ * onRedoImage(ảnh): có thì hiện nút "Tạo lại" trên ảnh tạo từ kịch bản kế hoạch (ảnh có prompt, đã lưu trong bài).
  */
-function ImageStrip({ images, editable, onRemove, onAdd, onMove, postId, onCropped }) {
+function ImageStrip({ images, editable, onRemove, onAdd, onMove, postId, onCropped, onRedoImage }) {
+  const [redoing, setRedoing] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [cropping, setCropping] = useState(null);
   const croppable = (img) => editable && postId && onCropped && img?.id && img.status === IMAGE_STATUS.COMPLETED;
@@ -234,6 +237,29 @@ function ImageStrip({ images, editable, onRemove, onAdd, onMove, postId, onCropp
                   </span>
                 )}
                 <ImagePromptButton image={img} index={i} className="absolute right-1.5 top-1.5 z-10" />
+                {onRedoImage && img.id && img.prompt && !busy && (
+                  <button
+                    type="button"
+                    disabled={redoing !== null}
+                    onClick={async () => {
+                      setRedoing(img.key);
+                      try {
+                        await onRedoImage(img);
+                      } finally {
+                        setRedoing(null);
+                      }
+                    }}
+                    aria-label={`Tạo lại ảnh ${i + 1}`}
+                    title="Tạo lại ảnh này theo câu lệnh của nó (miễn phí)"
+                    className="absolute bottom-1.5 right-1.5 z-10 flex h-7 items-center gap-0.5 rounded-full bg-black/60 px-2 text-[11px] font-semibold text-white hover:bg-black/80 disabled:opacity-60"
+                  >
+                    <Icon
+                      name={redoing === img.key ? 'progress_activity' : 'refresh'}
+                      className={`text-sm ${redoing === img.key ? 'animate-spin' : ''}`}
+                    />
+                    Tạo lại
+                  </button>
+                )}
               </div>
               {sortable && (
                 <div className="flex gap-1">
@@ -594,7 +620,22 @@ function PostEditor({ post, type, worker, onChanged }) {
   const [adding, setAdding] = useState(false);
   const { data: me } = useMe();
   const ai = me?.socialAi;
-  const { confirm } = useConfirm();
+  const { confirm, alert } = useConfirm();
+  // "Tạo lại ảnh này" (bài kế hoạch chờ duyệt, chưa đăng nền tảng nào): bài về "Đang chuẩn bị" tới khi ảnh xong
+  const redoImage = async (img) => {
+    const n = form.images.findIndex((i) => i.key === img.key) + 1;
+    const ok = await confirm(
+      `Tạo lại ảnh ${n} theo đúng câu lệnh của nó? Các ảnh khác và nội dung đã lưu giữ nguyên; thay đổi chưa đăng trên trang này sẽ mất. (miễn phí)`,
+      { confirmLabel: 'Tạo lại' },
+    );
+    if (!ok) return;
+    try {
+      onChanged(await redoPlanImage(post.id, img.id));
+      queryClient.invalidateQueries({ queryKey: POSTS_KEY });
+    } catch (e) {
+      await alert(e.message);
+    }
+  };
   // Hashtag đã nhập ở các bài trước (cookie), gợi ý dưới ô hashtag
   const [hashtagHistory, setHashtagHistory] = useState(readHashtagHistory);
   // Template video (cần hồ sơ người bán); chỉ tải khi mở tab Video
@@ -795,6 +836,7 @@ function PostEditor({ post, type, worker, onChanged }) {
           onRemove={(key) => set('images')(form.images.filter((i) => i.key !== key))}
           onAdd={() => setAdding(true)}
           onMove={moveImage}
+          onRedoImage={canRedoPlan(post) ? redoImage : undefined}
         />
         {errors.images && <p className="text-xs text-error">{errors.images}</p>}
       </div>

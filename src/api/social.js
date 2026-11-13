@@ -18,6 +18,8 @@ import client from './client';
  * POST   /social/posts/{id}/retry                        -> { data: SocialPost }   "Đăng lại" (lỗi) / "Tạo lại" (đang đăng)
  * POST   /social/posts/{id}/redo                         -> { data: SocialPost }   "Làm lại" bài kế hoạch đang chờ gửi:
  *        tạo lại ảnh theo đúng kịch bản, miễn phí, bài về generating. 409 PLAN_POST_NOT_REDOABLE, 422 PLAN_CONTEXT_UNAVAILABLE
+ * POST   /social/posts/{id}/images/{imageId}/redo        -> { data: SocialPost }   "Tạo lại ảnh này" của bài kế hoạch: chỉ 1 ảnh,
+ *        theo câu lệnh của ảnh đó, giữ ảnh khác + nội dung, bài về generating. Lỗi giống /redo
  * POST   /social/posts/{id}/images/{imageId}/crop (multipart image) -> { data: Image }   "Cắt ảnh" trong bài đang chờ gửi:
  *        ghi đè ảnh gốc như cắt ảnh ở lô (lô, lịch sử tạo ảnh, bài khác dùng ảnh đó đổi theo). 409 POST_NOT_EDITABLE
  * POST   /social/posts/{id}/cancel                       -> 204   "Hủy bỏ" bài đang chuẩn bị: dừng ảnh chờ tạo / AI viết
@@ -316,6 +318,10 @@ export const retryPost = (id) => client.post(`/social/posts/${id}/retry`).then((
 
 /** "Làm lại" bài kế hoạch: tạo lại ảnh theo đúng kịch bản (miễn phí), bài về "Đang chuẩn bị". */
 export const redoPlanPost = (id) => client.post(`/social/posts/${id}/redo`).then(({ data }) => mapPost(data));
+
+/** "Tạo lại ảnh này" của bài kế hoạch: chỉ tạo lại 1 ảnh theo câu lệnh của nó (miễn phí), bài về "Đang chuẩn bị". */
+export const redoPlanImage = (postId, imageId) =>
+  client.post(`/social/posts/${postId}/images/${imageId}/redo`).then(({ data }) => mapPost(data));
 
 export const deletePost = (id) => client.delete(`/social/posts/${id}`);
 
