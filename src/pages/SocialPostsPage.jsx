@@ -197,15 +197,12 @@ function PostTable({ posts }) {
   );
 }
 
-// Chip lọc theo nguồn bài (?source=): lookbook = skill FlowKit tạo lookbook, plan = skill kế hoạch nội dung
-const SOURCE_CHIPS = [
-  ['plan', 'event_note', 'Kế hoạch'],
-  ['lookbook', 'checkroom', 'Lookbook'],
-];
-const SOURCE_LABEL = { plan: 'kế hoạch', lookbook: 'lookbook' };
+// Chip lọc theo nguồn bài (?source=): plan = skill kế hoạch nội dung
+const SOURCE_CHIPS = [['plan', 'event_note', 'Kế hoạch']];
+const SOURCE_LABEL = { plan: 'kế hoạch' };
 
 /**
- * Lọc bài theo nguồn (chip Kế hoạch / Lookbook), ngày đăng và worker đã giao bài (worker đăng bài của shop).
+ * Lọc bài theo nguồn (chip Kế hoạch), ngày đăng và worker đã giao bài (worker đăng bài của shop).
  * Không có worker thì chỉ còn chip nguồn + ngày.
  */
 function WorkerFilter({ workers, value, onChange, source, onSourceChange, date, onDateChange }) {
@@ -299,7 +296,7 @@ export default function SocialPostsPage() {
   // Worker đang lọc nằm trên URL (?worker=id): giữ khi tải lại / quay lại trang
   const [searchParams, setSearchParams] = useSearchParams();
   const workerId = searchParams.get('worker') ?? '';
-  // ?source=lookbook | plan: chỉ bài lookbook / bài kế hoạch. ?date=YYYY-MM-DD: chỉ bài có giờ đăng trong ngày đó
+  // ?source=plan: chỉ bài kế hoạch. ?date=YYYY-MM-DD: chỉ bài có giờ đăng trong ngày đó
   const source = SOURCE_LABEL[searchParams.get('source')] ? searchParams.get('source') : '';
   const date = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.get('date') ?? '') ? searchParams.get('date') : '';
   const setParam = (key, value) =>

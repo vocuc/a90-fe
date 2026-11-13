@@ -9,7 +9,7 @@ import client from './client';
  * bằng tài khoản trên máy rồi báo lại 1 lần. Lỗi -> "Chờ gửi" kèm last_error; worker im lặng -> "Tạo lại".
  *
  * GET    /social/posts?page=&per_page=&status=&type=&worker_id=&source=&date_from=&date_to= -> { data: SocialPost[], meta }
- *        (source: batch | existing | video | lookbook | plan; lookbook = bài skill FlowKit tạo, ảnh upload thẳng;
+ *        (source: batch | existing | video | plan; bài lookbook cũ có source lookbook, ảnh upload thẳng;
  *        plan = bài skill kế hoạch nội dung tạo, src/api/planner.js. date_from / date_to: YYYY-MM-DD, lọc theo giờ đăng)
  * GET    /social/posts/{id}                              -> { data: SocialPost }
  * POST   /social/posts/from-images                       -> 201 { data: SocialPost }
