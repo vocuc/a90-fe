@@ -49,7 +49,7 @@ const SECTIONS = [
     items: [
       [null, 'Dữ liệu được truyền qua kết nối mã hoá (HTTPS) và lưu trên máy chủ có kiểm soát truy cập.'],
       [null, 'Mã đăng nhập được lưu trong bộ nhớ trình duyệt (localStorage) để giữ phiên đăng nhập; bạn có thể xoá bằng cách đăng xuất.'],
-      [null, 'Thông tin tài khoản được lưu trong suốt thời gian tài khoản còn hoạt động. Ảnh tải lên và ảnh kết quả được lưu để bạn tải lại trong lịch sử mua hàng.'],
+      [null, 'Thông tin tài khoản được lưu trong suốt thời gian tài khoản còn hoạt động. Ảnh tải lên và ảnh kết quả được lưu để bạn tải lại trong lịch sử tạo ảnh.'],
       [null, 'Khi tài khoản bị xoá, dữ liệu cá nhân sẽ được xoá hoặc ẩn danh, trừ thông tin giao dịch cần lưu theo quy định pháp luật về kế toán, thuế.'],
     ],
     outro: 'Không có hệ thống nào an toàn tuyệt đối. Nếu phát hiện sự cố rò rỉ dữ liệu, chúng tôi sẽ thông báo cho bạn và cơ quan có thẩm quyền theo quy định.',

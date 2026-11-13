@@ -22,7 +22,7 @@ const useGenerationMutation = (mutationFn) => {
 export const useCreateGeneration = () => useGenerationMutation(generationApi.create);
 export const useRetryGeneration = () => useGenerationMutation(generationApi.retry);
 
-/** Tạo lại ảnh lỗi từ Lịch sử mua hàng: tải lại số dư và lịch sử (ảnh lỗi cũ rời tab "Bị lỗi"). */
+/** Tạo lại ảnh lỗi từ Lịch sử tạo ảnh: tải lại số dư và lịch sử (ảnh lỗi cũ rời tab "Bị lỗi"). */
 export const useRetryFromHistory = () => {
   const queryClient = useQueryClient();
   return useMutation({

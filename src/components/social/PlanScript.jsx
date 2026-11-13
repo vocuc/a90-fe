@@ -14,8 +14,11 @@ export function PlanBadge({ className = '' }) {
   );
 }
 
-// Làm lại được: đang chờ gửi và chưa bấm đăng nền tảng nào
-export const canRedoPlan = (post) => !!post.plan && post.status === POST_STATUS.PENDING_REVIEW && !post.platforms.length;
+// Làm lại được: chỉ khi đang chờ duyệt (đã duyệt thì bỏ duyệt trước)
+export const canRedoPlan = (post) => !!post.plan && post.status === POST_STATUS.AWAITING_APPROVAL;
+
+// Bỏ duyệt được: đã duyệt (chờ gửi) và chưa bấm đăng lần nào
+export const canUnapprovePlan = (post) => !!post.plan && post.status === POST_STATUS.PENDING_REVIEW && !post.platforms.length;
 
 /**
  * Kịch bản của bài kế hoạch: bối cảnh, sản phẩm, giờ đăng theo kế hoạch, ý chính, câu lệnh từng ảnh.

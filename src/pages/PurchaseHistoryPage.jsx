@@ -101,10 +101,14 @@ function HistoryCard({ kind, order, output, onView }) {
     if (ok) disable.mutate({ generationId: order.id, outputId: output.id });
   };
 
+  // Ảnh của bài kế hoạch nội dung: không có creative, miễn phí
+  const plan = order.type === 'plan';
   const title = order.creative ? (
     <Link to={`/creatives/${encodeURIComponent(order.creative.slug)}`} className="hover:text-primary">
       {order.creative.title}
     </Link>
+  ) : plan ? (
+    'Kế hoạch nội dung'
   ) : (
     'Mẫu đã bị gỡ'
   );
@@ -149,7 +153,9 @@ function HistoryCard({ kind, order, output, onView }) {
   } else if (kind === 'failed') {
     media = placeholder(
       <Icon name="broken_image" className="text-3xl text-error" />,
-      <span className="text-[11px] font-semibold leading-tight text-error">{output.error_message || 'Tạo ảnh thất bại.'}</span>,
+      <span className="text-[11px] font-semibold leading-tight text-error">
+        {plan ? 'Tạo ảnh thất bại. Tạo lại ở trang Bài đăng.' : output.error_message || 'Tạo ảnh thất bại.'}
+      </span>,
       'bg-error-container/40',
     );
   } else {
@@ -176,7 +182,9 @@ function HistoryCard({ kind, order, output, onView }) {
         {actionError && <p className="text-[11px] text-error">{actionError.message}</p>}
         <div className="mt-auto pt-2.5">
           <div className="space-y-2 border-t border-surface-container pt-2.5">
-            {kind === 'failed' ? (
+            {plan ? (
+              <p className="text-xs font-bold text-tertiary">Miễn phí</p>
+            ) : kind === 'failed' ? (
               <p className="text-xs font-bold text-tertiary">Đã hoàn {formatVnd(order.price_per_image)}</p>
             ) : (
               <p className="text-xs font-bold text-primary">{formatVnd(kind === 'pending' ? order.total_charged : order.price_per_image)}</p>
@@ -405,9 +413,9 @@ function HistoryFilters({ creativeId, productId, onChange }) {
   );
 }
 
-/** /account/history: các lần tạo ảnh đã mua, mới nhất trước, chia tab đang hoạt động / bị lỗi / đã tắt, lọc theo creative / sản phẩm. */
+/** /account/history (Lịch sử tạo ảnh): các lần tạo ảnh đã mua và ảnh của bài kế hoạch nội dung, mới nhất trước, chia tab đang hoạt động / bị lỗi / đã tắt, lọc theo creative / sản phẩm. */
 export default function PurchaseHistoryPage() {
-  useSeo({ title: 'Lịch sử mua', noindex: true });
+  useSeo({ title: 'Lịch sử tạo ảnh', noindex: true });
   const navigate = useNavigate();
   const location = useLocation();
   // Tab và bộ lọc giữ trên URL để tải lại / quay lại vẫn đúng
@@ -459,7 +467,7 @@ export default function PurchaseHistoryPage() {
           >
             <Icon name="arrow_back" />
           </button>
-          <h1 className="text-base font-bold text-on-surface lg:text-lg">Lịch sử mua hàng</h1>
+          <h1 className="text-base font-bold text-on-surface lg:text-lg">Lịch sử tạo ảnh</h1>
         </div>
         <div role="tablist" aria-label="Loại ảnh" className="mt-2 flex gap-1 rounded-xl bg-surface-container-low p-1">
           {TABS.map((t) => (

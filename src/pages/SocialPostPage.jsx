@@ -14,7 +14,7 @@ import { hashtagSlug } from '../utils/hashtag';
 import { readHashtagHistory, recordHashtags, suggestHashtags } from '../utils/hashtagHistory';
 import A51ImagePicker from '../components/social/A51ImagePicker';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
-import PlanScript, { canRedoPlan } from '../components/social/PlanScript';
+import PlanScript, { canRedoPlan, canUnapprovePlan } from '../components/social/PlanScript';
 import CancelPostButton from '../components/social/CancelPostButton';
 import CropImageDialog from '../components/batch/CropImageDialog';
 import ImagePromptButton from '../components/social/ImagePromptButton';
@@ -37,6 +37,8 @@ import {
   listVideoPostTemplates,
   publishPost,
   redoPlanImage,
+  approvePlanPost,
+  unapprovePlanPost,
   retryPost,
   rewritePostContent,
 } from '../api/social';
@@ -124,14 +126,15 @@ const STRIP_BTN =
  * postId + onCropped(ảnhMới): cho "Cắt ảnh" khi phóng to ảnh đã lưu trong bài (ảnh vừa thêm chưa lưu thì chưa cắt được).
  * onRedoImage(ảnh): có thì hiện nút "Tạo lại" trên ảnh tạo từ kịch bản kế hoạch (ảnh có prompt, đã lưu trong bài).
  */
-function ImageStrip({ images, editable, onRemove, onAdd, onMove, postId, onCropped, onRedoImage }) {
+// fixed: chỉ cắt / tạo lại ảnh, không thêm / bỏ / đổi thứ tự (bài kế hoạch chờ duyệt)
+function ImageStrip({ images, editable, fixed = false, onRemove, onAdd, onMove, postId, onCropped, onRedoImage }) {
   const [redoing, setRedoing] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [cropping, setCropping] = useState(null);
   const croppable = (img) => editable && postId && onCropped && img?.id && img.status === IMAGE_STATUS.COMPLETED;
   // Vị trí đang kéo tới, null = không kéo
   const [dropIndex, setDropIndex] = useState(null);
-  const sortable = editable && images.length > 1;
+  const sortable = editable && !fixed && images.length > 1;
 
   const dragProps = (i) =>
     sortable
@@ -307,7 +310,7 @@ function ImageStrip({ images, editable, onRemove, onAdd, onMove, postId, onCropp
             </li>
           );
         })}
-        {editable && images.length < PHOTO_MAX_COUNT && (
+        {editable && !fixed && images.length < PHOTO_MAX_COUNT && (
           <li>
             <button
               type="button"
@@ -616,7 +619,9 @@ function PostEditor({ post, type, worker, onChanged }) {
   }));
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
-  const [busy, setBusy] = useState(null); // 'publish' | 'delete' | 'ai'
+  const [busy, setBusy] = useState(null); // 'publish' | 'delete' | 'ai' | 'approve' | 'unapprove'
+  // Bài kế hoạch chờ duyệt: chỉ sửa nội dung, làm lại / cắt ảnh rồi bấm Duyệt; chưa chọn worker / nền tảng / đăng
+  const awaiting = post.status === POST_STATUS.AWAITING_APPROVAL;
   const [adding, setAdding] = useState(false);
   const { data: me } = useMe();
   const ai = me?.socialAi;
@@ -722,9 +727,37 @@ function PostEditor({ post, type, worker, onChanged }) {
     return Object.keys(e).length === 0;
   };
 
+  // "Duyệt": lưu tiêu đề / nội dung / hashtag rồi bài sang "Chờ gửi" (ở lại trang để chọn worker + nền tảng và đăng)
+  const approve = () => {
+    if (form.hashtags.length > HASHTAG_MAX) {
+      setErrors((e) => ({ ...e, hashtags: `Tối đa ${HASHTAG_MAX} hashtag.` }));
+      return;
+    }
+    run('approve', async () => {
+      try {
+        onChanged(await approvePlanPost(post.id, form));
+      } catch (err) {
+        setErrors(formErrorsFrom(err?.errors));
+        throw err;
+      }
+      queryClient.invalidateQueries({ queryKey: POSTS_KEY });
+    });
+  };
+
+  // "Bỏ duyệt": về "Chờ duyệt" để làm lại ảnh; chỉnh sửa chưa đăng trên trang sẽ mất
+  const unapprove = () =>
+    run('unapprove', async () => {
+      onChanged(await unapprovePlanPost(post.id));
+      queryClient.invalidateQueries({ queryKey: POSTS_KEY });
+    });
+
   const submit = (ev) => {
     ev.preventDefault();
     setFormError(null);
+    if (awaiting) {
+      approve();
+      return;
+    }
     // Nút đăng luôn bấm được: chưa đủ điều kiện thì báo lý do thay vì khoá nút
     if (imagesNotReady) {
       setFormError('Còn ảnh chưa xong hoặc bị lỗi: hãy bỏ ảnh đó khỏi bài trước khi đăng.');
@@ -833,6 +866,7 @@ function PostEditor({ post, type, worker, onChanged }) {
             set('images')(form.images.map((i) => (i.id === fresh.id ? { ...i, url: fresh.url, thumbUrl: fresh.thumbUrl, disabled: fresh.disabled } : i)));
             queryClient.invalidateQueries({ queryKey: POSTS_KEY });
           }}
+          fixed={awaiting}
           onRemove={(key) => set('images')(form.images.filter((i) => i.key !== key))}
           onAdd={() => setAdding(true)}
           onMove={moveImage}
@@ -886,38 +920,40 @@ function PostEditor({ post, type, worker, onChanged }) {
               </button>
             )}
           </div>
-          <SelectField
-            label="Worker làm việc"
-            value={workerId}
-            onChange={(e) => {
-              worker.setWorkerId(e.target.value);
-              setErrors((er) => ({ ...er, worker: undefined }));
-            }}
-            disabled={worker.isLoading || !worker.workers?.length}
-            error={errors.worker}
-            hint={
-              worker.error
-                ? worker.error.status === 403
-                  ? 'Cần mở cửa hàng (hồ sơ người bán) để giao bài cho worker.'
-                  : 'Không tải được danh sách worker, tải lại trang để thử lại.'
-                : !worker.isLoading && !worker.workers?.length
-                  ? 'Shop chưa được gắn worker đăng bài nào, liên hệ A51 để được gắn.'
-                  : 'Worker nhận bài khi tới giờ đăng và đăng lên các nền tảng đã chọn.'
-            }
-          >
-            {worker.isLoading ? (
-              <option value="">Đang tải worker...</option>
-            ) : !worker.workers?.length ? (
-              <option value="">Chưa có worker</option>
-            ) : (
-              worker.workers.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {workerLabel(w)}
-                </option>
-              ))
-            )}
-          </SelectField>
-          {video && (
+          {!awaiting && (
+            <SelectField
+              label="Worker làm việc"
+              value={workerId}
+              onChange={(e) => {
+                worker.setWorkerId(e.target.value);
+                setErrors((er) => ({ ...er, worker: undefined }));
+              }}
+              disabled={worker.isLoading || !worker.workers?.length}
+              error={errors.worker}
+              hint={
+                worker.error
+                  ? worker.error.status === 403
+                    ? 'Cần mở cửa hàng (hồ sơ người bán) để giao bài cho worker.'
+                    : 'Không tải được danh sách worker, tải lại trang để thử lại.'
+                  : !worker.isLoading && !worker.workers?.length
+                    ? 'Shop chưa được gắn worker đăng bài nào, liên hệ A51 để được gắn.'
+                    : 'Worker nhận bài khi tới giờ đăng và đăng lên các nền tảng đã chọn.'
+              }
+            >
+              {worker.isLoading ? (
+                <option value="">Đang tải worker...</option>
+              ) : !worker.workers?.length ? (
+                <option value="">Chưa có worker</option>
+              ) : (
+                worker.workers.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {workerLabel(w)}
+                  </option>
+                ))
+              )}
+            </SelectField>
+          )}
+          {video && !awaiting && (
             <section className="space-y-2">
               <SelectField
                 label="Video template"
@@ -989,37 +1025,68 @@ function PostEditor({ post, type, worker, onChanged }) {
           </div>
         </section>
 
-        <PlatformPicker value={form.platforms} onChange={set('platforms')} done={done} limitError={limitError} error={errors.platforms} />
+        {awaiting ? (
+          <p className="flex items-start gap-2 rounded-xl bg-violet-50 px-3 py-2 text-xs leading-relaxed text-violet-800">
+            <Icon name="rule" className="text-base" />
+            <span>
+              Xem ảnh và nội dung. Ảnh chưa đạt thì bấm <b>Tạo lại</b> trên ảnh hoặc <b>Làm lại theo kịch bản</b>. Bấm <b>Duyệt</b> để lưu
+              nội dung, bài sang <b>Chờ gửi</b> rồi chọn worker, nền tảng và đăng. Đã duyệt thì không làm lại ảnh được nữa (trừ khi bỏ duyệt).
+            </span>
+          </p>
+        ) : (
+          <>
+          <PlatformPicker value={form.platforms} onChange={set('platforms')} done={done} limitError={limitError} error={errors.platforms} />
 
-        <TextField
-          label="Giờ đăng"
-          icon="schedule"
-          type="datetime-local"
-          value={form.scheduledAt}
-          onChange={(e) => set('scheduledAt')(e.target.value)}
-          error={errors.scheduledAt}
-          hint="Mặc định là bây giờ. Tới giờ, worker nhận bài và đăng."
-        />
+          <TextField
+            label="Giờ đăng"
+            icon="schedule"
+            type="datetime-local"
+            value={form.scheduledAt}
+            onChange={(e) => set('scheduledAt')(e.target.value)}
+            error={errors.scheduledAt}
+            hint="Mặc định là bây giờ. Tới giờ, worker nhận bài và đăng."
+          />
 
-        <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs leading-relaxed text-on-surface-variant">
-          <Icon name="info" className="text-base" />
-          <span>
-            Bấm <b>{submitLabel}</b> để giao bài cho worker đã chọn. Tới giờ đăng, worker
-            {video ? ' dựng video theo template rồi' : ''} đăng lên các nền tảng đã chọn bằng tài khoản trên máy worker. Worker nhận bài
-            rồi thì không sửa hoặc xoá được.
-          </span>
-        </p>
+          <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs leading-relaxed text-on-surface-variant">
+            <Icon name="info" className="text-base" />
+            <span>
+              Bấm <b>{submitLabel}</b> để giao bài cho worker đã chọn. Tới giờ đăng, worker
+              {video ? ' dựng video theo template rồi' : ''} đăng lên các nền tảng đã chọn bằng tài khoản trên máy worker. Worker nhận bài
+              rồi thì không sửa hoặc xoá được.
+            </span>
+          </p>
+          </>
+        )}
 
         {formError && <FormAlert>{formError}</FormAlert>}
-        {imagesNotReady && !formError && (
+        {imagesNotReady && !formError && !awaiting && (
           <p className="text-xs text-amber-700">Còn ảnh chưa xong hoặc bị lỗi: hãy bỏ ảnh đó khỏi bài trước khi đăng.</p>
         )}
 
         <div className="space-y-2">
-          <SubmitButton loading={busy === 'publish'} loadingText="Đang gửi..." disabled={!!busy}>
-            <Icon name={video ? 'movie' : 'send'} className="text-lg" />
-            {submitLabel}
-          </SubmitButton>
+          {awaiting ? (
+            <SubmitButton loading={busy === 'approve'} loadingText="Đang duyệt..." disabled={!!busy}>
+              <Icon name="task_alt" className="text-lg" />
+              Duyệt
+            </SubmitButton>
+          ) : (
+            <SubmitButton loading={busy === 'publish'} loadingText="Đang gửi..." disabled={!!busy}>
+              <Icon name={video ? 'movie' : 'send'} className="text-lg" />
+              {submitLabel}
+            </SubmitButton>
+          )}
+          {canUnapprovePlan(post) && (
+            <button
+              type="button"
+              onClick={unapprove}
+              disabled={!!busy}
+              title="Về Chờ duyệt để làm lại ảnh"
+              className="flex h-11 w-full items-center justify-center gap-1 rounded-xl text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-60"
+            >
+              <Icon name={busy === 'unapprove' ? 'progress_activity' : 'undo'} className={`text-lg ${busy === 'unapprove' ? 'animate-spin' : ''}`} />
+              Bỏ duyệt
+            </button>
+          )}
           {/* Đã đăng lên nền tảng nào đó: không xoá được trên A51 */}
           {!done.length && (
             <button
@@ -1099,7 +1166,7 @@ export default function SocialPostPage() {
         )}
       </header>
 
-      {editable && (
+      {editable && post.status !== POST_STATUS.AWAITING_APPROVAL && (
         // Desktop: cùng lưới 2 cột với nội dung bên dưới, tab Ảnh / Video chỉ rộng bằng cột trái (ảnh)
         <div className="px-4 pt-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8">
           <div role="tablist" aria-label="Loại bài đăng" className="grid grid-cols-2 gap-1 rounded-xl bg-surface-container p-1">

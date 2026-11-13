@@ -33,7 +33,7 @@ export default function AccountPage() {
   const { data: wallet, isLoading: walletLoading } = useCreatorWallet();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Lịch sử mua hàng, Quản lý Creative / sản phẩm / cửa hàng, AI viết nội dung, Đơn GHN ở trang Công cụ
+  // Lịch sử tạo ảnh, Quản lý Creative / sản phẩm / cửa hàng, AI viết nội dung, Đơn GHN ở trang Công cụ
   const menu = [
     { to: '/support', icon: 'support_agent', title: 'Trung tâm hỗ trợ' },
     { to: '/terms', icon: 'gavel', title: 'Điều khoản sử dụng' },

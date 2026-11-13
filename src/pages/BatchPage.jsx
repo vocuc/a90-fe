@@ -36,7 +36,7 @@ const POLL_INTERVAL = 3000;
  */
 function BatchImage({ img, index, busy, selecting, order, canSelect, onToggle, onView, onEdit, onRegenerate, onUpload, onRemove }) {
   const failed = img.status === IMAGE_STATUS.FAILED;
-  // Ảnh đã tắt (ở Lịch sử mua hàng) không chọn để đăng được
+  // Ảnh đã tắt (ở Lịch sử tạo ảnh) không chọn để đăng được
   const completed = img.status === IMAGE_STATUS.COMPLETED && !img.disabled;
   const picked = order >= 0;
   // Tạo lại / sửa nguyên liệu: biết được mẫu đã tạo ra ảnh

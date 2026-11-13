@@ -52,6 +52,8 @@ export const platformInfo = (value) => PLATFORMS.find((p) => p.value === value) 
 /*
  * Trạng thái chung của bài:
  *   generating      Đang chuẩn bị: AI đang viết tiêu đề / nội dung / hashtag (chỉ khi bật AI viết nội dung lúc tạo bài)
+ *   awaiting_approval Chờ duyệt: chỉ bài kế hoạch. Ảnh + nội dung xong, chờ người dùng duyệt (sửa nội dung, làm lại ảnh);
+ *                   chưa đăng được. Duyệt -> chờ gửi; "Bỏ duyệt" (chưa bấm đăng lần nào) -> về chờ duyệt
  *   pending_review  Chờ gửi: chờ người dùng bấm đăng (đăng lần trước lỗi thì có last_error)
  *   queued          Chờ đăng: đã giao cho worker, chờ tới giờ / worker nhận (không hết hạn). Còn sửa / xoá được
  *   publishing      Đang đăng: worker đã nhận. Khoá: không sửa, không xoá; worker im lặng thì "Tạo lại"
@@ -59,6 +61,7 @@ export const platformInfo = (value) => PLATFORMS.find((p) => p.value === value) 
  */
 export const POST_STATUS = {
   GENERATING: 'generating',
+  AWAITING_APPROVAL: 'awaiting_approval',
   PENDING_REVIEW: 'pending_review',
   QUEUED: 'queued',
   PUBLISHING: 'publishing',
@@ -77,7 +80,8 @@ export const PLATFORM_STATUS = {
 export const isPostLocked = (post) => post.status === POST_STATUS.PUBLISHING;
 
 // Còn sửa / đăng / xoá được: chờ gửi hoặc chờ tới giờ (worker chưa nhận)
-export const isPostEditable = (post) => post.status === POST_STATUS.PENDING_REVIEW || post.status === POST_STATUS.QUEUED;
+export const isPostEditable = (post) =>
+  post.status === POST_STATUS.AWAITING_APPROVAL || post.status === POST_STATUS.PENDING_REVIEW || post.status === POST_STATUS.QUEUED;
 
 // Trạng thái ảnh trong bài
 export const IMAGE_STATUS = {
@@ -106,7 +110,7 @@ export const mapImage = (img) => ({
   generationId: img.generation_id,
   outputId: img.output_id,
   status: img.status,
-  // Người dùng đã tắt ảnh ở Lịch sử mua hàng: vẫn hiện (làm mờ) nhưng không chọn để đăng
+  // Người dùng đã tắt ảnh ở Lịch sử tạo ảnh: vẫn hiện (làm mờ) nhưng không chọn để đăng
   disabled: !!img.disabled,
   url: img.image_url,
   thumbUrl: img.thumb_url || img.image_url,
@@ -318,6 +322,13 @@ export const retryPost = (id) => client.post(`/social/posts/${id}/retry`).then((
 
 /** "Làm lại" bài kế hoạch: tạo lại ảnh theo đúng kịch bản (miễn phí), bài về "Đang chuẩn bị". */
 export const redoPlanPost = (id) => client.post(`/social/posts/${id}/redo`).then(({ data }) => mapPost(data));
+
+/** "Duyệt" bài kế hoạch: lưu tiêu đề / nội dung / hashtag đang sửa, bài sang "Chờ gửi". */
+export const approvePlanPost = (id, { title, content, hashtags }) =>
+  client.post(`/social/posts/${id}/approve`, { title, content, hashtags }).then(({ data }) => mapPost(data));
+
+/** "Bỏ duyệt": bài kế hoạch đã duyệt, chưa bấm đăng -> về "Chờ duyệt". */
+export const unapprovePlanPost = (id) => client.post(`/social/posts/${id}/unapprove`).then(({ data }) => mapPost(data));
 
 /** "Tạo lại ảnh này" của bài kế hoạch: chỉ tạo lại 1 ảnh theo câu lệnh của nó (miễn phí), bài về "Đang chuẩn bị". */
 export const redoPlanImage = (postId, imageId) =>

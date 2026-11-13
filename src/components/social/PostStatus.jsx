@@ -8,6 +8,7 @@ export const POST_STATUS_INFO = {
     spin: true,
     className: 'bg-sky-50 text-sky-700',
   },
+  [POST_STATUS.AWAITING_APPROVAL]: { label: 'Chờ duyệt', icon: 'rule', className: 'bg-violet-100 text-violet-700' },
   [POST_STATUS.PENDING_REVIEW]: { label: 'Chờ gửi', icon: 'edit_note', className: 'bg-amber-50 text-amber-700' },
   [POST_STATUS.QUEUED]: { label: 'Chờ đăng', icon: 'schedule', className: 'bg-primary-fixed/40 text-primary' },
   [POST_STATUS.PUBLISHING]: {

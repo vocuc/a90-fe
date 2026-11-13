@@ -25,7 +25,7 @@ const TOPICS = [
     faqs: [
       ['Quy trình tạo ảnh như thế nào?', 'Vào Khám phá hoặc trang chủ, chọn một mẫu AI Creative, tải ảnh sản phẩm lên, điền các thông tin mẫu yêu cầu rồi xác nhận. Giá mỗi lượt tạo được hiển thị trước khi bạn xác nhận.'],
       ['Ảnh tải lên cần đạt yêu cầu gì?', 'Nên dùng ảnh rõ nét, đủ sáng, sản phẩm nằm trọn trong khung và ít chi tiết thừa ở nền. Ảnh càng rõ thì kết quả càng sát với sản phẩm thật.'],
-      ['Xem lại và tải ảnh đã tạo ở đâu?', 'Vào Công cụ → Lịch sử mua hàng. Tại đây bạn có thể xem lại các lượt tạo và tải ảnh kết quả.'],
+      ['Xem lại và tải ảnh đã tạo ở đâu?', 'Vào Công cụ → Lịch sử tạo ảnh. Tại đây bạn có thể xem lại các lượt tạo và tải ảnh kết quả.'],
       ['Kết quả không giống như mong đợi?', 'Ảnh do AI tạo có thể khác nhau giữa các lần. Hãy thử ảnh gốc rõ hơn hoặc chọn mẫu khác phù hợp hơn với loại sản phẩm. Kiểm tra kỹ ảnh trước khi dùng cho quảng cáo.'],
     ],
   },

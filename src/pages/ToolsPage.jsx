@@ -48,7 +48,7 @@ export default function ToolsPage() {
   const noShop = isAuthenticated && !!me && !me.creatorProfile;
 
   const manageTools = [
-    { to: '/account/history', icon: 'receipt_long', title: 'Lịch sử mua hàng', description: 'Xem lại các lượt tạo và tải ảnh kết quả' },
+    { to: '/account/history', icon: 'receipt_long', title: 'Lịch sử tạo ảnh', description: 'Xem lại các lượt tạo và tải ảnh kết quả' },
     { to: '/seller/creatives', icon: 'inventory_2', title: 'Quản lý Creative', description: 'Tạo, sửa và đăng bán mẫu AI Creative', locked: noShop },
     { to: '/seller/items', icon: 'shopping_bag', title: 'Quản lý sản phẩm', description: 'Sản phẩm dùng để tạo ảnh theo lô tự động', locked: noShop },
     { to: '/seller/settings', icon: 'tune', title: 'Quản lý cửa hàng', description: 'Tên cửa hàng, ảnh đại diện và ảnh bìa' },

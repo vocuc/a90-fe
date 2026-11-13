@@ -26,6 +26,7 @@ const postUrl = (post) => `/posts/${post.id}`;
 // Bài cần người dùng làm tiếp: nút gọi hành động thay cho "Xem". Chờ tới giờ: sửa; lỗi: sửa / đăng lại; worker im lặng: tạo lại
 const actionLabel = (post) =>
   ({
+    [POST_STATUS.AWAITING_APPROVAL]: 'Duyệt',
     [POST_STATUS.QUEUED]: 'Sửa',
     [POST_STATUS.PENDING_REVIEW]: post.lastError ? 'Sửa / Đăng lại' : 'Đăng bài',
     [POST_STATUS.PUBLISHING]: 'Tạo lại',
@@ -48,7 +49,7 @@ function VideoInfo({ post }) {
           Video
         </span>
       )}
-      {post.worker && post.status !== POST_STATUS.PENDING_REVIEW && (
+      {post.worker && post.status !== POST_STATUS.PENDING_REVIEW && post.status !== POST_STATUS.AWAITING_APPROVAL && (
         <span>
           Đăng lúc <b className="text-on-surface">{formatSchedule(post.scheduledAt)}</b>
         </span>
@@ -96,7 +97,11 @@ function PostCards({ posts }) {
           <Link
             to={postUrl(post)}
             className={`flex gap-3 rounded-2xl border p-3 transition-colors hover:bg-surface-container-low ${
-              post.status === POST_STATUS.PENDING_REVIEW ? 'border-amber-200' : 'border-outline-variant/40'
+              post.status === POST_STATUS.AWAITING_APPROVAL
+                ? 'border-violet-200'
+                : post.status === POST_STATUS.PENDING_REVIEW
+                  ? 'border-amber-200'
+                  : 'border-outline-variant/40'
             }`}
           >
             <Cover post={post} className="aspect-[3/4] w-20" />
@@ -176,7 +181,7 @@ function PostTable({ posts }) {
                   to={postUrl(post)}
                   onClick={(e) => e.stopPropagation()}
                   className={`inline-flex h-8 items-center whitespace-nowrap rounded-lg px-3 text-xs font-bold ${
-                    post.status === POST_STATUS.PENDING_REVIEW
+                    post.status === POST_STATUS.PENDING_REVIEW || post.status === POST_STATUS.AWAITING_APPROVAL
                       ? 'bg-primary-container text-on-primary hover:bg-primary'
                       : 'text-primary hover:bg-surface-container'
                   }`}
@@ -325,6 +330,7 @@ export default function SocialPostsPage() {
   const posts = data ? data.pages.flatMap((p) => p.items) : null;
 
   const pendingCount = posts?.filter((p) => p.status === POST_STATUS.PENDING_REVIEW).length ?? 0;
+  const approvalCount = posts?.filter((p) => p.status === POST_STATUS.AWAITING_APPROVAL).length ?? 0;
 
   return (
     <>
@@ -375,6 +381,12 @@ export default function SocialPostsPage() {
             <button type="button" onClick={() => setNotice(null)} aria-label="Đóng" className="text-emerald-800">
               <Icon name="close" className="text-base" />
             </button>
+          </p>
+        )}
+        {approvalCount > 0 && (
+          <p className="flex items-center gap-2 rounded-xl bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800">
+            <Icon name="rule" className="text-base" />
+            Có {approvalCount} bài kế hoạch đang chờ bạn duyệt.
           </p>
         )}
         {pendingCount > 0 && (
