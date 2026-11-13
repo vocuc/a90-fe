@@ -16,6 +16,7 @@ import A51ImagePicker from '../components/social/A51ImagePicker';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
 import PlanScript from '../components/social/PlanScript';
 import CancelPostButton from '../components/social/CancelPostButton';
+import CropImageDialog from '../components/batch/CropImageDialog';
 import {
   HASHTAG_MAX,
   IMAGE_STATUS,
@@ -27,6 +28,7 @@ import {
   PLATFORM_STATUS,
   POST_STATUS,
   POST_TYPE,
+  cropPostImage,
   deletePost,
   getPost,
   isImageBusy,
@@ -115,11 +117,14 @@ const STRIP_BTN =
   'flex h-8 items-center justify-center gap-1 rounded-lg border border-outline-variant/50 text-[11px] font-bold text-on-surface-variant disabled:opacity-40';
 
 /**
- * Ảnh của bài: ảnh đầu là ảnh bìa. editable: cho xoá ảnh, thêm ảnh từ A51 và đổi thứ tự
+ * Ảnh của bài: ảnh đầu là ảnh bìa, bấm để phóng to. editable: cho xoá ảnh, thêm ảnh từ A51 và đổi thứ tự
  * (nút trái / phải / đặt làm bìa, máy tính kéo thả được). onMove(from, to): chuyển ảnh ở vị trí from sang to.
+ * postId + onCropped(ảnhMới): cho "Cắt ảnh" khi phóng to ảnh đã lưu trong bài (ảnh vừa thêm chưa lưu thì chưa cắt được).
  */
-function ImageStrip({ images, editable, onRemove, onAdd, onMove }) {
+function ImageStrip({ images, editable, onRemove, onAdd, onMove, postId, onCropped }) {
   const [viewing, setViewing] = useState(null);
+  const [cropping, setCropping] = useState(null);
+  const croppable = (img) => editable && postId && onCropped && img?.id && img.status === IMAGE_STATUS.COMPLETED;
   // Vị trí đang kéo tới, null = không kéo
   const [dropIndex, setDropIndex] = useState(null);
   const sortable = editable && images.length > 1;
@@ -149,7 +154,37 @@ function ImageStrip({ images, editable, onRemove, onAdd, onMove }) {
 
   return (
     <section className="space-y-2">
-      <ImageViewer src={viewing} alt="Ảnh bài đăng" onClose={() => setViewing(null)} />
+      <ImageViewer
+        src={viewing?.url}
+        alt="Ảnh bài đăng"
+        onClose={() => setViewing(null)}
+        actions={
+          croppable(viewing) && (
+            <button
+              type="button"
+              onClick={() => {
+                setCropping(viewing);
+                setViewing(null);
+              }}
+              className="flex h-10 items-center gap-1 rounded-full bg-black/50 px-4 text-sm font-bold text-white transition-colors hover:bg-black/70"
+            >
+              <Icon name="crop" className="text-xl" />
+              Cắt ảnh
+            </button>
+          )
+        }
+      />
+      {cropping && (
+        <CropImageDialog
+          image={cropping}
+          onUpload={(blob) => cropPostImage(postId, cropping, blob)}
+          onClose={() => setCropping(null)}
+          onSaved={(fresh) => {
+            onCropped(fresh);
+            setCropping(null);
+          }}
+        />
+      )}
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-bold text-on-surface">Ảnh</h2>
         <span className="text-xs text-outline">
@@ -173,7 +208,7 @@ function ImageStrip({ images, editable, onRemove, onAdd, onMove }) {
                 {img.url ? (
                   <button
                     type="button"
-                    onClick={() => setViewing(img.url)}
+                    onClick={() => setViewing(img)}
                     aria-label={`Xem ảnh ${i + 1}`}
                     className="size-full cursor-zoom-in"
                   >
@@ -747,6 +782,11 @@ function PostEditor({ post, type, worker, onChanged }) {
         <ImageStrip
           images={form.images}
           editable
+          postId={post.id}
+          onCropped={(fresh) => {
+            set('images')(form.images.map((i) => (i.id === fresh.id ? { ...i, url: fresh.url, thumbUrl: fresh.thumbUrl, disabled: fresh.disabled } : i)));
+            queryClient.invalidateQueries({ queryKey: POSTS_KEY });
+          }}
           onRemove={(key) => set('images')(form.images.filter((i) => i.key !== key))}
           onAdd={() => setAdding(true)}
           onMove={moveImage}

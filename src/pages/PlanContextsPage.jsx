@@ -180,7 +180,7 @@ function ContextCard({ context, onEdit }) {
  * bật cho mỗi bài và chỉ viết câu lệnh riêng của từng ảnh.
  */
 export default function PlanContextsPage() {
-  useSeo({ title: 'Bối cảnh kế hoạch', noindex: true });
+  useSeo({ title: 'Bối cảnh mẫu', noindex: true });
   const navigate = useNavigate();
   const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/tools'));
   const { data: contexts, error, refetch } = useQuery({ queryKey: PLAN_CONTEXT_KEYS.all, queryFn: listPlanContexts });
@@ -197,7 +197,7 @@ export default function PlanContextsPage() {
         <button type="button" onClick={goBack} aria-label="Quay lại" className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container">
           <Icon name="arrow_back" />
         </button>
-        <h1 className="flex-1 text-base font-bold text-on-surface">Bối cảnh kế hoạch</h1>
+        <h1 className="flex-1 text-base font-bold text-on-surface">Bối cảnh mẫu</h1>
         {ready && editing === null && (
           <button
             type="button"

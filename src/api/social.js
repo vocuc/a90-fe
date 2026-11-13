@@ -18,6 +18,8 @@ import client from './client';
  * POST   /social/posts/{id}/retry                        -> { data: SocialPost }   "Đăng lại" (lỗi) / "Tạo lại" (đang đăng)
  * POST   /social/posts/{id}/redo                         -> { data: SocialPost }   "Làm lại" bài kế hoạch đang chờ gửi:
  *        tạo lại ảnh theo đúng kịch bản, miễn phí, bài về generating. 409 PLAN_POST_NOT_REDOABLE, 422 PLAN_CONTEXT_UNAVAILABLE
+ * POST   /social/posts/{id}/images/{imageId}/crop (multipart image) -> { data: Image }   "Cắt ảnh" trong bài đang chờ gửi:
+ *        ghi đè ảnh gốc như cắt ảnh ở lô (lô, lịch sử tạo ảnh, bài khác dùng ảnh đó đổi theo). 409 POST_NOT_EDITABLE
  * POST   /social/posts/{id}/cancel                       -> 204   "Hủy bỏ" bài đang chuẩn bị: dừng ảnh chờ tạo / AI viết
  *        nội dung (hoàn Credit phần chưa làm) rồi xoá bài. 409 POST_NOT_CANCELLABLE khi bài đã qua bước chuẩn bị
  * POST   /social/posts/{id}/ai-content                   -> { data: { title, content, hashtags, credit_balance } }
@@ -314,6 +316,13 @@ export const retryPost = (id) => client.post(`/social/posts/${id}/retry`).then((
 export const redoPlanPost = (id) => client.post(`/social/posts/${id}/redo`).then(({ data }) => mapPost(data));
 
 export const deletePost = (id) => client.delete(`/social/posts/${id}`);
+
+/** "Cắt ảnh" của bài (ảnh đã lưu trong bài, image.id): ghi đè ảnh gốc. file: Blob JPEG. Trả ảnh với url mới. */
+export function cropPostImage(postId, image, file) {
+  const form = new FormData();
+  form.append('image', file, `crop_${image.id}.jpg`);
+  return client.post(`/social/posts/${postId}/images/${image.id}/crop`, form, { timeout: 60_000 }).then(({ data }) => mapImage(data));
+}
 
 /** "Hủy bỏ" bài đang chuẩn bị: dừng tạo ảnh / AI viết nội dung, bài bị xoá. */
 export const cancelPost = (id) => client.post(`/social/posts/${id}/cancel`);

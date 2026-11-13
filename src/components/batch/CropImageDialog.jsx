@@ -2,7 +2,6 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 import Icon from '../common/Icon';
 import { FormAlert } from '../common/Form';
 import { Chip, clamp } from '../tools/toolUtils';
-import { cropBatchImage } from '../../api/batches';
 
 const MAX_ZOOM = 8;
 const ORIGINAL = { key: 'orig' };
@@ -28,10 +27,10 @@ async function loadRemoteImage(src) {
 }
 
 /**
- * Cắt một ảnh của lô: chọn tỷ lệ, kéo / phóng to ảnh trong khung (giống công cụ chèn logo), bấm Lưu thì cắt bằng
- * canvas và gửi ảnh mới lên máy chủ thay ảnh cũ. onSaved(imageMới).
+ * Cắt một ảnh (của lô hoặc bài đăng): chọn tỷ lệ, kéo / phóng to ảnh trong khung (giống công cụ chèn logo), bấm Lưu thì
+ * cắt bằng canvas rồi gọi onUpload(blob JPEG) để gửi ảnh mới lên máy chủ thay ảnh cũ. onSaved(kết quả của onUpload).
  */
-export default function CropImageDialog({ batchId, image, onSaved, onClose }) {
+export default function CropImageDialog({ image, onUpload, onSaved, onClose }) {
   const [photo, setPhoto] = useState(null); // { image, url }
   const [loadError, setLoadError] = useState(false);
   const [ratio, setRatio] = useState(ORIGINAL);
@@ -204,7 +203,7 @@ export default function CropImageDialog({ batchId, image, onSaved, onClose }) {
       const blob = await new Promise((resolve, reject) =>
         cv.toBlob((b) => (b ? resolve(b) : reject(new Error('Không xuất được ảnh.'))), 'image/jpeg', 0.92),
       );
-      onSaved(await cropBatchImage(batchId, image, blob));
+      onSaved(await onUpload(blob));
     } catch (err) {
       setError(err?.message || 'Không lưu được ảnh, vui lòng thử lại.');
       setSaving(false);

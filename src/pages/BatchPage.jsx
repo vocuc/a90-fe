@@ -18,6 +18,7 @@ import {
   UPLOAD_IMAGE_MAX_MB,
   UPLOAD_IMAGE_TYPES,
   cancelBatch,
+  cropBatchImage,
   deleteBatchImage,
   getBatch,
   regenerateBatchImage,
@@ -382,8 +383,8 @@ export default function BatchPage() {
       />
       {cropping && (
         <CropImageDialog
-          batchId={batch.id}
           image={cropping}
+          onUpload={(blob) => cropBatchImage(batch.id, cropping, blob)}
           onClose={() => setCropping(null)}
           onSaved={(fresh) => {
             queryClient.setQueryData(['batches', id], (b) => b && { ...b, images: b.images.map((i) => (i.id === fresh.id ? fresh : i)) });
