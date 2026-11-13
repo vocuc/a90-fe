@@ -12,7 +12,7 @@ import { mapImage } from './social';
  * GET    /image-batches/{id}                                    -> { data: ImageBatch }
  * POST   /image-batches (multipart)                             -> 201 { data: ImageBatch }
  * DELETE /image-batches/{id}                                    -> 204
- * POST   /image-batches/{id}/cancel                             -> { data: ImageBatch, meta: { cancelled } }  (hủy ảnh đang chờ, hoàn tiền)
+ * POST   /image-batches/{id}/cancel                             -> { data: ImageBatch, meta: { cancelled } }  (hủy ảnh đang chờ)
  * GET    /image-batches/{id}/images/{imageId}/inputs            -> { data: { creative, inputs } }
  * POST   /image-batches/{id}/images/{imageId}/regenerate        -> 202 { data: Image }
  * DELETE /image-batches/{id}/images/{imageId}                   -> 204
@@ -128,7 +128,7 @@ export const getBatchImageInputs = (batchId, image) =>
   }));
 
 /**
- * Tạo lại một ảnh của lô (tính phí như lần tạo đầu). Ảnh mới thay vào đúng vị trí cũ (cùng id), status queued:
+ * Tạo lại một ảnh của lô. Ảnh mới thay vào đúng vị trí cũ (cùng id), status queued:
  * trang tự hỏi lại lô tới khi ảnh xong. Bài đăng đã tạo từ lô không đổi.
  * edit: { schema, values } khi người dùng sửa nguyên liệu; bỏ trống = dùng lại nguyên liệu cũ.
  */
@@ -145,7 +145,7 @@ export function regenerateBatchImage(batchId, image, idempotencyKey, edit) {
 }
 
 /**
- * "Cắt ảnh": ảnh đã cắt trên trình duyệt ghi đè ảnh gốc (không tính phí, đổi cả ảnh trong lịch sử tạo ảnh và bài đăng dùng ảnh này). file: Blob JPEG.
+ * "Cắt ảnh": ảnh đã cắt trên trình duyệt ghi đè ảnh gốc (đổi cả ảnh trong lịch sử tạo ảnh và bài đăng dùng ảnh này). file: Blob JPEG.
  * Máy chủ trả ảnh với image_url / thumb_url mới (file mới, url khác nên trình duyệt không dùng ảnh cache).
  */
 export function cropBatchImage(batchId, image, file) {
@@ -160,7 +160,7 @@ export const UPLOAD_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 export const UPLOAD_IMAGE_MAX_MB = 10;
 
 /**
- * "Tải lên": người dùng tự chọn ảnh từ máy thay cho ảnh của lô (không tính phí). Dùng chung endpoint ghi đè ảnh của "Cắt ảnh".
+ * "Tải lên": người dùng tự chọn ảnh từ máy thay cho ảnh của lô. Dùng chung endpoint ghi đè ảnh của "Cắt ảnh".
  * file: File ảnh JPG / PNG / WebP.
  */
 export function uploadBatchImage(batchId, image, file) {
@@ -175,7 +175,7 @@ export function uploadBatchImage(batchId, image, file) {
 export const deleteBatchImage = (batchId, image) => client.delete(`/image-batches/${batchId}/images/${image.id}`);
 
 /**
- * "Hủy ảnh đang chờ": ảnh chưa worker nào nhận thành lỗi và được hoàn tiền; ảnh đang tạo / đã xong giữ nguyên.
+ * "Hủy ảnh đang chờ": ảnh chưa worker nào nhận thành lỗi; ảnh đang tạo / đã xong giữ nguyên.
  * Trả { batch, cancelled } (số ảnh đã hủy, 0 khi không còn ảnh chờ).
  */
 export const cancelBatch = (id) =>

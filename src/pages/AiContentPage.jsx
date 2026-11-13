@@ -8,7 +8,6 @@ import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { FormAlert, SubmitButton, TextArea, TextField } from '../components/common/Form';
 import HashtagInput from '../components/template/HashtagInput';
 import { hashtagSlug } from '../utils/hashtag';
-import { formatVnd } from '../utils/format';
 import { getAiContentSettings, saveAiContentSettings } from '../api/social';
 
 export const AI_CONTENT_KEY = ['creator', 'ai-content'];
@@ -166,8 +165,7 @@ export default function AiContentPage() {
         <p className="flex items-start gap-2 rounded-xl bg-primary-fixed/40 px-3 py-2 text-xs leading-relaxed text-primary">
           <Icon name="auto_awesome" className="text-base" />
           <span>
-            Khi tạo bài có bật <b>AI viết nội dung</b> hoặc bấm <b>Viết lại bằng AI</b>
-            {me.socialAi?.price ? ` (${formatVnd(me.socialAi.price)} / lần)` : ''}, AI xem ảnh của bài rồi viết theo cài đặt
+            Khi tạo bài có bật <b>AI viết nội dung</b> hoặc bấm <b>Viết lại bằng AI</b>, AI xem ảnh của bài rồi viết theo cài đặt
             dưới đây.
           </span>
         </p>

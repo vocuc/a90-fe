@@ -8,5 +8,5 @@ export const formatCount = (n) => {
 // null = chưa có lượt đánh giá nào
 export const formatRating = (r) => (r == null ? 'Mới' : Number(r).toFixed(1));
 
-// Số tiền (số dư, giá mỗi ảnh) hiển thị bằng VND: 20000 -> "20.000 VND"
+// Số tiền (phí ship, thu hộ) hiển thị bằng VND: 20000 -> "20.000 VND"
 export const formatVnd = (n) => `${Number(n ?? 0).toLocaleString('vi-VN')} VND`;

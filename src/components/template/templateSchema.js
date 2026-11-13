@@ -209,7 +209,6 @@ export const emptyTemplate = () => ({
   prompt_text: '',
   title: '',
   model_id: '',
-  price_per_image: '',
   category_id: '',
   description: '',
   video_url: '',
@@ -406,10 +405,6 @@ export function validateTemplate(template, { maxHiddenImages = DEFAULT_MAX_HIDDE
 
   // ---- Thông tin sản phẩm ----
   if (!template.model_id) add('error', 'Chưa chọn AI model.', null, 'model_id');
-  const price = template.price_per_image ?? '';
-  if (price === '') add('error', 'Chưa nhập giá bán mỗi ảnh.', null, 'price_per_image');
-  else if (!Number.isInteger(Number(price)) || Number(price) < 0)
-    add('error', 'Giá bán phải là số nguyên từ 0 trở lên.', null, 'price_per_image');
   const videoUrl = (template.video_url ?? '').trim();
   if (videoUrl && !isTiktokUrl(videoUrl))
     add('error', 'Link video hướng dẫn phải là link TikTok (https://www.tiktok.com/... hoặc https://vt.tiktok.com/...).', null, 'video_url');
@@ -500,7 +495,6 @@ export function toPayload(template) {
     },
     title: (template.title ?? '').trim(),
     model_id: template.model_id ? Number(template.model_id) : null,
-    price_per_image: (template.price_per_image ?? '') === '' ? null : Number(template.price_per_image),
     category_id: template.category_id || null,
     description: (template.description ?? '').trim(),
     video_url: (template.video_url ?? '').trim(),
@@ -515,7 +509,6 @@ export function toPayload(template) {
         missing_required_variables: 'reject',
         buyer_can_override_prompt: false,
         buyer_can_override_model: false,
-        buyer_can_override_price: false,
       },
     },
   };
@@ -558,7 +551,6 @@ export function fromPayload(data) {
     prompt_text: String(data?.prompt_template?.prompt_text ?? data?.prompt_text ?? ''),
     title: String(data?.title ?? ''),
     model_id: data?.model_id == null ? '' : String(data.model_id),
-    price_per_image: data?.price_per_image == null ? '' : String(data.price_per_image),
     category_id: data?.category_id == null ? '' : String(data.category_id),
     // Nháp cũ lưu hướng dẫn ở usage_guide
     description: String(data?.description ?? data?.usage_guide ?? ''),
@@ -577,7 +569,6 @@ export function toCreativePayload(template) {
     // Bỏ trống: backend tự đặt tiêu đề MS{thời gian tạo}
     title: trimmed(template.title),
     model_id: Number(template.model_id),
-    price_per_image: Number(template.price_per_image),
     category_id: template.category_id ? Number(template.category_id) : null,
     description: trimmed(template.description),
     video_url: trimmed(template.video_url),
@@ -594,7 +585,6 @@ export function fromCreative(creative) {
   const info = {
     title: creative.title ?? '',
     model_id: creative.model_id == null ? '' : String(creative.model_id),
-    price_per_image: creative.price_per_image == null ? '' : String(creative.price_per_image),
     category_id: creative.category_id == null ? '' : String(creative.category_id),
     description: creative.description ?? '',
     video_url: creative.video_url ?? '',

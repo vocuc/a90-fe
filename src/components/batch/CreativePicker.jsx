@@ -9,7 +9,6 @@ import { STATUS_BADGE, VISIBILITY_BADGE } from '../creative/creativeStatus';
 import { useInfiniteCreatives, useMe } from '../../hooks/queries';
 import { useCreatorCreatives } from '../../hooks/creatorQueries';
 import { mapOwnCreative } from '../../api/services';
-import { formatVnd } from '../../utils/format';
 import { hashtagSlug } from '../../utils/hashtag';
 
 // Chỉ mẫu đã đăng bán mới tạo ảnh được
@@ -82,15 +81,7 @@ function CreativeGrid({ creatives, isPicked, full, onToggle, hasNextPage, isFetc
               </span>
               <span className="block p-2">
                 <span className="block truncate text-xs font-bold text-on-surface">{c.title}</span>
-                <span className="block text-[11px] font-semibold text-primary">
-                  {status ? (
-                    <span className="font-normal text-outline">Đăng bán để dùng</span>
-                  ) : c.price > 0 ? (
-                    `${formatVnd(c.price)}/ảnh`
-                  ) : (
-                    'Miễn phí'
-                  )}
-                </span>
+                {status && <span className="block text-[11px] text-outline">Đăng bán để dùng</span>}
               </span>
             </button>
           );
@@ -369,7 +360,6 @@ export default function CreativePicker({ picked, onToggle, max = Infinity, hint 
                       </>
                     )}
                   </span>
-                  <span className="block text-[11px] text-outline">{c.price > 0 ? formatVnd(c.price) : 'Miễn phí'}</span>
                 </span>
                 <button
                   type="button"

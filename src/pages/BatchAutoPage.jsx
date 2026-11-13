@@ -12,7 +12,6 @@ import ImageWorkerSelect, { useImageWorker } from '../components/common/ImageWor
 import { useMe } from '../hooks/queries';
 import useIdempotencyKey from '../hooks/useIdempotencyKey';
 import { AUTO_KEYS, AUTO_MAX_COUNT, AUTO_RESULT_KEY, createAuto, previewAuto } from '../api/autoBatch';
-import { formatVnd } from '../utils/format';
 
 const PREVIEW_DELAY = 400;
 
@@ -66,17 +65,6 @@ export default function BatchAutoPage() {
   // Xem trước đúng số lô đang nhập và không đang đổi ngẫu nhiên thì tạo đúng các lô đó
   const planReady = !!plan && count === Number(input) && !preview.isFetching;
 
-  // Số lô đầu đủ tiền (tạo lần lượt, hết tiền thì dừng)
-  let affordable = 0;
-  if (plan) {
-    let left = plan.balance;
-    for (const b of plan.batches) {
-      if (b.cost > left) break;
-      left -= b.cost;
-      affordable += 1;
-    }
-  }
-
   const invalid = !(Number(input) >= 1 && Number(input) <= AUTO_MAX_COUNT && Number.isInteger(Number(input)));
 
   const submit = async () => {
@@ -104,10 +92,8 @@ export default function BatchAutoPage() {
         created: result.batches.length,
         requested: result.requested,
         stopped: result.stopped,
-        required: result.required,
       });
-      // Đã trừ tiền -> tải lại số dư; lượt tự động của sản phẩm đổi
-      queryClient.invalidateQueries({ queryKey: ['me'] });
+      // Lượt tự động của sản phẩm đổi
       queryClient.invalidateQueries({ queryKey: ['batches'] });
       queryClient.invalidateQueries({ queryKey: AUTO_KEYS.products });
       goList();
@@ -246,37 +232,15 @@ export default function BatchAutoPage() {
                         {b.group.name} · {b.creatives.length} creative
                       </span>
                     </span>
-                    <span className="shrink-0 text-xs font-bold text-primary">{formatVnd(b.cost)}</span>
                   </li>
                 ))}
               </ol>
-              <div className="mt-2 space-y-0.5 rounded-xl bg-surface-container-low px-3 py-2 text-xs">
-                <p className="flex justify-between">
-                  <span className="text-on-surface-variant">Tổng tiền dự kiến</span>
-                  <span className="font-bold text-on-surface">{formatVnd(plan.totalCost)}</span>
-                </p>
-                <p className="flex justify-between">
-                  <span className="text-on-surface-variant">Số dư</span>
-                  <span className="font-bold text-on-surface">{formatVnd(plan.balance)}</span>
-                </p>
-              </div>
               {planReady && plan.batches.length < count && (
                 <p className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   <Icon name="info" className="text-base" />
                   <span>
                     Mỗi sản phẩm / nhóm chỉ dùng 1 lần mỗi lượt tạo nên chỉ ghép được {plan.batches.length} lô. Thêm sản phẩm
                     hoặc nhóm creative để tạo nhiều lô hơn.
-                  </span>
-                </p>
-              )}
-              {affordable < plan.batches.length && (
-                <p className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  <Icon name="info" className="text-base" />
-                  <span>
-                    Số dư chỉ đủ {affordable} lô đầu, hệ thống tạo tới khi hết tiền thì dừng.{' '}
-                    <Link to="/account/topup" className="font-bold text-primary hover:underline">
-                      Nạp ví
-                    </Link>
                   </span>
                 </p>
               )}
@@ -302,8 +266,7 @@ export default function BatchAutoPage() {
         summary={
           planReady && !empty && !invalid ? (
             <>
-              <b className="text-on-surface">{plan.batches.length}</b> lô ·{' '}
-              <b className="text-on-surface">{formatVnd(plan.totalCost)}</b>
+              <b className="text-on-surface">{plan.batches.length}</b> lô
             </>
           ) : empty ? (
             'Chưa ghép được lô nào'
@@ -311,19 +274,7 @@ export default function BatchAutoPage() {
             'Đang xem trước...'
           )
         }
-        error={
-          error &&
-          (error.code === 'INSUFFICIENT_CREDIT' ? (
-            <>
-              Số dư không đủ cho lô đầu tiên (cần {formatVnd(error.context?.required)}).{' '}
-              <Link to="/account/topup" className="font-bold text-primary hover:underline">
-                Nạp ví
-              </Link>
-            </>
-          ) : (
-            error.message || 'Không tạo được lô, vui lòng thử lại.'
-          ))
-        }
+        error={error && (error.message || 'Không tạo được lô, vui lòng thử lại.')}
         disabled={invalid || !planReady || empty}
         loading={loading}
         onSubmit={submit}

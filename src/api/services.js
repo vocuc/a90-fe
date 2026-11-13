@@ -10,7 +10,7 @@ import { mock } from './mock/handlers';
  * POST /auth/logout   (Bearer)                                           -> { message }
  * GET  /auth/me       (Bearer)                                           -> { data: user }
  *
- * user (UserResource): { id, name, email, role, credit_balance, creator_profile: { avatar_url, ... } | null,
+ * user (UserResource): { id, name, email, role, creator_profile: { avatar_url, ... } | null,
  *   social_ai: { enabled, price } (AI viết nội dung bài đăng,
  *   note/ai-viet-noi-dung-bai-dang.txt), created_at }
  * Lỗi dữ liệu: 422 { message, errors: { field: [msg] } }. Gửi quá nhiều lần: 429.
@@ -21,10 +21,10 @@ import { mock } from './mock/handlers';
  * GET /hashtags          -> { data: [{ name, slug, creative_count }] }  (hashtag có nhiều Creative đang bán nhất trước)
  *     query: q (tiền tố, có hoặc không có #), limit (<= 50, mặc định 20)
  * GET /creatives         -> { data: CreativeCard[], meta: { current_page, last_page, per_page, total } }
- *     query: q, category (slug), hashtag (slug), sort (newest|popular|price_asc|price_desc), page, per_page (<= 50)
+ *     query: q, category (slug), hashtag (slug), sort (newest|popular), page, per_page (<= 50)
  * GET /creatives/{slug}  -> { data: CreativeCard + { description, images: [{ id, url }], options } }
  *
- * CreativeCard: { id, slug, title, price_per_image, cover_url, category, hashtags: [{ name, slug }], usage_count, rating_avg,
+ * CreativeCard: { id, slug, title, cover_url, category, hashtags: [{ name, slug }], usage_count, rating_avg,
  *                 rating_count, published_at, creator: { username, shop_name, avatar_url, verified } | null }
  * Link ảnh (cover_url, images[].url) là link ký số, hết hạn sau 15 phút.
  *
@@ -47,7 +47,6 @@ const mapCreative = (c) => ({
   // Chưa có lượt đánh giá nào -> null để giao diện hiện "Mới"
   rating: c.rating_count > 0 ? c.rating_avg : null,
   ratingCount: c.rating_count,
-  price: c.price_per_image,
   usageCount: c.usage_count,
   category: c.category ? { slug: c.category.slug, name: c.category.name } : null,
   hashtags: c.hashtags?.map((h) => ({ name: h.name, slug: h.slug })) ?? [],
@@ -79,11 +78,10 @@ const mapUser = (u) => ({
   name: u.name,
   email: u.email,
   role: u.role,
-  credits: u.credit_balance ?? 0,
   avatarUrl: u.creator_profile?.avatar_url ?? null,
   creatorProfile: u.creator_profile ?? null,
   // AI viết nội dung bài đăng: tắt thì ẩn công tắc khi tạo bài và nút "Viết lại bằng AI"
-  socialAi: { enabled: !!u.social_ai?.enabled, price: u.social_ai?.price ?? 0 },
+  socialAi: { enabled: !!u.social_ai?.enabled },
 });
 
 const mapSession = ({ data }) => ({ token: data.token, expiresAt: data.expires_at, user: mapUser(data.user) });
@@ -156,11 +154,11 @@ export const hashtagApi = {
  *
  * GET /creator/creatives?status=&q=&hashtag=&visibility=public|private&page=&per_page=  (Creative của chính creator, mới sửa trước;
  *   q tìm theo tên, hashtag: slug)
- *   -> { data: [{ id, slug, title, price_per_image, status: draft|published|paused,
+ *   -> { data: [{ id, slug, title, status: draft|published|paused,
  *                 pause_reason: manual|no_valid_api_key|null, is_hidden, usage_count, rating_avg, cover_url, hashtags: [{ name, slug }],
  *                 default_aspect_ratio (vd "3:4", hiện trên thẻ ở trang Creative của tôi),
  *                 published_at, created_at, updated_at }], meta: { current_page, last_page, per_page, total } }
- * POST /creator/creatives  { title, description? (hướng dẫn sử dụng mẫu), category_id?, model_id, price_per_image,
+ * POST /creator/creatives  { title, description? (hướng dẫn sử dụng mẫu), category_id?, model_id,
  *                            video_url? (TikTok), input_schema: field[], prompt_template, max_outputs?,
  *                            hashtags? (tối đa 10, mỗi cái <= 50 ký tự: chữ, số, _; có hoặc không có #; gửi cả danh sách để thay thế) }
  *   input_schema: đúng 1 trường { key: 'aspectRatio', type: 'aspect_ratio', default_value } -> default_aspect_ratio
@@ -178,8 +176,6 @@ export const hashtagApi = {
  * POST /creator/creatives/{id}/publish  (chỉ draft|paused) -> { data: creative }
  * POST /creator/creatives/{id}/pause    (chỉ published) -> { data: creative } (trạng thái paused)
  *
- * GET /creator/wallet  -> { data: { pending_balance, available_balance, withdrawable_balance, total_earned } }
- *   ví hoa hồng; doanh thu nằm ở pending trong thời gian giữ rồi mới chuyển sang available
  *   chưa đủ điều kiện -> 422 CREATIVE_NOT_PUBLISHABLE, context.reasons: string[]; sai trạng thái -> 409 INVALID_STATE
  */
 
@@ -229,7 +225,6 @@ export const creatorApi = {
   pauseCreative: requireRealBackend((id) =>
     client.post(`/creator/creatives/${id}/pause`).then(({ data }) => data),
   ),
-  getWallet: requireRealBackend(() => client.get('/creator/wallet').then(({ data }) => data)),
 };
 
 /** Item của GET /creator/creatives -> dạng như danh sách marketplace, thêm own / isPublic / status. */
@@ -299,8 +294,8 @@ export const creatorPageApi = {
  * POST /generations  multipart { creative_id, quantity (1..max_outputs), idempotency_key,
  *                                inputs[key] theo input_schema: ảnh (jpg/png/webp <= 10MB) hoặc giá trị,
  *                                inputs[aspectRatio] (một trong options.aspect_ratios, bỏ trống = mặc định) }
- *   -> 202 { data: generation }  (trừ tiền ngay, xử lý nền; chủ Creative tự dùng không bị trừ)
- *   lỗi: 402 INSUFFICIENT_CREDIT (context: { required, balance }), 404 CREATIVE_NOT_AVAILABLE,
+ *   -> 202 { data: generation }  (xử lý nền)
+ *   lỗi: 404 CREATIVE_NOT_AVAILABLE,
  *        409 CREATIVE_TEMPORARILY_UNAVAILABLE, 409 IDEMPOTENCY_CONFLICT, 422 quantity/aspect_ratio
  * GET  /generations?page=&per_page= (<= 50, mới nhất trước) -> { data: generation[] (kèm outputs), meta: { current_page, last_page, ... } }
  *   &tab=active (ảnh chưa tắt, không lỗi, gồm ảnh đang tạo) | failed (ảnh tạo lỗi) | disabled (ảnh đã tắt):
@@ -311,17 +306,17 @@ export const creatorPageApi = {
  * GET  /generations/{id}/status  -> { data: { id, status, success_count, failed_count,
  *                                             outputs: [{ id, position, status, image_url, thumb_url, error_code }] } }
  *   status (generation và output): queued | processing | completed | failed (generation có thêm cancelled)
- * POST /generations/{id}/retry  { output_ids, idempotency_key } -> 202 { data: generation mới } (trừ tiền lại)
+ * POST /generations/{id}/retry  { output_ids, idempotency_key } -> 202 { data: generation mới }
  * GET  /generations/{id}/outputs/{outputId}/download -> { data: { url, filename, expires_in_minutes } }
  *   url ký số có Content-Disposition: attachment -> mở là tải về
- * POST /generations/{id}/outputs/{outputId}/disable -> 204. Người dùng tự tắt ảnh (không hoàn tiền): ảnh không còn trong
+ * POST /generations/{id}/outputs/{outputId}/disable -> 204. Người dùng tự tắt ảnh: ảnh không còn trong
  *   outputs của lịch sử, không tải về, không chọn cho bài đăng, không gửi worker. 409 IMAGE_NOT_READY nếu ảnh chưa xong.
  * POST /generations/{id}/outputs/{outputId}/enable -> 204. Bật lại ảnh đã tắt.
  *   Tab failed không trả ảnh lỗi đã "Tạo lại" (retry) để không hiện trùng.
  * generation: { id, status, creative: { id, slug, title, cover_url }, product: { id, name, cover_url } | null, quantity,
- *               aspect_ratio, price_per_image, total_charged, success_count, failed_count,
+ *               aspect_ratio, success_count, failed_count,
  *               outputs?: [{ id, position, status, image_url, thumb_url, error_message, product?: { id, name, cover_url } | null }], created_at }
- *   creative.cover_url / product: ảnh creative và ảnh sản phẩm hiện ở Lịch sử mua (note/anh-lich-su-mua.txt)
+ *   creative.cover_url / product: ảnh creative và ảnh sản phẩm hiện ở Lịch sử tạo ảnh (note/anh-lich-su-mua.txt)
  *   thumb_url: ảnh nhỏ để hiển thị, image_url: ảnh gốc (chỉ dùng khi phóng to)
  */
 const GENERATION_UPLOAD_TIMEOUT = 60_000;

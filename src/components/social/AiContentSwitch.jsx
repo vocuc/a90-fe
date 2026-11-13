@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Switch } from '../template/inputs';
 import { useMe } from '../../hooks/queries';
-import { formatVnd } from '../../utils/format';
 import { loadAiContentPref, saveAiContentPref } from '../../api/social';
 
 /**
@@ -16,15 +15,15 @@ export function useAiContentToggle() {
     setOn(next);
     saveAiContentPref(next);
   };
-  return { available, on: available && on, setOn: change, price: me?.socialAi?.price ?? 0 };
+  return { available, on: available && on, setOn: change };
 }
 
 export default function AiContentSwitch({ toggle }) {
   if (!toggle.available) return null;
   return (
     <Switch
-      label={`AI viết tiêu đề, nội dung, hashtag (${formatVnd(toggle.price)})`}
-      hint="AI viết theo cài đặt ở trang AI viết nội dung của shop. AI lỗi thì được hoàn tiền."
+      label="AI viết tiêu đề, nội dung, hashtag"
+      hint="AI viết theo cài đặt ở trang AI viết nội dung của shop."
       checked={toggle.on}
       onChange={toggle.setOn}
     />

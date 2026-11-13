@@ -22,7 +22,6 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import TemplateBuilderPage from './pages/TemplateBuilderPage';
 import SupportPage from './pages/SupportPage';
-import TopUpPage from './pages/TopUpPage';
 import SocialPostPage from './pages/SocialPostPage';
 import SocialPostsPage from './pages/SocialPostsPage';
 import SocialNewPage from './pages/SocialNewPage';
@@ -34,7 +33,6 @@ import ProductsPage from './pages/ProductsPage';
 import CreativeGroupsPage from './pages/CreativeGroupsPage';
 import VideoTemplatesPage from './pages/VideoTemplatesPage';
 import WorkersPage from './pages/WorkersPage';
-import PlanContextsPage from './pages/PlanContextsPage';
 import VideoTemplateFormPage from './pages/VideoTemplateFormPage';
 import ShippingOrdersPage from './pages/ShippingOrdersPage';
 import ShippingOrderNewPage from './pages/ShippingOrderNewPage';
@@ -77,8 +75,6 @@ export default function App() {
           <Route path="seller/video-templates" element={<VideoTemplatesPage />} />
           {/* Worker admin gắn cho shop, chỉ xem (note/quan-ly-worker.txt) */}
           <Route path="seller/workers" element={<WorkersPage />} />
-          {/* Bối cảnh cố định cho bài kế hoạch nội dung (src/api/planner.js) */}
-          <Route path="plan-contexts" element={<PlanContextsPage />} />
           {/* Tạo ảnh theo lô (note/tach-lo-anh-dang-tiktok.txt). Trang rộng, tự chia cột trên desktop */}
           <Route path="batches" element={<BatchesPage />} />
           <Route path="batches/new" element={<BatchNewPage />} />
@@ -107,7 +103,7 @@ export default function App() {
           <Route path="store/*" element={<Navigate to="/account" replace />} />
           {/* Trang Cá nhân cũ đã đổi thành Tài khoản */}
           <Route path="profile" element={<Navigate to="/account" replace />} />
-          {/* Lịch sử mua: lưới thẻ ảnh như Khám phá, trải rộng trên desktop */}
+          {/* Lịch sử tạo ảnh: lưới thẻ ảnh như Khám phá, trải rộng trên desktop */}
           <Route path="account/history" element={<PurchaseHistoryPage />} />
           <Route element={<PageColumn />}>
             <Route path="create" element={<CreatePage />} />
@@ -117,7 +113,6 @@ export default function App() {
             {/* AI viết nội dung bài đăng: kho hashtag, bài mẫu, độ dài (note/ai-viet-noi-dung-bai-dang.txt) */}
             <Route path="seller/ai-content" element={<AiContentPage />} />
             <Route path="account" element={<AccountPage />} />
-            <Route path="account/topup" element={<TopUpPage />} />
             {/* Đã bỏ kết nối TikTok (note/gop-luong-dang-bai.txt): link trả về cũ đưa về trang bài đăng */}
             <Route path="mxh/tiktok/author" element={<Navigate to="/posts" replace />} />
           </Route>

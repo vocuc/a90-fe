@@ -7,7 +7,7 @@ import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback'
 import { PAUSABLE, PUBLISHABLE, STATUS_BADGE, VISIBILITY_BADGE } from '../components/creative/creativeStatus';
 import { useCreatorCreatives, useCreatorProfile, usePauseCreative, usePublishCreative } from '../hooks/creatorQueries';
 import useHorizontalScroll from '../hooks/useHorizontalScroll';
-import { formatCount, formatVnd } from '../utils/format';
+import { formatCount } from '../utils/format';
 import { hashtagSlug } from '../utils/hashtag';
 import { useConfirm } from '../components/common/ConfirmDialog';
 
@@ -33,7 +33,7 @@ function ProductCard({ creative }) {
   const publish = usePublishCreative();
   const pause = usePauseCreative();
   const { confirm } = useConfirm();
-  const { id, title, cover_url, price_per_image, status, pause_reason, is_hidden, is_public, usage_count, group, hashtags } = creative;
+  const { id, title, cover_url, status, pause_reason, is_hidden, is_public, usage_count, group, hashtags } = creative;
   const ratio = creative.default_aspect_ratio ?? creative.config?.default_aspect_ratio;
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
   const visibility = VISIBILITY_BADGE[is_public ? 'public' : 'private'];
@@ -105,12 +105,6 @@ function ProductCard({ creative }) {
           {status === 'paused' && pause_reason && (
             <p className="mt-0.5 text-[11px] text-error">{PAUSE_REASON[pause_reason] ?? pause_reason}</p>
           )}
-          {/* pt-2 ở lớp ngoài: luôn chừa khoảng cách với hashtag / dòng phía trên dù thẻ đã đầy (mt-auto = 0) */}
-          <div className="mt-auto pt-2">
-            <p className="border-t border-surface-container pt-2 text-xs font-bold text-primary">
-              {formatVnd(price_per_image)}
-            </p>
-          </div>
         </div>
       </Link>
 

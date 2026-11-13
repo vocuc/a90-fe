@@ -18,12 +18,12 @@ import { mapBatch } from './batches';
  * GET    /creator/creative-groups                 -> { data: CreativeGroup[] } (cũ nhất trước = thứ tự tạo lô)
  * POST   /creator/creative-groups                 { name, creative_ids } -> 201 ; PUT /creator/creative-groups/{id}
  * DELETE /creator/creative-groups/{id}            -> 204
- * GET    /image-batches/auto/preview?count=&seed=&product_ids[]= -> { data: { seed, batches: AutoPlan[], total_cost, balance } }
+ * GET    /image-batches/auto/preview?count=&seed=&product_ids[]= -> { data: { seed, batches: AutoPlan[] } }
  * POST   /image-batches/auto                      { count, insert_logo, idempotency_key, seed?, worker_id, product_ids? }
  *          product_ids: chỉ ghép lô từ các sản phẩm người dùng chọn thủ công; bỏ trống = mọi sản phẩm
  *          worker_id: worker tạo ảnh cho mọi lô (note/chon-worker-tao-anh.txt), sai -> 422 errors["worker_id"]
- *          -> 201 { data: { batches: ImageBatch[], requested, stopped: null|insufficient_credit|no_valid_pair, required } }
- *          402 INSUFFICIENT_CREDIT (không tạo được lô nào), 422 AUTO_NOTHING_TO_CREATE.
+ *          -> 201 { data: { batches: ImageBatch[], requested, stopped: null|no_valid_pair } }
+ *          422 AUTO_NOTHING_TO_CREATE.
  */
 
 const UPLOAD_TIMEOUT = 60_000;
@@ -40,7 +40,6 @@ export const AUTO_MAX_COUNT = 100;
 export const AUTO_RESULT_KEY = ['auto-batch-result'];
 
 export const AUTO_STOP = {
-  INSUFFICIENT_CREDIT: 'insufficient_credit',
   NO_VALID_PAIR: 'no_valid_pair',
 };
 
@@ -74,7 +73,6 @@ const mapGroup = (g) => ({
     slug: c.slug,
     title: c.title,
     coverUrl: c.cover_url,
-    price: c.price_per_image,
     status: c.status,
     isHidden: c.is_hidden,
   })),
@@ -165,11 +163,8 @@ export const previewAuto = (count, productIds = []) =>
     batches: data.batches.map((b) => ({
       product: { id: b.product.id, name: b.product.name, coverUrl: b.product.cover_url },
       group: b.group,
-      creatives: b.creatives.map((c) => ({ id: c.id, title: c.title, price: c.price_per_image })),
-      cost: b.cost,
+      creatives: b.creatives.map((c) => ({ id: c.id, title: c.title })),
     })),
-    totalCost: data.total_cost,
-    balance: data.balance,
   }));
 
 /** seed: của lần xem trước (tạo đúng các lô đã xem); bỏ trống thì hệ thống tự chọn ngẫu nhiên. */
@@ -187,5 +182,4 @@ export const createAuto = ({ count, insertLogo, seed, workerId, productIds = [] 
       batches: data.batches.map(mapBatch),
       requested: data.requested,
       stopped: data.stopped,
-      required: data.required,
     }));

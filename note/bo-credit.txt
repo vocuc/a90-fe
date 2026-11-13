@@ -1,0 +1,92 @@
+THIẾT KẾ: BỎ CREDIT TRÊN TOÀN A51
+=================================================================
+Bản 1 - 2026-11-13 - ĐÃ LÀM 2026-11-13 (chưa commit, chưa deploy).
+Lời Admin: "bỏ trừ credit trên toàn bộ trang A51", "xóa code hẳn đi" (không ẩn, xoá hẳn code).
+Gốc: skill review ảnh (FlowKit a51-skills/review-anh/thiet-ke.txt mục 10.1, 11): tự tạo lại ảnh do review
+không được tốn tiền.
+
+Từ nay mọi thao tác trên A51 MIỄN PHÍ: tạo ảnh, tạo lô (tay + tự động), tạo lại, sửa nguyên liệu,
+AI viết caption, tạo bài video. Không còn số dư, nạp tiền, hoàn tiền, phí, doanh thu creator.
+
+
+1. BACKEND (D:\OSPanel\home\a90.local) - XOÁ
+-----------------------------------------------------------------
+Service / model / enum:
+  CreditService, RevenueService, RevenueShareService, models CreditWallet, CreditLedger, CreatorRevenue,
+  Transaction (+ creator_wallets nếu có model), enums LedgerType, RevenueStatus,
+  command ReleaseCreatorRevenue + lịch revenue:release trong routes/console.php.
+Controller / resource / route:
+  Api/V1/CreditWalletController (GET wallet/credit, wallet/credit/ledger),
+  Api/V1/Admin/CreditController (POST admin users/{user}/credits),
+  Creator/DashboardController: wallet, wallet/transactions (giữ phần thống kê lượt dùng nếu có - câu 3.b),
+  Admin/FinanceController + views admin/finance/* (ledger, revenues, transactions) + menu sidebar,
+  Admin/UserController::adjustCredit + route users.credits + ô số dư ở admin users,
+  CreditLedgerResource, CreatorRevenueResource; credit_balance trong UserResource;
+  AuthController: bỏ tạo CreditWallet khi đăng ký / đăng nhập Google, bỏ load creditWallet.
+Cài đặt: revenue_hold_days (SettingController + config), social.ai_content_price, mọi "phí / giá" khác.
+Lỗi: BusinessException INSUFFICIENT_CREDIT và các chỗ bắt nó (AutoBatchService stop insufficient_credit,
+  VideoPostService STOP_INSUFFICIENT_CREDIT, ImageBatchService...).
+
+2. BACKEND - SỬA (bỏ phần tiền, giữ luồng)
+-----------------------------------------------------------------
+  GenerationService::create / retry / start: không khoá ví, không trừ, không tạo Transaction, không chia doanh thu.
+     Vẫn giữ: kiểm tra creative dùng được, idempotency, input, worker, logo, product.
+  GenerationFinalizer: bỏ hoàn tiền ảnh lỗi / settle doanh thu; chỉ cập nhật trạng thái.
+  WorkerJobService / SweepStuckGenerations: ảnh hết lượt -> thất bại (bỏ "hoàn Credit").
+  ImageBatchService, AutoBatchService, AutoBatchPlanner: bỏ tính cost / kiểm tra số dư / dừng vì hết tiền.
+  SocialContentJobService + WriteSocialPostContent + SocialContentJob: bỏ charge_amount, trừ / hoàn tiền AI viết caption.
+  VideoPostService: bỏ trừ tiền.
+  Creative: bỏ giá (price / price_per_image) ở CreativeRequest, Creator/CreativeController, Admin/CreativeController,
+     CreativeCardResource, CreatorCreativeResource, CreativeGroupResource, MarketplaceController, views admin creatives.
+  GenerationResource, GenerationOutput, views admin generations / users / dashboard: bỏ cột tiền, doanh thu.
+  GenerationType: giữ giá trị paid / test trong DB (dữ liệu cũ), không còn ý nghĩa tiền [GIẢ ĐỊNH].
+  AdminSeeder: bỏ tạo ví.
+
+3. DỮ LIỆU (migration mới)
+-----------------------------------------------------------------
+  Xem câu 5.a. Mặc định đề xuất: DROP bảng credit_wallets, credit_ledger, creator_wallets, creator_revenues,
+  transactions; DROP cột giá ở ai_creatives / generations (price_per_image...) / social_content_jobs (charge_amount);
+  xoá setting revenue_hold_days, social.ai_content_price. Production: sao lưu DB trước khi migrate.
+
+4. FRONTEND (D:\a90-fe) - XOÁ / SỬA
+-----------------------------------------------------------------
+  XOÁ trang: TopUpPage (account/topup), phần ví / số dư / lịch sử nạp ở AccountPage, phần doanh thu / ví ở CreatorPage.
+  PurchaseHistoryPage (account/history): giữ danh sách ảnh đã tạo, bỏ cột tiền (đổi tên "Lịch sử tạo ảnh").
+  Header: bỏ số dư credit, nút nạp.
+  Bỏ giá / phí / "trừ x credit" / "không đủ credit" ở: CreativeDetailPage, ExplorePage, CompactCreativeCard,
+    CreativePicker, CreativeInputCard, EditInputsDialog, BatchNewPage, BatchAutoPage, BatchPage, BatchesPage,
+    CreatePage, SocialPostPage, AiContentSwitch, AiContentPage, VideoTemplatesPage, TemplateBuilderPage,
+    templateSchema / DynamicForm / FormCanvas / PromptEditor (ô giá của creative), toolUtils, format.js,
+    api/services.js, api/batches.js, api/autoBatch.js, api/social.js, hooks/generationQueries.js, api/mock/*.
+  TermsOfService / PrivacyPolicy / Support: bỏ đoạn nói về nạp tiền, credit (câu 5.c).
+  Không đụng: giá / COD của vận đơn (ShippingOrder*), giá sản phẩm của shop (SellerProductsPage, ShopInfoForm).
+
+5. CẦN MÀY CHỐT
+-----------------------------------------------------------------
+a. Dữ liệu cũ (số dư, lịch sử nạp / trừ, doanh thu creator, giá creative): DROP hẳn bảng / cột (mất vĩnh viễn),
+   hay giữ bảng trong DB (chỉ xoá code)?
+   TRẢ LỜI: xoá hẳn -> migration 2026_11_14_110000_remove_credit.
+b. Trang Creator (dashboard của người làm creative): xoá hẳn, hay giữ phần thống kê lượt dùng creative
+   (bỏ ví / doanh thu)?
+   TRẢ LỜI: xoá hẳn (API /creator/dashboard, /creator/wallet*, ví hoa hồng ở trang Tài khoản). Trang công khai
+   /creators/:username (hồ sơ shop) giữ, chỉ bỏ sắp xếp theo giá.
+c. Trang Điều khoản / Chính sách bảo mật: tao sửa bỏ các đoạn credit / thanh toán, mày duyệt lại câu chữ sau?
+   TRẢ LỜI: bỏ đi, không cần duyệt. Đã bỏ mục 4 Điều khoản (đánh số lại), các dòng thanh toán ở Chính sách,
+   mục "Ví và thanh toán" ở Hỗ trợ.
+
+6. THỨ TỰ LÀM
+-----------------------------------------------------------------
+B1 backend (xoá + sửa + migration) -> chạy cả test suite (sửa / xoá test liên quan credit).
+B2 frontend -> build.
+B3 skill review ảnh GĐ1 (thiet-ke review-anh) trên nền đã bỏ credit.
+Chưa commit / deploy cho tới khi mày duyệt.
+
+7. KẾT QUẢ (2026-11-13)
+-----------------------------------------------------------------
+Backend: xoá CreditService / RevenueService / RevenueShareService, models CreditWallet / CreditLedger / CreatorRevenue /
+  CreatorWallet / Transaction, enums LedgerType / RevenueStatus / TransactionStatus, lệnh revenue:release,
+  CreditWalletController, Admin CreditController, Creator DashboardController, Admin FinanceController + views finance,
+  test Unit RevenueShareServiceTest. Blade @credit đổi tên @number (chỉ định dạng số). Test: 225 passed.
+Frontend: xoá TopUpPage + route /account/topup, ảnh tk-ngan-hang.jpg, BANK / ZALO_LINK; bỏ giá / số dư / phí ở mọi
+  trang; "Lịch sử mua hàng" đổi tên "Lịch sử tạo ảnh". npm run build OK.
+Deploy: SAO LƯU DB trước, rồi php artisan migrate (chạy cả 2026_11_14_100000_remove_content_planner).

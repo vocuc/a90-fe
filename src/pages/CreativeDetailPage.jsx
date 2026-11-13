@@ -6,9 +6,9 @@ import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { useAuth } from '../context/AuthContext';
-import { useCreative, useMe } from '../hooks/queries';
+import { useCreative } from '../hooks/queries';
 import useSeo, { SITE_NAME, seoAbsUrl } from '../hooks/useSeo';
-import { formatCount, formatVnd, formatRating } from '../utils/format';
+import { formatCount, formatRating } from '../utils/format';
 
 export default function CreativeDetailPage() {
   const { slug } = useParams();
@@ -16,10 +16,8 @@ export default function CreativeDetailPage() {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   const { data: c, isLoading, error, refetch } = useCreative(slug);
-  const { data: me } = useMe();
   const [viewing, setViewing] = useState(null); // ảnh đang xem toàn màn hình
 
-  const notEnoughCredits = me && c && me.credits < c.price;
   const images = c?.images?.length ? c.images : [c?.imageUrl];
   // Chưa đăng nhập: đăng nhập xong quay lại đúng trang chi tiết này (không phải /create)
   const actionLink = isAuthenticated
@@ -30,12 +28,12 @@ export default function CreativeDetailPage() {
     title: c?.title ?? 'AI Creative',
     description:
       c?.description ||
-      (c && `Tạo ảnh "${c.title}" bằng AI trên ${SITE_NAME}${c.category ? ` - danh mục ${c.category.name}` : ''}. Chỉ ${formatVnd(c.price)} mỗi ảnh.`),
+      (c && `Tạo ảnh "${c.title}" bằng AI trên ${SITE_NAME}${c.category ? ` - danh mục ${c.category.name}` : ''}..`),
     image: images[0],
     type: 'product',
     canonical: `/creatives/${encodeURIComponent(slug)}`,
     noindex: Boolean(error),
-    // Dữ liệu có cấu trúc schema.org cho Google hiển thị giá / đánh giá
+    // Dữ liệu có cấu trúc schema.org cho Google hiển thị đánh giá
     jsonLd: c && {
       '@context': 'https://schema.org',
       '@type': 'Product',
@@ -44,13 +42,6 @@ export default function CreativeDetailPage() {
       image: images.filter(Boolean).map(seoAbsUrl),
       category: c.category?.name,
       brand: c.author ? { '@type': 'Brand', name: c.author.name } : undefined,
-      offers: {
-        '@type': 'Offer',
-        price: c.price,
-        priceCurrency: 'VND',
-        availability: 'https://schema.org/InStock',
-        url: seoAbsUrl(`/creatives/${encodeURIComponent(slug)}`),
-      },
       aggregateRating:
         c.rating != null && c.ratingCount > 0
           ? { '@type': 'AggregateRating', ratingValue: c.rating, ratingCount: c.ratingCount }
@@ -116,9 +107,6 @@ export default function CreativeDetailPage() {
             <div>
               {c.category && <span className="text-xs font-semibold text-primary">{c.category.name}</span>}
               <h2 className="text-xl font-extrabold text-on-surface">{c.title}</h2>
-              <p className="mt-1 text-lg font-bold text-primary">
-                {formatVnd(c.price)}<span className="text-sm font-medium text-on-surface-variant"> / ảnh</span>
-              </p>
               <div className="mt-1 flex items-center gap-3 text-xs text-on-surface-variant">
                 <span className="flex items-center gap-1">
                   <Icon name="star" fill className="text-sm text-amber-400" />
@@ -169,18 +157,10 @@ export default function CreativeDetailPage() {
 
             {/* Mobile: thanh cố định dưới đáy màn hình. Desktop: nằm cuối cột thông tin */}
             <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-[640px] border-t border-surface-container bg-surface-container-lowest p-4 lg:static lg:z-auto lg:max-w-none lg:border-0 lg:bg-transparent lg:p-0">
-              {notEnoughCredits && (
-                <p className="mb-2 text-center text-xs text-error">
-                  Bạn cần {formatVnd(c.price)} cho mỗi ảnh, số dư hiện còn {formatVnd(me.credits)}.
-                </p>
-              )}
               <Link
                 to={actionLink}
                 state={isAuthenticated ? { fromDetail: true } : undefined}
-                aria-disabled={notEnoughCredits}
-                className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-on-primary transition-colors ${
-                  notEnoughCredits ? 'pointer-events-none bg-outline' : 'bg-primary-container hover:bg-primary'
-                }`}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary-container text-sm font-bold text-on-primary transition-colors hover:bg-primary"
               >
                 <Icon name={isAuthenticated ? 'bolt' : 'login'} />
                 {isAuthenticated ? 'Tạo ảnh sử dụng mẫu này' : 'Đăng nhập để sử dụng'}

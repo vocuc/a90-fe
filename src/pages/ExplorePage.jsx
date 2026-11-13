@@ -14,8 +14,6 @@ import { hashtagSlug } from '../utils/hashtag';
 const SORTS = [
   { value: 'popular', label: 'Phổ biến' },
   { value: 'newest', label: 'Mới nhất' },
-  { value: 'price_asc', label: 'Giá thấp' },
-  { value: 'price_desc', label: 'Giá cao' },
 ];
 const SORT_VALUES = SORTS.map((s) => s.value);
 const PAGE_SIZE = 20;

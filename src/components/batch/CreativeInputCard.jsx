@@ -3,7 +3,6 @@ import CoverImage from '../common/CoverImage';
 import Icon from '../common/Icon';
 import { ErrorState, Skeleton } from '../common/Feedback';
 import DynamicForm from '../template/DynamicForm';
-import { formatVnd } from '../../utils/format';
 
 /** Số ảnh: nút -/+ và ô nhập, tối thiểu 1, không giới hạn trên. */
 function QuantityInput({ value, onChange, label }) {
@@ -70,9 +69,6 @@ export default function CreativeInputCard({
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-bold text-on-surface">{creative.title}</span>
             <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-[11px] text-outline">
-                {creative.price > 0 ? `${formatVnd(creative.price)}/ảnh` : 'Miễn phí'}
-              </span>
               {isLoading ? (
                 <span className="text-[11px] text-outline">Đang tải...</span>
               ) : !ready ? null : missing ? (

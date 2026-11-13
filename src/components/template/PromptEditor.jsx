@@ -21,8 +21,8 @@ const SECTIONS = [
 ];
 
 /**
- * onSet: sửa title / category_id / model_id / price_per_image / description / hashtags của template. errors: lỗi theo path của validateTemplate.
- * stacked: xếp phần model, giá / hướng dẫn dưới ô prompt, dùng khi đặt trong cột hẹp.
+ * onSet: sửa title / category_id / model_id / description / hashtags của template. errors: lỗi theo path của validateTemplate.
+ * stacked: xếp phần model / hướng dẫn dưới ô prompt, dùng khi đặt trong cột hẹp.
  */
 export default function PromptEditor({ template, onChange, onSet, errors = {}, stacked = false }) {
   const ref = useRef(null);
@@ -130,17 +130,6 @@ export default function PromptEditor({ template, onChange, onSet, errors = {}, s
               </option>
             ))}
           </Select>
-          <Input
-            label="Giá bán mỗi ảnh (VND) *"
-            type="number"
-            inputMode="numeric"
-            min={0}
-            step={1}
-            placeholder="Ví dụ: 2000"
-            value={template.price_per_image ?? ''}
-            onChange={(e) => onSet({ price_per_image: e.target.value })}
-            error={errors.price_per_image}
-          />
           <HashtagInput value={template.hashtags ?? []} onChange={(hashtags) => onSet({ hashtags })} error={errors.hashtags} />
         </section>
 

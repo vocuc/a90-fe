@@ -15,7 +15,6 @@ import {
   useGenerationHistory,
   useRetryFromHistory,
 } from '../hooks/generationQueries';
-import { formatVnd } from '../utils/format';
 
 // Khớp GenerationStatus của backend
 const STATUS = {
@@ -63,7 +62,7 @@ function SourceThumb({ label, name, src, onView }) {
  * Một thẻ của lịch sử. kind:
  * - image: ảnh đang dùng (xem, tải về, tắt ảnh)
  * - pending: đơn chưa có ảnh xong (thẻ trạng thái)
- * - failed: ảnh tạo lỗi (đã hoàn tiền)
+ * - failed: ảnh tạo lỗi
  * - disabled: ảnh đã tắt (chỉ xem, làm mờ)
  */
 function HistoryCard({ kind, order, output, onView }) {
@@ -101,14 +100,10 @@ function HistoryCard({ kind, order, output, onView }) {
     if (ok) disable.mutate({ generationId: order.id, outputId: output.id });
   };
 
-  // Ảnh của bài kế hoạch nội dung: không có creative, miễn phí
-  const plan = order.type === 'plan';
   const title = order.creative ? (
     <Link to={`/creatives/${encodeURIComponent(order.creative.slug)}`} className="hover:text-primary">
       {order.creative.title}
     </Link>
-  ) : plan ? (
-    'Kế hoạch nội dung'
   ) : (
     'Mẫu đã bị gỡ'
   );
@@ -153,9 +148,7 @@ function HistoryCard({ kind, order, output, onView }) {
   } else if (kind === 'failed') {
     media = placeholder(
       <Icon name="broken_image" className="text-3xl text-error" />,
-      <span className="text-[11px] font-semibold leading-tight text-error">
-        {plan ? 'Tạo ảnh thất bại. Tạo lại ở trang Bài đăng.' : output.error_message || 'Tạo ảnh thất bại.'}
-      </span>,
+      <span className="text-[11px] font-semibold leading-tight text-error">{output.error_message || 'Tạo ảnh thất bại.'}</span>,
       'bg-error-container/40',
     );
   } else {
@@ -182,13 +175,7 @@ function HistoryCard({ kind, order, output, onView }) {
         {actionError && <p className="text-[11px] text-error">{actionError.message}</p>}
         <div className="mt-auto pt-2.5">
           <div className="space-y-2 border-t border-surface-container pt-2.5">
-            {plan ? (
-              <p className="text-xs font-bold text-tertiary">Miễn phí</p>
-            ) : kind === 'failed' ? (
-              <p className="text-xs font-bold text-tertiary">Đã hoàn {formatVnd(order.price_per_image)}</p>
-            ) : (
-              <p className="text-xs font-bold text-primary">{formatVnd(kind === 'pending' ? order.total_charged : order.price_per_image)}</p>
-            )}
+            {kind === 'failed' && <p className="text-xs font-bold text-tertiary">Tạo lỗi</p>}
             {kind === 'image' && (
               <div className="flex gap-1.5">
                 {!broken && (
@@ -413,7 +400,7 @@ function HistoryFilters({ creativeId, productId, onChange }) {
   );
 }
 
-/** /account/history (Lịch sử tạo ảnh): các lần tạo ảnh đã mua và ảnh của bài kế hoạch nội dung, mới nhất trước, chia tab đang hoạt động / bị lỗi / đã tắt, lọc theo creative / sản phẩm. */
+/** /account/history: các lần tạo ảnh đã mua, mới nhất trước, chia tab đang hoạt động / bị lỗi / đã tắt, lọc theo creative / sản phẩm. */
 export default function PurchaseHistoryPage() {
   useSeo({ title: 'Lịch sử tạo ảnh', noindex: true });
   const navigate = useNavigate();

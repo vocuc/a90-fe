@@ -4,7 +4,6 @@ import { useMe, useUnreadCount } from '../../hooks/queries';
 import Avatar from '../common/Avatar';
 import Icon from '../common/Icon';
 import { Skeleton } from '../common/Feedback';
-import { formatVnd } from '../../utils/format';
 import Logo from './Logo';
 import { NAV_ITEMS } from './navItems';
 
@@ -95,10 +94,6 @@ function UserHeader() {
         </div>
       </Link>
       <div className="ml-auto flex items-center gap-2">
-        <div className="flex items-center gap-1.5 rounded-full border border-outline-variant/30 bg-surface-container px-3 py-1">
-          <Icon name="account_balance_wallet" fill className="text-base text-primary" />
-          <span className="text-xs font-bold text-primary">{formatVnd(me?.credits)}</span>
-        </div>
         <button
           aria-label="Thông báo"
           className="relative flex size-9 items-center justify-center rounded-full bg-surface-container-low text-on-surface transition-colors hover:bg-surface-container"

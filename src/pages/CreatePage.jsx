@@ -6,7 +6,7 @@ import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { FormAlert, SubmitButton } from '../components/common/Form';
-import { useCreative, useMe } from '../hooks/queries';
+import { useCreative } from '../hooks/queries';
 import {
   FINAL_STATUSES,
   useCreateGeneration,
@@ -15,28 +15,25 @@ import {
   useGenerationStatus,
   useRetryGeneration,
 } from '../hooks/generationQueries';
-import { formatVnd } from '../utils/format';
 import DynamicForm, { initialValues, validateValues } from '../components/template/DynamicForm';
 import ImageWorkerSelect, { useImageWorker } from '../components/common/ImageWorkerSelect';
 
-// Mã lỗi từng ảnh (GenerationResource) -> thông báo, ảnh lỗi đều được hoàn tiền
+// Mã lỗi từng ảnh (GenerationResource) -> thông báo
 const OUTPUT_ERRORS = {
   CONTENT_BLOCKED: 'Ảnh hoặc nội dung vi phạm chính sách an toàn của AI.',
   NO_IMAGE_RETURNED: 'AI không tạo được ảnh.',
   TIMEOUT: 'Quá thời gian xử lý.',
 };
 
-// Lỗi khi gửi yêu cầu tạo ảnh -> thông báo (backend còn ghi "Credit", frontend hiển thị VND)
+// Lỗi khi gửi yêu cầu tạo ảnh -> thông báo
 const requestError = (err) => {
-  if (err.code === 'INSUFFICIENT_CREDIT' && err.context)
-    return `Số dư không đủ: cần ${formatVnd(err.context.required)}, hiện còn ${formatVnd(err.context.balance)}.`;
   if (err.code === 'CREATIVE_NOT_AVAILABLE') return 'Mẫu này không còn hoạt động.';
   if (err.code === 'CREATIVE_TEMPORARILY_UNAVAILABLE') return 'Mẫu này tạm thời không tạo được ảnh, vui lòng thử lại sau.';
   if (err.errors) return Object.values(err.errors)[0];
   return err.message;
 };
 
-// Khoá chống trừ tiền 2 lần khi bấm lại cùng một yêu cầu (mạng chập chờn)
+// Khoá chống tạo trùng khi bấm lại cùng một yêu cầu (mạng chập chờn)
 const newKey = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 // "4:5" -> "4 / 5" cho CSS aspect-ratio
@@ -124,7 +121,7 @@ function OutputTile({ generationId, output, ratio, startedAt }) {
 }
 
 /** Kết quả một lần tạo: tự cập nhật tới khi xong, tải ảnh, tạo lại ảnh lỗi. */
-function GenerationResult({ run, price, onRetried }) {
+function GenerationResult({ run, onRetried }) {
   const { data, error, refetch } = useGenerationStatus(run.id);
   const retry = useRetryGeneration();
   const retryKey = useRef(newKey());
@@ -143,7 +140,7 @@ function GenerationResult({ run, price, onRetried }) {
       {
         onSuccess: (generation) => {
           retryKey.current = newKey();
-          onRetried({ id: generation.id, quantity: generation.quantity, ratio: generation.aspect_ratio, total: generation.total_charged });
+          onRetried({ id: generation.id, quantity: generation.quantity, ratio: generation.aspect_ratio });
         },
       },
     );
@@ -156,7 +153,7 @@ function GenerationResult({ run, price, onRetried }) {
             {run.retry ? 'Tạo lại' : 'Lần tạo'} #{run.id}
           </h3>
           <p className="text-xs text-on-surface-variant">
-            {run.quantity} ảnh · {run.ratio} · {formatVnd(run.total)}
+            {run.quantity} ảnh · {run.ratio}
           </p>
         </div>
         <span
@@ -196,7 +193,7 @@ function GenerationResult({ run, price, onRetried }) {
             className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-primary-container text-sm font-bold text-primary transition-colors hover:bg-primary-container hover:text-on-primary disabled:opacity-50"
           >
             <Icon name={retry.isPending ? 'progress_activity' : 'refresh'} className={`text-lg ${retry.isPending ? 'animate-spin' : ''}`} />
-            {retry.isSuccess ? 'Đã tạo lại' : `Tạo lại ${failed.length} ảnh lỗi · ${price > 0 ? formatVnd(price * failed.length) : 'miễn phí'}`}
+            {retry.isSuccess ? 'Đã tạo lại' : `Tạo lại ${failed.length} ảnh lỗi`}
           </button>
           {retry.error && <FormAlert>{requestError(retry.error)}</FormAlert>}
         </div>
@@ -213,7 +210,6 @@ export default function CreatePage() {
   const location = useLocation();
   const slug = params.get('creative');
   const { data: c, isLoading, error, refetch } = useCreative(slug);
-  const { data: me } = useMe();
   const create = useCreateGeneration();
   // Worker tạo ảnh bắt buộc chọn (note/chon-worker-tao-anh.txt)
   const worker = useImageWorker();
@@ -256,9 +252,6 @@ export default function CreatePage() {
   const ratios = options.aspect_ratios ?? [];
   const formErrors = schema && submitted ? validateValues(schema, values) : {};
   const maxOutputs = Math.max(1, options.max_outputs ?? 1);
-  // Chủ mẫu tự dùng cũng bị trừ tiền như người mua
-  const total = (c?.price ?? 0) * quantity;
-  const notEnough = !!me && total > me.credits;
   // inputs[key] gửi backend: trường ảnh 1 file, còn lại giữ giá trị
   const templateInputs = () =>
     Object.fromEntries(schema.map((f) => [f.key, f.type === 'image' ? (values[f.key]?.[0] ?? null) : values[f.key]]));
@@ -267,7 +260,7 @@ export default function CreatePage() {
     e.preventDefault();
     setSubmitted(true);
     setWorkerError(worker.missingError);
-    if (notEnough || !schema || Object.keys(validateValues(schema, values)).length || worker.missingError) return;
+    if (!schema || Object.keys(validateValues(schema, values)).length || worker.missingError) return;
     create.mutate(
       {
         creativeId: c.creativeId,
@@ -283,7 +276,7 @@ export default function CreatePage() {
         onSuccess: (generation) => {
           idempotencyKey.current = newKey();
           setRuns((list) => [
-            { id: generation.id, quantity: generation.quantity, ratio: generation.aspect_ratio, total: generation.total_charged },
+            { id: generation.id, quantity: generation.quantity, ratio: generation.aspect_ratio },
             ...list,
           ]);
           setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
@@ -333,7 +326,6 @@ export default function CreatePage() {
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-medium text-on-surface-variant">Mẫu đang dùng</p>
                 <h2 className="truncate text-sm font-bold text-on-surface">{c.title}</h2>
-                <p className="text-xs font-bold text-primary">{formatVnd(c.price)} / ảnh</p>
               </div>
             </Link>
 
@@ -398,30 +390,11 @@ export default function CreatePage() {
                 </div>
               </Section>
 
-              <section className="space-y-2 rounded-2xl bg-surface-container-low p-4 text-sm">
-                <div className="flex justify-between text-on-surface-variant">
-                  <span>
-                    {formatVnd(c.price)} × {quantity} ảnh
-                  </span>
-                  <span>{formatVnd(c.price * quantity)}</span>
-                </div>
-                <div className="flex justify-between border-t border-surface-container pt-2 font-bold text-on-surface">
-                  <span>Tổng thanh toán</span>
-                  <span className="text-primary">{formatVnd(total)}</span>
-                </div>
-                <div className="flex justify-between text-xs text-on-surface-variant">
-                  <span>Số dư hiện tại</span>
-                  <span>{formatVnd(me?.credits)}</span>
-                </div>
-                <p className="text-[11px] text-outline">Ảnh tạo lỗi được hoàn tiền tự động.</p>
-              </section>
-
-              {notEnough && <FormAlert>Số dư không đủ, cần thêm {formatVnd(total - me.credits)}.</FormAlert>}
               {create.error && <FormAlert>{requestError(create.error)}</FormAlert>}
 
-              <SubmitButton loading={create.isPending} loadingText="Đang gửi ảnh..." disabled={notEnough || !schema}>
+              <SubmitButton loading={create.isPending} loadingText="Đang gửi ảnh..." disabled={!schema}>
                 <Icon name="auto_awesome" />
-                {runs.length ? 'Tạo thêm' : 'Tạo'} {quantity} ảnh · {formatVnd(total)}
+                {runs.length ? 'Tạo thêm' : 'Tạo'} {quantity} ảnh
               </SubmitButton>
             </form>
 
@@ -432,7 +405,6 @@ export default function CreatePage() {
                   <GenerationResult
                     key={run.id}
                     run={run}
-                    price={c.price}
                     onRetried={(next) => setRuns((list) => [{ ...next, retry: true }, ...list])}
                   />
                 ))}

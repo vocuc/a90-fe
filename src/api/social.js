@@ -8,24 +8,15 @@ import client from './client';
  * (mặc định bây giờ). Bài sang "Chờ đăng" (còn sửa / xoá được); tới giờ worker nhận 1 job chứa mọi nền tảng, tự đăng
  * bằng tài khoản trên máy rồi báo lại 1 lần. Lỗi -> "Chờ gửi" kèm last_error; worker im lặng -> "Tạo lại".
  *
- * GET    /social/posts?page=&per_page=&status=&type=&worker_id=&source=&date_from=&date_to= -> { data: SocialPost[], meta }
- *        (source: batch | existing | video | plan; bài lookbook cũ có source lookbook, ảnh upload thẳng;
- *        plan = bài skill kế hoạch nội dung tạo, src/api/planner.js. date_from / date_to: YYYY-MM-DD, lọc theo giờ đăng)
+ * GET    /social/posts?page=&per_page=&status=&type=&worker_id=&source= -> { data: SocialPost[], meta }
+ *        (source: batch | existing | video | lookbook; lookbook = bài skill FlowKit tạo, ảnh upload thẳng)
  * GET    /social/posts/{id}                              -> { data: SocialPost }
  * POST   /social/posts/from-images                       -> 201 { data: SocialPost }
  * POST   /social/posts/{id}/publish { worker_id, type, video_template_id?, product_id?, platforms, scheduled_at, images,
  *        title, content, hashtags }                       -> { data: SocialPost }   (bài sang queued)
  * POST   /social/posts/{id}/retry                        -> { data: SocialPost }   "Đăng lại" (lỗi) / "Tạo lại" (đang đăng)
- * POST   /social/posts/{id}/redo                         -> { data: SocialPost }   "Làm lại" bài kế hoạch đang chờ gửi:
- *        tạo lại ảnh theo đúng kịch bản, miễn phí, bài về generating. 409 PLAN_POST_NOT_REDOABLE, 422 PLAN_CONTEXT_UNAVAILABLE
- * POST   /social/posts/{id}/images/{imageId}/redo        -> { data: SocialPost }   "Tạo lại ảnh này" của bài kế hoạch: chỉ 1 ảnh,
- *        theo câu lệnh của ảnh đó, giữ ảnh khác + nội dung, bài về generating. Lỗi giống /redo
- * POST   /social/posts/{id}/images/{imageId}/crop (multipart image) -> { data: Image }   "Cắt ảnh" trong bài đang chờ gửi:
- *        ghi đè ảnh gốc như cắt ảnh ở lô (lô, lịch sử tạo ảnh, bài khác dùng ảnh đó đổi theo). 409 POST_NOT_EDITABLE
- * POST   /social/posts/{id}/cancel                       -> 204   "Hủy bỏ" bài đang chuẩn bị: dừng ảnh chờ tạo / AI viết
- *        nội dung (hoàn Credit phần chưa làm) rồi xoá bài. 409 POST_NOT_CANCELLABLE khi bài đã qua bước chuẩn bị
- * POST   /social/posts/{id}/ai-content                   -> { data: { title, content, hashtags, credit_balance } }
- *        "Viết lại bằng AI": không lưu vào bài, trừ phí khi AI viết được (note/ai-viet-noi-dung-bai-dang.txt)
+ * POST   /social/posts/{id}/ai-content                   -> { data: { title, content, hashtags } }
+ *        "Viết lại bằng AI": không lưu vào bài (note/ai-viet-noi-dung-bai-dang.txt)
  * GET    /creator/ai-content                             -> { data: AiContentSettings }  (trang "AI viết nội dung", chủ shop)
  * PUT    /creator/ai-content { hashtags, samples, requirements, title_max, content_max } -> như trên
  * DELETE /social/posts/{id}                              -> 204
@@ -52,8 +43,6 @@ export const platformInfo = (value) => PLATFORMS.find((p) => p.value === value) 
 /*
  * Trạng thái chung của bài:
  *   generating      Đang chuẩn bị: AI đang viết tiêu đề / nội dung / hashtag (chỉ khi bật AI viết nội dung lúc tạo bài)
- *   awaiting_approval Chờ duyệt: chỉ bài kế hoạch. Ảnh + nội dung xong, chờ người dùng duyệt (sửa nội dung, làm lại ảnh);
- *                   chưa đăng được. Duyệt -> chờ gửi; "Bỏ duyệt" (chưa bấm đăng lần nào) -> về chờ duyệt
  *   pending_review  Chờ gửi: chờ người dùng bấm đăng (đăng lần trước lỗi thì có last_error)
  *   queued          Chờ đăng: đã giao cho worker, chờ tới giờ / worker nhận (không hết hạn). Còn sửa / xoá được
  *   publishing      Đang đăng: worker đã nhận. Khoá: không sửa, không xoá; worker im lặng thì "Tạo lại"
@@ -61,7 +50,6 @@ export const platformInfo = (value) => PLATFORMS.find((p) => p.value === value) 
  */
 export const POST_STATUS = {
   GENERATING: 'generating',
-  AWAITING_APPROVAL: 'awaiting_approval',
   PENDING_REVIEW: 'pending_review',
   QUEUED: 'queued',
   PUBLISHING: 'publishing',
@@ -80,8 +68,7 @@ export const PLATFORM_STATUS = {
 export const isPostLocked = (post) => post.status === POST_STATUS.PUBLISHING;
 
 // Còn sửa / đăng / xoá được: chờ gửi hoặc chờ tới giờ (worker chưa nhận)
-export const isPostEditable = (post) =>
-  post.status === POST_STATUS.AWAITING_APPROVAL || post.status === POST_STATUS.PENDING_REVIEW || post.status === POST_STATUS.QUEUED;
+export const isPostEditable = (post) => post.status === POST_STATUS.PENDING_REVIEW || post.status === POST_STATUS.QUEUED;
 
 // Trạng thái ảnh trong bài
 export const IMAGE_STATUS = {
@@ -98,7 +85,7 @@ export const newIdempotencyKey = () =>
 
 // ---- Bài đăng ----
 
-const mapCreative = (c) => (c ? { creativeId: c.id, creativeSlug: c.slug, creativeTitle: c.title, price: c.price_per_image ?? 0 } : {});
+const mapCreative = (c) => (c ? { creativeId: c.id, creativeSlug: c.slug, creativeTitle: c.title } : {});
 
 export const mapImage = (img) => ({
   // id ảnh trong bài, giữ nguyên khi tạo lại; ảnh vừa thêm ở bước duyệt (chưa lưu) có id null
@@ -115,11 +102,8 @@ export const mapImage = (img) => ({
   url: img.image_url,
   thumbUrl: img.thumb_url || img.image_url,
   errorMessage: img.error_message ?? null,
-  // Prompt đã gửi tạo ảnh: chỉ có ở ảnh bài kế hoạch (ảnh từ mẫu của creator không trả prompt)
-  prompt: img.prompt ?? null,
   creativeSlug: null,
   creativeTitle: null,
-  price: 0,
   ...mapCreative(img.creative),
 });
 
@@ -152,26 +136,8 @@ const mapVideo = (v) =>
       }
     : null;
 
-/** Bài kế hoạch (source plan): kịch bản + bối cảnh + sản phẩm. Bài khác: null. */
-const mapPlan = (plan) =>
-  plan
-    ? {
-        idea: plan.script?.y_chinh ?? '',
-        items: plan.script?.items ?? [],
-        context: plan.context ? { id: plan.context.id, name: plan.context.name } : null,
-        product: plan.product ? { id: plan.product.id, name: plan.product.name } : null,
-      }
-    : null;
-
-// Mã last_error của bài kế hoạch có ảnh tạo lỗi: chờ "Làm lại", không phải lỗi đăng bài
-export const PLAN_IMAGES_FAILED = 'PLAN_IMAGES_FAILED';
-
-export const SOURCE_PLAN = 'plan';
-export const isPlanPost = (post) => post.source === SOURCE_PLAN;
-
 const mapPost = (p) => ({
   id: p.id,
-  plan: mapPlan(p.plan),
   type: p.type ?? POST_TYPE.PHOTO,
   video: mapVideo(p.video),
   // Worker được giao, giờ đăng, nền tảng đã chọn (note/gop-luong-dang-bai.txt)
@@ -195,18 +161,9 @@ const mapPost = (p) => ({
 });
 
 /** Mới nhất trước, có phân trang. */
-export const listPosts = ({ page = 1, limit = 20, status, type, workerId, source, dateFrom, dateTo } = {}) =>
+export const listPosts = ({ page = 1, limit = 20, status, type, workerId, source } = {}) =>
   client.get('/social/posts', {
-    params: {
-      page,
-      per_page: limit,
-      status,
-      type,
-      worker_id: workerId || undefined,
-      source: source || undefined,
-      date_from: dateFrom || undefined,
-      date_to: dateTo || undefined,
-    },
+    params: { page, per_page: limit, status, type, worker_id: workerId || undefined, source: source || undefined },
   }).then(({ data, meta }) => ({
     items: data.map(mapPost),
     page: meta.current_page,
@@ -219,8 +176,7 @@ export const getPost = (id) => client.get(`/social/posts/${id}`).then(({ data })
 /**
  * Tạo bài từ ảnh của một lô hoặc ảnh đã có trên A51: bài chờ người dùng chọn nền tảng và đăng.
  * images: [{ generationId, outputId }] theo thứ tự, ảnh đầu làm ảnh bìa. batchId: lô tạo ra bài (nút "Tạo bài đăng" của lô).
- * aiContent: bật "AI viết nội dung" -> trừ phí ngay (không đủ: 402 INSUFFICIENT_CREDIT, không tạo bài), bài ở generating
- * tới khi AI viết xong; AI lỗi thì bài dùng nội dung mặc định và được hoàn phí. Không bật thì không tính phí.
+ * aiContent: bật "AI viết nội dung" -> bài ở generating tới khi AI viết xong; AI lỗi thì bài dùng nội dung mặc định.
  */
 export const createPostFromImages = (images, idempotencyKey, batchId = null, aiContent = false) =>
   client
@@ -236,15 +192,13 @@ export const createPostFromImages = (images, idempotencyKey, batchId = null, aiC
 const AI_TIMEOUT = 90_000;
 
 /**
- * "Viết lại bằng AI": nội dung mới để điền vào form (không lưu vào bài). Chỉ trừ phí khi AI viết được;
- * AI lỗi 503 AI_CONTENT_FAILED, không đủ Credit 402 INSUFFICIENT_CREDIT.
+ * "Viết lại bằng AI": nội dung mới để điền vào form (không lưu vào bài). AI lỗi 503 AI_CONTENT_FAILED.
  */
 export const rewritePostContent = (id) =>
   client.post(`/social/posts/${id}/ai-content`, null, { timeout: AI_TIMEOUT }).then(({ data }) => ({
     title: data.title ?? '',
     content: data.content ?? '',
     hashtags: data.hashtags ?? [],
-    creditBalance: data.credit_balance,
   }));
 
 // Nhớ lựa chọn công tắc "AI viết nội dung" lần trước (mặc định bật)
@@ -320,38 +274,14 @@ export const publishPost = (id, form) =>
 /** "Đăng lại" (bài lỗi) / "Tạo lại" (worker nhận rồi im lặng, có thể đăng trùng): bài về "Chờ đăng". */
 export const retryPost = (id) => client.post(`/social/posts/${id}/retry`).then(({ data }) => mapPost(data));
 
-/** "Làm lại" bài kế hoạch: tạo lại ảnh theo đúng kịch bản (miễn phí), bài về "Đang chuẩn bị". */
-export const redoPlanPost = (id) => client.post(`/social/posts/${id}/redo`).then(({ data }) => mapPost(data));
-
-/** "Duyệt" bài kế hoạch: lưu tiêu đề / nội dung / hashtag đang sửa, bài sang "Chờ gửi". */
-export const approvePlanPost = (id, { title, content, hashtags }) =>
-  client.post(`/social/posts/${id}/approve`, { title, content, hashtags }).then(({ data }) => mapPost(data));
-
-/** "Bỏ duyệt": bài kế hoạch đã duyệt, chưa bấm đăng -> về "Chờ duyệt". */
-export const unapprovePlanPost = (id) => client.post(`/social/posts/${id}/unapprove`).then(({ data }) => mapPost(data));
-
-/** "Tạo lại ảnh này" của bài kế hoạch: chỉ tạo lại 1 ảnh theo câu lệnh của nó (miễn phí), bài về "Đang chuẩn bị". */
-export const redoPlanImage = (postId, imageId) =>
-  client.post(`/social/posts/${postId}/images/${imageId}/redo`).then(({ data }) => mapPost(data));
-
 export const deletePost = (id) => client.delete(`/social/posts/${id}`);
-
-/** "Cắt ảnh" của bài (ảnh đã lưu trong bài, image.id): ghi đè ảnh gốc. file: Blob JPEG. Trả ảnh với url mới. */
-export function cropPostImage(postId, image, file) {
-  const form = new FormData();
-  form.append('image', file, `crop_${image.id}.jpg`);
-  return client.post(`/social/posts/${postId}/images/${image.id}/crop`, form, { timeout: 60_000 }).then(({ data }) => mapImage(data));
-}
-
-/** "Hủy bỏ" bài đang chuẩn bị: dừng tạo ảnh / AI viết nội dung, bài bị xoá. */
-export const cancelPost = (id) => client.post(`/social/posts/${id}/cancel`);
 
 // ---- Bài đăng video có lịch (note/lap-lich-worker.txt), cần hồ sơ người bán ----
 // POST /social/video-posts/auto { worker_id, platforms, count, first_at, gap_min, gap_max, idempotency_key }
-//   -> 201 { data: { created, requested, stopped: null|insufficient_credit|no_template|not_enough_images, post_ids } }
-//   không tạo được bài nào: 422 VIDEO_NO_TEMPLATE / VIDEO_NOT_ENOUGH_IMAGES, 402 INSUFFICIENT_CREDIT
+//   -> 201 { data: { created, requested, stopped: null|no_template|not_enough_images, post_ids } }
+//   không tạo được bài nào: 422 VIDEO_NO_TEMPLATE / VIDEO_NOT_ENOUGH_IMAGES
 // POST /social/video-posts { worker_id, platforms, video_template_id, product_id?, images, scheduled_at, idempotency_key } -> 201 { data: post }
-//      tab "Thủ công": 1 bài, AI viết nội dung như tự động (402 khi thiếu tiền)
+//      tab "Thủ công": 1 bài, AI viết nội dung như tự động
 // PUT  /social/video-posts/{id} { worker_id, platforms, video_template_id, product_id, images, scheduled_at, title, content, hashtags }
 //   sửa khi worker chưa nhận (queued) hoặc bài lỗi (pending_review); số ảnh phải bằng số ảnh template
 // POST /social/video-posts/{id}/retry   "Đăng lại" (lỗi) / "Tạo lại" (worker nhận rồi im lặng) -> bài về queued
@@ -369,7 +299,6 @@ export const VIDEO_AUTO_MAX = 50;
 export const VIDEO_GAP_MAX_MINUTES = 1440;
 
 export const VIDEO_STOP_MESSAGES = {
-  insufficient_credit: 'Số dư không đủ trả phí AI viết nội dung nên dừng lại.',
   no_template: 'Hết video template có số ảnh.',
   not_enough_images: 'Không còn sản phẩm nào đủ ảnh cho các template.',
 };

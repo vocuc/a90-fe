@@ -8,7 +8,6 @@ import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback'
 import { BatchStatusBadge } from '../components/batch/BatchStatus';
 import { BATCH_SOURCE, BATCH_STATUS, cancelBatch, deleteBatch, listBatches } from '../api/batches';
 import { AUTO_RESULT_KEY, AUTO_STOP } from '../api/autoBatch';
-import { formatVnd } from '../utils/format';
 import { useConfirm } from '../components/common/ConfirmDialog';
 
 const PAGE_SIZE = 20;
@@ -24,7 +23,7 @@ function BatchCard({ batch }) {
   const { confirm, alert } = useConfirm();
   const generating = batch.status === BATCH_STATUS.GENERATING;
 
-  // Hủy ảnh chưa worker nào nhận: hoàn tiền, ảnh đang tạo dở / đã xong giữ nguyên
+  // Hủy ảnh chưa worker nào nhận, ảnh đang tạo dở / đã xong giữ nguyên
   const cancel = async () => {
     const ok = await confirm(
       `Hủy ${batch.queuedCount} ảnh đang chờ tạo của lô #${batch.id}? Tiền của các ảnh này được hoàn lại, ảnh đang tạo dở và ảnh đã xong vẫn giữ nguyên.`,
@@ -129,7 +128,7 @@ export default function BatchesPage() {
   useSeo({ title: 'Tạo ảnh theo lô', noindex: true });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  // Kết quả lần "Tạo tự động" vừa xong ở /batches/auto: { created, requested, stopped, required }; đọc một lần rồi xoá
+  // Kết quả lần "Tạo tự động" vừa xong ở /batches/auto: { created, requested, stopped }; đọc một lần rồi xoá
   const [autoResult, setAutoResult] = useState(() => queryClient.getQueryData(AUTO_RESULT_KEY) ?? null);
   useEffect(() => {
     queryClient.removeQueries({ queryKey: AUTO_RESULT_KEY });
@@ -198,14 +197,6 @@ export default function BatchesPage() {
             <Icon name={autoResult.stopped ? 'info' : 'check_circle'} className="text-base" />
             <p className="flex-1">
               Đã tạo tự động {autoResult.created}/{autoResult.requested} lô, ảnh đang được tạo.
-              {autoResult.stopped === AUTO_STOP.INSUFFICIENT_CREDIT && (
-                <>
-                  {' '}Hết số dư, lô tiếp theo cần {formatVnd(autoResult.required)}.{' '}
-                  <Link to="/account/topup" className="font-bold text-primary hover:underline">
-                    Nạp ví
-                  </Link>
-                </>
-              )}
               {autoResult.stopped === AUTO_STOP.NO_VALID_PAIR && ' Không đủ sản phẩm / nhóm creative khác nhau để ghép thêm lô.'}
             </p>
             <button type="button" onClick={() => setAutoResult(null)} aria-label="Đóng thông báo">

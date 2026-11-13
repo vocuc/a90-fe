@@ -15,7 +15,6 @@ const httpError = (status, message) => Object.assign(new Error(message), { statu
 
 // ---- Kho tài khoản giả lập (lưu localStorage để tài khoản đăng ký còn sau khi F5) ----
 const USERS_KEY = 'ai90_mock_users';
-const WELCOME_CREDITS = 0; // backend tạo ví với số dư 0
 
 const registeredUsers = (() => {
   try {
@@ -73,7 +72,6 @@ export const mock = {
       name: name.trim(),
       email: normalized,
       avatarUrl: null,
-      credits: WELCOME_CREDITS,
       password,
     };
     saveRegisteredUser(user);
@@ -85,7 +83,7 @@ export const mock = {
     const email = 'google.demo@gmail.com';
     let user = allUsers().find((u) => u.email === email);
     if (!user) {
-      user = { id: 'u_google', name: 'Người dùng Google', email, avatarUrl: null, credits: WELCOME_CREDITS };
+      user = { id: 'u_google', name: 'Người dùng Google', email, avatarUrl: null };
       saveRegisteredUser(user);
     }
     return { token: tokenFor(user), user: publicUser(user) };
@@ -123,8 +121,6 @@ export const mock = {
       items = items.filter((c) => c.title.toLowerCase().includes(kw));
     }
     if (sort === 'popular') items.sort((a, b) => b.usageCount - a.usageCount);
-    if (sort === 'price_asc') items.sort((a, b) => a.price - b.price);
-    if (sort === 'price_desc') items.sort((a, b) => b.price - a.price);
     return paginate(items, page, limit);
   },
   // Username lạ (vd. lấy từ dữ liệu backend thật) vẫn dựng một hồ sơ mẫu để xem được giao diện;

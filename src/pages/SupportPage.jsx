@@ -30,23 +30,12 @@ const TOPICS = [
     ],
   },
   {
-    id: 'thanh-toan',
-    icon: 'account_balance_wallet',
-    title: 'Ví và thanh toán',
-    faqs: [
-      ['Làm sao để nạp tiền vào ví?', 'Vào Tài khoản và nhấn nút "Nạp ví" để xem hướng dẫn nạp tiền.'],
-      ['Lượt tạo bị lỗi có được hoàn tiền không?', 'Lượt tạo thất bại do lỗi hệ thống có thể được tạo lại hoặc hoàn vào số dư. Lượt tạo bị từ chối do vi phạm chính sách nội dung có thể không được hoàn tiền.'],
-      ['Tôi có rút số dư ra tiền mặt được không?', 'Số dư không quy đổi thành tiền mặt và không chuyển sang tài khoản khác, trừ khi pháp luật có quy định khác.'],
-      ['Đã nạp tiền nhưng số dư chưa cập nhật?', `Hãy tải lại trang sau vài phút. Nếu vẫn chưa thấy, gửi email tới ${CONTACT_EMAIL} kèm email tài khoản, thời gian và ảnh chụp giao dịch để chúng tôi kiểm tra.`],
-    ],
-  },
-  {
     id: 'nguoi-ban',
     icon: 'storefront',
     title: 'Dành cho người bán',
     faqs: [
       ['Làm sao để mở cửa hàng?', 'Vào Công cụ → Quản lý cửa hàng, điền tên cửa hàng, ảnh đại diện và ảnh bìa. Sau khi tạo cửa hàng, mục Quản lý Creative sẽ được mở khoá.'],
-      ['Làm sao để đăng mẫu AI Creative?', 'Vào Công cụ → Quản lý Creative → tạo Creative mới. Trình tạo mẫu cho phép bạn soạn prompt, thiết kế biểu mẫu cho người mua và tải ảnh minh hoạ.'],
+      ['Làm sao để đăng mẫu AI Creative?', 'Vào Công cụ → Quản lý Creative → tạo Creative mới. Trình tạo mẫu cho phép bạn soạn prompt, thiết kế biểu mẫu cho người dùng và tải ảnh minh hoạ.'],
       ['Mẫu của tôi có bị kiểm duyệt không?', 'Có. Mẫu phải do bạn tự tạo hoặc có quyền phân phối hợp pháp, ảnh minh hoạ phải phản ánh đúng kết quả. Mẫu vi phạm có thể bị ẩn hoặc gỡ.'],
     ],
   },
@@ -82,7 +71,7 @@ function FaqItem({ question, answer }) {
 export default function SupportPage() {
   useSeo({
     title: 'Trung tâm hỗ trợ',
-    description: `Câu hỏi thường gặp và kênh liên hệ hỗ trợ của ${SITE_NAME}: tạo ảnh bằng AI, ví và thanh toán, người bán, tài khoản.`,
+    description: `Câu hỏi thường gặp và kênh liên hệ hỗ trợ của ${SITE_NAME}: tạo ảnh bằng AI, người bán, tài khoản.`,
     canonical: '/support',
   });
   const navigate = useNavigate();
@@ -128,7 +117,7 @@ export default function SupportPage() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Nhập câu hỏi, ví dụ: hoàn tiền, nạp ví..."
+              placeholder="Nhập câu hỏi, ví dụ: tạo ảnh, đăng bài..."
               className="h-11 flex-1 border-0 bg-transparent p-0 text-sm text-on-surface placeholder:text-outline focus:ring-0"
             />
           </label>

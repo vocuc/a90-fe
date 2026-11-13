@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { generationApi } from '../api/services';
 import { toFetchUrl } from '../utils/remoteFile';
@@ -10,44 +9,25 @@ export const thumbOf = (output) => output.thumb_url || output.image_url;
 export const FINAL_STATUSES = ['completed', 'failed', 'cancelled'];
 const POLL_INTERVAL = 2000;
 
-// Tạo ảnh trừ tiền ngay -> tải lại số dư (/auth/me)
-const useGenerationMutation = (mutationFn) => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['me'] }),
-  });
-};
+export const useCreateGeneration = () => useMutation({ mutationFn: generationApi.create });
+export const useRetryGeneration = () => useMutation({ mutationFn: generationApi.retry });
 
-export const useCreateGeneration = () => useGenerationMutation(generationApi.create);
-export const useRetryGeneration = () => useGenerationMutation(generationApi.retry);
-
-/** Tạo lại ảnh lỗi từ Lịch sử tạo ảnh: tải lại số dư và lịch sử (ảnh lỗi cũ rời tab "Bị lỗi"). */
+/** Tạo lại ảnh lỗi từ Lịch sử tạo ảnh: tải lại lịch sử (ảnh lỗi cũ rời tab "Bị lỗi"). */
 export const useRetryFromHistory = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: generationApi.retry,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['me'] });
-      queryClient.invalidateQueries({ queryKey: ['generations'] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['generations'] }),
   });
 };
 
-/** Hỏi trạng thái mỗi 2 giây tới khi xong; xong thì tải lại số dư (ảnh lỗi được hoàn tiền). */
-export const useGenerationStatus = (id) => {
-  const queryClient = useQueryClient();
-  const query = useQuery({
+/** Hỏi trạng thái mỗi 2 giây tới khi xong. */
+export const useGenerationStatus = (id) =>
+  useQuery({
     queryKey: ['generations', id, 'status'],
     queryFn: () => generationApi.status(id),
     refetchInterval: (q) => (FINAL_STATUSES.includes(q.state.data?.status) ? false : POLL_INTERVAL),
   });
-  const done = FINAL_STATUSES.includes(query.data?.status);
-  useEffect(() => {
-    if (done) queryClient.invalidateQueries({ queryKey: ['me'] });
-  }, [done, queryClient]);
-  return query;
-};
 
 /** Lịch sử tạo ảnh (mua hàng) của tài khoản, tải thêm theo trang. filters: { creativeId, productId } (bỏ trống = tất cả). */
 export const useGenerationHistory = (limit = 10, tab, { creativeId, productId } = {}) =>
@@ -62,7 +42,7 @@ export const useGenerationHistory = (limit = 10, tab, { creativeId, productId } 
 export const useGenerationFilters = () =>
   useQuery({ queryKey: ['generations', 'filters'], queryFn: generationApi.filters, staleTime: 60_000 });
 
-/** Tắt ảnh đã tạo (không hoàn tiền): ảnh biến khỏi lịch sử và các nơi chọn ảnh. */
+/** Tắt ảnh đã tạo: ảnh biến khỏi lịch sử và các nơi chọn ảnh. */
 export const useDisableOutput = () => {
   const queryClient = useQueryClient();
   return useMutation({

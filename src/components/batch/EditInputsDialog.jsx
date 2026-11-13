@@ -5,7 +5,6 @@ import { ErrorState, Skeleton } from '../common/Feedback';
 import DynamicForm, { initialValues, validateValues } from '../template/DynamicForm';
 import { getBatchImageInputs } from '../../api/batches';
 import { useCreative } from '../../hooks/queries';
-import { formatVnd } from '../../utils/format';
 
 /**
  * Popup sửa nguyên liệu (thông tin nhập theo form của mẫu) của một ảnh rồi tạo lại ảnh đó.
@@ -41,7 +40,6 @@ export default function EditInputsDialog({ batchId, image, onSubmit, onClose }) 
   }, [onClose]);
 
   const errors = schema && values && submitted ? validateValues(schema, values) : {};
-  const price = c?.price ?? image.price ?? 0;
 
   const submit = () => {
     setSubmitted(true);
@@ -123,7 +121,7 @@ export default function EditInputsDialog({ batchId, image, onSubmit, onClose }) 
             className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
           >
             <Icon name="refresh" className="text-lg" />
-            Tạo lại ảnh · {price > 0 ? formatVnd(price) : 'Miễn phí'}
+            Tạo lại ảnh
           </button>
         </div>
       </div>

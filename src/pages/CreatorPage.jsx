@@ -11,8 +11,6 @@ import { formatCount, formatRating } from '../utils/format';
 const SORTS = [
   { value: 'popular', label: 'Phổ biến' },
   { value: 'newest', label: 'Mới nhất' },
-  { value: 'price_asc', label: 'Giá thấp' },
-  { value: 'price_desc', label: 'Giá cao' },
 ];
 const PAGE_SIZE = 20;
 

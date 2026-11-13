@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import { useMe } from '../hooks/queries';
-import { formatVnd } from '../utils/format';
 import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
@@ -14,31 +13,22 @@ import { hashtagSlug } from '../utils/hashtag';
 import { readHashtagHistory, recordHashtags, suggestHashtags } from '../utils/hashtagHistory';
 import A51ImagePicker from '../components/social/A51ImagePicker';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
-import PlanScript, { canCancelQueuedPlan, canRedoPlan, canUnapprovePlan } from '../components/social/PlanScript';
-import CancelPostButton from '../components/social/CancelPostButton';
-import CropImageDialog from '../components/batch/CropImageDialog';
-import ImagePromptButton from '../components/social/ImagePromptButton';
 import {
   HASHTAG_MAX,
   IMAGE_STATUS,
   PHOTO_DESCRIPTION_MAX,
   PHOTO_MAX_COUNT,
   PHOTO_TITLE_MAX,
-  PLAN_IMAGES_FAILED,
   PLATFORMS,
   PLATFORM_STATUS,
   POST_STATUS,
   POST_TYPE,
-  cropPostImage,
   deletePost,
   getPost,
   isImageBusy,
   isPostEditable,
   listVideoPostTemplates,
   publishPost,
-  redoPlanImage,
-  approvePlanPost,
-  unapprovePlanPost,
   retryPost,
   rewritePostContent,
 } from '../api/social';
@@ -121,20 +111,14 @@ const STRIP_BTN =
   'flex h-8 items-center justify-center gap-1 rounded-lg border border-outline-variant/50 text-[11px] font-bold text-on-surface-variant disabled:opacity-40';
 
 /**
- * Ảnh của bài: ảnh đầu là ảnh bìa, bấm để phóng to. editable: cho xoá ảnh, thêm ảnh từ A51 và đổi thứ tự
+ * Ảnh của bài: ảnh đầu là ảnh bìa. editable: cho xoá ảnh, thêm ảnh từ A51 và đổi thứ tự
  * (nút trái / phải / đặt làm bìa, máy tính kéo thả được). onMove(from, to): chuyển ảnh ở vị trí from sang to.
- * postId + onCropped(ảnhMới): cho "Cắt ảnh" khi phóng to ảnh đã lưu trong bài (ảnh vừa thêm chưa lưu thì chưa cắt được).
- * onRedoImage(ảnh): có thì hiện nút "Tạo lại" trên ảnh tạo từ kịch bản kế hoạch (ảnh có prompt, đã lưu trong bài).
  */
-// fixed: chỉ cắt / tạo lại ảnh, không thêm / bỏ / đổi thứ tự (bài kế hoạch chờ duyệt)
-function ImageStrip({ images, editable, fixed = false, onRemove, onAdd, onMove, postId, onCropped, onRedoImage }) {
-  const [redoing, setRedoing] = useState(null);
+function ImageStrip({ images, editable, onRemove, onAdd, onMove }) {
   const [viewing, setViewing] = useState(null);
-  const [cropping, setCropping] = useState(null);
-  const croppable = (img) => editable && postId && onCropped && img?.id && img.status === IMAGE_STATUS.COMPLETED;
   // Vị trí đang kéo tới, null = không kéo
   const [dropIndex, setDropIndex] = useState(null);
-  const sortable = editable && !fixed && images.length > 1;
+  const sortable = editable && images.length > 1;
 
   const dragProps = (i) =>
     sortable
@@ -161,37 +145,7 @@ function ImageStrip({ images, editable, fixed = false, onRemove, onAdd, onMove, 
 
   return (
     <section className="space-y-2">
-      <ImageViewer
-        src={viewing?.url}
-        alt="Ảnh bài đăng"
-        onClose={() => setViewing(null)}
-        actions={
-          croppable(viewing) && (
-            <button
-              type="button"
-              onClick={() => {
-                setCropping(viewing);
-                setViewing(null);
-              }}
-              className="flex h-10 items-center gap-1 rounded-full bg-black/50 px-4 text-sm font-bold text-white transition-colors hover:bg-black/70"
-            >
-              <Icon name="crop" className="text-xl" />
-              Cắt ảnh
-            </button>
-          )
-        }
-      />
-      {cropping && (
-        <CropImageDialog
-          image={cropping}
-          onUpload={(blob) => cropPostImage(postId, cropping, blob)}
-          onClose={() => setCropping(null)}
-          onSaved={(fresh) => {
-            onCropped(fresh);
-            setCropping(null);
-          }}
-        />
-      )}
+      <ImageViewer src={viewing} alt="Ảnh bài đăng" onClose={() => setViewing(null)} />
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-bold text-on-surface">Ảnh</h2>
         <span className="text-xs text-outline">
@@ -215,7 +169,7 @@ function ImageStrip({ images, editable, fixed = false, onRemove, onAdd, onMove, 
                 {img.url ? (
                   <button
                     type="button"
-                    onClick={() => setViewing(img)}
+                    onClick={() => setViewing(img.url)}
                     aria-label={`Xem ảnh ${i + 1}`}
                     className="size-full cursor-zoom-in"
                   >
@@ -238,30 +192,6 @@ function ImageStrip({ images, editable, fixed = false, onRemove, onAdd, onMove, 
                     <Icon name="progress_activity" className="animate-spin text-2xl" />
                     <span className="text-[11px] font-semibold">Đang tạo ảnh...</span>
                   </span>
-                )}
-                <ImagePromptButton image={img} index={i} className="absolute right-1.5 top-1.5 z-10" />
-                {onRedoImage && img.id && img.prompt && !busy && (
-                  <button
-                    type="button"
-                    disabled={redoing !== null}
-                    onClick={async () => {
-                      setRedoing(img.key);
-                      try {
-                        await onRedoImage(img);
-                      } finally {
-                        setRedoing(null);
-                      }
-                    }}
-                    aria-label={`Tạo lại ảnh ${i + 1}`}
-                    title="Tạo lại ảnh này theo câu lệnh của nó (miễn phí)"
-                    className="absolute bottom-1.5 right-1.5 z-10 flex h-7 items-center gap-0.5 rounded-full bg-black/60 px-2 text-[11px] font-semibold text-white hover:bg-black/80 disabled:opacity-60"
-                  >
-                    <Icon
-                      name={redoing === img.key ? 'progress_activity' : 'refresh'}
-                      className={`text-sm ${redoing === img.key ? 'animate-spin' : ''}`}
-                    />
-                    Tạo lại
-                  </button>
                 )}
               </div>
               {sortable && (
@@ -310,7 +240,7 @@ function ImageStrip({ images, editable, fixed = false, onRemove, onAdd, onMove, 
             </li>
           );
         })}
-        {editable && !fixed && images.length < PHOTO_MAX_COUNT && (
+        {editable && images.length < PHOTO_MAX_COUNT && (
           <li>
             <button
               type="button"
@@ -385,12 +315,8 @@ function AddImagesDialog({ exclude, max, onAdd, onClose }) {
   );
 }
 
-/**
- * Đang chuẩn bị: ảnh đã có, AI đang viết sẵn tiêu đề / nội dung / hashtag (chỉ khi bật AI viết nội dung lúc tạo bài).
- * Bài kế hoạch: đang tạo ảnh theo kịch bản rồi AI viết nội dung.
- */
-function GeneratingPanel({ post, onCancelled, onStale }) {
-  const imagesBusy = post.images.some(isImageBusy);
+/** Đang chuẩn bị: ảnh đã có, AI đang viết sẵn tiêu đề / nội dung / hashtag (chỉ khi bật AI viết nội dung lúc tạo bài). */
+function GeneratingPanel({ post }) {
   return (
     <section className="space-y-5 p-4 lg:mx-auto lg:w-full lg:max-w-[640px] lg:py-10">
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-6 text-center">
@@ -398,37 +324,28 @@ function GeneratingPanel({ post, onCancelled, onStale }) {
           <Icon name="auto_awesome" className="animate-pulse text-3xl" />
         </span>
         <div>
-          <h2 className="text-base font-bold text-on-surface">
-            {post.plan && imagesBusy ? 'Đang tạo ảnh theo kịch bản' : 'AI đang viết tiêu đề, nội dung, hashtag'}
-          </h2>
+          <h2 className="text-base font-bold text-on-surface">AI đang viết tiêu đề, nội dung, hashtag</h2>
           <p className="mt-1 text-xs text-on-surface-variant">
             Bạn có thể rời trang này. Xong, bài chuyển sang <b>Chờ gửi</b> để bạn xem lại và đăng bài.
           </p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-        {post.images.map((t, i) => (
-          <div key={t.key} className="relative">
-            {t.url ? (
-              <CoverImage src={t.thumbUrl ?? t.url} alt="" className="aspect-[3/4] w-full rounded-xl opacity-70" />
-            ) : (
-              <Skeleton className="aspect-[3/4]" />
-            )}
-            <ImagePromptButton image={t} index={i} className="absolute right-1.5 top-1.5" />
-          </div>
-        ))}
+        {post.images.map((t) =>
+          t.url ? (
+            <CoverImage key={t.key} src={t.thumbUrl ?? t.url} alt="" className="aspect-[3/4] w-full rounded-xl opacity-70" />
+          ) : (
+            <Skeleton key={t.key} className="aspect-[3/4]" />
+          ),
+        )}
       </div>
-      <div className="flex gap-2">
-        <Link
-          to="/posts"
-          className="flex h-11 flex-1 items-center justify-center gap-1 rounded-xl border border-outline-variant/60 text-sm font-bold text-on-surface hover:bg-surface-container"
-        >
-          <Icon name="list" className="text-lg" />
-          Về danh sách bài đăng
-        </Link>
-        <CancelPostButton post={post} onCancelled={onCancelled} onStale={onStale} />
-      </div>
-      <PlanScript post={post} />
+      <Link
+        to="/posts"
+        className="flex h-11 items-center justify-center gap-1 rounded-xl border border-outline-variant/60 text-sm font-bold text-on-surface hover:bg-surface-container"
+      >
+        <Icon name="list" className="text-lg" />
+        Về danh sách bài đăng
+      </Link>
     </section>
   );
 }
@@ -481,7 +398,6 @@ function PostPreview({ post, onChanged }) {
     <div className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8 lg:py-6">
       <ImageStrip images={post.images} />
       <section className="space-y-4">
-        <PlanScript post={post} />
         {post.status === POST_STATUS.PUBLISHING ? (
           <div className="space-y-2 rounded-xl bg-primary-fixed/40 px-3 py-2 text-xs text-primary">
             <p className="flex items-center gap-2 font-semibold">
@@ -594,7 +510,7 @@ function PlatformPicker({ value, onChange, done, limitError, error }) {
  * yêu cầu thêm ảnh, thừa thì bỏ bớt. Chọn nền tảng, giờ đăng (mặc định bây giờ) rồi bấm Đăng bài: bài sang "Chờ đăng",
  * tới giờ worker nhận và đăng. Chuyển tab Ảnh / Video không mất chỉnh sửa.
  */
-function PostEditor({ post, type, worker, onChanged }) {
+function PostEditor({ post, type, worker }) {
   const { workerId } = worker;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -608,39 +524,16 @@ function PostEditor({ post, type, worker, onChanged }) {
     templateId: post.video?.template?.id ? String(post.video.template.id) : '',
     // Bài mới: mặc định TikTok
     platforms: (post.selectedPlatforms.length ? post.selectedPlatforms : ['tiktok']).filter((p) => !done.includes(p)),
-    // Chờ tới giờ: giữ giờ đã hẹn; bài kế hoạch: giờ theo kế hoạch (đã qua thì bây giờ); còn lại: bây giờ
-    scheduledAt: toLocalInput(
-      post.status === POST_STATUS.QUEUED && post.scheduledAt
-        ? post.scheduledAt
-        : post.plan && post.scheduledAt
-          ? Math.max(new Date(post.scheduledAt).getTime(), Date.now())
-          : Date.now(),
-    ),
+    // Chờ tới giờ: giữ giờ đã hẹn; còn lại: bây giờ
+    scheduledAt: toLocalInput(post.status === POST_STATUS.QUEUED && post.scheduledAt ? post.scheduledAt : Date.now()),
   }));
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
-  const [busy, setBusy] = useState(null); // 'publish' | 'delete' | 'ai' | 'approve' | 'unapprove'
-  // Bài kế hoạch chờ duyệt: chỉ sửa nội dung, làm lại / cắt ảnh rồi bấm Duyệt; chưa chọn worker / nền tảng / đăng
-  const awaiting = post.status === POST_STATUS.AWAITING_APPROVAL;
+  const [busy, setBusy] = useState(null); // 'publish' | 'delete' | 'ai'
   const [adding, setAdding] = useState(false);
   const { data: me } = useMe();
   const ai = me?.socialAi;
-  const { confirm, alert } = useConfirm();
-  // "Tạo lại ảnh này" (bài kế hoạch chờ duyệt, chưa đăng nền tảng nào): bài về "Đang chuẩn bị" tới khi ảnh xong
-  const redoImage = async (img) => {
-    const n = form.images.findIndex((i) => i.key === img.key) + 1;
-    const ok = await confirm(
-      `Tạo lại ảnh ${n} theo đúng câu lệnh của nó? Các ảnh khác và nội dung đã lưu giữ nguyên; thay đổi chưa đăng trên trang này sẽ mất. (miễn phí)`,
-      { confirmLabel: 'Tạo lại' },
-    );
-    if (!ok) return;
-    try {
-      onChanged(await redoPlanImage(post.id, img.id));
-      queryClient.invalidateQueries({ queryKey: POSTS_KEY });
-    } catch (e) {
-      await alert(e.message);
-    }
-  };
+  const { confirm } = useConfirm();
   // Hashtag đã nhập ở các bài trước (cookie), gợi ý dưới ô hashtag
   const [hashtagHistory, setHashtagHistory] = useState(readHashtagHistory);
   // Template video (cần hồ sơ người bán); chỉ tải khi mở tab Video
@@ -690,12 +583,11 @@ function PostEditor({ post, type, worker, onChanged }) {
   // "Viết lại bằng AI": điền nội dung AI viết vào form (chưa lưu), người dùng xem lại rồi tự đăng
   const rewrite = async () => {
     const hasContent = form.title.trim() || form.content.trim() || form.hashtags.length;
-    if (hasContent && !(await confirm(`AI sẽ viết lại và thay tiêu đề, nội dung, hashtag hiện tại. Phí ${formatVnd(ai.price)}.`, { confirmLabel: 'Viết lại' }))) return;
+    if (hasContent && !(await confirm('AI sẽ viết lại và thay tiêu đề, nội dung, hashtag hiện tại.', { confirmLabel: 'Viết lại' }))) return;
     run('ai', async () => {
       const next = await rewritePostContent(post.id);
       setForm((f) => ({ ...f, title: next.title, content: next.content, hashtags: next.hashtags }));
       setErrors((e) => ({ ...e, title: undefined, content: undefined, hashtags: undefined }));
-      queryClient.invalidateQueries({ queryKey: ['me'] });
     });
   };
 
@@ -727,47 +619,9 @@ function PostEditor({ post, type, worker, onChanged }) {
     return Object.keys(e).length === 0;
   };
 
-  // "Duyệt": lưu tiêu đề / nội dung / hashtag rồi bài sang "Chờ gửi" (ở lại trang để chọn worker + nền tảng và đăng)
-  const approve = () => {
-    if (form.hashtags.length > HASHTAG_MAX) {
-      setErrors((e) => ({ ...e, hashtags: `Tối đa ${HASHTAG_MAX} hashtag.` }));
-      return;
-    }
-    run('approve', async () => {
-      try {
-        onChanged(await approvePlanPost(post.id, form));
-      } catch (err) {
-        setErrors(formErrorsFrom(err?.errors));
-        throw err;
-      }
-      queryClient.invalidateQueries({ queryKey: POSTS_KEY });
-    });
-  };
-
-  // "Bỏ duyệt" (chờ gửi) / "Hủy đăng" (chờ đăng, worker chưa nhận): về "Chờ duyệt" để xem lại, làm lại ảnh;
-  // chỉnh sửa chưa lưu trên trang sẽ mất
-  const cancelQueued = canCancelQueuedPlan(post);
-  const unapprove = async () => {
-    if (
-      cancelQueued &&
-      !(await confirm('Hủy đăng bài này và đưa về Chờ duyệt? Worker sẽ không đăng bài cho tới khi bạn duyệt và đăng lại.', {
-        confirmLabel: 'Hủy đăng',
-      }))
-    )
-      return;
-    run('unapprove', async () => {
-      onChanged(await unapprovePlanPost(post.id));
-      queryClient.invalidateQueries({ queryKey: POSTS_KEY });
-    });
-  };
-
   const submit = (ev) => {
     ev.preventDefault();
     setFormError(null);
-    if (awaiting) {
-      approve();
-      return;
-    }
     // Nút đăng luôn bấm được: chưa đủ điều kiện thì báo lý do thay vì khoá nút
     if (imagesNotReady) {
       setFormError('Còn ảnh chưa xong hoặc bị lỗi: hãy bỏ ảnh đó khỏi bài trước khi đăng.');
@@ -807,7 +661,6 @@ function PostEditor({ post, type, worker, onChanged }) {
         errorMessage: null,
         creativeSlug: p.creativeSlug,
         creativeTitle: p.creativeTitle,
-        price: 0,
       })),
     ]);
     setAdding(false);
@@ -871,24 +724,16 @@ function PostEditor({ post, type, worker, onChanged }) {
         <ImageStrip
           images={form.images}
           editable
-          postId={post.id}
-          onCropped={(fresh) => {
-            set('images')(form.images.map((i) => (i.id === fresh.id ? { ...i, url: fresh.url, thumbUrl: fresh.thumbUrl, disabled: fresh.disabled } : i)));
-            queryClient.invalidateQueries({ queryKey: POSTS_KEY });
-          }}
-          fixed={awaiting}
           onRemove={(key) => set('images')(form.images.filter((i) => i.key !== key))}
           onAdd={() => setAdding(true)}
           onMove={moveImage}
-          onRedoImage={canRedoPlan(post) ? redoImage : undefined}
         />
         {errors.images && <p className="text-xs text-error">{errors.images}</p>}
       </div>
 
       {/* Cột phải: worker, template, nội dung, nền tảng, giờ đăng, nút đăng */}
       <div className="space-y-6">
-        <PlanScript post={post} onRedone={onChanged} />
-        {post.lastError && post.lastError.code !== PLAN_IMAGES_FAILED && !formError && (
+        {post.lastError && !formError && (
           <p className="flex items-start gap-2 rounded-xl bg-error-container/60 px-3 py-2 text-xs text-on-error-container">
             <Icon name="error" className="text-base" />
             <span>
@@ -922,7 +767,7 @@ function PostEditor({ post, type, worker, onChanged }) {
                 type="button"
                 onClick={rewrite}
                 disabled={!!busy}
-                title={`AI viết lại tiêu đề, nội dung, hashtag (${formatVnd(ai.price)})`}
+                title="AI viết lại tiêu đề, nội dung, hashtag"
                 className="flex h-9 shrink-0 items-center gap-1 rounded-xl border border-primary-container/50 px-3 text-xs font-bold text-primary hover:bg-primary-fixed/40 disabled:opacity-60"
               >
                 <Icon name={busy === 'ai' ? 'progress_activity' : 'auto_awesome'} className={`text-base ${busy === 'ai' ? 'animate-spin' : ''}`} />
@@ -930,40 +775,38 @@ function PostEditor({ post, type, worker, onChanged }) {
               </button>
             )}
           </div>
-          {!awaiting && (
-            <SelectField
-              label="Worker làm việc"
-              value={workerId}
-              onChange={(e) => {
-                worker.setWorkerId(e.target.value);
-                setErrors((er) => ({ ...er, worker: undefined }));
-              }}
-              disabled={worker.isLoading || !worker.workers?.length}
-              error={errors.worker}
-              hint={
-                worker.error
-                  ? worker.error.status === 403
-                    ? 'Cần mở cửa hàng (hồ sơ người bán) để giao bài cho worker.'
-                    : 'Không tải được danh sách worker, tải lại trang để thử lại.'
-                  : !worker.isLoading && !worker.workers?.length
-                    ? 'Shop chưa được gắn worker đăng bài nào, liên hệ A51 để được gắn.'
-                    : 'Worker nhận bài khi tới giờ đăng và đăng lên các nền tảng đã chọn.'
-              }
-            >
-              {worker.isLoading ? (
-                <option value="">Đang tải worker...</option>
-              ) : !worker.workers?.length ? (
-                <option value="">Chưa có worker</option>
-              ) : (
-                worker.workers.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {workerLabel(w)}
-                  </option>
-                ))
-              )}
-            </SelectField>
-          )}
-          {video && !awaiting && (
+          <SelectField
+            label="Worker làm việc"
+            value={workerId}
+            onChange={(e) => {
+              worker.setWorkerId(e.target.value);
+              setErrors((er) => ({ ...er, worker: undefined }));
+            }}
+            disabled={worker.isLoading || !worker.workers?.length}
+            error={errors.worker}
+            hint={
+              worker.error
+                ? worker.error.status === 403
+                  ? 'Cần mở cửa hàng (hồ sơ người bán) để giao bài cho worker.'
+                  : 'Không tải được danh sách worker, tải lại trang để thử lại.'
+                : !worker.isLoading && !worker.workers?.length
+                  ? 'Shop chưa được gắn worker đăng bài nào, liên hệ A51 để được gắn.'
+                  : 'Worker nhận bài khi tới giờ đăng và đăng lên các nền tảng đã chọn.'
+            }
+          >
+            {worker.isLoading ? (
+              <option value="">Đang tải worker...</option>
+            ) : !worker.workers?.length ? (
+              <option value="">Chưa có worker</option>
+            ) : (
+              worker.workers.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {workerLabel(w)}
+                </option>
+              ))
+            )}
+          </SelectField>
+          {video && (
             <section className="space-y-2">
               <SelectField
                 label="Video template"
@@ -1035,68 +878,37 @@ function PostEditor({ post, type, worker, onChanged }) {
           </div>
         </section>
 
-        {awaiting ? (
-          <p className="flex items-start gap-2 rounded-xl bg-violet-50 px-3 py-2 text-xs leading-relaxed text-violet-800">
-            <Icon name="rule" className="text-base" />
-            <span>
-              Xem ảnh và nội dung. Ảnh chưa đạt thì bấm <b>Tạo lại</b> trên ảnh hoặc <b>Làm lại theo kịch bản</b>. Bấm <b>Duyệt</b> để lưu
-              nội dung, bài sang <b>Chờ gửi</b> rồi chọn worker, nền tảng và đăng. Đã duyệt thì không làm lại ảnh được nữa (trừ khi bỏ duyệt).
-            </span>
-          </p>
-        ) : (
-          <>
-          <PlatformPicker value={form.platforms} onChange={set('platforms')} done={done} limitError={limitError} error={errors.platforms} />
+        <PlatformPicker value={form.platforms} onChange={set('platforms')} done={done} limitError={limitError} error={errors.platforms} />
 
-          <TextField
-            label="Giờ đăng"
-            icon="schedule"
-            type="datetime-local"
-            value={form.scheduledAt}
-            onChange={(e) => set('scheduledAt')(e.target.value)}
-            error={errors.scheduledAt}
-            hint="Mặc định là bây giờ. Tới giờ, worker nhận bài và đăng."
-          />
+        <TextField
+          label="Giờ đăng"
+          icon="schedule"
+          type="datetime-local"
+          value={form.scheduledAt}
+          onChange={(e) => set('scheduledAt')(e.target.value)}
+          error={errors.scheduledAt}
+          hint="Mặc định là bây giờ. Tới giờ, worker nhận bài và đăng."
+        />
 
-          <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs leading-relaxed text-on-surface-variant">
-            <Icon name="info" className="text-base" />
-            <span>
-              Bấm <b>{submitLabel}</b> để giao bài cho worker đã chọn. Tới giờ đăng, worker
-              {video ? ' dựng video theo template rồi' : ''} đăng lên các nền tảng đã chọn bằng tài khoản trên máy worker. Worker nhận bài
-              rồi thì không sửa hoặc xoá được.
-            </span>
-          </p>
-          </>
-        )}
+        <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs leading-relaxed text-on-surface-variant">
+          <Icon name="info" className="text-base" />
+          <span>
+            Bấm <b>{submitLabel}</b> để giao bài cho worker đã chọn. Tới giờ đăng, worker
+            {video ? ' dựng video theo template rồi' : ''} đăng lên các nền tảng đã chọn bằng tài khoản trên máy worker. Worker nhận bài
+            rồi thì không sửa hoặc xoá được.
+          </span>
+        </p>
 
         {formError && <FormAlert>{formError}</FormAlert>}
-        {imagesNotReady && !formError && !awaiting && (
+        {imagesNotReady && !formError && (
           <p className="text-xs text-amber-700">Còn ảnh chưa xong hoặc bị lỗi: hãy bỏ ảnh đó khỏi bài trước khi đăng.</p>
         )}
 
         <div className="space-y-2">
-          {awaiting ? (
-            <SubmitButton loading={busy === 'approve'} loadingText="Đang duyệt..." disabled={!!busy}>
-              <Icon name="task_alt" className="text-lg" />
-              Duyệt
-            </SubmitButton>
-          ) : (
-            <SubmitButton loading={busy === 'publish'} loadingText="Đang gửi..." disabled={!!busy}>
-              <Icon name={video ? 'movie' : 'send'} className="text-lg" />
-              {submitLabel}
-            </SubmitButton>
-          )}
-          {(canUnapprovePlan(post) || cancelQueued) && (
-            <button
-              type="button"
-              onClick={unapprove}
-              disabled={!!busy}
-              title="Về Chờ duyệt để xem lại, làm lại ảnh"
-              className="flex h-11 w-full items-center justify-center gap-1 rounded-xl text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-60"
-            >
-              <Icon name={busy === 'unapprove' ? 'progress_activity' : 'undo'} className={`text-lg ${busy === 'unapprove' ? 'animate-spin' : ''}`} />
-              {cancelQueued ? 'Hủy đăng, về Chờ duyệt' : 'Bỏ duyệt'}
-            </button>
-          )}
+          <SubmitButton loading={busy === 'publish'} loadingText="Đang gửi..." disabled={!!busy}>
+            <Icon name={video ? 'movie' : 'send'} className="text-lg" />
+            {submitLabel}
+          </SubmitButton>
           {/* Đã đăng lên nền tảng nào đó: không xoá được trên A51 */}
           {!done.length && (
             <button
@@ -1176,7 +988,7 @@ export default function SocialPostPage() {
         )}
       </header>
 
-      {editable && post.status !== POST_STATUS.AWAITING_APPROVAL && (
+      {editable && (
         // Desktop: cùng lưới 2 cột với nội dung bên dưới, tab Ảnh / Video chỉ rộng bằng cột trái (ảnh)
         <div className="px-4 pt-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8">
           <div role="tablist" aria-label="Loại bài đăng" className="grid grid-cols-2 gap-1 rounded-xl bg-surface-container p-1">
@@ -1209,14 +1021,13 @@ export default function SocialPostPage() {
           <Skeleton className="h-48" />
         </div>
       ) : post.status === POST_STATUS.GENERATING ? (
-        <GeneratingPanel post={post} onCancelled={() => navigate('/posts', { replace: true })} onStale={load} />
+        <GeneratingPanel post={post} />
       ) : editable ? (
         <PostEditor
           key={`${post.id}-${post.status}`}
           post={post}
           type={type}
           worker={worker}
-          onChanged={setPost}
         />
       ) : (
         <PostPreview post={post} onChanged={setPost} />

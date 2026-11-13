@@ -15,7 +15,6 @@ import ImageSelectField from '../components/common/ImageSelectField';
 import { useMe } from '../hooks/queries';
 import { creativeApi } from '../api/services';
 import { createBatch } from '../api/batches';
-import { formatVnd } from '../utils/format';
 import { getProductImageFile, listAllProducts } from '../api/autoBatch';
 
 const IMAGE_FIELDS = ['image', 'image_list'];
@@ -37,7 +36,7 @@ function prefillFromProduct(schema, values, filesByKey) {
 
 /**
  * /batches/new: tạo lô ảnh, 2 bước (?step=inputs là bước 2, nút quay lại của trình duyệt về bước 1):
- * 1. chọn mẫu (mỗi mẫu một lần); 2. nhập thông tin và số ảnh cho từng mẫu. Xong thì tạo lô ngay (đã trừ tiền),
+ * 1. chọn mẫu (mỗi mẫu một lần); 2. nhập thông tin và số ảnh cho từng mẫu. Xong thì tạo lô ngay,
  * ảnh được tạo ở nền; về danh sách lô để theo dõi trạng thái, bấm vào lô để xem, tạo lại ảnh và tạo bài đăng.
  */
 export default function BatchNewPage() {
@@ -128,7 +127,6 @@ export default function BatchNewPage() {
   const toggle = (c) => setPicked((prev) => (prev.some((p) => p.id === c.id) ? prev.filter((p) => p.id !== c.id) : [...prev, c]));
   const quantityOf = (c) => quantities[c.id] ?? 1;
   const imageTotal = picked.reduce((sum, c) => sum + quantityOf(c), 0);
-  const total = picked.reduce((sum, c) => sum + (c.price ?? 0) * quantityOf(c), 0);
 
   const productKeys = new Set(product?.images.map((img) => img.fieldKey) ?? []);
   const rows = picked.map((c, i) => {
@@ -196,8 +194,6 @@ export default function BatchNewPage() {
         product?.id ?? null,
       );
       idem.renew();
-      // Đã trừ tiền -> tải lại số dư
-      queryClient.invalidateQueries({ queryKey: ['me'] });
       queryClient.invalidateQueries({ queryKey: ['batches'] });
       // Về danh sách lô: lô vừa tạo đứng đầu, hiện "Đang tạo" tới khi xong (danh sách tự cập nhật)
       const idx = window.history.state?.idx;
@@ -389,8 +385,7 @@ export default function BatchNewPage() {
       <ActionBar
         summary={
           <>
-            <b className="text-on-surface">{imageTotal}</b> ảnh ·{' '}
-            <b className="text-on-surface">{total > 0 ? formatVnd(total) : 'Miễn phí'}</b>
+            <b className="text-on-surface">{imageTotal}</b> ảnh
             {loadingDetails ? (
               <span className="block">Đang tải thông tin mẫu...</span>
             ) : incomplete.length ? (

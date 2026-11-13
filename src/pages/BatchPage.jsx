@@ -18,14 +18,12 @@ import {
   UPLOAD_IMAGE_MAX_MB,
   UPLOAD_IMAGE_TYPES,
   cancelBatch,
-  cropBatchImage,
   deleteBatchImage,
   getBatch,
   regenerateBatchImage,
   uploadBatchImage,
 } from '../api/batches';
 import { IMAGE_STATUS, PHOTO_MAX_COUNT, createPostFromImages, isImageBusy, newIdempotencyKey } from '../api/social';
-import { formatVnd } from '../utils/format';
 import { useConfirm } from '../components/common/ConfirmDialog';
 
 const POLL_INTERVAL = 3000;
@@ -177,7 +175,7 @@ export default function BatchPage() {
   const postKey = useIdempotencyKey();
   const ai = useAiContentToggle();
   const { confirm } = useConfirm();
-  // Khoá chống trừ tiền 2 lần khi bấm "Tạo lại" lại do lỗi mạng, theo id ảnh
+  // Khoá chống tạo trùng khi bấm "Tạo lại" lại do lỗi mạng, theo id ảnh
   const regenerateKeys = useRef({});
 
   const {
@@ -191,23 +189,17 @@ export default function BatchPage() {
     refetchInterval: (q) => (q.state.data?.images.some(isImageBusy) ? POLL_INTERVAL : false),
   });
 
-  const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['batches'] });
-    // Ảnh lỗi được hoàn tiền / tạo lại bị trừ tiền -> tải lại số dư
-    queryClient.invalidateQueries({ queryKey: ['me'] });
-  };
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['batches'] });
 
   const isBusy = (img) => isImageBusy(img) || requesting.includes(img.id);
   // Ảnh dùng được để đăng: đã xong và chưa bị tắt
   const completed = batch?.images.filter((i) => i.status === IMAGE_STATUS.COMPLETED && !i.disabled) ?? [];
   const generating = batch?.images.some(isImageBusy) ?? false;
-  // Ảnh chưa worker nào nhận: hủy được, hoàn tiền
+  // Ảnh chưa worker nào nhận: hủy được
   const queued = batch?.images.filter((i) => i.status === IMAGE_STATUS.QUEUED) ?? [];
-  const queuedCost = queued.reduce((sum, i) => sum + (i.price || 0), 0);
 
   const cancelQueued = async () => {
-    const refund = queuedCost > 0 ? ` Hoàn lại ${formatVnd(queuedCost)}.` : '';
-    const ok = await confirm(`Hủy ${queued.length} ảnh đang chờ tạo trong lô?${refund} Ảnh đang tạo dở và ảnh đã xong vẫn giữ nguyên.`, {
+    const ok = await confirm(`Hủy ${queued.length} ảnh đang chờ tạo trong lô? Ảnh đang tạo dở và ảnh đã xong vẫn giữ nguyên.`, {
       confirmLabel: 'Hủy ảnh',
       danger: true,
     });
@@ -225,12 +217,11 @@ export default function BatchPage() {
     }
   };
 
-  // Tạo lại một ảnh: chạy lại mẫu đã tạo ra ảnh đó (tính phí), ảnh mới thay vào đúng vị trí cũ.
-  // edit: { schema, values } từ popup "Sửa nguyên liệu" (popup đã hiện phí nên không hỏi lại)
+  // Tạo lại một ảnh: chạy lại mẫu đã tạo ra ảnh đó, ảnh mới thay vào đúng vị trí cũ.
+  // edit: { schema, values } từ popup "Sửa nguyên liệu" (đã bấm xác nhận trong popup nên không hỏi lại)
   const regenerate = async (img, edit) => {
     if (!edit) {
-      const cost = img.price > 0 ? ` Phí ${formatVnd(img.price)}.` : '';
-      if (!(await confirm(`Tạo lại ảnh này${img.creativeTitle ? ` theo mẫu "${img.creativeTitle}"` : ''}?${cost}`, { confirmLabel: 'Tạo lại' }))) return;
+      if (!(await confirm(`Tạo lại ảnh này${img.creativeTitle ? ` theo mẫu "${img.creativeTitle}"` : ''}?`, { confirmLabel: 'Tạo lại' }))) return;
     }
     const keys = regenerateKeys.current;
     keys[img.id] ??= newIdempotencyKey();
@@ -242,7 +233,7 @@ export default function BatchPage() {
       queryClient.setQueryData(['batches', id], (b) => b && { ...b, images: b.images.map((i) => (i.id === img.id ? fresh : i)) });
       refresh();
     } catch (err) {
-      // Máy chủ đã trả lỗi (không phải lỗi mạng): chưa bị trừ tiền, lần sau dùng khoá mới
+      // Máy chủ đã trả lỗi (không phải lỗi mạng): chưa tạo gì, lần sau dùng khoá mới
       if (err?.status) delete keys[img.id];
       setError(err?.message || 'Không tạo lại được ảnh, vui lòng thử lại.');
     } finally {
@@ -383,8 +374,8 @@ export default function BatchPage() {
       />
       {cropping && (
         <CropImageDialog
+          batchId={batch.id}
           image={cropping}
-          onUpload={(blob) => cropBatchImage(batch.id, cropping, blob)}
           onClose={() => setCropping(null)}
           onSaved={(fresh) => {
             queryClient.setQueryData(['batches', id], (b) => b && { ...b, images: b.images.map((i) => (i.id === fresh.id ? fresh : i)) });
@@ -428,7 +419,7 @@ export default function BatchPage() {
                 <span>
                   <b className="text-on-surface">{batch.images.length}</b> ảnh
                 </span>
-                {batch.failedCount > 0 && <span className="text-error">{batch.failedCount} ảnh lỗi (đã hoàn tiền)</span>}
+                {batch.failedCount > 0 && <span className="text-error">{batch.failedCount} ảnh lỗi</span>}
                 {batch.postCount > 0 && (
                   <Link to="/posts" className="font-semibold text-primary hover:underline">
                     Đã tạo {batch.postCount} bài đăng

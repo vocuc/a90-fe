@@ -11,7 +11,7 @@ import { PHOTO_MAX_COUNT, createPostFromImages } from '../api/social';
 
 /**
  * /posts/new: tạo bài từ ảnh đã có trên A51 (lịch sử tạo ảnh), sang trang bài để điền tiêu đề, nội dung và gửi.
- * Bật "AI viết nội dung" thì AI viết sẵn tiêu đề, nội dung, hashtag (tính phí, note/ai-viet-noi-dung-bai-dang.txt).
+ * Bật "AI viết nội dung" thì AI viết sẵn tiêu đề, nội dung, hashtag (note/ai-viet-noi-dung-bai-dang.txt).
  * Tạo ảnh mới nằm ở "Tạo ảnh theo lô" (/batches), mỗi lô có nút "Tạo bài đăng" riêng.
  */
 export default function SocialNewPage() {

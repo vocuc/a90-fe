@@ -3,13 +3,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Avatar from '../components/common/Avatar';
 import AccountSwitcher from '../components/auth/AccountSwitcher';
-import PlannerTokenCard from '../components/auth/PlannerTokenCard';
 import Icon from '../components/common/Icon';
 import { ErrorState, Skeleton } from '../components/common/Feedback';
 import { useAuth } from '../context/AuthContext';
 import { useMe } from '../hooks/queries';
-import { useCreatorWallet } from '../hooks/creatorQueries';
-import { formatVnd } from '../utils/format';
 
 // Khớp UserRole của backend
 const ROLE_LABEL = { user: 'Thành viên', admin: 'Quản trị viên' };
@@ -30,7 +27,6 @@ export default function AccountPage() {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { data: me, isLoading, error, refetch } = useMe();
-  const { data: wallet, isLoading: walletLoading } = useCreatorWallet();
   const [loggingOut, setLoggingOut] = useState(false);
 
   // Lịch sử tạo ảnh, Quản lý Creative / sản phẩm / cửa hàng, AI viết nội dung, Đơn GHN ở trang Công cụ
@@ -51,13 +47,6 @@ export default function AccountPage() {
     <>
       <header className="sticky top-[60px] z-30 flex h-[53px] items-center gap-2 border-b border-surface-container bg-surface-container-lowest/90 px-4 py-2 backdrop-blur-md">
         <h1 className="flex-1 text-base font-bold text-on-surface">Tài khoản</h1>
-        <Link
-          to="/account/topup"
-          className="flex h-8 items-center gap-1 rounded-full bg-primary px-5 text-xs font-bold text-on-primary transition-opacity hover:opacity-90"
-        >
-          <Icon name="add_card" className="text-base" />
-          Nạp ví
-        </Link>
       </header>
 
       <div className="space-y-4 p-4">
@@ -90,14 +79,6 @@ export default function AccountPage() {
             </section>
 
             <section className="divide-y divide-surface-container overflow-hidden rounded-2xl border border-outline-variant/40">
-              <InfoRow icon="account_balance_wallet" label="Số dư">
-                {isLoading ? <Skeleton className="h-4 w-20" /> : <span className="text-primary">{formatVnd(me.credits)}</span>}
-              </InfoRow>
-              {me?.creatorProfile && (
-                <InfoRow icon="savings" label="Hoa hồng khả dụng">
-                  {walletLoading ? <Skeleton className="h-4 w-20" /> : <span className="text-primary">{formatVnd(wallet?.available_balance)}</span>}
-                </InfoRow>
-              )}
               <InfoRow icon="badge" label="Vai trò">
                 {isLoading ? <Skeleton className="h-4 w-20" /> : (ROLE_LABEL[me.role] ?? me.role)}
               </InfoRow>
@@ -108,16 +89,9 @@ export default function AccountPage() {
                   (me.creatorProfile?.shop_name ?? 'Chưa tạo')
                 )}
               </InfoRow>
-              {me?.creatorProfile && (
-                <InfoRow icon="hourglass_top" label="Hoa hồng đang tạm giữ">
-                  {walletLoading ? <Skeleton className="h-4 w-20" /> : formatVnd(wallet?.pending_balance)}
-                </InfoRow>
-              )}
             </section>
           </>
         )}
-
-        {!error && <PlannerTokenCard />}
 
         <nav className="divide-y divide-surface-container overflow-hidden rounded-2xl border border-outline-variant/40">
           {menu.map(({ to, icon, title, disabled }) => {

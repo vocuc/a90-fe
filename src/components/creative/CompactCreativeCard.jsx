@@ -2,13 +2,13 @@ import { Link } from 'react-router-dom';
 import Avatar from '../common/Avatar';
 import CoverImage from '../common/CoverImage';
 import Icon from '../common/Icon';
-import { formatCount, formatVnd, formatRating } from '../../utils/format';
+import { formatCount, formatRating } from '../../utils/format';
 
 // Thẻ nửa chiều rộng (2 thẻ một hàng), cao bằng thẻ cùng hàng.
 // naturalCover: ảnh bìa giữ tỉ lệ gốc, không cắt (khung trống khi thiếu ảnh vẫn vuông)
 // hideAuthor: bỏ ô nhà sáng tạo (vd. đang ở trang của chính nhà sáng tạo đó)
 export default function FeaturedCreativeCard({ creative, naturalCover = false, hideAuthor = false }) {
-  const { id, title, imageUrl, rating, price, author, usageCount, category } = creative;
+  const { id, title, imageUrl, rating, author, usageCount, category } = creative;
 
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-outline-variant/40 bg-surface-container-lowest shadow-sm transition-shadow hover:shadow-md">
@@ -59,10 +59,9 @@ export default function FeaturedCreativeCard({ creative, naturalCover = false, h
             </span>
           )}
         </div>
-        {/* Giá và nút luôn nằm đáy thẻ */}
+        {/* Nút luôn nằm đáy thẻ */}
         <div className="mt-auto pt-2.5">
           <div className="space-y-2 border-t border-surface-container pt-2.5">
-            <p className="text-xs font-bold text-primary">{formatVnd(price)}</p>
             <Link
               to={`/creatives/${id}`}
               className="flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-primary-container text-xs font-bold text-on-primary transition-colors hover:bg-primary"
