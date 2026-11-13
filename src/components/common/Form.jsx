@@ -23,8 +23,16 @@ const boxCls = (error) =>
 const inputCls =
   'w-full border-none bg-transparent p-0 text-sm font-medium text-on-surface placeholder:text-outline focus:outline-none focus:ring-0';
 
-export function TextArea({ label, error, hint, maxLength, value, ...props }) {
+/** autoGrow: chiều cao tự giãn theo nội dung (không còn thanh cuộn trong ô). */
+export function TextArea({ label, error, hint, maxLength, value, autoGrow = false, ...props }) {
   const id = useId();
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!autoGrow || !el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [autoGrow, value]);
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
@@ -39,12 +47,13 @@ export function TextArea({ label, error, hint, maxLength, value, ...props }) {
       </div>
       <div className={boxCls(error)}>
         <textarea
+          ref={ref}
           id={id}
           value={value}
           maxLength={maxLength}
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
-          className={`${inputCls} min-h-24 resize-y`}
+          className={`${inputCls} min-h-24 ${autoGrow ? 'resize-none overflow-hidden' : 'resize-y'}`}
           {...props}
         />
       </div>

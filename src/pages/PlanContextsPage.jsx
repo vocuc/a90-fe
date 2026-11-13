@@ -67,6 +67,8 @@ function ContextForm({ context, models, onDone, onCancel }) {
         onChange={set('description')}
         maxLength={PLAN_CONTEXT_DESCRIPTION_MAX}
         rows={6}
+        autoGrow
+        spellCheck={false}
         placeholder="Nền, ánh sáng, người mẫu, màu chủ đạo, các ảnh bắt buộc phải có, câu phải thêm vào cuối prompt..."
         hint="Đây là yêu cầu cho skill kế hoạch nội dung: skill đọc rồi tự viết prompt cho từng ảnh theo đúng yêu cầu, không ghép nguyên mô tả này vào prompt."
         error={errors.description}
