@@ -7,6 +7,7 @@ import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
 import { PlanBadge } from '../components/social/PlanScript';
+import CancelPostButton from '../components/social/CancelPostButton';
 import { POST_STATUS, isPostLocked, isVideoPost, listPosts } from '../api/social';
 import { useMe } from '../hooks/queries';
 import { CreateVideoDialog, POSTS_KEY, createdMessage, formatSchedule, useShopWorkers } from '../components/social/VideoPostDialogs';
@@ -108,6 +109,7 @@ function PostCards({ posts }) {
               <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-1">
                 <PostStatusBadge status={post.status} />
                 <span className="text-[11px] text-outline">{formatTime(post.createdAt)}</span>
+                {generating(post) && <CancelPostButton post={post} compact className="ml-auto" />}
               </div>
             </div>
           </Link>
@@ -168,7 +170,8 @@ function PostTable({ posts }) {
                   <PlatformStatusList platforms={post.platforms} className="max-w-[240px]" />
                 </div>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="space-y-1 px-4 py-3 text-right">
+                {generating(post) && <CancelPostButton post={post} compact />}
                 <Link
                   to={postUrl(post)}
                   onClick={(e) => e.stopPropagation()}

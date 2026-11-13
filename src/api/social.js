@@ -18,6 +18,8 @@ import client from './client';
  * POST   /social/posts/{id}/retry                        -> { data: SocialPost }   "Đăng lại" (lỗi) / "Tạo lại" (đang đăng)
  * POST   /social/posts/{id}/redo                         -> { data: SocialPost }   "Làm lại" bài kế hoạch đang chờ gửi:
  *        tạo lại ảnh theo đúng kịch bản, miễn phí, bài về generating. 409 PLAN_POST_NOT_REDOABLE, 422 PLAN_CONTEXT_UNAVAILABLE
+ * POST   /social/posts/{id}/cancel                       -> 204   "Hủy bỏ" bài đang chuẩn bị: dừng ảnh chờ tạo / AI viết
+ *        nội dung (hoàn Credit phần chưa làm) rồi xoá bài. 409 POST_NOT_CANCELLABLE khi bài đã qua bước chuẩn bị
  * POST   /social/posts/{id}/ai-content                   -> { data: { title, content, hashtags, credit_balance } }
  *        "Viết lại bằng AI": không lưu vào bài, trừ phí khi AI viết được (note/ai-viet-noi-dung-bai-dang.txt)
  * GET    /creator/ai-content                             -> { data: AiContentSettings }  (trang "AI viết nội dung", chủ shop)
@@ -312,6 +314,9 @@ export const retryPost = (id) => client.post(`/social/posts/${id}/retry`).then((
 export const redoPlanPost = (id) => client.post(`/social/posts/${id}/redo`).then(({ data }) => mapPost(data));
 
 export const deletePost = (id) => client.delete(`/social/posts/${id}`);
+
+/** "Hủy bỏ" bài đang chuẩn bị: dừng tạo ảnh / AI viết nội dung, bài bị xoá. */
+export const cancelPost = (id) => client.post(`/social/posts/${id}/cancel`);
 
 // ---- Bài đăng video có lịch (note/lap-lich-worker.txt), cần hồ sơ người bán ----
 // POST /social/video-posts/auto { worker_id, platforms, count, first_at, gap_min, gap_max, idempotency_key }

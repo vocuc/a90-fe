@@ -15,6 +15,7 @@ import { readHashtagHistory, recordHashtags, suggestHashtags } from '../utils/ha
 import A51ImagePicker from '../components/social/A51ImagePicker';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
 import PlanScript from '../components/social/PlanScript';
+import CancelPostButton from '../components/social/CancelPostButton';
 import {
   HASHTAG_MAX,
   IMAGE_STATUS,
@@ -322,7 +323,7 @@ function AddImagesDialog({ exclude, max, onAdd, onClose }) {
  * Đang chuẩn bị: ảnh đã có, AI đang viết sẵn tiêu đề / nội dung / hashtag (chỉ khi bật AI viết nội dung lúc tạo bài).
  * Bài kế hoạch: đang tạo ảnh theo kịch bản rồi AI viết nội dung.
  */
-function GeneratingPanel({ post }) {
+function GeneratingPanel({ post, onCancelled, onStale }) {
   const imagesBusy = post.images.some(isImageBusy);
   return (
     <section className="space-y-5 p-4 lg:mx-auto lg:w-full lg:max-w-[640px] lg:py-10">
@@ -348,13 +349,16 @@ function GeneratingPanel({ post }) {
           ),
         )}
       </div>
-      <Link
-        to="/posts"
-        className="flex h-11 items-center justify-center gap-1 rounded-xl border border-outline-variant/60 text-sm font-bold text-on-surface hover:bg-surface-container"
-      >
-        <Icon name="list" className="text-lg" />
-        Về danh sách bài đăng
-      </Link>
+      <div className="flex gap-2">
+        <Link
+          to="/posts"
+          className="flex h-11 flex-1 items-center justify-center gap-1 rounded-xl border border-outline-variant/60 text-sm font-bold text-on-surface hover:bg-surface-container"
+        >
+          <Icon name="list" className="text-lg" />
+          Về danh sách bài đăng
+        </Link>
+        <CancelPostButton post={post} onCancelled={onCancelled} onStale={onStale} />
+      </div>
       <PlanScript post={post} />
     </section>
   );
@@ -1041,7 +1045,7 @@ export default function SocialPostPage() {
           <Skeleton className="h-48" />
         </div>
       ) : post.status === POST_STATUS.GENERATING ? (
-        <GeneratingPanel post={post} />
+        <GeneratingPanel post={post} onCancelled={() => navigate('/posts', { replace: true })} onStale={load} />
       ) : editable ? (
         <PostEditor
           key={`${post.id}-${post.status}`}
