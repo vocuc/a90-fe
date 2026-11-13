@@ -220,7 +220,7 @@ export default function BatchAutoPage() {
                 {plan.batches.map((b, i) => (
                   <li
                     key={i}
-                    className={`flex items-center gap-3 rounded-xl border border-outline-variant/40 p-2 ${i >= affordable ? 'opacity-50' : ''}`}
+                    className="flex items-center gap-3 rounded-xl border border-outline-variant/40 p-2"
                   >
                     <span className="w-6 shrink-0 text-center text-xs font-bold text-outline">{i + 1}</span>
                     <CoverImage src={b.product.coverUrl} alt="" className="size-10 shrink-0 rounded-lg" />
