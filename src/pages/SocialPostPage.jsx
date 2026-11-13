@@ -17,6 +17,7 @@ import { PlatformStatusList, PostStatusBadge } from '../components/social/PostSt
 import PlanScript from '../components/social/PlanScript';
 import CancelPostButton from '../components/social/CancelPostButton';
 import CropImageDialog from '../components/batch/CropImageDialog';
+import ImagePromptButton from '../components/social/ImagePromptButton';
 import {
   HASHTAG_MAX,
   IMAGE_STATUS,
@@ -232,6 +233,7 @@ function ImageStrip({ images, editable, onRemove, onAdd, onMove, postId, onCropp
                     <span className="text-[11px] font-semibold">Đang tạo ảnh...</span>
                   </span>
                 )}
+                <ImagePromptButton image={img} index={i} className="absolute right-1.5 top-1.5 z-10" />
               </div>
               {sortable && (
                 <div className="flex gap-1">
@@ -376,13 +378,16 @@ function GeneratingPanel({ post, onCancelled, onStale }) {
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-        {post.images.map((t) =>
-          t.url ? (
-            <CoverImage key={t.key} src={t.thumbUrl ?? t.url} alt="" className="aspect-[3/4] w-full rounded-xl opacity-70" />
-          ) : (
-            <Skeleton key={t.key} className="aspect-[3/4]" />
-          ),
-        )}
+        {post.images.map((t, i) => (
+          <div key={t.key} className="relative">
+            {t.url ? (
+              <CoverImage src={t.thumbUrl ?? t.url} alt="" className="aspect-[3/4] w-full rounded-xl opacity-70" />
+            ) : (
+              <Skeleton className="aspect-[3/4]" />
+            )}
+            <ImagePromptButton image={t} index={i} className="absolute right-1.5 top-1.5" />
+          </div>
+        ))}
       </div>
       <div className="flex gap-2">
         <Link

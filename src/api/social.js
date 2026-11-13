@@ -109,6 +109,8 @@ export const mapImage = (img) => ({
   url: img.image_url,
   thumbUrl: img.thumb_url || img.image_url,
   errorMessage: img.error_message ?? null,
+  // Prompt đã gửi tạo ảnh: chỉ có ở ảnh bài kế hoạch (ảnh từ mẫu của creator không trả prompt)
+  prompt: img.prompt ?? null,
   creativeSlug: null,
   creativeTitle: null,
   price: 0,
