@@ -67,8 +67,8 @@ function ContextForm({ context, models, onDone, onCancel }) {
         onChange={set('description')}
         maxLength={PLAN_CONTEXT_DESCRIPTION_MAX}
         rows={6}
-        placeholder="Nền, ánh sáng, người mẫu, phong cách, màu chủ đạo... Câu này đứng đầu mọi câu lệnh tạo ảnh của bài kế hoạch."
-        hint="Planner chỉ viết thêm phần riêng của từng ảnh (góc chụp, hành động...), luôn nằm trong bối cảnh này."
+        placeholder="Nền, ánh sáng, người mẫu, màu chủ đạo, các ảnh bắt buộc phải có, câu phải thêm vào cuối prompt..."
+        hint="Đây là yêu cầu cho skill kế hoạch nội dung: skill đọc rồi tự viết prompt cho từng ảnh theo đúng yêu cầu, không ghép nguyên mô tả này vào prompt."
         error={errors.description}
       />
       <div className="grid grid-cols-2 gap-3">
@@ -176,8 +176,8 @@ function ContextCard({ context, onEdit }) {
 }
 
 /**
- * /plan-contexts: bối cảnh cố định cho ảnh của bài kế hoạch nội dung (src/api/planner.js). Planner chọn 1 bối cảnh đang
- * bật cho mỗi bài và chỉ viết câu lệnh riêng của từng ảnh.
+ * /plan-contexts: bối cảnh mẫu cho ảnh của bài kế hoạch nội dung (src/api/planner.js). Planner chọn 1 bối cảnh đang
+ * bật cho mỗi bài, đọc mô tả làm yêu cầu và tự viết prompt đầy đủ cho từng ảnh (mô tả không ghép vào prompt).
  */
 export default function PlanContextsPage() {
   useSeo({ title: 'Bối cảnh mẫu', noindex: true });
@@ -214,7 +214,8 @@ export default function PlanContextsPage() {
         <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
           <Icon name="info" className="text-base" />
           <span>
-            Skill kế hoạch nội dung chọn một bối cảnh <b>đang bật</b> cho mỗi bài, rồi tự viết câu lệnh cho từng ảnh trong bối cảnh đó.
+            Skill kế hoạch nội dung chọn một bối cảnh <b>đang bật</b> cho mỗi bài, đọc mô tả như yêu cầu rồi tự viết prompt cho từng ảnh
+            theo đúng yêu cầu đó (mô tả không được ghép nguyên vào prompt).
             Ảnh của bài kế hoạch không tính phí.
           </span>
         </p>

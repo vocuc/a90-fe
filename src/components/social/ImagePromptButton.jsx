@@ -4,7 +4,7 @@ import Icon from '../common/Icon';
 
 /**
  * Nút "Prompt" đặt trên ảnh của bài kế hoạch: mở popup xem prompt đã gửi tạo ảnh
- * (mô tả bối cảnh + câu lệnh của ảnh + ghi chú sản phẩm). Ảnh không có prompt (ảnh từ mẫu, ảnh upload) thì không hiện.
+ * (prompt skill kế hoạch viết theo yêu cầu của bối cảnh mẫu + ghi chú sản phẩm). Ảnh không có prompt (ảnh từ mẫu, ảnh upload) thì không hiện.
  */
 export default function ImagePromptButton({ image, index, className = '' }) {
   const [open, setOpen] = useState(false);
@@ -40,7 +40,7 @@ export default function ImagePromptButton({ image, index, className = '' }) {
       {open && (
         <Dialog
           title={`Prompt ảnh ${index + 1}${index === 0 ? ' (ảnh bìa)' : ''}`}
-          subtitle="Mô tả bối cảnh + câu lệnh của ảnh + ghi chú sản phẩm, gửi kèm ảnh sản phẩm"
+          subtitle="Prompt skill viết theo yêu cầu của bối cảnh mẫu (+ yêu cầu của sản phẩm), gửi kèm ảnh sản phẩm"
           onClose={() => setOpen(false)}
           footer={
             <div className="flex gap-2">
