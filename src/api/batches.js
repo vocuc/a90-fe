@@ -30,6 +30,8 @@ const UPLOAD_TIMEOUT = 60_000;
 export const BATCH_SOURCE = {
   MANUAL: 'manual',
   AUTO: 'auto',
+  // Lô phối đồ (1 đôi giày - nhiều cách phối), worker phối đồ tạo ảnh bằng ChatGPT
+  OUTFIT: 'outfit',
 };
 
 // Lô tự động (note/auto-tao-lo.txt): product / group null khi lô tạo tay hoặc đã xoá sản phẩm / nhóm

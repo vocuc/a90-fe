@@ -41,6 +41,8 @@ export const AUTO_RESULT_KEY = ['auto-batch-result'];
 
 export const AUTO_STOP = {
   NO_VALID_PAIR: 'no_valid_pair',
+  // Lô phối đồ: không đủ sản phẩm đang hoạt động (có ảnh)
+  NO_PRODUCT: 'no_product',
 };
 
 // Product::PROMPT_NOTE_MAX ở backend
@@ -183,3 +185,51 @@ export const createAuto = ({ count, insertLogo, seed, workerId, productIds = [] 
       requested: data.requested,
       stopped: data.stopped,
     }));
+
+/*
+ * ---- Lô phối đồ (mode=outfit, "1 đôi giày - nhiều cách phối") ----
+ * Mỗi lô = 1 sản phẩm (ít lô phối đồ nhất trước) x N ảnh: ảnh 1 là bìa (ảnh sản phẩm + câu hook), các ảnh sau là
+ * outfit phối với đôi giày, worker phối đồ tạo bằng ChatGPT. Không trừ tiền, không dùng nhóm creative.
+ * GET  /image-batches/auto/preview?mode=outfit&count=&images_per_batch=&product_ids[]=
+ *        -> { data: { images_per_batch, batches: [{ product, images }] } }
+ * POST /image-batches/auto { mode: 'outfit', count, images_per_batch, insert_logo, idempotency_key, worker_id, product_ids? }
+ *        worker_id: worker loại outfit, bắt buộc -> 422 errors["worker_id"]
+ *        -> 201 { data: { batches, requested, stopped: null|no_product } } ; 422 OUTFIT_NO_PRODUCT
+ * POST /image-batches/{id}/retry-failed { idempotency_key } -> 202 { data: { requeued, batch } } (chỉ lô phối đồ)
+ */
+export const OUTFIT_IMAGES = { min: 2, max: 10, default: 5 };
+
+export const previewOutfit = (count, imagesPerBatch, productIds = []) =>
+  client
+    .get('/image-batches/auto/preview', {
+      params: { mode: 'outfit', count, images_per_batch: imagesPerBatch, product_ids: productIds.length ? productIds : undefined },
+    })
+    .then(({ data }) => ({
+      imagesPerBatch: data.images_per_batch,
+      batches: data.batches.map((b) => ({
+        product: { id: b.product.id, name: b.product.name, coverUrl: b.product.cover_url },
+        images: b.images,
+      })),
+    }));
+
+export const createOutfit = ({ count, imagesPerBatch, insertLogo, workerId, productIds = [] }, idempotencyKey) =>
+  client
+    .post('/image-batches/auto', {
+      mode: 'outfit',
+      count,
+      images_per_batch: imagesPerBatch,
+      insert_logo: insertLogo,
+      idempotency_key: idempotencyKey,
+      worker_id: workerId,
+      product_ids: productIds.length ? productIds : undefined,
+    })
+    .then(({ data }) => ({
+      batches: data.batches.map(mapBatch),
+      requested: data.requested,
+      stopped: data.stopped,
+    }));
+
+export const retryFailedOutfit = (batchId, idempotencyKey) =>
+  client
+    .post(`/image-batches/${batchId}/retry-failed`, { idempotency_key: idempotencyKey })
+    .then(({ data }) => ({ requeued: data.requeued, batch: mapBatch(data.batch) }));

@@ -102,6 +102,9 @@ export const mapImage = (img) => ({
   url: img.image_url,
   thumbUrl: img.thumb_url || img.image_url,
   errorMessage: img.error_message ?? null,
+  errorCode: img.error_code ?? null,
+  // creative | outfit_cover | outfit (ảnh lô phối đồ: không sửa nguyên liệu)
+  kind: img.kind ?? 'creative',
   creativeSlug: null,
   creativeTitle: null,
   ...mapCreative(img.creative),

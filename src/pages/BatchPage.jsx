@@ -25,6 +25,7 @@ import {
 } from '../api/batches';
 import { IMAGE_STATUS, PHOTO_MAX_COUNT, createPostFromImages, isImageBusy, newIdempotencyKey } from '../api/social';
 import { useConfirm } from '../components/common/ConfirmDialog';
+import { retryFailedOutfit } from '../api/autoBatch';
 
 const POLL_INTERVAL = 3000;
 
@@ -37,8 +38,9 @@ function BatchImage({ img, index, busy, selecting, order, canSelect, onToggle, o
   // Ảnh đã tắt (ở Lịch sử tạo ảnh) không chọn để đăng được
   const completed = img.status === IMAGE_STATUS.COMPLETED && !img.disabled;
   const picked = order >= 0;
-  // Tạo lại / sửa nguyên liệu: biết được mẫu đã tạo ra ảnh
-  const canRegenerate = !!img.creativeSlug;
+  // Tạo lại / sửa nguyên liệu: biết được mẫu đã tạo ra ảnh. Ảnh lô phối đồ: tạo lại (worker làm lại), không sửa nguyên liệu
+  const outfit = img.kind !== 'creative';
+  const canRegenerate = outfit || !!img.creativeSlug;
 
   const content = img.url ? (
     <CoverImage src={img.thumbUrl ?? img.url} alt="" className={`size-full ${img.disabled ? 'opacity-40 grayscale' : ''}`} />
@@ -98,7 +100,7 @@ function BatchImage({ img, index, busy, selecting, order, canSelect, onToggle, o
             {picked && order + 1}
           </span>
         )}
-        {!selecting && canRegenerate && !busy && (
+        {!selecting && canRegenerate && !outfit && !busy && (
           <button
             type="button"
             onClick={onEdit}
@@ -197,6 +199,26 @@ export default function BatchPage() {
   const generating = batch?.images.some(isImageBusy) ?? false;
   // Ảnh chưa worker nào nhận: hủy được
   const queued = batch?.images.filter((i) => i.status === IMAGE_STATUS.QUEUED) ?? [];
+  const failedImages = batch?.images.filter((i) => i.status === IMAGE_STATUS.FAILED) ?? [];
+  const isOutfit = batch?.source === BATCH_SOURCE.OUTFIT;
+  const retryKey = useIdempotencyKey();
+
+  // Lô phối đồ: đưa mọi ảnh lỗi về hàng chờ (vd ChatGPT đã có lượt lại), worker phối đồ làm lại
+  const retryFailed = async () => {
+    setBusy('retry');
+    setError(null);
+    try {
+      const { batch: fresh } = await retryFailedOutfit(batch.id, retryKey.key.current);
+      retryKey.renew();
+      queryClient.setQueryData(['batches', id], fresh);
+      refresh();
+    } catch (err) {
+      retryKey.renewAfter(err);
+      setError(err?.message || 'Không tạo lại được ảnh lỗi, vui lòng thử lại.');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const cancelQueued = async () => {
     const ok = await confirm(`Hủy ${queued.length} ảnh đang chờ tạo trong lô? Ảnh đang tạo dở và ảnh đã xong vẫn giữ nguyên.`, {
@@ -221,7 +243,7 @@ export default function BatchPage() {
   // edit: { schema, values } từ popup "Sửa nguyên liệu" (đã bấm xác nhận trong popup nên không hỏi lại)
   const regenerate = async (img, edit) => {
     if (!edit) {
-      if (!(await confirm(`Tạo lại ảnh này${img.creativeTitle ? ` theo mẫu "${img.creativeTitle}"` : ''}?`, { confirmLabel: 'Tạo lại' }))) return;
+      if (!(await confirm(`Tạo lại ảnh này${img.kind === 'creative' && img.creativeTitle ? ` theo mẫu "${img.creativeTitle}"` : ''}?`, { confirmLabel: 'Tạo lại' }))) return;
     }
     const keys = regenerateKeys.current;
     keys[img.id] ??= newIdempotencyKey();
@@ -333,10 +355,10 @@ export default function BatchPage() {
         </button>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-base font-bold text-on-surface">{selecting ? 'Chọn ảnh cho bài đăng' : `Lô ảnh #${id}`}</h1>
-          {/* Lô tạo tự động (note/auto-tao-lo.txt): sản phẩm · nhóm đã dùng */}
-          {!selecting && batch?.source === BATCH_SOURCE.AUTO && (
+          {/* Lô tạo tự động (note/auto-tao-lo.txt): sản phẩm · nhóm đã dùng; lô phối đồ: sản phẩm */}
+          {!selecting && (batch?.source === BATCH_SOURCE.AUTO || batch?.source === BATCH_SOURCE.OUTFIT) && (
             <p className="truncate text-[11px] text-on-surface-variant">
-              Tự động
+              {batch.source === BATCH_SOURCE.OUTFIT ? 'Phối đồ' : 'Tự động'}
               {[batch.product && (batch.product.name || `Sản phẩm #${batch.product.id}`), batch.group?.name]
                 .filter(Boolean)
                 .map((s) => ` · ${s}`)
@@ -426,6 +448,21 @@ export default function BatchPage() {
                   </Link>
                 )}
                 {generating && <span>Bạn có thể rời trang này, ảnh vẫn được tạo tiếp.</span>}
+                {isOutfit && failedImages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={retryFailed}
+                    disabled={busy === 'retry'}
+                    title="Đưa các ảnh lỗi về hàng chờ để worker phối đồ tạo lại (vd khi ChatGPT đã có lượt lại)"
+                    className="flex h-8 items-center gap-1 rounded-lg border border-outline-variant/50 px-3 font-bold text-primary hover:bg-surface-container disabled:opacity-60"
+                  >
+                    <Icon
+                      name={busy === 'retry' ? 'progress_activity' : 'refresh'}
+                      className={`text-base ${busy === 'retry' ? 'animate-spin' : ''}`}
+                    />
+                    Tạo lại {failedImages.length} ảnh lỗi
+                  </button>
+                )}
                 {queued.length > 0 && (
                   <button
                     type="button"

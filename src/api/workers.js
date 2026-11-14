@@ -43,9 +43,10 @@ export const renameWorker = (id, name) => client.patch(`/creator/workers/${id}/n
  * GET /image-workers -> { data: [{ id, name, online, last_seen_at }] } (loại image, đang bật, được gắn cho tài khoản, theo tên)
  * Gửi worker_id khi POST /generations, /image-batches, /image-batches/auto. Sai -> 422 errors["worker_id"].
  */
-export const IMAGE_WORKER_KEYS = { all: ['image-workers'] };
+export const IMAGE_WORKER_KEYS = { all: ['image-workers'], outfit: ['image-workers', 'outfit'] };
 
-export const listImageWorkers = () =>
-  client.get('/image-workers').then(({ data }) =>
+/** type: 'image' (mặc định) | 'outfit' (worker phối đồ, GET /image-workers?type=outfit, cho lô tự động chế độ Phối đồ). */
+export const listImageWorkers = (type = 'image') =>
+  client.get('/image-workers', { params: type === 'outfit' ? { type } : undefined }).then(({ data }) =>
     data.map((w) => ({ id: w.id, name: w.name, online: w.online, lastSeenAt: w.last_seen_at })),
   );

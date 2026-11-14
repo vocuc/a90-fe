@@ -116,9 +116,13 @@ function BatchCard({ batch, selecting = false, order = -1, showOrder = true, onT
             <BatchStatusBadge batch={batch} />
           </span>
         </div>
-        {batch.source === BATCH_SOURCE.AUTO && (
+        {(batch.source === BATCH_SOURCE.AUTO || batch.source === BATCH_SOURCE.OUTFIT) && (
           <p className="flex min-w-0 items-center gap-1 pr-8 text-xs text-on-surface-variant">
-            <span className="shrink-0 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">Tự động</span>
+            {batch.source === BATCH_SOURCE.OUTFIT ? (
+              <span className="shrink-0 rounded bg-pink-100 px-1.5 py-0.5 text-[10px] font-bold text-pink-700">Phối đồ</span>
+            ) : (
+              <span className="shrink-0 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">Tự động</span>
+            )}
             <span className="truncate">
               {[batch.product && (batch.product.name || `Sản phẩm #${batch.product.id}`), batch.group?.name].filter(Boolean).join(' · ')}
             </span>
@@ -412,6 +416,7 @@ export default function BatchesPage() {
             <p className="flex-1">
               Đã tạo tự động {autoResult.created}/{autoResult.requested} lô, ảnh đang được tạo.
               {autoResult.stopped === AUTO_STOP.NO_VALID_PAIR && ' Không đủ sản phẩm / nhóm creative khác nhau để ghép thêm lô.'}
+              {autoResult.stopped === AUTO_STOP.NO_PRODUCT && ' Không đủ sản phẩm đang hoạt động (có ảnh) để tạo thêm lô phối đồ.'}
             </p>
             <button type="button" onClick={() => setAutoResult(null)} aria-label="Đóng thông báo">
               <Icon name="close" className="text-base" />
