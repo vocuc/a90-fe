@@ -47,7 +47,7 @@ export function useShopWorkers({ enabled = true } = {}) {
 }
 
 /** Nền tảng worker đăng video lên (một hoặc nhiều), mặc định TikTok. */
-function PlatformChecks({ value, onChange, error }) {
+export function PlatformChecks({ value, onChange, error }) {
   const toggle = (v) => onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
   return (
     <div>
@@ -76,10 +76,10 @@ function PlatformChecks({ value, onChange, error }) {
   );
 }
 
-function WorkerSelect({ value, onChange, error }) {
+export function WorkerSelect({ value, onChange, error, label = 'Worker dựng và đăng video' }) {
   const { data: workers, isLoading } = useShopWorkers();
   return (
-    <SelectField label="Worker dựng và đăng video" value={value} onChange={(e) => onChange(e.target.value)} error={error}>
+    <SelectField label={label} value={value} onChange={(e) => onChange(e.target.value)} error={error}>
       <option value="">{isLoading ? 'Đang tải...' : workers?.length ? 'Chọn worker' : 'Shop chưa được gắn worker đăng bài nào'}</option>
       {(workers ?? []).map((w) => (
         <option key={w.id} value={w.id}>

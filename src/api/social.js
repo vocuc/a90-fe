@@ -271,6 +271,26 @@ export const publishPost = (id, form) =>
     })
     .then(({ data }) => mapPost(data));
 
+/**
+ * "Lập lịch đăng bài" nhiều lô (trang /batches): backend kiểm tra rồi đưa vào queue, mỗi lô thành 1 bài ảnh giao cho worker,
+ * giờ đăng dải đều từ startAt (lô đầu) tới endAt (lô cuối) theo thứ tự batchIds. Trả ngay, bài hiện dần ở trang Bài đăng.
+ * POST /social/posts/schedule-batches { batch_ids, worker_id, platforms, start_at, end_at, ai_content, idempotency_key }
+ *   -> 202 { data: { queued, schedule: [{ batch_id, scheduled_at }] } }
+ *   422: batch_ids (lô không có / chưa có ảnh xong), worker_id, platforms, start_at (đã qua), end_at (trước start_at)
+ */
+export const scheduleBatchPosts = ({ batchIds, workerId, platforms, startAt, endAt, aiContent }, idempotencyKey) =>
+  client
+    .post('/social/posts/schedule-batches', {
+      batch_ids: batchIds,
+      worker_id: workerId,
+      platforms,
+      start_at: startAt,
+      end_at: endAt,
+      ai_content: aiContent,
+      idempotency_key: idempotencyKey,
+    })
+    .then(({ data }) => ({ queued: data.queued, schedule: data.schedule ?? [] }));
+
 /** "Đăng lại" (bài lỗi) / "Tạo lại" (worker nhận rồi im lặng, có thể đăng trùng): bài về "Chờ đăng". */
 export const retryPost = (id) => client.post(`/social/posts/${id}/retry`).then(({ data }) => mapPost(data));
 

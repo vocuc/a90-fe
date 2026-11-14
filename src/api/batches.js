@@ -12,6 +12,7 @@ import { mapImage } from './social';
  * GET    /image-batches/{id}                                    -> { data: ImageBatch }
  * POST   /image-batches (multipart)                             -> 201 { data: ImageBatch }
  * DELETE /image-batches/{id}                                    -> 204
+ * POST   /image-batches/bulk-delete { all? | batch_ids[] }      -> { data: { deleted, skipped } }
  * POST   /image-batches/{id}/cancel                             -> { data: ImageBatch, meta: { cancelled } }  (hủy ảnh đang chờ)
  * GET    /image-batches/{id}/images/{imageId}/inputs            -> { data: { creative, inputs } }
  * POST   /image-batches/{id}/images/{imageId}/regenerate        -> 202 { data: Image }
@@ -183,3 +184,11 @@ export const cancelBatch = (id) =>
 
 /** Xoá lô khi không còn ảnh đang tạo. Bài đăng đã tạo và ảnh trong lịch sử tạo ảnh vẫn giữ. */
 export const deleteBatch = (id) => client.delete(`/image-batches/${id}`);
+
+/**
+ * Xoá nhiều lô: all = true (mọi lô của mình) hoặc batchIds. Lô còn ảnh đang tạo bị bỏ qua.
+ * Ảnh trong lịch sử tạo ảnh và bài đăng đã tạo vẫn giữ.
+ * POST /image-batches/bulk-delete { all?, batch_ids? } -> { data: { deleted, skipped } }
+ */
+export const bulkDeleteBatches = ({ all = false, batchIds = [] }) =>
+  client.post('/image-batches/bulk-delete', all ? { all: true } : { batch_ids: batchIds }).then(({ data }) => data);
