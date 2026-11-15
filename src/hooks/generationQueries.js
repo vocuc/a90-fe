@@ -54,6 +54,15 @@ export const useDisableOutput = () => {
   });
 };
 
+/** Chấm điểm ảnh phối đồ 1-10 (rating null = bỏ điểm). */
+export const useRateOutput = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ generationId, outputId, rating }) => generationApi.rateOutput(generationId, outputId, rating),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['generations'] }),
+  });
+};
+
 /** Bật lại ảnh đã tắt: ảnh về tab "Đang hoạt động", lô ảnh hết làm mờ. */
 export const useEnableOutput = () => {
   const queryClient = useQueryClient();

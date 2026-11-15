@@ -343,7 +343,7 @@ export const generationApi = {
     if (workerId) form.append('worker_id', workerId);
     return client.post('/generations', form, { timeout: GENERATION_UPLOAD_TIMEOUT }).then(({ data }) => data);
   }),
-  // tab: active | failed | disabled (không truyền: mọi đơn, kèm ảnh chưa tắt)
+  // tab: active (ảnh creative) | outfit (ảnh lô phối đồ) | failed | disabled (không truyền: mọi đơn, kèm ảnh chưa tắt)
   list: requireRealBackend(({ page, limit, tab, creativeId, productId } = {}) =>
     client.get('/generations', { params: { page, per_page: limit, tab, creative_id: creativeId, product_id: productId } }).then(({ data, meta }) => ({
       items: data,
@@ -363,4 +363,8 @@ export const generationApi = {
   ),
   disableOutput: requireRealBackend((id, outputId) => client.post(`/generations/${id}/outputs/${outputId}/disable`)),
   enableOutput: requireRealBackend((id, outputId) => client.post(`/generations/${id}/outputs/${outputId}/enable`)),
+  // Chấm điểm ảnh phối đồ (kind outfit) 1-10, rating null = bỏ điểm -> { id, rating, rated_at }
+  rateOutput: requireRealBackend((id, outputId, rating) =>
+    client.put(`/generations/${id}/outputs/${outputId}/rating`, { rating }).then(({ data }) => data),
+  ),
 };
