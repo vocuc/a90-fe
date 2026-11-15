@@ -363,8 +363,4 @@ export const generationApi = {
   ),
   disableOutput: requireRealBackend((id, outputId) => client.post(`/generations/${id}/outputs/${outputId}/disable`)),
   enableOutput: requireRealBackend((id, outputId) => client.post(`/generations/${id}/outputs/${outputId}/enable`)),
-  // Chấm điểm ảnh phối đồ (kind outfit) 1-10, rating null = bỏ điểm -> { id, rating, rated_at }
-  rateOutput: requireRealBackend((id, outputId, rating) =>
-    client.put(`/generations/${id}/outputs/${outputId}/rating`, { rating }).then(({ data }) => data),
-  ),
 };

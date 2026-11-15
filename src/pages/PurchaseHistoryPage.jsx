@@ -13,7 +13,6 @@ import {
   useEnableOutput,
   useGenerationFilters,
   useGenerationHistory,
-  useRateOutput,
   useRetryFromHistory,
 } from '../hooks/generationQueries';
 
@@ -29,7 +28,7 @@ const STATUS = {
 // Khớp ?tab= của GET /generations: backend chỉ trả đơn có ảnh thuộc tab, kèm đúng các ảnh đó
 const TABS = [
   { value: 'active', label: 'Đang hoạt động', icon: 'photo_library', empty: 'Bạn chưa có ảnh nào.' },
-  // Ảnh lô Phối đồ (bìa + outfit), chấm điểm outfit 1-10; không dùng để tạo video
+  // Ảnh lô Phối đồ (bìa + outfit); không dùng để tạo video
   { value: 'outfit', label: 'Phối đồ', icon: 'checkroom', empty: 'Chưa có ảnh phối đồ nào.' },
   { value: 'failed', label: 'Bị lỗi', icon: 'broken_image', empty: 'Không có ảnh nào bị lỗi.' },
   { value: 'disabled', label: 'Đã tắt', icon: 'visibility_off', empty: 'Bạn chưa tắt ảnh nào.' },
@@ -58,47 +57,6 @@ function SourceThumb({ label, name, src, onView }) {
         <span className="block truncate text-[11px] font-bold leading-tight text-on-surface">{name}</span>
       </span>
     </button>
-  );
-}
-
-/**
- * Chấm điểm ảnh phối đồ 1-10 (càng cao outfit càng hợp shop). Bấm lại đúng điểm đang chọn để bỏ điểm.
- */
-function OutfitRating({ order, output }) {
-  const rate = useRateOutput();
-  // Hiện ngay điểm vừa bấm trong lúc chờ tải lại danh sách
-  const rating = rate.isPending ? rate.variables.rating : output.rating ?? null;
-  const pick = (value) =>
-    rate.mutate({ generationId: order.id, outputId: output.id, rating: value === rating ? null : value });
-
-  return (
-    <div>
-      <p className="mb-1 flex items-center justify-between text-[11px] font-semibold text-on-surface-variant">
-        <span>Độ hợp shop</span>
-        <span className={rating ? 'font-bold text-primary' : 'text-outline'}>{rating ? `${rating}/10` : 'Chưa chấm'}</span>
-      </p>
-      <div role="radiogroup" aria-label="Chấm điểm outfit từ 1 đến 10" className="grid grid-cols-5 gap-1">
-        {Array.from({ length: 10 }, (_, i) => i + 1).map((value) => (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={rating === value}
-            onClick={() => pick(value)}
-            disabled={rate.isPending}
-            title={rating === value ? 'Bỏ điểm' : `${value} điểm`}
-            className={`h-6 rounded-md text-[11px] font-bold transition-colors disabled:opacity-60 ${
-              rating && value <= rating
-                ? 'bg-primary-container text-on-primary'
-                : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
-            }`}
-          >
-            {value}
-          </button>
-        ))}
-      </div>
-      {rate.error && <p className="mt-1 text-[11px] text-error">{rate.error.message}</p>}
-    </div>
   );
 }
 
@@ -220,7 +178,6 @@ function HistoryCard({ kind, order, output, onView }) {
         <div className="mt-auto pt-2.5">
           <div className="space-y-2 border-t border-surface-container pt-2.5">
             {kind === 'failed' && <p className="text-xs font-bold text-tertiary">Tạo lỗi</p>}
-            {kind === 'image' && order.kind === 'outfit' && <OutfitRating order={order} output={output} />}
             {kind === 'image' && (
               <div className="flex gap-1.5">
                 {!broken && (
