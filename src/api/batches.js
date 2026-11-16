@@ -41,6 +41,8 @@ export const mapBatch = (b) => ({
   source: b.source ?? BATCH_SOURCE.MANUAL,
   product: b.product ? { id: b.product.id, name: b.product.name, coverUrl: b.product.cover_url } : null,
   group: b.group ?? null,
+  // Tiêu đề lô: lô phối đồ = hook bìa do worker gửi kèm ảnh bìa; null khi chưa có
+  title: b.title ?? null,
   imageCount: b.image_count ?? 0,
   generatingCount: b.generating_count ?? 0,
   // Ảnh chưa worker nào nhận: hủy được bằng cancelBatch

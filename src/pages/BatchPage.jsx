@@ -355,6 +355,7 @@ export default function BatchPage() {
         </button>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-base font-bold text-on-surface">{selecting ? 'Chọn ảnh cho bài đăng' : `Lô ảnh #${id}`}</h1>
+          {!selecting && batch?.title && <p className="truncate text-sm font-semibold text-primary">{batch.title}</p>}
           {/* Lô tạo tự động (note/auto-tao-lo.txt): sản phẩm · nhóm đã dùng; lô phối đồ: sản phẩm */}
           {!selecting && (batch?.source === BATCH_SOURCE.AUTO || batch?.source === BATCH_SOURCE.OUTFIT) && (
             <p className="truncate text-[11px] text-on-surface-variant">

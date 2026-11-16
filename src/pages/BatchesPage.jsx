@@ -116,6 +116,7 @@ function BatchCard({ batch, selecting = false, order = -1, showOrder = true, onT
             <BatchStatusBadge batch={batch} />
           </span>
         </div>
+        {batch.title && <p className="line-clamp-2 pr-8 text-xs font-semibold text-primary">{batch.title}</p>}
         {(batch.source === BATCH_SOURCE.AUTO || batch.source === BATCH_SOURCE.OUTFIT) && (
           <p className="flex min-w-0 items-center gap-1 pr-8 text-xs text-on-surface-variant">
             {batch.source === BATCH_SOURCE.OUTFIT ? (
