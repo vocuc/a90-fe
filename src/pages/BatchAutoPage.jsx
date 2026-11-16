@@ -9,6 +9,7 @@ import { ErrorState, Skeleton } from '../components/common/Feedback';
 import LogoCard, { batchLogoUrl } from '../components/batch/LogoCard';
 import ProductPickerDialog from '../components/batch/ProductPickerDialog';
 import ImageWorkerSelect, { useImageWorker } from '../components/common/ImageWorkerSelect';
+import { Switch } from '../components/template/inputs';
 import { useMe } from '../hooks/queries';
 import useIdempotencyKey from '../hooks/useIdempotencyKey';
 import {
@@ -38,13 +39,24 @@ const readMode = () => {
 
 const PREVIEW_DELAY = 400;
 
+// Công tắc "Dùng ảnh sản phẩm" của lô phối đồ (mặc định tắt), nhớ lựa chọn trên máy
+const USE_PRODUCT_KEY = 'a51_outfit_use_product';
+const readUseProduct = () => {
+  try {
+    return localStorage.getItem(USE_PRODUCT_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
 /**
  * /batches/auto: "Tạo tự động" (note/auto-tao-lo.txt): nhập số lô + chèn logo, xem trước các lô sẽ tạo
  * (sản phẩm ít ảnh nhất trước x nhóm ít dùng nhất với sản phẩm, bằng nhau thì ngẫu nhiên; creative, tiền), "Chọn sản phẩm thủ công" để chỉ ghép lô từ các sản phẩm đã chọn
  * (gửi product_ids, số lô = số sản phẩm đã chọn), rồi tạo đúng các lô đang xem (gửi seed).
  * Hệ thống tạo lần lượt, hết tiền thì dừng. Tạo xong về danh sách lô, kết quả hiện ở đầu danh sách (AUTO_RESULT_KEY).
  * Chế độ "Phối đồ": mỗi lô = 1 sản phẩm (ít lô phối đồ nhất trước) x N ảnh (ảnh 1 bìa + N-1 ảnh outfit), giao worker
- * phối đồ (bắt buộc), không dùng nhóm creative.
+ * phối đồ (bắt buộc), không dùng nhóm creative. Công tắc "Dùng ảnh sản phẩm" (mặc định tắt): tắt thì lô không gắn sản phẩm,
+ * tạo đúng số lô nhập; worker vẽ outfit theo ảnh gốc outfit + người mẫu, ảnh bìa dựng từ ảnh outfit của lô.
  */
 export default function BatchAutoPage() {
   useSeo({ title: 'Tạo lô tự động', noindex: true });
@@ -81,7 +93,19 @@ export default function BatchAutoPage() {
   // Sản phẩm chọn thủ công; rỗng = hệ thống chọn ngẫu nhiên trong mọi sản phẩm
   const [products, setProducts] = useState([]);
   const [picking, setPicking] = useState(false);
-  const productIds = products.map((p) => p.id);
+  const [useProductState, setUseProductState] = useState(readUseProduct);
+  const setUseProduct = (v) => {
+    setUseProductState(v);
+    setError(null);
+    try {
+      localStorage.setItem(USE_PRODUCT_KEY, v ? '1' : '0');
+    } catch {
+      // bỏ qua
+    }
+  };
+  // Chế độ Creative luôn dùng sản phẩm; Phối đồ theo công tắc
+  const useProduct = !outfit || useProductState;
+  const productIds = useProduct ? products.map((p) => p.id) : [];
 
   // Vào từ danh sách lô thì quay lại đúng trang đó (không để trang này lại trong lịch sử)
   const fromList = !!location.state?.fromList && window.history.state?.idx > 0;
@@ -101,8 +125,10 @@ export default function BatchAutoPage() {
   }, [imagesInput]);
 
   const preview = useQuery({
-    queryKey: outfit ? ['auto-preview', 'outfit', count, images, productIds.join(',')] : ['auto-preview', count, productIds.join(',')],
-    queryFn: () => (outfit ? previewOutfit(count, images, productIds) : previewAuto(count, productIds)),
+    queryKey: outfit
+      ? ['auto-preview', 'outfit', useProduct, count, images, productIds.join(',')]
+      : ['auto-preview', count, productIds.join(',')],
+    queryFn: () => (outfit ? previewOutfit(count, images, productIds, useProduct) : previewAuto(count, productIds)),
     placeholderData: (prev) => prev,
     gcTime: 0,
   });
@@ -110,7 +136,7 @@ export default function BatchAutoPage() {
   const empty = plan && !plan.batches.length;
   // Xem trước đúng số lô đang nhập và không đang đổi ngẫu nhiên thì tạo đúng các lô đó
   // Vừa đổi chế độ: placeholderData là kết quả của chế độ cũ, chưa dùng được
-  const planOfMode = !!plan && (outfit ? 'imagesPerBatch' in plan : 'seed' in plan);
+  const planOfMode = !!plan && (outfit ? 'imagesPerBatch' in plan && plan.useProduct === useProduct : 'seed' in plan);
   const planReady = planOfMode && count === Number(input) && !preview.isFetching && (!outfit || images === Number(imagesInput));
 
   const countInvalid = !(Number(input) >= 1 && Number(input) <= AUTO_MAX_COUNT && Number.isInteger(Number(input)));
@@ -136,6 +162,7 @@ export default function BatchAutoPage() {
               imagesPerBatch: Number(imagesInput),
               insertLogo: !!logoUrl && insertLogo,
               productIds,
+              useProduct,
               workerId: worker.workerId,
             },
             idem.key.current,
@@ -184,7 +211,9 @@ export default function BatchAutoPage() {
           <h1 className="truncate text-base font-bold text-on-surface">Tạo lô tự động</h1>
           <p className="truncate text-xs text-on-surface-variant">
             {outfit
-              ? 'Mỗi lô = 1 sản phẩm (ít lô phối đồ nhất trước): 1 ảnh bìa + các ảnh outfit phối với đôi giày'
+              ? useProduct
+                ? 'Mỗi lô = 1 sản phẩm (ít lô phối đồ nhất trước): 1 ảnh bìa + các ảnh outfit phối với đôi giày'
+                : 'Mỗi lô: các ảnh outfit vẽ từ outfit OOTD + người mẫu, ảnh bìa làm từ ảnh outfit của lô'
               : 'Mỗi lô = 1 sản phẩm (ít ảnh nhất trước) x các creative Đang bán của 1 nhóm (ít dùng nhất với sản phẩm đó)'}
           </p>
         </div>
@@ -256,6 +285,21 @@ export default function BatchAutoPage() {
           )}
         </div>
 
+        {outfit && (
+          <div className="rounded-2xl border border-outline-variant/40 p-3">
+            <Switch
+              label="Dùng ảnh sản phẩm"
+              hint={
+                useProduct
+                  ? 'Mỗi lô 1 sản phẩm: người mẫu đi đúng đôi giày, ảnh bìa từ ảnh giày'
+                  : 'Không gắn sản phẩm: vẽ theo ảnh gốc outfit + người mẫu, ảnh bìa từ ảnh outfit của lô'
+              }
+              checked={useProduct}
+              onChange={setUseProduct}
+            />
+          </div>
+        )}
+
         <LogoCard
           hasShop={!!me?.creatorProfile}
           logoUrl={logoUrl}
@@ -277,16 +321,18 @@ export default function BatchAutoPage() {
               Xem trước
               {preview.isFetching && <Icon name="progress_activity" className="animate-spin text-sm text-outline" />}
             </h2>
-            <button
-              type="button"
-              onClick={() => setPicking(true)}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-primary hover:bg-surface-container"
-            >
-              <Icon name="checklist" className="text-base" />
-              Chọn sản phẩm thủ công
-            </button>
+            {useProduct && (
+              <button
+                type="button"
+                onClick={() => setPicking(true)}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-primary hover:bg-surface-container"
+              >
+                <Icon name="checklist" className="text-base" />
+                Chọn sản phẩm thủ công
+              </button>
+            )}
           </div>
-          {products.length > 0 && (
+          {useProduct && products.length > 0 && (
             <div className="mb-2 flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs">
               <Icon name="shopping_bag" className="text-base text-primary" />
               <p className="min-w-0 flex-1 text-on-surface-variant">
@@ -347,10 +393,16 @@ export default function BatchAutoPage() {
                     className="flex items-center gap-3 rounded-xl border border-outline-variant/40 p-2"
                   >
                     <span className="w-6 shrink-0 text-center text-xs font-bold text-outline">{i + 1}</span>
-                    <CoverImage src={b.product.coverUrl} alt="" className="size-10 shrink-0 rounded-lg" />
+                    {b.product ? (
+                      <CoverImage src={b.product.coverUrl} alt="" className="size-10 shrink-0 rounded-lg" />
+                    ) : (
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-container">
+                        <Icon name="checkroom" className="text-outline" />
+                      </span>
+                    )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-on-surface">
-                        {b.product.name || `Sản phẩm #${b.product.id}`}
+                        {b.product ? b.product.name || `Sản phẩm #${b.product.id}` : `Lô phối đồ ${i + 1}`}
                       </span>
                       {outfit ? (
                         <span className="block truncate text-[11px] text-on-surface-variant">

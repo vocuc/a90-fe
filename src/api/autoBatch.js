@@ -199,20 +199,32 @@ export const createAuto = ({ count, insertLogo, seed, workerId, productIds = [] 
  */
 export const OUTFIT_IMAGES = { min: 2, max: 10, default: 5 };
 
-export const previewOutfit = (count, imagesPerBatch, productIds = []) =>
+/*
+ * use_product (công tắc "Dùng ảnh sản phẩm", mặc định tắt trên trang): false -> lô không gắn sản phẩm, tạo đúng count lô
+ * (preview trả batches[].product = null); worker vẽ outfit theo ảnh gốc outfit + người mẫu OOTD, ảnh bìa dựng từ ảnh
+ * outfit đã vẽ của lô. Không gửi = true (như cũ).
+ */
+export const previewOutfit = (count, imagesPerBatch, productIds = [], useProduct = true) =>
   client
     .get('/image-batches/auto/preview', {
-      params: { mode: 'outfit', count, images_per_batch: imagesPerBatch, product_ids: productIds.length ? productIds : undefined },
+      params: {
+        mode: 'outfit',
+        count,
+        images_per_batch: imagesPerBatch,
+        use_product: useProduct ? 1 : 0,
+        product_ids: useProduct && productIds.length ? productIds : undefined,
+      },
     })
     .then(({ data }) => ({
       imagesPerBatch: data.images_per_batch,
+      useProduct: data.use_product !== false,
       batches: data.batches.map((b) => ({
-        product: { id: b.product.id, name: b.product.name, coverUrl: b.product.cover_url },
+        product: b.product ? { id: b.product.id, name: b.product.name, coverUrl: b.product.cover_url } : null,
         images: b.images,
       })),
     }));
 
-export const createOutfit = ({ count, imagesPerBatch, insertLogo, workerId, productIds = [] }, idempotencyKey) =>
+export const createOutfit = ({ count, imagesPerBatch, insertLogo, workerId, productIds = [], useProduct = true }, idempotencyKey) =>
   client
     .post('/image-batches/auto', {
       mode: 'outfit',
@@ -221,7 +233,8 @@ export const createOutfit = ({ count, imagesPerBatch, insertLogo, workerId, prod
       insert_logo: insertLogo,
       idempotency_key: idempotencyKey,
       worker_id: workerId,
-      product_ids: productIds.length ? productIds : undefined,
+      use_product: useProduct,
+      product_ids: useProduct && productIds.length ? productIds : undefined,
     })
     .then(({ data }) => ({
       batches: data.batches.map(mapBatch),
