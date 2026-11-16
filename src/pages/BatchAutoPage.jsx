@@ -285,21 +285,6 @@ export default function BatchAutoPage() {
           )}
         </div>
 
-        {outfit && (
-          <div className="rounded-2xl border border-outline-variant/40 p-3">
-            <Switch
-              label="Dùng ảnh sản phẩm"
-              hint={
-                useProduct
-                  ? 'Mỗi lô 1 sản phẩm: người mẫu đi đúng đôi giày, ảnh bìa từ ảnh giày'
-                  : 'Không gắn sản phẩm: vẽ theo ảnh gốc outfit + người mẫu, ảnh bìa từ ảnh outfit của lô'
-              }
-              checked={useProduct}
-              onChange={setUseProduct}
-            />
-          </div>
-        )}
-
         <LogoCard
           hasShop={!!me?.creatorProfile}
           logoUrl={logoUrl}
@@ -314,6 +299,21 @@ export default function BatchAutoPage() {
         <div id="auto-worker" className="rounded-2xl border border-outline-variant/40 p-4">
           <ImageWorkerSelect worker={worker} error={workerError} onChange={() => setWorkerError(null)} />
         </div>
+
+        {outfit && (
+          <div className="rounded-2xl border border-outline-variant/40 p-3">
+            <Switch
+              label="Dùng ảnh sản phẩm"
+              hint={
+                useProduct
+                  ? 'Mỗi lô 1 sản phẩm: người mẫu đi đúng đôi giày, ảnh bìa từ ảnh giày'
+                  : 'Không gắn sản phẩm: vẽ theo ảnh gốc outfit + người mẫu, ảnh bìa từ ảnh outfit của lô'
+              }
+              checked={useProduct}
+              onChange={setUseProduct}
+            />
+          </div>
+        )}
 
         <div>
           <div className="mb-1.5 flex items-center gap-1">
