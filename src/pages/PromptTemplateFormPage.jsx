@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import Icon from '../components/common/Icon';
@@ -22,6 +22,15 @@ import { useCreatorProfile, usePromptTemplate, useSavePromptTemplate } from '../
  */
 
 function BlockCard({ block, index, count, onChange, onRemove, onMove }) {
+  // Ô nội dung tự cao theo nội dung (tối thiểu rows=5), không cần kéo giãn tay
+  const contentRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [block.content]);
+
   return (
     <div className="space-y-2 rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-3">
       <div className="flex items-center gap-1">
@@ -65,6 +74,7 @@ function BlockCard({ block, index, count, onChange, onRemove, onMove }) {
         </button>
       </div>
       <textarea
+        ref={contentRef}
         value={block.content}
         maxLength={MAX_PROMPT_LENGTH}
         onChange={(e) => onChange({ ...block, content: e.target.value })}
@@ -72,7 +82,7 @@ function BlockCard({ block, index, count, onChange, onRemove, onMove }) {
         spellCheck={false}
         placeholder="Nội dung block..."
         aria-label={`Nội dung block ${index + 1}`}
-        className={`${inputCls} ${borderCls()} resize-y font-mono text-[13px] leading-relaxed`}
+        className={`${inputCls} ${borderCls()} resize-none overflow-hidden font-mono text-[13px] leading-relaxed`}
       />
     </div>
   );
