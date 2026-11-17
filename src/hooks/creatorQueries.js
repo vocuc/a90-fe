@@ -5,6 +5,7 @@ import { useMe } from './queries';
 export const CREATOR_KEYS = {
   profile: ['creator', 'profile'],
   creatives: ['creator', 'creatives'],
+  promptTemplates: ['creator', 'prompt-templates'],
 };
 
 // GET /creator/profile trả 403 khi chưa có hồ sơ -> chỉ gọi khi /auth/me báo đã có.
@@ -161,3 +162,33 @@ export const useSaveTemplateCreative = () =>
       return { creative: fresh, coverError: err.message };
     }
   });
+
+// ---------------- Template prompt (note/template-prompt.txt) ----------------
+
+export const usePromptTemplates = (enabled = true) =>
+  useQuery({ queryKey: CREATOR_KEYS.promptTemplates, queryFn: creatorApi.listPromptTemplates, enabled });
+
+export const usePromptTemplate = (id, enabled = true) =>
+  useQuery({
+    queryKey: [...CREATOR_KEYS.promptTemplates, String(id)],
+    queryFn: () => creatorApi.getPromptTemplate(id),
+    enabled: enabled && id != null && id !== '',
+  });
+
+// Sửa Template thì prompt gộp của Creative đang dùng cũng đổi -> tải lại cả Creative
+const usePromptTemplateMutation = (mutationFn) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CREATOR_KEYS.promptTemplates });
+      queryClient.invalidateQueries({ queryKey: CREATOR_KEYS.creatives });
+    },
+  });
+};
+
+/** { id?, body }: có id thì sửa, không thì tạo. */
+export const useSavePromptTemplate = () =>
+  usePromptTemplateMutation(({ id, body }) => (id ? creatorApi.updatePromptTemplate(id, body) : creatorApi.createPromptTemplate(body)));
+
+export const useDeletePromptTemplate = () => usePromptTemplateMutation(creatorApi.deletePromptTemplate);

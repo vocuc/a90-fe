@@ -1,5 +1,7 @@
 import { useRef } from 'react';
-import { useAiModels } from '../../hooks/creatorQueries';
+import { Link } from 'react-router-dom';
+import Icon from '../common/Icon';
+import { useAiModels, usePromptTemplates } from '../../hooks/creatorQueries';
 import { useCategories } from '../../hooks/queries';
 import { Input, Select, borderCls, inputCls } from './inputs';
 import HashtagInput from './HashtagInput';
@@ -19,6 +21,62 @@ const SECTIONS = [
   { label: 'Ánh sáng', text: 'ÁNH SÁNG VÀ CHẤT LƯỢNG\nÁnh sáng studio mềm, độ chân thực cao ...' },
   { label: 'Đầu ra', text: 'ĐẦU RA\nTạo ảnh hoàn chỉnh theo tỉ lệ đã cấu hình. Không thêm chữ, watermark hoặc logo không có trong ảnh gốc.' },
 ];
+
+/**
+ * Chọn Template prompt (note/template-prompt.txt): prompt cuối = prompt Template (chỉ đọc, hiện ở đây) + prompt riêng bên dưới.
+ */
+function TemplatePicker({ value, onChange }) {
+  const templates = usePromptTemplates();
+  const selected = templates.data?.find((t) => String(t.id) === String(value));
+
+  return (
+    <div className="space-y-2 rounded-xl border border-outline-variant/40 bg-surface-container-low p-3">
+      <Select
+        label="Template prompt"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={!templates.data}
+        hint={
+          templates.error
+            ? `Không tải được Template: ${templates.error.message}`
+            : templates.data?.length === 0
+              ? 'Chưa có Template nào.'
+              : 'Prompt của Template đứng trước, prompt bên dưới nối tiếp phía sau.'
+        }
+      >
+        <option value="">Không dùng Template</option>
+        {/* Đang tải danh sách: giữ lựa chọn hiện tại để không mất giá trị */}
+        {value && !templates.data && <option value={value}>Đang tải...</option>}
+        {templates.data?.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.title}
+          </option>
+        ))}
+      </Select>
+      {selected && (
+        <details open className="group">
+          <summary className="flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-on-surface-variant">
+            <Icon name="lock" className="text-sm" />
+            Prompt của Template (chỉ đọc)
+            <Link
+              to={`/seller/prompt-templates/${selected.id}/edit`}
+              target="_blank"
+              className="ml-auto font-bold text-primary hover:underline"
+            >
+              Sửa Template
+            </Link>
+          </summary>
+          <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface-container p-2.5 font-mono text-[12px] leading-relaxed text-on-surface-variant">
+            {selected.prompt}
+          </pre>
+        </details>
+      )}
+      <Link to="/seller/prompt-templates/new" target="_blank" className="inline-block text-[11px] font-semibold text-primary hover:underline">
+        + Tạo Template mới
+      </Link>
+    </div>
+  );
+}
 
 /**
  * onSet: sửa title / category_id / model_id / description / hashtags của template. errors: lỗi theo path của validateTemplate.
@@ -51,6 +109,7 @@ export default function PromptEditor({ template, onChange, onSet, errors = {}, s
   return (
     <div className={`grid gap-4 ${stacked ? '' : 'lg:grid-cols-[1fr_280px]'}`}>
       <div className="space-y-2">
+        <TemplatePicker value={template.prompt_template_id ?? ''} onChange={(prompt_template_id) => onSet({ prompt_template_id })} />
         <div className="flex flex-wrap gap-1.5">
           {SECTIONS.map((s) => (
             <button
@@ -70,7 +129,7 @@ export default function PromptEditor({ template, onChange, onSet, errors = {}, s
           rows={22}
           maxLength={MAX_PROMPT_LENGTH}
           spellCheck={false}
-          placeholder={'Viết chỉ dẫn cố định cho model...\n\nDùng {{key}} để chèn giá trị người mua nhập (chỉ trường văn bản / lựa chọn).\nẢnh không chèn vào prompt — chúng được gửi kèm theo vai trò.'}
+          placeholder={template.prompt_template_id ? 'Prompt riêng của Creative (không bắt buộc), nối sau prompt Template.\n\nDùng {{key}} để chèn giá trị người mua nhập.' : 'Viết chỉ dẫn cố định cho model...\n\nDùng {{key}} để chèn giá trị người mua nhập (chỉ trường văn bản / lựa chọn).\nẢnh không chèn vào prompt — chúng được gửi kèm theo vai trò.'}
           aria-invalid={!!error}
           className={`${inputCls} ${borderCls(error)} min-h-[24rem] resize-y font-mono text-[13px] leading-relaxed`}
         />

@@ -177,6 +177,15 @@ export const hashtagApi = {
  * POST /creator/creatives/{id}/pause    (chỉ published) -> { data: creative } (trạng thái paused)
  *
  *   chưa đủ điều kiện -> 422 CREATIVE_NOT_PUBLISHABLE, context.reasons: string[]; sai trạng thái -> 409 INVALID_STATE
+ *
+ * Template prompt (note/template-prompt.txt): các block ghép thành prompt dùng chung cho nhiều Creative.
+ *   Creative gửi thêm prompt_template_id (null = không dùng); prompt_template là prompt riêng (bỏ trống được khi có Template).
+ *   GET creative trả config.prompt_template (riêng), config.prompt_template_id, config.full_prompt_template (đã gộp).
+ * GET    /creator/prompt-templates       -> { data: [{ id, title, blocks: [{ title, content }], prompt, creative_count, updated_at }] }
+ * POST   /creator/prompt-templates       { title, blocks } -> 201 { data }
+ * GET    /creator/prompt-templates/{id}  -> { data }
+ * PUT    /creator/prompt-templates/{id}  { title, blocks } -> { data } (gộp lại prompt mọi Creative đang dùng; lỗi -> 422 blocks)
+ * DELETE /creator/prompt-templates/{id}  -> 204; đang có Creative dùng -> 409 INVALID_STATE
  */
 
 // Chế độ mock chưa giả lập Creator Studio; gọi backend bằng token giả sẽ bị 401 và văng đăng xuất
@@ -225,6 +234,12 @@ export const creatorApi = {
   pauseCreative: requireRealBackend((id) =>
     client.post(`/creator/creatives/${id}/pause`).then(({ data }) => data),
   ),
+
+  listPromptTemplates: requireRealBackend(() => client.get('/creator/prompt-templates').then(({ data }) => data)),
+  getPromptTemplate: requireRealBackend((id) => client.get(`/creator/prompt-templates/${id}`).then(({ data }) => data)),
+  createPromptTemplate: requireRealBackend((body) => client.post('/creator/prompt-templates', body).then(({ data }) => data)),
+  updatePromptTemplate: requireRealBackend((id, body) => client.put(`/creator/prompt-templates/${id}`, body).then(({ data }) => data)),
+  deletePromptTemplate: requireRealBackend((id) => client.delete(`/creator/prompt-templates/${id}`)),
 };
 
 /** Item của GET /creator/creatives -> dạng như danh sách marketplace, thêm own / isPublic / status. */

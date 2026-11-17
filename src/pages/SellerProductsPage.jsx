@@ -217,6 +217,15 @@ export default function SellerProductsPage() {
           )}
           {hasProfile && (
             <Link
+              to="/seller/prompt-templates"
+              className="flex h-8 items-center gap-1 rounded-lg border border-outline-variant/50 px-3 text-xs font-bold text-on-surface hover:border-primary-container"
+            >
+              <Icon name="view_agenda" className="text-base" />
+              Tạo Template
+            </Link>
+          )}
+          {hasProfile && (
+            <Link
               to="/seller/creatives/new"
               className="mr-2 flex h-8 items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary"
             >

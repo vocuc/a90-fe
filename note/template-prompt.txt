@@ -1,0 +1,23 @@
+TEMPLATE PROMPT (2026-11-18)
+
+Mục đích
+- Creator soạn Template gồm nhiều block (tiêu đề + nội dung), dùng chung cho nhiều Creative.
+- Template CHỈ có block, không có nguyên liệu (ảnh / nguyên liệu ẩn vẫn nằm ở Creative).
+
+Gộp prompt
+- Prompt Template = các block ghép theo thứ tự: "Tiêu đề\nNội dung", cách nhau 1 dòng trống; block trống bị bỏ.
+- Prompt cuối của Creative = prompt Template + 1 dòng trống + prompt riêng của Creative.
+- Chọn Template thì prompt riêng được bỏ trống.
+- Backend lưu cả prompt riêng (own_prompt_template) và bản đã gộp (prompt_template) trong ai_creative_configs,
+  nên tạo ảnh / worker / tạo lô không phải đổi gì.
+- Sửa Template -> backend gộp lại prompt mọi Creative đang dùng (kể cả đang bán). Creative nào gộp xong bị lỗi
+  (quá 10.000 ký tự, dùng {{biến}} Creative không có...) thì không lưu Template, báo tên Creative.
+- Không xoá được Template đang có Creative dùng (409).
+
+Màn hình
+- Quản lý Creative: nút "Tạo Template" cạnh "Tạo mới" -> /seller/prompt-templates (danh sách).
+- /seller/prompt-templates/new, /:id/edit: thêm / xoá / đổi thứ tự block, xem trước prompt hoàn chỉnh.
+- Tạo / sửa Creative: ô "Template prompt" trong khung Prompt; prompt Template hiện chỉ đọc,
+  ô bên dưới là prompt riêng. Tab Xem trước và kiểm tra lỗi dùng prompt đã gộp.
+
+API: xem đầu src/api/services.js (mục Template prompt).

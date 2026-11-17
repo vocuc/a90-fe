@@ -213,11 +213,21 @@ export const emptyTemplate = () => ({
   description: '',
   video_url: '',
   hashtags: [],
+  // Template prompt đang dùng (note/template-prompt.txt), '' = không dùng
+  prompt_template_id: '',
   // Mặc định private: chỉ Creator thấy, chưa hiện trên marketplace
   is_public: false,
 });
 
 // ---------------- Prompt ----------------
+
+/** Prompt cuối = prompt Template rồi đến prompt riêng của Creative, cách 1 dòng trống. Khớp backend CreativeTemplate::mergePrompt. */
+export const mergePrompt = (templatePrompt, ownPrompt) =>
+  [(templatePrompt ?? '').trim(), (ownPrompt ?? '').trim()].filter(Boolean).join('\n\n');
+
+/** Prompt gửi model của template: basePrompt = prompt của Template prompt đang chọn. */
+export const fullPrompt = (template, basePrompt) =>
+  template.prompt_template_id ? mergePrompt(basePrompt, template.prompt_text) : (template.prompt_text ?? '');
 
 export const extractVariables = (text) => [...new Set([...(text ?? '').matchAll(VARIABLE_PATTERN)].map((m) => m[1]))];
 
@@ -250,8 +260,9 @@ export const pickDefaultRatio = (ratios = []) => (ratios.includes('1:1') ? '1:1'
  * Ảnh trong bản thử chưa tải lên S3 nên chỉ ghi tên file thay cho URL.
  * values: { [key]: value }, ảnh: { [key]: File[] } (image_set: { [slotKey]: File[] }). model: phần tử của /ai-models.
  */
-export function buildRequestJson(template, values, model) {
-  const { fields, prompt_text } = template;
+export function buildRequestJson(template, values, model, basePrompt = '') {
+  const { fields } = template;
+  const prompt_text = fullPrompt(template, basePrompt);
   const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
   const out = {};
   fields.forEach((f) => {
@@ -311,10 +322,11 @@ export function isFieldVisible(field, values, byKey) {
 /**
  * Trả { errors: { [path]: msg }, issues: [{ level: 'error'|'warning', message, fieldId? }] }.
  * path: 'title', 'prompt_text', `${_id}.key`, `${_id}.options`...
- * maxHiddenImages: số nguyên liệu ẩn tối đa admin cho phép.
+ * maxHiddenImages: số nguyên liệu ẩn tối đa admin cho phép. basePrompt: prompt của Template prompt đang chọn.
  */
-export function validateTemplate(template, { maxHiddenImages = DEFAULT_MAX_HIDDEN_IMAGES } = {}) {
-  const { fields, prompt_text } = template;
+export function validateTemplate(template, { maxHiddenImages = DEFAULT_MAX_HIDDEN_IMAGES, basePrompt = '' } = {}) {
+  const { fields } = template;
+  const prompt_text = fullPrompt(template, basePrompt);
   const errors = {};
   const issues = [];
   const add = (level, message, fieldId, path) => {
@@ -415,7 +427,8 @@ export function validateTemplate(template, { maxHiddenImages = DEFAULT_MAX_HIDDE
 
   // ---- Prompt ----
   const prompt = prompt_text ?? '';
-  if (!prompt.trim()) add('error', 'Chưa viết Prompt Template.', null, 'prompt_text');
+  // Chọn Template prompt thì prompt riêng được bỏ trống (Template luôn có nội dung)
+  if (!prompt.trim() && !template.prompt_template_id) add('error', 'Chưa viết Prompt Template.', null, 'prompt_text');
   else if (prompt.length > MAX_PROMPT_LENGTH)
     add('error', `Prompt tối đa ${MAX_PROMPT_LENGTH.toLocaleString('vi-VN')} ký tự.`, null, 'prompt_text');
 
@@ -500,6 +513,7 @@ export function toPayload(template) {
     video_url: (template.video_url ?? '').trim(),
     hashtags: template.hashtags ?? [],
     is_public: !!template.is_public,
+    prompt_template_id: template.prompt_template_id || null,
     prompt_template: {
       prompt_text: template.prompt_text,
       variables,
@@ -557,6 +571,7 @@ export function fromPayload(data) {
     video_url: String(data?.video_url ?? ''),
     hashtags: Array.isArray(data?.hashtags) ? data.hashtags.map(String) : [],
     is_public: data?.is_public === true,
+    prompt_template_id: data?.prompt_template_id == null ? '' : String(data.prompt_template_id),
   };
 }
 
@@ -575,7 +590,9 @@ export function toCreativePayload(template) {
     hashtags: template.hashtags ?? [],
     is_public: !!template.is_public,
     input_schema: toPayload(template).schema_json.fields,
+    // Prompt riêng; chọn Template thì backend gộp: prompt Template + prompt riêng
     prompt_template: template.prompt_text,
+    prompt_template_id: template.prompt_template_id ? Number(template.prompt_template_id) : null,
   };
 }
 
@@ -590,6 +607,7 @@ export function fromCreative(creative) {
     video_url: creative.video_url ?? '',
     hashtags: creative.hashtags?.map((h) => h.name) ?? [],
     is_public: creative.is_public === true,
+    prompt_template_id: config.prompt_template_id == null ? '' : String(config.prompt_template_id),
   };
 
   const template = fromPayload({ schema_json: { name: creative.title, fields: config.input_schema ?? [] } });

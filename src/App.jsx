@@ -21,6 +21,8 @@ import ToolDetailPage from './pages/ToolDetailPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import TemplateBuilderPage from './pages/TemplateBuilderPage';
+import PromptTemplatesPage from './pages/PromptTemplatesPage';
+import PromptTemplateFormPage from './pages/PromptTemplateFormPage';
 import SupportPage from './pages/SupportPage';
 import SocialPostPage from './pages/SocialPostPage';
 import SocialPostsPage from './pages/SocialPostsPage';
@@ -71,6 +73,8 @@ export default function App() {
           {/* Tạo lô tự động (note/auto-tao-lo.txt). Không dùng seller/products: link cũ của Quản lý Creative */}
           <Route path="seller/items" element={<ProductsPage />} />
           <Route path="seller/creative-groups" element={<CreativeGroupsPage />} />
+          {/* Template prompt: các block ghép thành prompt dùng chung cho nhiều Creative (note/template-prompt.txt) */}
+          <Route path="seller/prompt-templates" element={<PromptTemplatesPage />} />
           {/* Quản lý video template (note/quan-ly-video-template.txt) */}
           <Route path="seller/video-templates" element={<VideoTemplatesPage />} />
           {/* Worker admin gắn cho shop, chỉ xem (note/quan-ly-worker.txt) */}
@@ -132,6 +136,8 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route path="seller/creatives/new" element={<TemplateBuilderPage />} />
         <Route path="seller/creatives/:id/edit" element={<TemplateBuilderPage />} />
+        <Route path="seller/prompt-templates/new" element={<PromptTemplateFormPage />} />
+        <Route path="seller/prompt-templates/:id/edit" element={<PromptTemplateFormPage />} />
       </Route>
       <Route path="template-builder" element={<Navigate to="/seller/creatives/new" replace />} />
       {/* Link cũ /seller/products/... (Quản lý sản phẩm đã đổi thành Quản lý Creative) */}
