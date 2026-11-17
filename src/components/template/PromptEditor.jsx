@@ -41,7 +41,7 @@ function TemplatePicker({ value, onChange }) {
             ? `Không tải được Template: ${templates.error.message}`
             : templates.data?.length === 0
               ? 'Chưa có Template nào.'
-              : 'Prompt của Template đứng trước, prompt bên dưới nối tiếp phía sau.'
+              : 'Prompt của Template đứng trước, prompt bên dưới nối tiếp phía sau, block ghim (nếu có) ở cuối cùng.'
         }
       >
         <option value="">Không dùng Template</option>
@@ -67,7 +67,7 @@ function TemplatePicker({ value, onChange }) {
             </Link>
           </summary>
           <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface-container p-2.5 font-mono text-[12px] leading-relaxed text-on-surface-variant">
-            {selected.prompt}
+            {selected.prompt || '(Template chỉ có block ghim cuối)'}
           </pre>
         </details>
       )}
@@ -88,6 +88,11 @@ export default function PromptEditor({ template, onChange, onSet, errors = {}, s
   const error = errors.prompt_text;
   const models = useAiModels(true);
   const categories = useCategories();
+  const promptTemplates = usePromptTemplates();
+  // Block ghim của Template đang chọn: đứng sau prompt riêng
+  const pinned = template.prompt_template_id
+    ? promptTemplates.data?.find((t) => String(t.id) === String(template.prompt_template_id))?.pinned_prompt
+    : '';
 
   // Chèn tại con trỏ rồi đặt lại con trỏ sau đoạn vừa chèn
   const insert = (snippet, block = false) => {
@@ -139,6 +144,17 @@ export default function PromptEditor({ template, onChange, onSet, errors = {}, s
             {text.length.toLocaleString('vi-VN')}/{MAX_PROMPT_LENGTH.toLocaleString('vi-VN')}
           </span>
         </div>
+        {pinned && (
+          <div className="rounded-xl border border-outline-variant/40 bg-surface-container-low p-3">
+            <p className="flex items-center gap-1 text-[11px] font-semibold text-on-surface-variant">
+              <Icon name="keep" className="text-sm" />
+              Block ghim cuối của Template (chỉ đọc, nối sau prompt riêng)
+            </p>
+            <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface-container p-2.5 font-mono text-[12px] leading-relaxed text-on-surface-variant">
+              {pinned}
+            </pre>
+          </div>
+        )}
       </div>
 
       <aside className="space-y-4">

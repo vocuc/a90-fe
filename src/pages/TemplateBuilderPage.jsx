@@ -113,7 +113,7 @@ function Panel({ title, subtitle, children, className = '' }) {
   );
 }
 
-function PreviewTab({ template, basePrompt }) {
+function PreviewTab({ template, promptTemplate }) {
   const { fields } = template;
   const [values, setValues] = useState(() => initialValues(fields));
   const [submitted, setSubmitted] = useState(false);
@@ -128,7 +128,7 @@ function PreviewTab({ template, basePrompt }) {
   const errors = submitted ? validateValues(fields, formValues) : {};
   const models = useAiModels(true);
   const model = models.data?.find((m) => String(m.id) === String(template.model_id));
-  const request = buildRequestJson(template, formValues, model, basePrompt);
+  const request = buildRequestJson(template, formValues, model, promptTemplate);
   const valid = Object.keys(validateValues(fields, formValues)).length === 0;
 
   return (
@@ -259,10 +259,9 @@ function Builder({ creative: loaded }) {
   const limits = useTemplateLimits();
   const maxHiddenImages = limits.data?.max_hidden_images ?? DEFAULT_MAX_HIDDEN_IMAGES;
   const maxImageKb = limits.data?.input_max_size_kb ?? MAX_FILE_MB * 1024;
-  // Template prompt đang chọn: prompt cuối = prompt Template + prompt riêng (note/template-prompt.txt)
+  // Template prompt đang chọn: prompt cuối = block thường + prompt riêng + block ghim (note/template-prompt.txt)
   const promptTemplates = usePromptTemplates();
-  const basePrompt =
-    promptTemplates.data?.find((t) => String(t.id) === String(template?.prompt_template_id))?.prompt ?? '';
+  const promptTemplate = promptTemplates.data?.find((t) => String(t.id) === String(template?.prompt_template_id)) ?? null;
 
   // Tạo mới: tự lưu nháp trên trình duyệt
   useEffect(() => {
@@ -287,8 +286,8 @@ function Builder({ creative: loaded }) {
   }, [cover, isEdit]);
 
   const { errors, issues } = useMemo(
-    () => (template ? validateTemplate(template, { maxHiddenImages, basePrompt }) : { errors: {}, issues: [] }),
-    [template, maxHiddenImages, basePrompt],
+    () => (template ? validateTemplate(template, { maxHiddenImages, promptTemplate }) : { errors: {}, issues: [] }),
+    [template, maxHiddenImages, promptTemplate],
   );
   const errorIssues = issues.filter((i) => i.level === 'error');
   const errorCount = errorIssues.length;
@@ -559,7 +558,7 @@ function Builder({ creative: loaded }) {
           </div>
         )}
 
-        {tab === 'preview' && <PreviewTab template={template} basePrompt={basePrompt} />}
+        {tab === 'preview' && <PreviewTab template={template} promptTemplate={promptTemplate} />}
       </main>
     </div>
   );

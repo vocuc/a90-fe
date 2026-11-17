@@ -221,13 +221,21 @@ export const emptyTemplate = () => ({
 
 // ---------------- Prompt ----------------
 
-/** Prompt cuối = prompt Template rồi đến prompt riêng của Creative, cách 1 dòng trống. Khớp backend CreativeTemplate::mergePrompt. */
-export const mergePrompt = (templatePrompt, ownPrompt) =>
-  [(templatePrompt ?? '').trim(), (ownPrompt ?? '').trim()].filter(Boolean).join('\n\n');
+/** Nối các phần prompt khác rỗng, cách 1 dòng trống. Khớp backend CreativeTemplate::mergePrompt. */
+export const mergePrompt = (...parts) =>
+  parts
+    .map((p) => (p ?? '').trim())
+    .filter(Boolean)
+    .join('\n\n');
 
-/** Prompt gửi model của template: basePrompt = prompt của Template prompt đang chọn. */
-export const fullPrompt = (template, basePrompt) =>
-  template.prompt_template_id ? mergePrompt(basePrompt, template.prompt_text) : (template.prompt_text ?? '');
+/**
+ * Prompt gửi model: block thường của Template + prompt riêng + block ghim cuối.
+ * promptTemplate: Template prompt đang chọn ({ prompt, pinned_prompt } của GET /creator/prompt-templates).
+ */
+export const fullPrompt = (template, promptTemplate) =>
+  template.prompt_template_id
+    ? mergePrompt(promptTemplate?.prompt, template.prompt_text, promptTemplate?.pinned_prompt)
+    : (template.prompt_text ?? '');
 
 export const extractVariables = (text) => [...new Set([...(text ?? '').matchAll(VARIABLE_PATTERN)].map((m) => m[1]))];
 
@@ -260,9 +268,9 @@ export const pickDefaultRatio = (ratios = []) => (ratios.includes('1:1') ? '1:1'
  * Ảnh trong bản thử chưa tải lên S3 nên chỉ ghi tên file thay cho URL.
  * values: { [key]: value }, ảnh: { [key]: File[] } (image_set: { [slotKey]: File[] }). model: phần tử của /ai-models.
  */
-export function buildRequestJson(template, values, model, basePrompt = '') {
+export function buildRequestJson(template, values, model, promptTemplate = null) {
   const { fields } = template;
-  const prompt_text = fullPrompt(template, basePrompt);
+  const prompt_text = fullPrompt(template, promptTemplate);
   const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
   const out = {};
   fields.forEach((f) => {
@@ -322,11 +330,11 @@ export function isFieldVisible(field, values, byKey) {
 /**
  * Trả { errors: { [path]: msg }, issues: [{ level: 'error'|'warning', message, fieldId? }] }.
  * path: 'title', 'prompt_text', `${_id}.key`, `${_id}.options`...
- * maxHiddenImages: số nguyên liệu ẩn tối đa admin cho phép. basePrompt: prompt của Template prompt đang chọn.
+ * maxHiddenImages: số nguyên liệu ẩn tối đa admin cho phép. promptTemplate: Template prompt đang chọn ({ prompt, pinned_prompt }).
  */
-export function validateTemplate(template, { maxHiddenImages = DEFAULT_MAX_HIDDEN_IMAGES, basePrompt = '' } = {}) {
+export function validateTemplate(template, { maxHiddenImages = DEFAULT_MAX_HIDDEN_IMAGES, promptTemplate = null } = {}) {
   const { fields } = template;
-  const prompt_text = fullPrompt(template, basePrompt);
+  const prompt_text = fullPrompt(template, promptTemplate);
   const errors = {};
   const issues = [];
   const add = (level, message, fieldId, path) => {

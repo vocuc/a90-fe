@@ -6,7 +6,11 @@ Mục đích
 
 Gộp prompt
 - Prompt Template = các block ghép theo thứ tự: "Tiêu đề\nNội dung", cách nhau 1 dòng trống; block trống bị bỏ.
-- Prompt cuối của Creative = prompt Template + 1 dòng trống + prompt riêng của Creative.
+- Prompt cuối của Creative = block thường của Template + prompt riêng của Creative + block ghim cuối,
+  các phần cách nhau 1 dòng trống.
+- Ghim cuối: mỗi Template ghim được tối đa 1 block (nút ghim trên block; ghim block khác thì block cũ tự bỏ ghim).
+  Block ghim giữ vị trí trong danh sách nhưng khi ghép luôn đứng sau prompt riêng của Creative.
+  API: blocks[].pinned; GET trả prompt (block thường) và pinned_prompt (block ghim).
 - Chọn Template thì prompt riêng được bỏ trống.
 - Backend lưu cả prompt riêng (own_prompt_template) và bản đã gộp (prompt_template) trong ai_creative_configs,
   nên tạo ảnh / worker / tạo lô không phải đổi gì.

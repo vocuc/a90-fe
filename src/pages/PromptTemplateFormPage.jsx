@@ -9,7 +9,8 @@ import {
   MAX_BLOCKS,
   MAX_BLOCK_TITLE,
   MAX_TEMPLATE_TITLE,
-  composeBlocks,
+  mergePrompt,
+  templateParts,
   createBlock,
   fromTemplate,
   toTemplateBody,
@@ -21,7 +22,7 @@ import { useCreatorProfile, usePromptTemplate, useSavePromptTemplate } from '../
  * Prompt Template = các block ghép lại; Creative chọn Template thì prompt cuối = Template + prompt riêng của Creative.
  */
 
-function BlockCard({ block, index, count, onChange, onRemove, onMove }) {
+function BlockCard({ block, index, count, onChange, onRemove, onMove, onTogglePin }) {
   // Ô nội dung tự cao theo nội dung (tối thiểu rows=5), không cần kéo giãn tay
   const contentRef = useRef(null);
   useLayoutEffect(() => {
@@ -32,7 +33,17 @@ function BlockCard({ block, index, count, onChange, onRemove, onMove }) {
   }, [block.content]);
 
   return (
-    <div className="space-y-2 rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-3">
+    <div
+      className={`space-y-2 rounded-xl border bg-surface-container-lowest p-3 ${
+        block.pinned ? 'border-primary-container ring-1 ring-primary-container/40' : 'border-outline-variant/40'
+      }`}
+    >
+      {block.pinned && (
+        <p className="flex items-center gap-1 text-[11px] font-bold text-primary">
+          <Icon name="keep" className="text-sm" />
+          Ghim cuối: luôn đứng sau prompt riêng của Creative
+        </p>
+      )}
       <div className="flex items-center gap-1">
         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-fixed text-[11px] font-bold text-primary">
           {index + 1}
@@ -45,6 +56,18 @@ function BlockCard({ block, index, count, onChange, onRemove, onMove }) {
           aria-label={`Tiêu đề block ${index + 1}`}
           className={`${inputCls} ${borderCls()} h-9 flex-1 font-semibold`}
         />
+        <button
+          type="button"
+          onClick={onTogglePin}
+          aria-pressed={!!block.pinned}
+          aria-label={block.pinned ? 'Bỏ ghim block' : 'Ghim block xuống cuối prompt'}
+          title={block.pinned ? 'Bỏ ghim' : 'Ghim xuống cuối: đứng sau prompt riêng của Creative (chỉ 1 block)'}
+          className={`flex size-8 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container ${
+            block.pinned ? 'bg-primary-fixed text-primary' : 'text-outline hover:text-on-surface'
+          }`}
+        >
+          <Icon name={block.pinned ? 'keep' : 'keep_off'} className="text-lg" />
+        </button>
         <button
           type="button"
           onClick={() => onMove(index - 1)}
@@ -93,10 +116,14 @@ function Editor({ loaded }) {
   const [state, setState] = useState(() => fromTemplate(loaded));
   const [errors, setErrors] = useState([]);
   const save = useSavePromptTemplate();
-  const prompt = composeBlocks(state.blocks);
+  // head: trước prompt riêng của Creative, tail: block ghim sau prompt riêng
+  const { head, tail } = templateParts(state.blocks);
+  const prompt = mergePrompt(head, tail);
   const tooLong = prompt.length > MAX_PROMPT_LENGTH;
 
   const setBlocks = (fn) => setState((s) => ({ ...s, blocks: fn(s.blocks) }));
+  // Chỉ ghim được 1 block: ghim block này thì bỏ ghim block khác
+  const togglePin = (id) => setBlocks((list) => list.map((b) => ({ ...b, pinned: b._id === id ? !b.pinned : false })));
   const addBlock = () => setBlocks((list) => [...list, createBlock()]);
   const moveBlock = (from, to) =>
     setBlocks((list) => {
@@ -184,6 +211,7 @@ function Editor({ loaded }) {
               onChange={(next) => setBlocks((list) => list.map((b) => (b._id === block._id ? next : b)))}
               onRemove={() => setBlocks((list) => list.filter((b) => b._id !== block._id))}
               onMove={(to) => moveBlock(i, to)}
+              onTogglePin={() => togglePin(block._id)}
             />
           ))}
           <button
@@ -201,11 +229,19 @@ function Editor({ loaded }) {
           <div>
             <h2 className="text-sm font-bold text-on-surface">Prompt hoàn chỉnh</h2>
             <p className="text-[11px] text-on-surface-variant">
-              Các block ghép theo thứ tự. Creative dùng Template này sẽ nối thêm prompt riêng của nó phía sau.
+              Các block ghép theo thứ tự, prompt riêng của Creative nối sau. Block ghim (nếu có) luôn ở cuối cùng.
             </p>
           </div>
           <pre className="max-h-[70vh] min-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-inverse-surface p-3 font-mono text-[12px] leading-relaxed text-inverse-on-surface">
-            {prompt || '(Chưa có nội dung)'}
+            {prompt ? (
+              <>
+                {head && `${head}\n\n`}
+                <span className="rounded bg-white/15 px-1 italic opacity-80">[Prompt riêng của Creative]</span>
+                {tail && `\n\n${tail}`}
+              </>
+            ) : (
+              '(Chưa có nội dung)'
+            )}
           </pre>
           <p className={`text-right text-[11px] ${tooLong ? 'text-error' : 'text-outline'}`}>
             {prompt.length.toLocaleString('vi-VN')}/{MAX_PROMPT_LENGTH.toLocaleString('vi-VN')}
