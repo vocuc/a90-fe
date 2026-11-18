@@ -75,6 +75,9 @@ function HistoryCard({ kind, order, output, onView }) {
   const retryKey = useIdempotencyKey();
   const { confirm } = useConfirm();
   const [broken, setBroken] = useState(false);
+  // Creative của chính shop (danh sách ở bộ lọc, dùng chung cache): bấm Creative ID để sang trang chỉnh sửa
+  const { data: filters } = useGenerationFilters();
+  const ownCreative = !!order.creative && (filters?.creatives ?? []).some((c) => String(c.id) === String(order.creative.id));
   const actionError = download.error || disable.error || enable.error || retry.error;
 
   const handleRetry = async () => {
@@ -168,7 +171,18 @@ function HistoryCard({ kind, order, output, onView }) {
         <p className="text-[11px] text-outline">
           #{order.id} · {formatDateTime(order.created_at)}
         </p>
-        {order.creative?.id && <p className="text-[11px] text-outline">Creative ID: {order.creative.id}</p>}
+        {order.creative?.id && (
+          <p className="text-[11px] text-outline">
+            Creative ID:{' '}
+            {ownCreative ? (
+              <Link to={`/seller/creatives/${order.creative.id}/edit`} title="Chỉnh sửa creative" className="font-semibold text-primary hover:underline">
+                {order.creative.id}
+              </Link>
+            ) : (
+              order.creative.id
+            )}
+          </p>
+        )}
         {(order.creative?.cover_url || product?.cover_url) && (
           <div className="mt-2 flex gap-1.5">
             <SourceThumb label="Creative" name={order.creative?.title} src={order.creative?.cover_url} onView={onView} />
