@@ -9,6 +9,7 @@ import { BatchStatusBadge } from '../components/batch/BatchStatus';
 import ImageViewer from '../components/common/ImageViewer';
 import ActionBar from '../components/common/ActionBar';
 import ScheduleBatchesDialog from '../components/batch/ScheduleBatchesDialog';
+import CropImageDialog from '../components/batch/CropImageDialog';
 import { BATCH_SOURCE, BATCH_STATUS, bulkDeleteBatches, cancelBatch, deleteBatch, getBatch, listBatches, regenerateBatchImage } from '../api/batches';
 import { IMAGE_STATUS, isImageBusy, newIdempotencyKey } from '../api/social';
 import { AUTO_RESULT_KEY, AUTO_STOP } from '../api/autoBatch';
@@ -174,11 +175,14 @@ const VIEW_OPTIONS = [
  * Xem theo ảnh: gộp ảnh của các lô đã tải (API danh sách lô không kèm ảnh nên lấy chi tiết từng lô,
  * dùng chung cache ['batches', id] với trang lô). Lô / ảnh đang tạo tự cập nhật.
  * Nút tạo lại ở góc trên bên phải mỗi ảnh: chạy lại mẫu đã tạo ra ảnh (như trang lô), ảnh mới thay đúng chỗ cũ.
+ * Xem ảnh phóng to có nút "Cắt ảnh" (như trang lô): ảnh đã cắt ghi đè ảnh gốc.
  */
 function BatchImagesGrid({ batches }) {
   const queryClient = useQueryClient();
   const { confirm, alert } = useConfirm();
+  // { batchId, img }: ảnh đang xem / đang cắt
   const [viewing, setViewing] = useState(null);
+  const [cropping, setCropping] = useState(null);
   // Ảnh đang gửi yêu cầu tạo lại, theo `${batchId}-${imageId}`
   const [requesting, setRequesting] = useState([]);
   // Khoá chống tạo trùng khi bấm lại do lỗi mạng, theo ảnh
@@ -217,7 +221,42 @@ function BatchImagesGrid({ batches }) {
 
   return (
     <>
-      <ImageViewer src={viewing?.url} alt={viewing ? `Ảnh lô #${viewing.batchId}` : ''} onClose={() => setViewing(null)} />
+      <ImageViewer
+        src={viewing?.img.url}
+        alt={viewing ? `Ảnh lô #${viewing.batchId}` : ''}
+        onClose={() => setViewing(null)}
+        actions={
+          viewing &&
+          !isImageBusy(viewing.img) && (
+            <button
+              type="button"
+              onClick={() => {
+                setCropping(viewing);
+                setViewing(null);
+              }}
+              className="flex h-10 items-center gap-1 rounded-full bg-black/50 px-4 text-sm font-bold text-white transition-colors hover:bg-black/70"
+            >
+              <Icon name="crop" className="text-xl" />
+              Cắt ảnh
+            </button>
+          )
+        }
+      />
+      {cropping && (
+        <CropImageDialog
+          batchId={cropping.batchId}
+          image={cropping.img}
+          onClose={() => setCropping(null)}
+          onSaved={(fresh) => {
+            queryClient.setQueryData(
+              ['batches', String(cropping.batchId)],
+              (d) => d && { ...d, images: d.images.map((i) => (i.id === fresh.id ? fresh : i)) },
+            );
+            queryClient.invalidateQueries({ queryKey: ['batches'] });
+            setCropping(null);
+          }}
+        />
+      )}
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {batches.map((b, i) => {
           const { data: detail, isPending, error } = results[i];
@@ -240,7 +279,7 @@ function BatchImagesGrid({ batches }) {
                 {img.url ? (
                   <button
                     type="button"
-                    onClick={() => setViewing({ url: img.url, batchId: b.id })}
+                    onClick={() => setViewing({ batchId: b.id, img })}
                     aria-label={`Xem ảnh của lô #${b.id}`}
                     className="size-full cursor-zoom-in"
                   >
