@@ -168,6 +168,7 @@ function HistoryCard({ kind, order, output, onView }) {
         <p className="text-[11px] text-outline">
           #{order.id} · {formatDateTime(order.created_at)}
         </p>
+        {order.creative?.id && <p className="text-[11px] text-outline">Creative ID: {order.creative.id}</p>}
         {(order.creative?.cover_url || product?.cover_url) && (
           <div className="mt-2 flex gap-1.5">
             <SourceThumb label="Creative" name={order.creative?.title} src={order.creative?.cover_url} onView={onView} />
