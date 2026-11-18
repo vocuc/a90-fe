@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
@@ -9,8 +9,8 @@ import { BatchStatusBadge } from '../components/batch/BatchStatus';
 import ImageViewer from '../components/common/ImageViewer';
 import ActionBar from '../components/common/ActionBar';
 import ScheduleBatchesDialog from '../components/batch/ScheduleBatchesDialog';
-import { BATCH_SOURCE, BATCH_STATUS, bulkDeleteBatches, cancelBatch, deleteBatch, getBatch, listBatches } from '../api/batches';
-import { IMAGE_STATUS, isImageBusy } from '../api/social';
+import { BATCH_SOURCE, BATCH_STATUS, bulkDeleteBatches, cancelBatch, deleteBatch, getBatch, listBatches, regenerateBatchImage } from '../api/batches';
+import { IMAGE_STATUS, isImageBusy, newIdempotencyKey } from '../api/social';
 import { AUTO_RESULT_KEY, AUTO_STOP } from '../api/autoBatch';
 import { useConfirm } from '../components/common/ConfirmDialog';
 
@@ -172,17 +172,48 @@ const VIEW_OPTIONS = [
 
 /**
  * Xem theo ảnh: gộp ảnh của các lô đã tải (API danh sách lô không kèm ảnh nên lấy chi tiết từng lô,
- * dùng chung cache ['batches', id] với trang lô). Lô đang tạo ảnh tự cập nhật.
+ * dùng chung cache ['batches', id] với trang lô). Lô / ảnh đang tạo tự cập nhật.
+ * Nút tạo lại ở góc trên bên phải mỗi ảnh: chạy lại mẫu đã tạo ra ảnh (như trang lô), ảnh mới thay đúng chỗ cũ.
  */
 function BatchImagesGrid({ batches }) {
+  const queryClient = useQueryClient();
+  const { confirm, alert } = useConfirm();
   const [viewing, setViewing] = useState(null);
+  // Ảnh đang gửi yêu cầu tạo lại, theo `${batchId}-${imageId}`
+  const [requesting, setRequesting] = useState([]);
+  // Khoá chống tạo trùng khi bấm lại do lỗi mạng, theo ảnh
+  const regenerateKeys = useRef({});
   const results = useQueries({
     queries: batches.map((b) => ({
       queryKey: ['batches', String(b.id)],
       queryFn: () => getBatch(b.id),
-      refetchInterval: (q) => ((q.state.data ?? b).status === BATCH_STATUS.GENERATING ? POLL_INTERVAL : false),
+      refetchInterval: (q) => {
+        const d = q.state.data ?? b;
+        return d.status === BATCH_STATUS.GENERATING || d.images?.some(isImageBusy) ? POLL_INTERVAL : false;
+      },
     })),
   });
+
+  const regenerate = async (batchId, img) => {
+    const title = img.kind === 'creative' && img.creativeTitle ? ` theo mẫu "${img.creativeTitle}"` : '';
+    if (!(await confirm(`Tạo lại ảnh này${title}?`, { confirmLabel: 'Tạo lại' }))) return;
+    const k = `${batchId}-${img.id}`;
+    const keys = regenerateKeys.current;
+    keys[k] ??= newIdempotencyKey();
+    setRequesting((ids) => [...ids, k]);
+    try {
+      const fresh = await regenerateBatchImage(batchId, img, keys[k]);
+      delete keys[k];
+      queryClient.setQueryData(['batches', String(batchId)], (d) => d && { ...d, images: d.images.map((i) => (i.id === img.id ? fresh : i)) });
+      queryClient.invalidateQueries({ queryKey: ['batches'] });
+    } catch (err) {
+      // Máy chủ đã trả lỗi (không phải lỗi mạng): chưa tạo gì, lần sau dùng khoá mới
+      if (err?.status) delete keys[k];
+      alert(err?.message || 'Không tạo lại được ảnh, vui lòng thử lại.');
+    } finally {
+      setRequesting((ids) => ids.filter((x) => x !== k));
+    }
+  };
 
   return (
     <>
@@ -199,8 +230,11 @@ function BatchImagesGrid({ batches }) {
           }
           if (error || !detail) return null;
           return detail.images.map((img) => {
-            const busy = isImageBusy(img);
+            const sending = requesting.includes(`${b.id}-${img.id}`);
+            const busy = isImageBusy(img) || sending;
             const failed = img.status === IMAGE_STATUS.FAILED;
+            // Như trang lô: ảnh phối đồ luôn tạo lại được, ảnh creative cần biết mẫu đã tạo ra ảnh
+            const canRegenerate = img.kind !== 'creative' || !!img.creativeSlug;
             return (
               <li key={`${b.id}-${img.id}`} className="relative aspect-[3/4] overflow-hidden rounded-xl bg-surface-container">
                 {img.url ? (
@@ -237,6 +271,17 @@ function BatchImagesGrid({ batches }) {
                 >
                   Lô #{b.id}
                 </Link>
+                {canRegenerate && !busy && (
+                  <button
+                    type="button"
+                    onClick={() => regenerate(b.id, img)}
+                    aria-label={`Tạo lại ảnh của lô #${b.id}`}
+                    title="Tạo lại ảnh"
+                    className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
+                  >
+                    <Icon name="refresh" className="text-base" />
+                  </button>
+                )}
               </li>
             );
           });
