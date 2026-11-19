@@ -29,6 +29,22 @@ const PAUSE_REASON = {
 
 const PAGE_SIZE = 20;
 
+const NO_GROUP = '__none__';
+
+// Gom Creative theo nhóm, giữ thứ tự xuất hiện của nhóm; Creative chưa có nhóm xếp cuối
+function groupByCreativeGroup(items) {
+  const map = new Map();
+  for (const c of items) {
+    const key = c.group?.id != null ? String(c.group.id) : NO_GROUP;
+    if (!map.has(key)) map.set(key, { key, name: c.group?.name ?? 'Chưa có nhóm', items: [] });
+    map.get(key).items.push(c);
+  }
+  const groups = [...map.values()];
+  const none = groups.findIndex((g) => g.key === NO_GROUP);
+  if (none !== -1) groups.push(groups.splice(none, 1)[0]);
+  return groups;
+}
+
 function ProductCard({ creative }) {
   const publish = usePublishCreative();
   const pause = usePauseCreative();
@@ -325,10 +341,21 @@ export default function SellerProductsPage() {
             <p className="mb-2 text-xs text-on-surface-variant">
               {backendFiltered ? data.pages[0].total : `${items.length}${hasNextPage ? '+' : ''}`} AI Creative
             </p>
-            {/* 2 Creative mỗi hàng (desktop 4–5), thẻ cùng hàng cao bằng nhau */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
-              {items.map((c) => (
-                <ProductCard key={c.id} creative={c} />
+            <div className="space-y-6">
+              {groupByCreativeGroup(items).map((g) => (
+                <div key={g.key}>
+                  <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-on-surface">
+                    <Icon name={g.key === NO_GROUP ? 'folder_off' : 'workspaces'} className="text-base text-outline" />
+                    <span className="truncate">{g.name}</span>
+                    <span className="shrink-0 text-xs font-medium text-on-surface-variant">({g.items.length})</span>
+                  </h2>
+                  {/* 2 Creative mỗi hàng (desktop 4–5), thẻ cùng hàng cao bằng nhau */}
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
+                    {g.items.map((c) => (
+                      <ProductCard key={c.id} creative={c} />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
             {isFetchingNextPage && (
