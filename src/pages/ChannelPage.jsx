@@ -17,7 +17,8 @@ const TABS = [
   { key: 'calendar', label: 'Lịch đăng', icon: 'calendar_month' },
   { key: 'plans', label: 'Kế hoạch', icon: 'event_note' },
   { key: 'lineup', label: 'Tuyến nội dung', icon: 'view_list' },
-  { key: 'samples', label: 'Bài viết mẫu', icon: 'library_books' },
+  // Tab Bài viết mẫu: tạm ẩn (người dùng yêu cầu 2026-11-20), bỏ comment dòng dưới để hiện lại
+  // { key: 'samples', label: 'Bài viết mẫu', icon: 'library_books' },
   { key: 'templates', label: 'Template chữ', icon: 'text_fields' },
   { key: 'persona', label: 'Chân dung', icon: 'person_search' },
   { key: 'settings', label: 'Cấu hình', icon: 'tune' },
