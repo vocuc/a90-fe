@@ -39,7 +39,7 @@ function FeedView({ post, name, templates, index, setIndex }) {
 
   return (
     <div
-      className="relative mx-auto flex aspect-[360/780] w-[var(--phone-w)] flex-col overflow-hidden rounded-[28px] bg-black text-white"
+      className="relative mx-auto flex h-[calc(var(--phone-w)*780/360+30px)] w-[var(--phone-w)] flex-col overflow-hidden rounded-[28px] bg-black text-white"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === 'ArrowLeft') go(-1);
@@ -138,7 +138,7 @@ function FeedView({ post, name, templates, index, setIndex }) {
 /** Trang hồ sơ: bài này nằm ô đầu lưới (ảnh bìa = ảnh đầu), các ô sau là chỗ trống. */
 function ProfileView({ post, name, handle, templates }) {
   return (
-    <div className="mx-auto flex aspect-[360/780] w-[var(--phone-w)] flex-col overflow-hidden rounded-[28px] bg-white text-neutral-900">
+    <div className="mx-auto flex h-[calc(var(--phone-w)*780/360+30px)] w-[var(--phone-w)] flex-col overflow-hidden rounded-[28px] bg-white text-neutral-900">
       <div className="flex items-center justify-between px-11 pt-5 text-[14px] font-semibold">
         <span>8:00</span>
         <span className="flex items-center gap-0.5">
@@ -267,7 +267,7 @@ export default function TikTokPreview({ post, channelName, templates = {}, onEdi
       </div>
 
       {!post ? (
-        <div className="mx-auto flex aspect-[360/780] w-[var(--phone-w)] items-center justify-center rounded-[28px] bg-black p-6 text-center text-xs text-white/60">
+        <div className="mx-auto flex h-[calc(var(--phone-w)*780/360+30px)] w-[var(--phone-w)] items-center justify-center rounded-[28px] bg-black p-6 text-center text-xs text-white/60">
           Bấm vào 1 bài bên trái để xem trước
         </div>
       ) : mode === 'feed' ? (
