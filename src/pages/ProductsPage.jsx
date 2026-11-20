@@ -8,7 +8,7 @@ import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback'
 import ProductFormDialog from '../components/product/ProductFormDialog';
 import ProductShareDialog from '../components/product/ProductShareDialog';
 import { useCreatorProfile } from '../hooks/creatorQueries';
-import { AUTO_KEYS, deleteProduct, listProducts, setProductActive } from '../api/autoBatch';
+import { AUTO_KEYS, deleteProduct, getProductImageFile, listProducts, setProductActive } from '../api/autoBatch';
 import { Switch } from '../components/template/inputs';
 import { useConfirm } from '../components/common/ConfirmDialog';
 
@@ -23,8 +23,33 @@ function ProductCard({ product, onEdit }) {
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const { confirm, alert } = useConfirm();
   const title = product.name || `Sản phẩm #${product.id}`;
+
+  // Tải ảnh gốc qua API (signed URL S3 không tải trực tiếp được vì CORS), mỗi ảnh một file
+  const downloadImages = async () => {
+    setDownloading(true);
+    try {
+      for (const img of product.images) {
+        const file = await getProductImageFile(product.id, img);
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title}_${file.name}`.replace(/[\\/:*?"<>|]+/g, '_');
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        // Trình duyệt chặn nếu bấm tải nhiều file cùng lúc
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    } catch (err) {
+      alert(err?.message || 'Không tải được ảnh sản phẩm, vui lòng thử lại.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const remove = async () => {
     if (!(await confirm(`Xoá "${title}"? Lô đã tạo từ sản phẩm này vẫn giữ nguyên.`, { confirmLabel: 'Xoá', danger: true }))) return;
@@ -118,14 +143,27 @@ function ProductCard({ product, onEdit }) {
           />
         </div>
         {/* Tạo lô tay cho sản phẩm này: chọn creative + số ảnh, ảnh sản phẩm tự điền vào trường ảnh trùng key */}
-        <Link
-          to="/batches/new"
-          state={{ product }}
-          className="!mt-2 flex h-8 w-fit items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary"
-        >
-          <Icon name="auto_awesome" className="text-base" />
-          Tạo ảnh
-        </Link>
+        <div className="!mt-2 flex flex-wrap gap-2">
+          <Link
+            to="/batches/new"
+            state={{ product }}
+            className="flex h-8 w-fit items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary"
+          >
+            <Icon name="auto_awesome" className="text-base" />
+            Tạo ảnh
+          </Link>
+          {product.images.length > 0 && (
+            <button
+              type="button"
+              onClick={downloadImages}
+              disabled={downloading}
+              className="flex h-8 w-fit items-center gap-1 rounded-lg border border-outline-variant/60 px-3 text-xs font-bold text-on-surface hover:border-primary-container hover:text-primary disabled:opacity-50"
+            >
+              <Icon name={downloading ? 'progress_activity' : 'download'} className={`text-base ${downloading ? 'animate-spin' : ''}`} />
+              Tải ảnh
+            </button>
+          )}
+        </div>
       </div>
       {/* Sản phẩm được chia sẻ: không sửa / xoá */}
       {product.isOwner && (
