@@ -65,7 +65,7 @@ function FeedView({ post, name, templates, index, setIndex }) {
 
   return (
     <div
-      className="relative mx-auto flex aspect-[360/780] w-full max-w-[360px] flex-col overflow-hidden rounded-[28px] bg-black text-white"
+      className="relative mx-auto flex aspect-[360/780] w-[var(--phone-w)] flex-col overflow-hidden rounded-[28px] bg-black text-white"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === 'ArrowLeft') go(-1);
@@ -174,7 +174,7 @@ function FeedView({ post, name, templates, index, setIndex }) {
 /** Trang hồ sơ: bài này nằm ô đầu lưới (ảnh bìa = ảnh đầu), các ô sau là chỗ trống. */
 function ProfileView({ post, name, handle, templates }) {
   return (
-    <div className="mx-auto flex aspect-[360/780] w-full max-w-[360px] flex-col overflow-hidden rounded-[28px] bg-white text-neutral-900">
+    <div className="mx-auto flex aspect-[360/780] w-[var(--phone-w)] flex-col overflow-hidden rounded-[28px] bg-white text-neutral-900">
       <div className="flex items-center justify-between px-11 pt-5 text-[14px] font-semibold">
         <span>8:00</span>
         <span className="flex items-center gap-0.5">
@@ -223,7 +223,7 @@ function ProfileView({ post, name, handle, templates }) {
 function WebView({ post, name, handle, templates, index, setIndex }) {
   const total = post.images.length;
   return (
-    <div className="mx-auto flex w-full max-w-[360px] overflow-hidden rounded-xl border border-neutral-200 bg-white text-neutral-900 shadow-sm">
+    <div className="mx-auto flex w-[var(--phone-w)] overflow-hidden rounded-xl border border-neutral-200 bg-white text-neutral-900 shadow-sm">
       <div className="relative w-[58%] bg-black" style={{ aspectRatio: '3 / 4' }}>
         <Slide image={post.images[index]} templates={templates} />
         {total > 1 && (
@@ -265,7 +265,11 @@ const MODES = [
   ['web', 'Web'],
 ];
 
-export default function TikTokPreview({ post, channelName, templates = {}, onEdit }) {
+/**
+ * fitScreen: thu nhỏ khung theo chiều cao màn hình (cột xem trước ghim bên phải trên desktop) để thấy trọn khung, nút
+ * chọn chế độ và dòng thông tin mà không phải cuộn.
+ */
+export default function TikTokPreview({ post, channelName, templates = {}, onEdit, fitScreen = false }) {
   const [mode, setMode] = useState('feed');
   const [index, setIndex] = useState(0);
   useEffect(() => setIndex(0), [post?.id]);
@@ -273,20 +277,22 @@ export default function TikTokPreview({ post, channelName, templates = {}, onEdi
   const name = channelName || 'Kênh';
   const handle = `@${name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '') || 'kenh'}`;
 
+  const phoneWidth = fitScreen ? 'min(100%, 360px, calc((100vh - 230px) * 0.4615))' : 'min(100%, 360px)';
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-2" style={{ '--phone-w': phoneWidth }}>
       {/* Feed / Profile / Web như TikTok Studio */}
-      <div className="mx-auto flex max-w-[360px] rounded-lg bg-surface-container p-1">
+      <div className="mx-auto flex w-[var(--phone-w)] rounded-lg bg-surface-container p-1">
         {MODES.map(([key, label]) => (
           <button key={key} type="button" onClick={() => setMode(key)}
-            className={`flex-1 rounded-md py-1.5 text-sm font-semibold ${mode === key ? 'bg-white text-neutral-900 shadow-sm' : 'text-on-surface-variant'}`}>
+            className={`flex-1 rounded-md py-1 text-xs font-semibold ${mode === key ? 'bg-white text-neutral-900 shadow-sm' : 'text-on-surface-variant'}`}>
             {label}
           </button>
         ))}
       </div>
 
       {!post ? (
-        <div className="mx-auto flex aspect-[360/780] w-full max-w-[360px] items-center justify-center rounded-[28px] bg-black p-6 text-center text-xs text-white/60">
+        <div className="mx-auto flex aspect-[360/780] w-[var(--phone-w)] items-center justify-center rounded-[28px] bg-black p-6 text-center text-xs text-white/60">
           Bấm vào 1 bài bên trái để xem trước
         </div>
       ) : mode === 'feed' ? (
@@ -298,7 +304,7 @@ export default function TikTokPreview({ post, channelName, templates = {}, onEdi
       )}
 
       {post && (
-        <div className="mx-auto max-w-[360px] space-y-1 text-center">
+        <div className="mx-auto w-[var(--phone-w)] space-y-1 text-center">
           <p className="text-xs text-on-surface-variant">
             Đăng lúc {new Date(post.scheduled_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
             {post.type === 'video' && ' · Bài video (worker dựng video từ các ảnh này)'}

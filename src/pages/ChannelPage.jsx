@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import useSeo from '../hooks/useSeo';
@@ -27,10 +28,14 @@ export default function ChannelPage() {
   const tab = TABS.some((t) => t.key === params.get('tab')) ? params.get('tab') : 'calendar';
   const { data: channel, error, refetch } = useQuery({ queryKey: CHANNEL_KEYS.detail(id), queryFn: () => getChannel(id) });
   useSeo({ title: channel ? `Kênh ${channel.name}` : 'Kênh TikTok', noindex: true });
+  // Cột xem trước bên phải (desktop, tab Lịch đăng): CalendarTab vẽ khung xem trước vào đây (portal)
+  const [previewSlot, setPreviewSlot] = useState(null);
+  const withPreview = tab === 'calendar';
 
   return (
-    <>
-      <header className="sticky top-[60px] z-30 border-b border-surface-container bg-surface-container-lowest/90 backdrop-blur-md">
+    <div className={withPreview ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-2' : ''}>
+    <div className="min-w-0">
+      <header className="border-b border-surface-container bg-surface-container-lowest">
         <div className="flex items-center gap-2 px-2 py-2">
           <Link to="/channels" aria-label="Quay lại" className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container">
             <Icon name="arrow_back" />
@@ -78,7 +83,7 @@ export default function ChannelPage() {
                 </ul>
               </div>
             )}
-            {tab === 'calendar' && <CalendarTab channel={channel} />}
+            {tab === 'calendar' && <CalendarTab channel={channel} previewSlot={previewSlot} />}
             {tab === 'plans' && <PlansTab channel={channel} />}
             {tab === 'lineup' && <LineupTab channel={channel} />}
             {tab === 'templates' && <TextTemplatesTab channel={channel} />}
@@ -87,6 +92,9 @@ export default function ChannelPage() {
           </>
         )}
       </section>
-    </>
+    </div>
+    {/* Cột phải: chỉ có khung xem trước, ghim khi cuộn, vừa chiều cao màn hình */}
+    {withPreview && <aside ref={setPreviewSlot} className="hidden lg:sticky lg:top-[72px] lg:block lg:py-4 lg:pr-4" />}
+    </div>
   );
 }

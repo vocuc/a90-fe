@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Icon from '../common/Icon';
 import Dialog from '../common/Dialog';
@@ -102,7 +103,7 @@ function PostDialog({ channelId, channelName, templates, post, onClose, showPrev
 }
 
 /** Tab Lịch đăng: bài của kênh theo ngày (14 ngày từ hôm nay, lùi / tiến từng 14 ngày). */
-export default function CalendarTab({ channel }) {
+export default function CalendarTab({ channel, previewSlot }) {
   const [offset, setOffset] = useState(0);
   // Desktop: bấm bài -> xem trước bên phải; điện thoại: bấm bài -> mở popup (có xem trước ở đầu)
   const [previewId, setPreviewId] = useState(null);
@@ -136,7 +137,7 @@ export default function CalendarTab({ channel }) {
   const preview = data?.find((p) => p.id === previewId) ?? data?.find((p) => new Date(p.scheduled_at) >= new Date()) ?? data?.[0] ?? null;
 
   return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
+    <>
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => setOffset((o) => o - 1)} aria-label="14 ngày trước" className="flex size-8 items-center justify-center rounded-lg hover:bg-surface-container">
@@ -194,10 +195,12 @@ export default function CalendarTab({ channel }) {
         <PostDialog channelId={channel.id} channelName={channel.name} templates={templates} post={current} showPreview={!isDesktop()} onClose={() => setSelected(null)} />
       )}
     </div>
-    {/* Xem trước kiểu TikTok bên phải trên desktop (không ghim, cuộn cùng trang) */}
-    <aside className="hidden lg:block">
-      <TikTokPreview post={preview} channelName={channel.name} templates={templates} onEdit={preview ? () => setSelected(preview.id) : undefined} />
-    </aside>
-    </div>
+    {/* Xem trước kiểu TikTok: vẽ vào cột phải của trang (ChannelPage), ghim + vừa chiều cao màn hình */}
+    {previewSlot &&
+      createPortal(
+        <TikTokPreview fitScreen post={preview} channelName={channel.name} templates={templates} onEdit={preview ? () => setSelected(preview.id) : undefined} />,
+        previewSlot,
+      )}
+    </>
   );
 }
