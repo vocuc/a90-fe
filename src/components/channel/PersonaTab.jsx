@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import Icon from '../common/Icon';
 import { FormAlert, SubmitButton, TextField } from '../common/Form';
+import SuccessDialog from '../common/SuccessDialog';
 import { CHANNEL_KEYS, PERSONA_LABELS, updateChannel } from '../../api/channels';
 import Section from './Section';
 
@@ -51,12 +51,7 @@ export default function PersonaTab({ channel }) {
         </div>
       </Section>
       {mutation.error && <FormAlert>{mutation.error.message}</FormAlert>}
-      {saved && (
-        <p className="flex items-center gap-1 text-xs font-semibold text-emerald-700">
-          <Icon name="check_circle" className="text-sm" />
-          Đã lưu chân dung.
-        </p>
-      )}
+      {saved && <SuccessDialog title="Đã lưu chân dung" message={`Chân dung khách hàng của kênh "${channel.name}" đã được cập nhật.`} onClose={() => setSaved(false)} />}
       <SubmitButton loading={mutation.isPending} loadingText="Đang lưu...">
         Lưu chân dung
       </SubmitButton>

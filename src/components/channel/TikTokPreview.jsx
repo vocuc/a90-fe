@@ -2,186 +2,319 @@ import { useEffect, useState } from 'react';
 import Icon from '../common/Icon';
 import TextOverlayPreview from './TextOverlayPreview';
 
-/** Số đếm giả cho thanh hành động (chỉ để xem bố cục, bài chưa đăng nên chưa có số thật). */
-const PLACEHOLDER_COUNTS = { like: '0', comment: '0', save: '0', share: '0' };
-
-function RailButton({ icon, label, fill = true }) {
-  return (
-    <div className="flex flex-col items-center gap-0.5">
-      <Icon name={icon} fill={fill} className="text-[30px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]" />
-      <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">{label}</span>
-    </div>
-  );
-}
-
-function NavItem({ icon, label, active }) {
-  return (
-    <div className={`flex flex-1 flex-col items-center gap-0.5 ${active ? 'text-white' : 'text-white/60'}`}>
-      <Icon name={icon} fill={active} className="text-[22px]" />
-      <span className="text-[9px] font-semibold">{label}</span>
-    </div>
-  );
-}
-
 /**
- * Xem trước bài ảnh theo bố cục màn hình TikTok (chế độ ảnh): ảnh vuốt ngang + chấm trang, thanh hành động bên phải,
- * tên kênh + tiêu đề + hashtag phía dưới, thanh điều hướng đáy. Ảnh đã chèn chữ thì dùng ảnh thật; chưa chèn thì vẽ chữ
- * bằng CSS theo template chữ (templates: id -> style).
- * Chỉ là bản mô phỏng bố cục (biểu tượng chung, không dùng logo / tài nguyên của TikTok).
+ * Xem trước bài như khung "Preview" ở trang đăng bài của TikTok Studio trên web (mẫu chụp 2026-11-20 bằng Chrome của
+ * worker TikTok): chọn Feed / Profile / Web phía trên; Feed = màn hình điện thoại (ảnh + số trang "1/2", thanh hành động
+ * bên phải với số đếm "...", tên kênh + nhãn Photo, tiêu đề + hashtag, Original sound, thanh điều hướng đáy).
+ * Ảnh đã chèn chữ thì dùng ảnh thật; chưa chèn thì vẽ chữ bằng CSS theo template chữ (templates: id -> style).
+ * Biểu tượng chung (Material Symbols), không dùng logo / tài nguyên của TikTok.
  */
-export default function TikTokPreview({ post, channelName, templates = {}, onEdit }) {
-  const [index, setIndex] = useState(0);
-  const [expanded, setExpanded] = useState(false);
-  useEffect(() => {
-    setIndex(0);
-    setExpanded(false);
-  }, [post?.id]);
 
-  if (!post) {
-    return (
-      <div className="flex aspect-[9/19.5] w-full items-center justify-center rounded-[2.5rem] border-[10px] border-neutral-900 bg-neutral-950 p-6 text-center text-xs text-white/60">
-        Bấm vào 1 bài bên trái để xem trước
-      </div>
-    );
+const shadow = 'drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]';
+
+function Slide({ image, templates, className = '' }) {
+  if (!image) return null;
+  if (image.overlay_url) return <img src={image.overlay_url} alt="" className={`size-full object-contain ${className}`} />;
+  if (image.overlay_text && templates[image.text_template_id]) {
+    return <TextOverlayPreview image={image.thumb_url} text={image.overlay_text} style={templates[image.text_template_id]} className={`w-full rounded-none ${className}`} />;
   }
+  return <img src={image.thumb_url} alt="" className={`size-full object-contain ${className}`} />;
+}
 
+function Avatar({ name, size = 'size-10', plus = false }) {
+  return (
+    <div className="relative">
+      <span className={`flex ${size} items-center justify-center rounded-full border border-white bg-neutral-800 text-xs font-bold text-white`}>
+        {(name || 'K').trim().charAt(0).toUpperCase()}
+      </span>
+      {plus && (
+        <span className="absolute -bottom-1.5 left-1/2 flex size-4 -translate-x-1/2 items-center justify-center rounded-full bg-[#FE2C55] text-white">
+          <Icon name="add" className="text-[12px] font-bold" />
+        </span>
+      )}
+    </div>
+  );
+}
+
+function Rail({ icon, mirror = false }) {
+  return (
+    <div className="flex flex-col items-center">
+      <Icon name={icon} fill className={`text-[28px] text-white ${shadow} ${mirror ? '-scale-x-100' : ''}`} />
+      <span className={`-mt-1 text-[10px] font-bold leading-none text-white ${shadow}`}>...</span>
+    </div>
+  );
+}
+
+function Caption({ post }) {
+  const [open, setOpen] = useState(false);
+  const tags = (post.hashtags ?? []).map((h) => `#${h}`).join(' ');
+  if (!post.title && !tags && !post.content) return null;
+  return (
+    <button type="button" onClick={() => setOpen((v) => !v)} className={`block w-full text-left text-[12px] leading-snug text-white ${open ? '' : 'line-clamp-2'}`}>
+      {post.title && <span className="font-semibold">{post.title} </span>}
+      {post.content && <span>{post.content} </span>}
+      {tags && <span className="font-semibold">{tags}</span>}
+    </button>
+  );
+}
+
+function FeedView({ post, name, templates, index, setIndex }) {
   const images = post.images;
   const total = images.length;
-  const image = images[Math.min(index, total - 1)];
   const go = (d) => setIndex((i) => Math.max(0, Math.min(total - 1, i + d)));
-  const handle = `@${(channelName || 'kenh').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '')}`;
-  const caption = [post.title, (post.hashtags ?? []).map((h) => `#${h}`).join(' ')].filter(Boolean).join(' ');
-  const time = new Date(post.scheduled_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+
+  return (
+    <div
+      className="relative mx-auto flex aspect-[360/780] w-full max-w-[360px] flex-col overflow-hidden rounded-[28px] bg-black text-white"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft') go(-1);
+        if (e.key === 'ArrowRight') go(1);
+      }}
+    >
+      {/* Thanh trạng thái */}
+      <div className="flex items-center justify-between px-11 pt-5 text-[14px] font-semibold">
+        <span>8:00</span>
+        <span className="flex items-center gap-0.5">
+          <Icon name="signal_cellular_alt" className="text-[16px]" />
+          <Icon name="wifi" className="text-[16px]" />
+          <Icon name="battery_full" className="rotate-90 text-[16px]" />
+        </span>
+      </div>
+      {/* Đầu trang: LIVE | Following  For You | tìm kiếm */}
+      <div className="relative flex items-center justify-center gap-4 px-4 pb-2 pt-4 text-[14px] font-semibold">
+        <span className="absolute left-4 flex flex-col items-center leading-none">
+          <Icon name="live_tv" className="text-[22px]" />
+        </span>
+        <span className="text-white/60">Following</span>
+        <span className="relative">
+          For You
+          <span className="absolute -bottom-1.5 left-1/2 h-[2px] w-5 -translate-x-1/2 rounded-full bg-white" />
+        </span>
+        <Icon name="search" className="absolute right-4 text-[24px]" />
+      </div>
+
+      {/* Ảnh */}
+      <div className="relative flex min-h-0 flex-1 items-start justify-center">
+        <Slide image={images[index]} templates={templates} className="object-top" />
+        {total > 1 && (
+          <span className="absolute right-3 top-2 rounded-full bg-black/40 px-2 py-0.5 text-[11px] font-semibold">
+            {index + 1}/{total}
+          </span>
+        )}
+        {index > 0 && <button type="button" onClick={() => go(-1)} aria-label="Ảnh trước" className="absolute inset-y-0 left-0 w-1/3" />}
+        {index < total - 1 && <button type="button" onClick={() => go(1)} aria-label="Ảnh sau" className="absolute inset-y-0 right-12 w-1/3" />}
+
+        {/* Thanh hành động bên phải */}
+        <div className="absolute bottom-3 right-2 flex flex-col items-center gap-3">
+          <div className="mb-1">
+            <Avatar name={name} plus />
+          </div>
+          <Rail icon="favorite" />
+          <Rail icon="sms" />
+          <Rail icon="bookmark" />
+          <Rail icon="reply" mirror />
+        </div>
+      </div>
+
+      {/* Chân: chấm trang, tên kênh, chú thích, âm thanh */}
+      <div className="relative space-y-1 px-3 pb-2 pt-2">
+        {total > 1 && (
+          <div className="flex justify-center gap-1 pb-1">
+            {images.map((img, i) => (
+              <button key={img.id} type="button" onClick={() => setIndex(i)} aria-label={`Ảnh ${i + 1}`}
+                className={`size-1 rounded-full ${i === index ? 'bg-white' : 'bg-white/40'}`} />
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-1.5 pr-12">
+          <span className="truncate text-[14px] font-bold">{name}</span>
+          <span className="flex shrink-0 items-center gap-0.5 rounded bg-white/20 px-1 py-px text-[10px] font-semibold">
+            <Icon name="photo_library" className="text-[11px]" />
+            Photo
+          </span>
+        </div>
+        <div className="pr-12">
+          <Caption post={post} />
+        </div>
+        <p className="flex items-center gap-1.5 pr-12 text-[12px]">
+          <Icon name="music_note" className="text-[13px]" />
+          <span className="truncate">Original sound - {name}</span>
+        </p>
+        <span className="absolute bottom-2 right-3 size-9 animate-[spin_5s_linear_infinite] rounded-full border-[6px] border-neutral-800 bg-gradient-to-br from-neutral-500 to-neutral-900" />
+      </div>
+
+      {/* Thanh điều hướng đáy */}
+      <div className="flex items-center border-t border-white/10 px-2 pb-3 pt-1.5">
+        {[
+          ['home', 'Home', true],
+          ['group', 'Friends'],
+          null,
+          ['chat', 'Inbox'],
+          ['person', 'Me'],
+        ].map((item, i) =>
+          item ? (
+            <div key={item[1]} className={`flex flex-1 flex-col items-center ${item[2] ? 'text-white' : 'text-white/70'}`}>
+              <Icon name={item[0]} fill={item[2]} className="text-[22px]" />
+              <span className="text-[9px] font-semibold">{item[1]}</span>
+            </div>
+          ) : (
+            <div key={i} className="flex flex-1 justify-center">
+              <span className="flex h-7 w-10 items-center justify-center rounded-lg bg-white shadow-[-2px_0_0_#25F4EE,2px_0_0_#FE2C55]">
+                <Icon name="add" className="text-[20px] text-black" />
+              </span>
+            </div>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Trang hồ sơ: bài này nằm ô đầu lưới (ảnh bìa = ảnh đầu), các ô sau là chỗ trống. */
+function ProfileView({ post, name, handle, templates }) {
+  return (
+    <div className="mx-auto flex aspect-[360/780] w-full max-w-[360px] flex-col overflow-hidden rounded-[28px] bg-white text-neutral-900">
+      <div className="flex items-center justify-between px-11 pt-5 text-[14px] font-semibold">
+        <span>8:00</span>
+        <span className="flex items-center gap-0.5">
+          <Icon name="signal_cellular_alt" className="text-[16px]" />
+          <Icon name="wifi" className="text-[16px]" />
+          <Icon name="battery_full" className="rotate-90 text-[16px]" />
+        </span>
+      </div>
+      <p className="pt-3 text-center text-[15px] font-bold">{name}</p>
+      <div className="flex flex-col items-center gap-2 pt-4">
+        <span className="flex size-20 items-center justify-center rounded-full bg-neutral-200 text-2xl font-bold">{(name || 'K').charAt(0).toUpperCase()}</span>
+        <p className="text-[13px] font-semibold">{handle}</p>
+        <div className="flex gap-6 text-center text-[11px] text-neutral-500">
+          {['Following', 'Followers', 'Likes'].map((l) => (
+            <div key={l}>
+              <p className="text-[15px] font-bold text-neutral-900">...</p>
+              {l}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 flex border-b border-neutral-200 text-neutral-500">
+        <span className="flex flex-1 justify-center border-b-2 border-neutral-900 pb-2 text-neutral-900">
+          <Icon name="grid_view" className="text-[20px]" />
+        </span>
+        <span className="flex flex-1 justify-center pb-2"><Icon name="lock" className="text-[20px]" /></span>
+        <span className="flex flex-1 justify-center pb-2"><Icon name="favorite" className="text-[20px]" /></span>
+      </div>
+      <div className="grid grid-cols-3 gap-px bg-white">
+        <div className="relative aspect-[3/4] overflow-hidden bg-neutral-900">
+          <Slide image={post.images[0]} templates={templates} className="object-cover" />
+          <span className="absolute bottom-1 left-1 flex items-center gap-0.5 text-[10px] font-semibold text-white">
+            <Icon name="photo_library" className="text-[12px]" />
+            {post.images.length}
+          </span>
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="aspect-[3/4] bg-neutral-100" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Xem trên trình duyệt máy tính: ảnh bên trái, tên kênh + chú thích bên phải. */
+function WebView({ post, name, handle, templates, index, setIndex }) {
+  const total = post.images.length;
+  return (
+    <div className="mx-auto flex w-full max-w-[360px] overflow-hidden rounded-xl border border-neutral-200 bg-white text-neutral-900 shadow-sm">
+      <div className="relative w-[58%] bg-black" style={{ aspectRatio: '3 / 4' }}>
+        <Slide image={post.images[index]} templates={templates} />
+        {total > 1 && (
+          <>
+            <button type="button" onClick={() => setIndex((i) => Math.max(0, i - 1))} aria-label="Ảnh trước"
+              className="absolute left-1 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full bg-white/80">
+              <Icon name="chevron_left" className="text-base" />
+            </button>
+            <button type="button" onClick={() => setIndex((i) => Math.min(total - 1, i + 1))} aria-label="Ảnh sau"
+              className="absolute right-1 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full bg-white/80">
+              <Icon name="chevron_right" className="text-base" />
+            </button>
+          </>
+        )}
+      </div>
+      <div className="min-w-0 flex-1 space-y-2 p-3">
+        <div className="flex items-center gap-2">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-xs font-bold">{(name || 'K').charAt(0).toUpperCase()}</span>
+          <div className="min-w-0">
+            <p className="truncate text-[12px] font-bold">{name}</p>
+            <p className="truncate text-[10px] text-neutral-500">{handle}</p>
+          </div>
+        </div>
+        <p className="line-clamp-6 text-[11px] leading-snug">
+          {post.title} <span className="font-semibold">{(post.hashtags ?? []).map((h) => `#${h}`).join(' ')}</span>
+        </p>
+        <p className="flex items-center gap-1 text-[10px] text-neutral-500">
+          <Icon name="music_note" className="text-[12px]" />
+          <span className="truncate">Original sound - {name}</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+const MODES = [
+  ['feed', 'Feed'],
+  ['profile', 'Profile'],
+  ['web', 'Web'],
+];
+
+export default function TikTokPreview({ post, channelName, templates = {}, onEdit }) {
+  const [mode, setMode] = useState('feed');
+  const [index, setIndex] = useState(0);
+  useEffect(() => setIndex(0), [post?.id]);
+
+  const name = channelName || 'Kênh';
+  const handle = `@${name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '') || 'kenh'}`;
 
   return (
     <div className="space-y-3">
-      {/* Khung điện thoại */}
-      <div
-        className="relative mx-auto aspect-[9/19.5] w-full max-w-[340px] overflow-hidden rounded-[2.5rem] border-[10px] border-neutral-900 bg-black shadow-2xl"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowLeft') go(-1);
-          if (e.key === 'ArrowRight') go(1);
-        }}
-        aria-label="Xem trước bài trên TikTok"
-      >
-        {/* Thanh trạng thái */}
-        <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 pt-2 text-[11px] font-semibold text-white">
-          <span>{new Date(post.scheduled_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
-          <span className="flex items-center gap-1">
-            <Icon name="signal_cellular_alt" className="text-sm" />
-            <Icon name="wifi" className="text-sm" />
-            <Icon name="battery_full" className="text-sm" />
-          </span>
-        </div>
+      {/* Feed / Profile / Web như TikTok Studio */}
+      <div className="mx-auto flex max-w-[360px] rounded-lg bg-surface-container p-1">
+        {MODES.map(([key, label]) => (
+          <button key={key} type="button" onClick={() => setMode(key)}
+            className={`flex-1 rounded-md py-1.5 text-sm font-semibold ${mode === key ? 'bg-white text-neutral-900 shadow-sm' : 'text-on-surface-variant'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
 
-        {/* Thanh trên: Đang Follow / Dành cho bạn */}
-        <div className="absolute inset-x-0 top-7 z-20 flex items-center justify-center gap-4 px-4 text-[15px] font-semibold">
-          <Icon name="live_tv" className="absolute left-4 text-xl text-white" />
-          <span className="text-white/60">Đang Follow</span>
-          <span className="relative text-white">
-            Dành cho bạn
-            <span className="absolute -bottom-1.5 left-1/2 h-[3px] w-6 -translate-x-1/2 rounded-full bg-white" />
-          </span>
-          <Icon name="search" className="absolute right-4 text-2xl text-white" />
+      {!post ? (
+        <div className="mx-auto flex aspect-[360/780] w-full max-w-[360px] items-center justify-center rounded-[28px] bg-black p-6 text-center text-xs text-white/60">
+          Bấm vào 1 bài bên trái để xem trước
         </div>
+      ) : mode === 'feed' ? (
+        <FeedView post={post} name={name} templates={templates} index={Math.min(index, post.images.length - 1)} setIndex={setIndex} />
+      ) : mode === 'profile' ? (
+        <ProfileView post={post} name={name} handle={handle} templates={templates} />
+      ) : (
+        <WebView post={post} name={name} handle={handle} templates={templates} index={Math.min(index, post.images.length - 1)} setIndex={setIndex} />
+      )}
 
-        {/* Ảnh (chế độ ảnh: ảnh nằm giữa nền đen, không cắt) */}
-        <div className="absolute inset-0 bottom-[52px] flex items-center justify-center">
-          {image?.overlay_url ? (
-            <img src={image.overlay_url} alt={`Ảnh ${index + 1}`} className="max-h-full w-full object-contain" />
-          ) : image?.overlay_text && templates[image.text_template_id] ? (
-            <TextOverlayPreview image={image.thumb_url} text={image.overlay_text} style={templates[image.text_template_id]} className="w-full rounded-none" />
-          ) : (
-            <img src={image?.thumb_url} alt={`Ảnh ${index + 1}`} className="max-h-full w-full object-contain" />
+      {post && (
+        <div className="mx-auto max-w-[360px] space-y-1 text-center">
+          <p className="text-xs text-on-surface-variant">
+            Đăng lúc {new Date(post.scheduled_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
+            {post.type === 'video' && ' · Bài video (worker dựng video từ các ảnh này)'}
+          </p>
+          {post.hook && <p className="text-xs font-semibold text-on-surface">Hook: {post.hook}</p>}
+          {post.images.some((i) => i.overlay_text && !i.overlay_url) && (
+            <p className="text-[11px] text-amber-700">Chữ trên ảnh đang là bản xem trước, worker chưa chèn vào ảnh thật.</p>
           )}
-          {/* Vùng bấm trái / phải để chuyển ảnh */}
-          {index > 0 && <button type="button" onClick={() => go(-1)} aria-label="Ảnh trước" className="absolute inset-y-0 left-0 w-1/4" />}
-          {index < total - 1 && <button type="button" onClick={() => go(1)} aria-label="Ảnh sau" className="absolute inset-y-0 right-14 w-1/4" />}
-        </div>
-
-        {/* Thanh hành động bên phải */}
-        <div className="absolute bottom-[120px] right-2 z-20 flex flex-col items-center gap-4">
-          <div className="relative mb-2">
-            <span className="flex size-11 items-center justify-center rounded-full border-2 border-white bg-neutral-700 text-sm font-bold text-white">
-              {(channelName || 'K').trim().charAt(0).toUpperCase()}
-            </span>
-            <span className="absolute -bottom-2 left-1/2 flex size-5 -translate-x-1/2 items-center justify-center rounded-full bg-[#FE2C55] text-white">
-              <Icon name="add" className="text-sm" />
-            </span>
-          </div>
-          <RailButton icon="favorite" label={PLACEHOLDER_COUNTS.like} />
-          <RailButton icon="chat_bubble" label={PLACEHOLDER_COUNTS.comment} />
-          <RailButton icon="bookmark" label={PLACEHOLDER_COUNTS.save} />
-          <RailButton icon="reply" label={PLACEHOLDER_COUNTS.share} />
-          <span className="mt-1 flex size-10 animate-[spin_6s_linear_infinite] items-center justify-center rounded-full border-[6px] border-neutral-800 bg-neutral-600">
-            <Icon name="music_note" className="text-sm text-white" />
-          </span>
-        </div>
-
-        {/* Chú thích phía dưới */}
-        <div className="absolute inset-x-0 bottom-[52px] z-10 space-y-1.5 bg-gradient-to-t from-black/70 via-black/30 to-transparent px-3 pb-3 pr-16 pt-10 text-white">
-          {total > 1 && (
-            <div className="flex items-center gap-1 pb-1">
-              {images.map((img, i) => (
-                <button
-                  key={img.id}
-                  type="button"
-                  onClick={() => setIndex(i)}
-                  aria-label={`Ảnh ${i + 1}`}
-                  className={`h-1 rounded-full transition-all ${i === index ? 'w-4 bg-white' : 'w-1 bg-white/50'}`}
-                />
-              ))}
-            </div>
-          )}
-          <p className="text-[15px] font-bold">{handle}</p>
-          {caption && (
-            <button type="button" onClick={() => setExpanded((v) => !v)} className={`block w-full text-left text-[13px] leading-snug ${expanded ? '' : 'line-clamp-2'}`}>
-              {post.title && <span>{post.title} </span>}
-              {(post.hashtags ?? []).map((h) => (
-                <span key={h} className="font-semibold">
-                  #{h}{' '}
-                </span>
-              ))}
+          {onEdit && (
+            <button type="button" onClick={onEdit} className="mt-1 inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-on-surface hover:bg-surface-container">
+              <Icon name="edit" className="text-sm" />
+              Sửa chữ / làm lại
             </button>
           )}
-          <p className="flex items-center gap-1 text-[12px]">
-            <Icon name="music_note" className="text-sm" />
-            <span className="truncate">Âm thanh gốc - {handle.slice(1)}</span>
-          </p>
         </div>
-
-        {/* Thanh điều hướng đáy */}
-        <div className="absolute inset-x-0 bottom-0 z-20 flex h-[52px] items-center border-t border-white/10 bg-black px-1">
-          <NavItem icon="home" label="Trang chủ" active />
-          <NavItem icon="group" label="Bạn bè" />
-          <div className="flex flex-1 justify-center">
-            <span className="flex h-7 w-11 items-center justify-center rounded-lg bg-white shadow-[-3px_0_0_#25F4EE,3px_0_0_#FE2C55]">
-              <Icon name="add" className="text-xl text-black" />
-            </span>
-          </div>
-          <NavItem icon="inbox" label="Hộp thư" />
-          <NavItem icon="person" label="Hồ sơ" />
-        </div>
-      </div>
-
-      {/* Thông tin dưới khung */}
-      <div className="mx-auto max-w-[340px] space-y-1 text-center">
-        <p className="text-xs text-on-surface-variant">
-          Đăng lúc {time} · Ảnh {index + 1}/{total}
-          {post.type === 'video' && ' · Bài video (worker dựng video từ các ảnh này)'}
-        </p>
-        {post.hook && <p className="text-xs font-semibold text-on-surface">Hook: {post.hook}</p>}
-        {images.some((i) => i.overlay_text && !i.overlay_url) && (
-          <p className="text-[11px] text-amber-700">Chữ trên ảnh đang là bản xem trước, worker chưa chèn vào ảnh thật.</p>
-        )}
-        {onEdit && (
-          <button type="button" onClick={onEdit} className="mt-1 inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-on-surface hover:bg-surface-container">
-            <Icon name="edit" className="text-sm" />
-            Sửa chữ / làm lại
-          </button>
-        )}
-      </div>
+      )}
     </div>
   );
 }
