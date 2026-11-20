@@ -277,7 +277,7 @@ export default function TikTokPreview({ post, channelName, templates = {}, onEdi
   const name = channelName || 'Kênh';
   const handle = `@${name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '') || 'kenh'}`;
 
-  const phoneWidth = fitScreen ? 'min(100%, 360px, calc((100vh - 230px) * 0.4615))' : 'min(100%, 360px)';
+  const phoneWidth = fitScreen ? 'min(100%, 360px, calc((100vh - 200px) * 0.4615))' : 'min(100%, 360px)';
 
   return (
     <div className="space-y-2" style={{ '--phone-w': phoneWidth }}>
