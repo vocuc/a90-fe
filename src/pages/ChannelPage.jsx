@@ -8,6 +8,7 @@ import { CHANNEL_KEYS, MISSING_LABELS, getChannel } from '../api/channels';
 import CalendarTab from '../components/channel/CalendarTab';
 import PlansTab from '../components/channel/PlansTab';
 import LineupTab from '../components/channel/LineupTab';
+import PostSamplesTab from '../components/channel/PostSamplesTab';
 import TextTemplatesTab from '../components/channel/TextTemplatesTab';
 import PersonaTab from '../components/channel/PersonaTab';
 import SettingsTab from '../components/channel/SettingsTab';
@@ -16,6 +17,7 @@ const TABS = [
   { key: 'calendar', label: 'Lịch đăng', icon: 'calendar_month' },
   { key: 'plans', label: 'Kế hoạch', icon: 'event_note' },
   { key: 'lineup', label: 'Tuyến nội dung', icon: 'view_list' },
+  { key: 'samples', label: 'Bài viết mẫu', icon: 'library_books' },
   { key: 'templates', label: 'Template chữ', icon: 'text_fields' },
   { key: 'persona', label: 'Chân dung', icon: 'person_search' },
   { key: 'settings', label: 'Cấu hình', icon: 'tune' },
@@ -86,6 +88,7 @@ export default function ChannelPage() {
             {tab === 'calendar' && <CalendarTab channel={channel} previewSlot={previewSlot} />}
             {tab === 'plans' && <PlansTab channel={channel} />}
             {tab === 'lineup' && <LineupTab channel={channel} />}
+            {tab === 'samples' && <PostSamplesTab channel={channel} />}
             {tab === 'templates' && <TextTemplatesTab channel={channel} />}
             {tab === 'persona' && <PersonaTab channel={channel} />}
             {tab === 'settings' && <SettingsTab channel={channel} />}
