@@ -89,7 +89,7 @@ export default function SettingsTab({ channel }) {
   };
 
   return (
-    <form className="space-y-4" onSubmit={submit}>
+    <form className="grid items-start gap-4 lg:grid-cols-2" onSubmit={submit}>
       <Section title="Kênh">
         <TextField label="Tên kênh" icon="badge" value={form.name} maxLength={100} onChange={(e) => change({ name: e.target.value })} error={errors.name} />
         <SelectField label="Worker đăng bài" value={form.workerId} onChange={(e) => change({ workerId: e.target.value })} error={errors.worker_id}
@@ -172,6 +172,7 @@ export default function SettingsTab({ channel }) {
         </div>
       </Section>
 
+      <div className="space-y-3 lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-md">
       {mutation.error && !mutation.error.errors && <FormAlert>{mutation.error.message}</FormAlert>}
       {saved && (
         <p className="flex items-center gap-1 text-xs font-semibold text-emerald-700">
@@ -187,6 +188,7 @@ export default function SettingsTab({ channel }) {
         <Icon name="delete" className="text-base" />
         Xoá kênh
       </button>
+      </div>
     </form>
   );
 }

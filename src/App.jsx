@@ -110,14 +110,14 @@ export default function App() {
           <Route path="profile" element={<Navigate to="/account" replace />} />
           {/* Lịch sử tạo ảnh: lưới thẻ ảnh như Khám phá, trải rộng trên desktop */}
           <Route path="account/history" element={<PurchaseHistoryPage />} />
+          {/* Kênh TikTok + kế hoạch nội dung (note/xay-kenh-tiktok/dac-ta-giai-doan-1.txt): trải rộng trên desktop */}
+          <Route path="channels" element={<ChannelsPage />} />
+          <Route path="channels/:id" element={<ChannelPage />} />
           <Route element={<PageColumn />}>
             <Route path="create" element={<CreatePage />} />
             <Route path="seller/settings" element={<StoreSettingsPage />} />
             <Route path="seller/video-templates/new" element={<VideoTemplateFormPage />} />
             <Route path="seller/video-templates/:id/edit" element={<VideoTemplateFormPage />} />
-            {/* Kênh TikTok + kế hoạch nội dung (note/xay-kenh-tiktok/dac-ta-giai-doan-1.txt); thay trang "AI viết nội dung" cũ */}
-            <Route path="channels" element={<ChannelsPage />} />
-            <Route path="channels/:id" element={<ChannelPage />} />
             <Route path="seller/ai-content" element={<Navigate to="/channels" replace />} />
             <Route path="account" element={<AccountPage />} />
             {/* Đã bỏ kết nối TikTok (note/gop-luong-dang-bai.txt): link trả về cũ đưa về trang bài đăng */}

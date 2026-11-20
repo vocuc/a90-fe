@@ -73,7 +73,7 @@ function PlanDetail({ channelId, planId }) {
           {plan.warnings.map((w) => <li key={w}>{w}</li>)}
         </ul>
       )}
-      <ul className="space-y-2">
+      <ul className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
         {plan.items.map((item) => (
           <PlanItem key={item.id} channelId={channelId} planId={planId} item={item} canCancel={open} />
         ))}

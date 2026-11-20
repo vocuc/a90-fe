@@ -114,7 +114,7 @@ export default function TextTemplatesTab({ channel }) {
     <div className="space-y-3">
       <p className="text-xs text-on-surface-variant">Bản xem trước trên ảnh của shop. Ảnh thật do worker chèn chữ trước khi đăng.</p>
       {decide.error && <FormAlert>{decide.error.message}</FormAlert>}
-      <ul className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
         {data.items.map((t) => (
           <li key={t.id} className="space-y-2 rounded-2xl border border-outline-variant/40 p-2">
             <TextOverlayPreview image={data.meta.preview_image} text={t.sample_text || t.name} style={t.style} />

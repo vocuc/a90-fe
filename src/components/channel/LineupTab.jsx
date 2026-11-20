@@ -126,7 +126,7 @@ export default function LineupTab({ channel }) {
   if (!data || !samples) return <Skeleton className="h-40 w-full" />;
 
   return (
-    <div className="space-y-4">
+    <div className="grid items-start gap-4 lg:grid-cols-2">
       {data.pending.map((l) => (
         <Section key={l.id} title="Đề xuất chờ duyệt" subtitle="Duyệt thì kế hoạch sau dùng tuyến này.">
           <LineupCard channelId={channel.id} lineup={l} pending samples={samples.items} />

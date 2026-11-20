@@ -23,7 +23,7 @@ export default function PersonaTab({ channel }) {
 
   return (
     <form
-      className="space-y-4"
+      className="mx-auto max-w-3xl space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
         mutation.mutate(form);
@@ -33,6 +33,7 @@ export default function PersonaTab({ channel }) {
         title="Chân dung khách hàng"
         subtitle="Kế hoạch chọn hook, giọng văn theo chân dung này. Để trống thì đội A51 tự soạn từ sản phẩm của shop khi lập kế hoạch."
       >
+        <div className="grid gap-3 md:grid-cols-2">
         {fields.map((key) => (
           <TextField
             key={key}
@@ -45,6 +46,7 @@ export default function PersonaTab({ channel }) {
             }}
           />
         ))}
+        </div>
       </Section>
       {mutation.error && <FormAlert>{mutation.error.message}</FormAlert>}
       {saved && (

@@ -146,7 +146,8 @@ export default function CalendarTab({ channel }) {
       ) : !days.length ? (
         <EmptyState icon="calendar_month" message="Không có bài nào trong khoảng này." />
       ) : (
-        days.map(([day, posts]) => (
+        <div className="grid gap-4 xl:grid-cols-2">
+        {days.map(([day, posts]) => (
           <div key={day} className="space-y-2">
             <p className="text-xs font-bold capitalize text-on-surface-variant">{formatDay(day)}</p>
             <ul className="space-y-2">
@@ -170,7 +171,8 @@ export default function CalendarTab({ channel }) {
               ))}
             </ul>
           </div>
-        ))
+        ))}
+        </div>
       )}
       {current && <PostDialog channelId={channel.id} post={current} onClose={() => setSelected(null)} />}
     </div>
