@@ -194,8 +194,8 @@ export default function CalendarTab({ channel }) {
         <PostDialog channelId={channel.id} channelName={channel.name} templates={templates} post={current} showPreview={!isDesktop()} onClose={() => setSelected(null)} />
       )}
     </div>
-    {/* Xem trước kiểu TikTok, ghim bên phải trên desktop */}
-    <aside className="hidden lg:sticky lg:top-[150px] lg:block">
+    {/* Xem trước kiểu TikTok bên phải trên desktop (không ghim, cuộn cùng trang) */}
+    <aside className="hidden lg:block">
       <TikTokPreview post={preview} channelName={channel.name} templates={templates} onEdit={preview ? () => setSelected(preview.id) : undefined} />
     </aside>
     </div>
