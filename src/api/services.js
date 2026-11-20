@@ -209,8 +209,8 @@ export const creatorApi = {
   uploadAvatar: requireRealBackend((file) => uploadImage('/creator/profile/avatar', file)),
   uploadCover: requireRealBackend((file) => uploadImage('/creator/profile/cover', file)),
 
-  listCreatives: requireRealBackend(({ status, q, hashtag, visibility, page, limit } = {}) =>
-    client.get('/creator/creatives', { params: { status, q, hashtag, visibility, page, per_page: limit } }).then(({ data, meta }) => ({
+  listCreatives: requireRealBackend(({ status, q, hashtag, visibility, sort, page, limit } = {}) =>
+    client.get('/creator/creatives', { params: { status, q, hashtag, visibility, sort, page, per_page: limit } }).then(({ data, meta }) => ({
       items: data,
       total: meta.total,
       page: meta.current_page,

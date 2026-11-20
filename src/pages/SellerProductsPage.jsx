@@ -187,7 +187,7 @@ export default function SellerProductsPage() {
   // GET /creator/creatives cần profile người bán (403 khi chưa có)
   const { hasProfile, meLoaded } = useCreatorProfile();
   const { data, isLoading, isFetching, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useCreatorCreatives({ status: status || undefined, hashtag: hashtag || undefined, limit: PAGE_SIZE }, hasProfile);
+    useCreatorCreatives({ status: status || undefined, hashtag: hashtag || undefined, sort: 'group', limit: PAGE_SIZE }, hasProfile);
   const pageItems = data?.pages.flatMap((p) => p.items) ?? [];
   // Lọc thêm ở client phòng khi backend chưa hỗ trợ tham số hashtag
   const items = hashtag ? pageItems.filter((c) => c.hashtags?.some((h) => h.slug === hashtag)) : pageItems;
