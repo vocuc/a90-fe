@@ -30,6 +30,8 @@ const mapWorker = (w) => ({
   online: w.online,
   lastSeenAt: w.last_seen_at,
   token: w.token,
+  // Worker đăng bài thuộc kênh nào (mọi bài thuộc 1 kênh, note/xay-kenh-tiktok/dac-ta-giai-doan-1.txt mục 5.2)
+  channel: w.channel ?? null,
 });
 
 export const listWorkers = () => client.get('/creator/workers').then(({ data }) => data.map(mapWorker));

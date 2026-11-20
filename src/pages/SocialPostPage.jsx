@@ -790,7 +790,7 @@ function PostEditor({ post, type, worker }) {
                   ? 'Cần mở cửa hàng (hồ sơ người bán) để giao bài cho worker.'
                   : 'Không tải được danh sách worker, tải lại trang để thử lại.'
                 : !worker.isLoading && !worker.workers?.length
-                  ? 'Shop chưa được gắn worker đăng bài nào, liên hệ A51 để được gắn.'
+                  ? 'Chưa có kênh TikTok nào có worker. Vào Công cụ > Kênh TikTok để tạo kênh trước.'
                   : 'Worker nhận bài khi tới giờ đăng và đăng lên các nền tảng đã chọn.'
             }
           >

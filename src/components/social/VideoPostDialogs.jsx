@@ -34,15 +34,19 @@ export const fromLocalInput = (value) => new Date(value).toISOString();
 export const formatSchedule = (iso) =>
   iso ? new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
-export const workerLabel = (w) => `${w.name}${w.online ? '' : ' (offline)'}`;
+// Mọi bài thuộc 1 kênh: chọn worker = chọn kênh (note/xay-kenh-tiktok/dac-ta-giai-doan-1.txt mục 5.2)
+export const workerLabel = (w) => `${w.channel ? `Kênh ${w.channel.name} · ` : ''}${w.name}${w.online ? '' : ' (offline)'}`;
 
-/** Worker đăng bài của shop (loại publish): chọn ở trang bài đăng / popup "Tạo video". Worker tạo ảnh không hiện. */
+/**
+ * Worker đăng bài của shop (loại publish) ĐÃ THUỘC KÊNH: chọn ở trang bài đăng / popup "Tạo video". Worker tạo ảnh và
+ * worker chưa thuộc kênh nào không hiện (backend chặn 422: mọi bài thuộc 1 kênh).
+ */
 export function useShopWorkers({ enabled = true } = {}) {
   return useQuery({
     queryKey: WORKER_KEYS.all,
     enabled,
     queryFn: listWorkers,
-    select: (workers) => workers.filter((w) => w.type === 'publish'),
+    select: (workers) => workers.filter((w) => w.type === 'publish' && w.channel),
   });
 }
 
@@ -80,7 +84,7 @@ export function WorkerSelect({ value, onChange, error, label = 'Worker dựng v�
   const { data: workers, isLoading } = useShopWorkers();
   return (
     <SelectField label={label} value={value} onChange={(e) => onChange(e.target.value)} error={error}>
-      <option value="">{isLoading ? 'Đang tải...' : workers?.length ? 'Chọn worker' : 'Shop chưa được gắn worker đăng bài nào'}</option>
+      <option value="">{isLoading ? 'Đang tải...' : workers?.length ? 'Chọn kênh' : 'Chưa có kênh TikTok nào, tạo ở Công cụ > Kênh TikTok'}</option>
       {(workers ?? []).map((w) => (
         <option key={w.id} value={w.id}>
           {workerLabel(w)}

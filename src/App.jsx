@@ -10,7 +10,8 @@ import CreativeDetailPage from './pages/CreativeDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import StoreSettingsPage from './pages/StoreSettingsPage';
-import AiContentPage from './pages/AiContentPage';
+import ChannelsPage from './pages/ChannelsPage';
+import ChannelPage from './pages/ChannelPage';
 import SellerProductsPage from './pages/SellerProductsPage';
 import AccountPage from './pages/AccountPage';
 import PurchaseHistoryPage from './pages/PurchaseHistoryPage';
@@ -114,8 +115,10 @@ export default function App() {
             <Route path="seller/settings" element={<StoreSettingsPage />} />
             <Route path="seller/video-templates/new" element={<VideoTemplateFormPage />} />
             <Route path="seller/video-templates/:id/edit" element={<VideoTemplateFormPage />} />
-            {/* AI viết nội dung bài đăng: kho hashtag, bài mẫu, độ dài (note/ai-viet-noi-dung-bai-dang.txt) */}
-            <Route path="seller/ai-content" element={<AiContentPage />} />
+            {/* Kênh TikTok + kế hoạch nội dung (note/xay-kenh-tiktok/dac-ta-giai-doan-1.txt); thay trang "AI viết nội dung" cũ */}
+            <Route path="channels" element={<ChannelsPage />} />
+            <Route path="channels/:id" element={<ChannelPage />} />
+            <Route path="seller/ai-content" element={<Navigate to="/channels" replace />} />
             <Route path="account" element={<AccountPage />} />
             {/* Đã bỏ kết nối TikTok (note/gop-luong-dang-bai.txt): link trả về cũ đưa về trang bài đăng */}
             <Route path="mxh/tiktok/author" element={<Navigate to="/posts" replace />} />

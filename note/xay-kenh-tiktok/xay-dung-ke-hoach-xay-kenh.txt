@@ -1,0 +1,277 @@
+XÂY DỰNG KẾ HOẠCH NỘI DUNG KÊNH TIKTOK (SHOP GIÀY NỮ) - THẢO LUẬN
+====================================================================
+
+Ngày bắt đầu: 2026-11-20. Trạng thái: ĐANG THẢO LUẬN, CHƯA LÀM. Chưa lên lịch đăng, chưa sửa code.
+Phiên sau: đọc file này trước. Tổng hợp đã chốt: mục 6f. Giai đoạn (đã đồng ý): 6g.
+Thảo luận tổng thể XONG. GĐ1 đang thảo luận ở note/xay-kenh-tiktok/giai-doan-1.txt.
+
+
+==================================================
+1. BỐI CẢNH
+==================================================
+- Shop bán giày nữ (cao gót, búp bê, sandal, sneaker, dép lê, loafer).
+- Ảnh tạo bằng A51 (a51.vn), lấy ở Lịch sử tạo ảnh (/account/history). Có 2 loại:
+  + Ảnh sản phẩm (tab "Đang hoạt động"): ảnh đập hộp, tỉ lệ 3:4. Tay cầm giày, hộp, giấy lụa, nền thảm đỏ,
+    phòng nội thất sang. 58 Creative, tên dạng MS1, MS1.1, MS26, MS26.1... (thường mỗi mẫu có 2 ảnh: MSx và MSx.1).
+  + Ảnh phối đồ (tab "Phối đồ", creative 258): người mẫu chụp gương trong phòng đồ, tỉ lệ 9:16,
+    có chữ in sẵn "Outfit N".
+- Luồng đăng hiện có trên A51: chọn ảnh (Lịch sử tạo ảnh hoặc Lô ảnh) -> Đăng TikTok (Dùng ảnh đã có, chọn/sắp xếp
+  ảnh) -> AI viết nội dung (tiêu đề, nội dung, chọn tối đa 5 hashtag trong Kho hashtag ở /seller/ai-content)
+  -> worker lưu NHÁP TikTok -> người mở nháp trong TikTok, thêm chữ trên ảnh + nhạc rồi đăng.
+- Bài TikTok hiện chỉ là bài ẢNH (photo carousel), chưa có video.
+
+
+ĐỔI TÊN (2026-11-20): "khung" / "khung nội dung" từ nay gọi là "BÀI VIẾT MẪU". Các mục bên dưới viết trước
+khi đổi tên nên vẫn còn chữ "khung". Thư viện bài viết mẫu do đội A51 xây (cùng Claude) theo yêu cầu của shop,
+shop không tự thêm. Chi tiết: note/xay-kenh-tiktok/giai-doan-1.txt mục 7.
+
+==================================================
+2. NGUYÊN TẮC ĐÃ CHỐT
+==================================================
+- Tách 2 lớp:
+  + KHUNG NỘI DUNG: cách dựng bài, dùng quanh năm.
+  + HOOK: chủ đề / dịp chỉ nằm ở câu mở đầu, thay theo mùa (Tết chỉ là 1 hook, không phải 1 loại nội dung).
+- Công thức 1 bài: KHUNG + HOOK + ẢNH + KÊU GỌI HÀNH ĐỘNG (CTA).
+  Ví dụ khung "A hay B": "Mùng 1 chọn đôi nào?" / "Đi làm thứ Hai chọn đôi nào?" / "Hẹn hò lần đầu chọn đôi nào?".
+
+
+==================================================
+3. CÁC NHÓM KHUNG NỘI DUNG (chia theo việc khung làm cho kênh)
+==================================================
+1) Trưng bày hàng (mục tiêu: bán hàng)
+   - Đập hộp 1 mẫu (tay cầm giày, hộp, phụ kiện)
+   - Soi cận chi tiết (cắt cận từ ảnh gốc 1792x2400: đường may, đế, lót)
+   - Hàng mới về (bìa ghép nhiều mẫu, sau đó mỗi slide 1 mẫu + mã)
+   - 1 mẫu nhiều màu
+2) So sánh, chọn lựa (mục tiêu: comment)
+   - A hay B
+   - Top N, xếp hạng
+   - "Bạn hợp đôi nào?" theo phong cách / tính cách / cung hoàng đạo
+3) Phối đồ (mục tiêu: lưu bài, follow)
+   - Lookbook N outfit
+   - 1 đôi giày N cách phối
+   - Từ hộp lên chân: ảnh sản phẩm -> ảnh outfit mang đúng đôi đó (cần tạo ảnh phối đồ khớp từng mẫu)
+   - Outfit theo ngày / theo dịp
+4) Kể chuyện, cảm xúc (mục tiêu: tiếp cận người chưa biết shop)
+   - POV
+   - Meme ("khách mua giày có 3 loại...")
+   - Trước / sau khi phối giày
+5) Hữu ích, tư vấn (mục tiêu: tạo tin tưởng)
+   - Chọn size, chọn giày theo dáng chân
+   - Mẹo bảo quản, mẹo đi cao gót không đau
+   - Hỏi đáp từ comment của khách
+6) Gợi ý theo người nhận (mục tiêu: bán theo dịp)
+   - Quà cho mẹ / người yêu / bạn thân
+   - Theo mức giá: dưới 500k, dưới 1 triệu
+7) Chuỗi bài (mục tiêu: người xem quay lại)
+   - Mỗi ngày 1 mẫu, đếm ngược tới 1 dịp
+   - Đánh số tập ("Outfit số 37")
+8) Ưu đãi (mục tiêu: chốt đơn)
+   - Sale, số lượng có hạn, mã giảm giá
+
+
+==================================================
+4. KHO HOOK (gắn vào bất kỳ khung nào)
+==================================================
+- Dịp lễ: Tết, Valentine, 8/3, 20/10, Noel, mùa cưới, tựu trường
+- Tình huống: đi làm, hẹn hò, du lịch, đi tiệc, cafe cuối tuần
+- Đối tượng: nàng thấp, chân to, dân văn phòng, mẹ bỉm
+- Nỗi đau: đau chân, mua online sợ sai size, ít đồ mà muốn mặc đẹp
+- Trend: câu nói / nhạc đang hot trên TikTok
+
+
+==================================================
+5. RÀNG BUỘC VỚI NHỮNG GÌ ĐANG CÓ
+==================================================
+- Ảnh sản phẩm hợp nhóm 1, 2, 6, 7, 8. Ảnh phối đồ hợp nhóm 3, 4.
+- Nhóm 5 (tư vấn) cần slide nhiều chữ: A51 chưa tạo được, trừ khi làm Creative riêng có chữ in sẵn
+  (giống ảnh phối đồ in "Outfit N", thêm block chữ vào Template prompt).
+- Chữ trên ảnh sản phẩm đang phải thêm tay trong TikTok khi mở nháp -> mỗi bài vẫn tốn công người.
+- Khung "Từ hộp lên chân" hiện chỉ có 1 cặp khớp: sneaker MS24 (#3832) + Outfit 4 trắng (#3971).
+  Muốn làm nhiều thì phải tạo ảnh phối đồ mang đúng từng mẫu bán chạy.
+
+
+==================================================
+6. CÂU HỎI CẦN CHỐT (chưa trả lời)
+==================================================
+1. Mục tiêu chính của kênh: chốt đơn trực tiếp hay xây follow trước rồi bán sau?
+   -> quyết định tỉ lệ các nhóm. Ví dụ ưu tiên bán: 40% trưng bày + ưu đãi, 30% phối đồ, 30% tương tác.
+   TRẢ LỜI (2026-11-20): Xây kênh lấy càng nhiều tương tác và view càng tốt.
+2. Tần suất: mấy bài / ngày? Ai mở nháp thêm chữ rồi đăng?
+   TRẢ LỜI (2026-11-20): Tần suất cấu hình được trong A51. A51 là TRUNG TÂM ĐIỀU KHIỂN kế hoạch xây kênh và
+   lưu trữ data.
+3. Khách hàng mục tiêu: độ tuổi, mức giá? -> quyết định giọng văn và kho hook.
+   TRẢ LỜI (2026-11-20): Lưu CHÂN DUNG KHÁCH HÀNG trên A51, theo từng kênh (mỗi kênh một đối tượng khác nhau).
+4. Chỉ ảnh hay sẽ có video? (có video thì thêm được khung thử giày, bóc hộp thật)
+   TRẢ LỜI (2026-11-20): Cả ảnh và video. Hiện chỉ làm được video TỪ ẢNH (video template + worker tạo video).
+   Video quay thật hoặc video làm bằng AI sẽ xây dựng sau.
+
+
+==================================================
+6b. HỆ QUẢ TỪ CÁC TRẢ LỜI (phác thảo, CHƯA CHỐT)
+==================================================
+Từ câu 1 (mục tiêu view + tương tác):
+- Đo bằng view, like, comment, share, lưu bài, follow. KHÔNG lấy số đơn làm thước đo chính.
+- Tỉ lệ gợi ý (chưa chốt): kể chuyện / trend 30%, so sánh - chọn lựa 25%, phối đồ 25%, chuỗi bài 10%,
+  trưng bày + ưu đãi 10%.
+
+Từ câu 2 (A51 là trung tâm điều khiển), các thực thể có thể cần:
+- Kênh: gắn tài khoản TikTok / worker đăng, có chân dung khách hàng và kế hoạch riêng.
+- Kế hoạch kênh: số bài / ngày, giờ đăng, tỉ lệ các nhóm khung, tỉ lệ ảnh / video.
+- Thư viện khung: 8 nhóm ở mục 3. Mỗi khung ghi số slide, loại ảnh cần, định dạng hỗ trợ (ảnh / video từ ảnh), mẫu chữ.
+- Kho hook: theo mùa / dịp, có thời gian hiệu lực (vd hook Tết chỉ dùng tháng 12 - tháng 2).
+- Lịch đăng: hệ thống tự sinh bài = khung + hook + ảnh, theo kế hoạch.
+- Dữ liệu hiệu quả từng bài: để biết khung / hook nào ăn view, điều chỉnh tỉ lệ.
+Những gì A51 ĐÃ CÓ làm nền được:
+- Nhiều tài khoản TikTok / 1 tài khoản A51 (note/uy-quyen-nhieu-tiktok.txt)
+- Worker đăng nháp TikTok (note/dang-tiktok-qua-worker.txt)
+- Lập lịch worker tạo video từ ảnh + video template (note/lap-lich-worker.txt, note/quan-ly-video-template.txt)
+- Tạo lô ảnh tự động: sản phẩm x nhóm creative (note/auto-tao-lo.txt)
+- AI viết nội dung + kho hashtag (/seller/ai-content, note/ai-viet-noi-dung-bai-dang.txt)
+Vướng: cài đặt AI viết nội dung và kho hashtag hiện theo SHOP, muốn theo KÊNH thì phải tách.
+
+Từ câu 3 (chân dung khách hàng theo kênh), các trường gợi ý:
+- Độ tuổi, giới tính, nghề nghiệp, mức giá chấp nhận
+- Phong cách / sở thích, nỗi đau, dịp hay mua
+- Giọng văn, cách xưng hô, giờ hay lướt TikTok
+- AI dùng chân dung này để chọn hook và viết caption.
+
+Từ câu 4 (ảnh + video từ ảnh):
+- Mỗi khung đánh dấu định dạng hỗ trợ. Khung nhiều slide (lookbook, top N, đếm ngược) hợp cả ảnh lẫn video từ ảnh.
+- Để dành cho sau: thử giày, bóc hộp thật, video AI.
+
+
+==================================================
+6c. CÂU HỎI MỚI CẦN CHỐT
+==================================================
+5. Một shop A51 có nhiều kênh không? Kênh = 1 tài khoản TikTok? Mỗi kênh có bộ sản phẩm / ảnh riêng hay dùng chung?
+   TRẢ LỜI (2026-11-20): Một shop có nhiều kênh.
+6. Lấy dữ liệu view / tương tác bằng cách nào: worker đọc TikTok Studio, nhập tay, hay giai đoạn đầu chưa cần?
+   (worker hiện chỉ lưu nháp, chưa đọc số liệu)
+   TRẢ LỜI (2026-11-20): Lấy từ API TikTok, các shop ủy quyền (OAuth) cho A51.
+7. Mức tự động: hệ thống sinh bài theo kế hoạch rồi chủ shop duyệt, hay sinh xong tự đăng luôn?
+   TRẢ LỜI (2026-11-20): Mặc định ĐĂNG LUÔN theo lịch. Chủ shop có thể review và HUỶ lịch đăng.
+8. Kho hook do ai nhập: admin A51 nhập dùng chung, shop tự nhập, hay AI gợi ý theo mùa + chân dung khách hàng?
+   TRẢ LỜI (2026-11-20): AI nêu ý tưởng hook theo tuyến nội dung. AI lên KẾ HOẠCH NỘI DUNG cho số ngày cấu hình
+   theo từng kênh, sinh ra DANH SÁCH CÔNG VIỆC; các worker nhận việc và thực hiện.
+9. Có muốn A51 tự chèn chữ hook lên ảnh / video không (bỏ bước thêm chữ tay trong TikTok)?
+   Nếu không thì mỗi bài vẫn cần người, khó tự động theo tần suất.
+   TRẢ LỜI (2026-11-20): Có. Worker phụ trách chèn chữ theo các TEMPLATE MẪU.
+
+
+==================================================
+6d. BỨC TRANH HỆ THỐNG SAU CÂU 5-9 (phác thảo, CHƯA CHỐT)
+==================================================
+Luồng khép kín:
+  1. Shop tạo nhiều KÊNH. Mỗi kênh: tài khoản TikTok (ủy quyền OAuth để A51 đọc số liệu), worker đăng bài,
+     chân dung khách hàng, tuyến nội dung, cấu hình (số ngày lên kế hoạch, số bài / ngày, giờ đăng).
+  2. AI LẬP KẾ HOẠCH N ngày cho kênh: mỗi bài = khung + hook + sản phẩm / ảnh + định dạng (ảnh / video từ ảnh)
+     + template chèn chữ + caption + hashtag + giờ đăng.
+  3. Từ kế hoạch sinh DANH SÁCH CÔNG VIỆC, ví dụ: tạo ảnh còn thiếu -> chèn chữ theo template -> dựng video từ ảnh
+     -> đăng đúng giờ.
+  4. WORKER nhận việc và làm. Bài tới giờ thì đăng luôn. Chủ shop xem lịch và huỷ được trước giờ đăng.
+  5. A51 kéo SỐ LIỆU từ API TikTok (view, like, comment, share...) về từng bài.
+  6. AI dùng số liệu để lập kế hoạch kỳ sau: khung / hook nào nhiều view thì tăng tỉ lệ.
+
+Khái niệm mới:
+- TEMPLATE CHÈN CHỮ: mẫu đặt chữ hook lên ảnh / video (vị trí, font, màu, nền chữ). Khác "video template" hiện có
+  (video template hiện chỉ là tên + link video TikTok mẫu).
+- CÔNG VIỆC (job) của kế hoạch: nhiều loại, mỗi loại do một kiểu worker nhận.
+
+Thay đổi so với hiện tại:
+- Worker đăng TikTok hiện chỉ LƯU NHÁP, người phải vào đăng tay. "Đăng luôn" nghĩa là worker phải bấm đăng công khai.
+- OAuth TikTok từng bị bỏ (2026-10-15, chuyển sang worker). Nay cần OAuth lại, nhưng để ĐỌC SỐ LIỆU, không phải để đăng.
+  (TikTok Display API: scope user.info.stats, video.list trả view / like / comment / share theo video; app phải được
+  TikTok duyệt.)
+- Cài đặt AI viết nội dung + kho hashtag đang theo shop -> phải chuyển về theo kênh.
+
+
+==================================================
+6e. CÂU HỎI MỚI CẦN CHỐT
+==================================================
+10. Ghép bài A51 với video trên TikTok để gán số liệu: worker đăng xong trả về link / ID video được không?
+    (nếu không có ID thì phải đoán theo caption + giờ đăng, dễ sai)
+    TRẢ LỜI (2026-11-20): Được. Worker do mình viết, sửa theo ý mình -> cho worker trả về link / ID video sau khi đăng.
+11. Tuyến nội dung của kênh: chủ shop chọn khung nào được dùng + tỉ lệ, hay AI tự chọn theo chân dung khách hàng
+    rồi tự điều chỉnh theo số liệu?
+    TRẢ LỜI (2026-11-20): AI đề xuất, chủ kênh duyệt. Hoặc cấu hình cho DUYỆT TỰ ĐỘNG.
+12. Kế hoạch cần ảnh chưa có (vd ảnh phối đồ khớp từng mẫu giày): AI có được tự tạo việc tạo ảnh (tốn credit) không?
+    Có giới hạn chi phí theo ngày / kênh không?
+    TRẢ LỜI (2026-11-20): Được tạo, KHÔNG giới hạn. Tạo 1 job tạo ảnh, worker tạo ảnh thực hiện trên GOOGLE FLOW.
+13. Template chèn chữ: ai tạo (admin dùng chung hay shop tự tạo)? Gắn template theo khung, theo kênh, hay AI chọn?
+    TRẢ LỜI (2026-11-20): AI tạo ra các mẫu, chủ shop duyệt.
+14. Chủ shop review: chỉ huỷ, hay sửa được (đổi ảnh, caption, giờ)? Huỷ xong AI có tự bù bài khác vào chỗ trống không?
+    TRẢ LỜI (2026-11-20): Chủ shop SỬA được. Làm bài khác hay không tuỳ chủ shop: bấm "Làm lại" thì AI làm lại.
+15. Kỳ kế hoạch tiếp theo: hết N ngày thì AI tự lập kỳ mới, hay chủ shop bấm mới lập?
+    TRẢ LỜI (2026-11-20): Chủ shop phải BẤM mới lập kỳ mới.
+16. Các kênh của cùng shop dùng chung kho sản phẩm / ảnh hay mỗi kênh một bộ? Có cần tránh 2 kênh đăng trùng ảnh không?
+    TRẢ LỜI (2026-11-20): Giai đoạn này không quan tâm, mặc định DÙNG CHUNG. Tách riêng để phát triển sau.
+
+
+==================================================
+6f. TỔNG HỢP ĐÃ CHỐT (sau câu 1-16, 2026-11-20)
+==================================================
+- Mục tiêu: view + tương tác.
+- A51 là trung tâm điều khiển: kế hoạch, công việc, lưu data.
+- Một shop nhiều KÊNH (mỗi kênh 1 tài khoản TikTok). Kho sản phẩm / ảnh dùng chung giữa các kênh.
+- Mỗi kênh có: chân dung khách hàng, tuyến nội dung, cấu hình (số ngày lên kế hoạch, số bài / ngày, giờ đăng),
+  công tắc duyệt tự động.
+- Tuyến nội dung: AI đề xuất -> chủ kênh duyệt (hoặc tự duyệt nếu bật).
+- Template chèn chữ: AI tạo mẫu -> chủ shop duyệt.
+- Kế hoạch: chủ shop bấm "Lập kế hoạch" -> AI lập kế hoạch N ngày (khung + hook + ảnh + định dạng + template chữ
+  + caption + hashtag + giờ đăng) -> sinh danh sách công việc. Hết kỳ phải bấm lại mới lập kỳ mới.
+- Chủ shop xem lịch, SỬA được bài; huỷ được; bấm "Làm lại" thì AI làm lại bài đó.
+- Mặc định tới giờ là ĐĂNG LUÔN (worker đăng công khai, không lưu nháp nữa).
+- Công việc do worker thực hiện:
+  + Tạo ảnh còn thiếu: job tạo ảnh, worker làm trên Google Flow, không giới hạn số lượng.
+  + Chèn chữ theo template, dựng video từ ảnh.
+  + Đăng bài, xong trả về link / ID video.
+- Số liệu: shop ủy quyền OAuth TikTok cho A51, A51 kéo view / like / comment / share theo ID video.
+- Định dạng giai đoạn này: ảnh + video từ ảnh. Video quay / video AI làm sau.
+- Duyệt tự động: mỗi thứ một công tắc (tuyến nội dung, template chèn chữ, kế hoạch...), gom chung 1 trang cấu hình
+  của kênh, mỗi kênh cấu hình riêng.
+- Không trừ credit cho AI lập kế hoạch và tạo ảnh trên Google Flow.
+- Chia giai đoạn GĐ1 -> GĐ4 như mục 6g (đã đồng ý).
+
+
+==================================================
+6g. CHIA GIAI ĐOẠN (ĐÃ ĐỒNG Ý 2026-11-20)
+==================================================
+GĐ1 - Kênh + kế hoạch + đăng tự động:
+     kênh, chân dung khách hàng, cấu hình; AI đề xuất tuyến nội dung; AI lập kế hoạch N ngày dùng ảnh ĐÃ CÓ;
+     xem / sửa / huỷ / làm lại; worker đăng công khai + trả ID video.
+(CẬP NHẬT 2026-11-20: chèn chữ + template chèn chữ KÉO LÊN làm cùng GĐ1, xem note/xay-kenh-tiktok/giai-doan-1.txt)
+GĐ2 - Template chèn chữ + video từ ảnh:
+     AI tạo template, chủ shop duyệt; worker chèn chữ; dựng video từ ảnh theo kế hoạch.
+GĐ3 - Tạo ảnh còn thiếu:
+     kế hoạch sinh job tạo ảnh, worker tạo ảnh trên Google Flow.
+GĐ4 - Số liệu + tối ưu:
+     OAuth TikTok đọc số liệu, kéo theo ID video, màn hình hiệu quả theo khung / hook, AI dùng số liệu khi lập kỳ sau.
+Lý do thứ tự: GĐ1 đã chạy được với ảnh có sẵn. GĐ4 phụ thuộc TikTok duyệt app nên nên NỘP XIN DUYỆT SỚM, làm song song.
+
+
+==================================================
+6h. CÂU HỎI CÒN LẠI
+==================================================
+17. Đồng ý chia giai đoạn như 6g không, hay muốn đổi thứ tự?
+    TRẢ LỜI (2026-11-20): Đồng ý chia GĐ1 -> GĐ4 như 6g.
+18. Công tắc duyệt tự động: một công tắc chung cho cả kênh (tuyến nội dung + template + kế hoạch) hay mỗi thứ một công tắc?
+    TRẢ LỜI (2026-11-20): Mỗi thứ MỘT CÔNG TẮC riêng, gom chung vào MỘT TRANG cấu hình, cấu hình riêng cho TỪNG KÊNH.
+19. Chi phí: AI lập kế hoạch và tạo ảnh trên Google Flow có trừ credit của shop không, tính thế nào?
+    TRẢ LỜI (2026-11-20): KHÔNG trừ credit.
+
+=> Phần thảo luận tổng thể đã chốt xong (2026-11-20). Bước tiếp theo: đặc tả chi tiết GĐ1
+   (dữ liệu, màn hình, API, việc của worker) trong file note riêng trước khi code.
+   Chưa code gì khi người dùng chưa yêu cầu.
+
+
+==================================================
+7. ĐÃ LÀM LIÊN QUAN (2026-11-20)
+==================================================
+- Kho hashtag ở /seller/ai-content đã đổi sang 25 hashtag giày nữ chủ đề Tết 2027 (tet2027, giaytet2027,
+  giaydichuctet, outfittet2027, saletet2027...). 29 hashtag giày cũ (giaydepnu, caogot, giaybupbenu,
+  giaythethaonu, depnu...) đã xoá. Sau Tết nhớ đổi lại / trộn hashtag chung.
+- Trang mẫu (bản cũ, còn gắn với Tết, chưa chia theo khung + hook): https://claude.ai/artifact/JJ3htBV71MSWxfjrPqr8nW
+  10 mẫu: đập hộp, lookbook 7 ngày, từ hộp lên chân, A hay B, top 5, POV, quà theo người nhận, hàng mới về,
+  đếm ngược, soi cận cảnh. Có thể sửa lại theo cách chia mục 3 + 4 khi cần.
+- 16 ảnh gốc đã tải về thư mục Downloads (ai90-38xx-1.jpg = ảnh sản phẩm, ai90-397x-1.jpg = ảnh phối đồ).

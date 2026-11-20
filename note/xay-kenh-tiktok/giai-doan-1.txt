@@ -1,0 +1,237 @@
+GIAI ĐOẠN 1 - KÊNH + KẾ HOẠCH + ĐĂNG TỰ ĐỘNG - THẢO LUẬN
+========================================================
+
+Ngày: 2026-11-20. Trạng thái: THẢO LUẬN XONG, ĐÃ CHỐT (mục 9 tổng hợp), CHƯA CODE.
+Phiên sau: đọc MỤC 9 trước (các mục 0-8 là quá trình thảo luận, có chỗ đã bị thay bởi câu trả lời sau).
+Tài liệu gốc: note/xay-kenh-tiktok/xay-dung-ke-hoach-xay-kenh.txt (mục 6f đã chốt, 6g chia giai đoạn).
+Trả lời ngay dưới mỗi câu hỏi (dòng "TRẢ LỜI:").
+
+
+==================================================
+0. MỤC TIÊU GĐ1
+==================================================
+Chủ shop tạo kênh -> AI lập kế hoạch N ngày bằng ẢNH ĐÃ CÓ -> hệ thống tự sinh bài đăng có giờ -> worker tới giờ
+thì đăng -> chủ shop xem lịch, sửa / huỷ / làm lại từng bài.
+KHÔNG có trong GĐ1: chèn chữ lên ảnh (GĐ2), tạo ảnh còn thiếu (GĐ3), số liệu TikTok (GĐ4).
+
+
+==================================================
+1. NHỮNG GÌ A51 ĐÃ CÓ, DÙNG LẠI ĐƯỢC
+==================================================
+- Bài đăng social_posts: ảnh + video, có worker, scheduled_at (giờ đăng), platforms, trạng thái từng nền tảng.
+  Mọi bài giao cho 1 worker (note/gop-luong-dang-bai.txt).
+- API worker POST /api/v1/post-jobs/{id} ĐÃ có post_url -> link video TikTok đã có sẵn chỗ trả về (phục vụ GĐ4).
+- Tạo video tự động (note/lap-lich-worker.txt): chọn worker, số bài, giờ bài đầu, khoảng cách ngẫu nhiên giữa 2 bài,
+  template + sản phẩm + ảnh chọn NGẪU NHIÊN, AI viết nội dung. => GĐ1 thay phần "ngẫu nhiên" bằng "AI lập kế hoạch".
+- AI viết nội dung (Claude API, xem ảnh): độ dài, bài mẫu, yêu cầu bắt buộc, kho hashtag (/seller/ai-content).
+  Hiện cài đặt theo SHOP.
+- Sửa bài khi worker chưa nhận, xoá bài, "Đăng lại" / "Tạo lại" đã có.
+- Ảnh: Lịch sử tạo ảnh (ảnh sản phẩm / ảnh phối đồ), sản phẩm, nhóm creative, video template (có số ảnh).
+
+
+==================================================
+2. VIỆC CẦN LÀM (ĐỀ XUẤT)
+==================================================
+2.1 KÊNH
+  - Tên kênh, worker đăng bài (worker giữ 1 tài khoản TikTok), nền tảng TikTok.
+  - Đề xuất: 1 kênh = 1 worker. Bài của kênh giao cho worker đó.
+
+2.2 CHÂN DUNG KHÁCH HÀNG (mỗi kênh 1 bản)
+  - Độ tuổi, giới tính, nghề nghiệp, mức giá chấp nhận
+  - Phong cách / sở thích, nỗi đau, dịp hay mua
+  - Giọng văn, cách xưng hô, giờ hay lướt TikTok
+  - Có nút "AI gợi ý chân dung" từ sản phẩm của shop (chủ shop sửa lại).
+
+2.3 TUYẾN NỘI DUNG
+  - Thư viện khung: 8 nhóm khung (mục 3 file gốc). Mỗi khung: tên, mô tả, số slide, loại ảnh cần
+    (sản phẩm / phối đồ / kết hợp), định dạng (ảnh / video từ ảnh), mục tiêu.
+  - AI đề xuất tuyến cho kênh: chọn khung nào dùng + tỉ lệ %, dựa trên chân dung khách hàng.
+  - Chủ kênh duyệt / sửa tỉ lệ, hoặc tự duyệt nếu bật công tắc.
+
+2.4 TRANG CẤU HÌNH KÊNH (1 trang, mỗi kênh riêng)
+  - Số ngày mỗi kỳ kế hoạch, số bài / ngày, khung giờ đăng, tỉ lệ ảnh / video.
+  - Công tắc duyệt tự động: tuyến nội dung, kế hoạch. (template chèn chữ thêm ở GĐ2)
+  - Cài đặt AI viết nội dung của kênh (độ dài, bài mẫu, yêu cầu bắt buộc, kho hashtag).
+
+2.5 LẬP KẾ HOẠCH (chủ shop bấm)
+  Chia 2 bước AI để rẻ và chắc:
+  Bước A - AI lên khung kế hoạch (1 lần gọi cho cả kỳ, KHÔNG gửi ảnh, chỉ gửi thông tin):
+    vào: chân dung KH, tuyến nội dung + tỉ lệ, cấu hình, danh sách ảnh có sẵn dạng thông tin
+         (id, sản phẩm, creative, loại ảnh sản phẩm / phối đồ, số lần đã đăng), video template, dịp lễ trong kỳ.
+    ra (JSON): mỗi bài = ngày giờ, khung, hook, định dạng (+ template nếu video), danh sách id ảnh theo thứ tự.
+    Backend kiểm tra: ảnh tồn tại, đủ số ảnh template, đúng tỉ lệ, đúng số bài / ngày.
+  Bước B - Viết caption từng bài bằng luồng "AI viết nội dung" HIỆN CÓ (có xem ảnh), truyền thêm hook + khung.
+  Kế hoạch ở trạng thái Nháp -> chủ shop duyệt (hoặc tự duyệt) -> sinh bài vào social_posts với scheduled_at + worker.
+
+2.6 LỊCH ĐĂNG / REVIEW
+  - Trang lịch theo ngày của kênh: mỗi bài hiện ảnh, khung, hook, caption, giờ, trạng thái.
+  - Sửa bài (dùng lại sửa bài hiện có), Huỷ, "Làm lại" (AI làm lại riêng bài đó, giữ giờ đăng).
+  - Mặc định tới giờ là đăng.
+
+2.7 LƯU DATA CHO SAU NÀY
+  - social_posts thêm: kênh, kỳ kế hoạch, khung, hook -> GĐ4 ghép số liệu để biết khung / hook nào nhiều view.
+
+2.8 WORKER
+  - Kiểm tra worker đăng ẢNH TikTok: còn lưu nháp không? Nếu còn -> sửa thành đăng công khai.
+  - Worker trả post_url (link video) khi đăng xong (API đã có, kiểm tra worker đã gửi chưa).
+
+
+==================================================
+3. CÁCH LÀM (THỨ TỰ ĐỀ XUẤT)
+==================================================
+1. Chốt các câu hỏi mục 4 -> viết đặc tả chi tiết (dữ liệu, API, màn hình) trong file này.
+2. Backend (D:\OSPanel\home\a90.local): migration kênh / chân dung / tuyến / kỳ kế hoạch, service lập kế hoạch (Claude),
+   sinh bài từ kế hoạch, test.
+3. Frontend (D:\a90-fe): trang danh sách kênh, cấu hình kênh, chân dung, tuyến nội dung, lịch kế hoạch.
+4. Worker (D:\FlowKit): đăng công khai + trả post_url.
+5. Chạy thử 1 kênh thật, kỳ 3 ngày, rồi mới tăng.
+
+
+==================================================
+4. CÂU HỎI CẦN CHỐT
+==================================================
+1. 1 kênh = 1 worker (worker giữ 1 tài khoản TikTok)?
+   TRẢ LỜI (2026-11-20): Mỗi kênh một worker.
+2. Cài đặt AI viết nội dung (bài mẫu, yêu cầu bắt buộc, kho hashtag): chuyển hẳn về từng kênh, hay kênh dùng cài đặt
+   của shop và chỉ ghi đè khi cần?
+   TRẢ LỜI (2026-11-20): Chuyển hẳn về từng kênh.
+3. GĐ1 chưa có chèn chữ lên ảnh: chấp nhận bài chạy trước với hook chỉ nằm ở tiêu đề / caption?
+   (hay kéo chèn chữ lên làm cùng GĐ1)
+   TRẢ LỜI (2026-11-20): KÉO chèn chữ lên làm cùng GĐ1.
+4. Thư viện khung: cố định trong hệ thống (8 nhóm), hay chủ shop / AI thêm khung mới được?
+   TRẢ LỜI (2026-11-20): Không giới hạn, thêm khung mới được.
+5. Giờ đăng: chủ shop đặt giờ cố định (vd 11:30, 20:00), hay khung giờ + ngẫu nhiên như tạo video tự động,
+   hay AI tự chọn theo "giờ hay lướt TikTok" trong chân dung?
+   TRẢ LỜI (2026-11-20): Chọn trong một KHUNG GIỜ.
+6. Ảnh đã đăng rồi có được dùng lại không? Sau bao nhiêu ngày?
+   TRẢ LỜI (2026-11-20): Được dùng lại, miễn là NỘI DUNG KHÔNG GIỐNG NHAU.
+
+
+==================================================
+5. HỆ QUẢ SAU CÂU 1-6 (đề xuất, CHƯA CHỐT)
+==================================================
+- Kênh gắn đúng 1 worker; 1 worker chỉ thuộc 1 kênh.
+- Cài đặt AI viết nội dung (độ dài, bài mẫu, yêu cầu bắt buộc, kho hashtag) chuyển từ shop sang kênh.
+  Kênh đầu tiên của shop: chép cài đặt shop hiện có sang. Trang /seller/ai-content cũ chuyển vào trang cấu hình kênh.
+- GĐ1 có thêm TEMPLATE CHÈN CHỮ: AI tạo mẫu -> chủ shop duyệt (công tắc tự duyệt), worker chèn chữ theo mẫu.
+  => GĐ2 trong file gốc chỉ còn phần video (chèn chữ lên video từ ảnh nếu GĐ1 chưa làm).
+- Khung: 8 nhóm có sẵn + thêm khung mới không giới hạn.
+- Giờ đăng: mỗi bài lấy giờ ngẫu nhiên trong khung giờ của kênh.
+- Dùng lại ảnh: cho phép, nhưng không trùng nội dung. Đề xuất cách hiểu "không giống nhau":
+  không trùng (bộ ảnh + khung + hook) với bài cũ của KÊNH, caption phải khác. AI được gửi kèm lịch sử bài đã đăng
+  để tránh trùng; backend chặn trùng y hệt bộ ảnh + khung.
+
+
+==================================================
+6. CÂU HỎI MỚI CẦN CHỐT
+==================================================
+7. Chèn chữ làm LÚC NÀO:
+   a) Ngay khi sinh bài (worker chèn xong gửi ảnh có chữ về A51) -> chủ shop review thấy đúng ảnh sẽ đăng. (đề xuất)
+   b) Worker đăng chèn ngay trước khi đăng -> đơn giản hơn nhưng chủ shop chỉ thấy bản xem trước, không phải ảnh thật.
+   TRẢ LỜI (2026-11-20): Làm theo a) - chèn ngay khi sinh bài. Chủ shop SỬA được câu chữ (hook) trên ảnh,
+   sửa xong worker làm lại ảnh đó.
+8. Template chèn chữ gồm gì? Đề xuất: vị trí (trên / giữa / dưới), font, cỡ chữ, màu chữ, viền chữ,
+   nền chữ (ô trắng / ô đỏ / không nền). Chữ chỉ ở slide đầu (hook), hay mỗi slide một dòng chữ?
+   TRẢ LỜI (2026-11-20): Làm như đề xuất. AI tạo NHIỀU mẫu template cho chủ shop duyệt.
+   (chưa trả lời phần "chữ chỉ slide đầu hay mỗi slide" - xem câu 12)
+9. Bài VIDEO từ ảnh trong GĐ1 có chèn chữ không, hay chỉ bài ảnh?
+   TRẢ LỜI (2026-11-20): Bài video hiện tại KHÔNG chèn chữ. Chỉ bài ảnh.
+10. Khung mới do ai thêm: chủ shop tự nhập, AI đề xuất (chủ shop duyệt), hay cả hai? Có công tắc tự duyệt khung không?
+    TRẢ LỜI (2026-11-20): Người dùng hỏi lại "khung mới là cái gì" -> đã giải thích, chờ trả lời lại (câu 13).
+11. Khung giờ: mỗi kênh được nhiều khung giờ không (vd 11:00-13:00 và 19:00-22:00)? Số bài chia vào các khung thế nào?
+    TRẢ LỜI (2026-11-20): Được gắn NHIỀU khung giờ. Tạm thời chia ĐỀU số bài vào các khung.
+
+12. Chữ trên ảnh: chỉ slide đầu (hook), hay mỗi slide có thể có 1 dòng chữ riêng (vd top 5: "#1...", "#2...")?
+    Đề xuất: mỗi slide CÓ THỂ có chữ, do khung quy định (khung top N thì mỗi slide có chữ, khung đập hộp chỉ slide đầu).
+    TRẢ LỜI:
+13. KHUNG = cách dựng 1 bài: bao nhiêu slide, slide nào dùng loại ảnh gì, chữ đặt ở slide nào, mục tiêu.
+    Vd khung "Top N": slide 1 ảnh ghép + tiêu đề, slide 2..N+1 mỗi slide 1 mẫu có số thứ tự.
+    8 nhóm có sẵn đã có khoảng 25 khung. "Khung mới" = cách dựng bài chưa có trong danh sách,
+    vd "Giày theo cung hoàng đạo" (12 slide, mỗi slide 1 cung + 1 đôi), "Tier list giày" (xếp mẫu theo hạng S/A/B).
+    Câu hỏi: ai thêm khung mới - chủ shop tự nhập, AI đề xuất rồi chủ shop duyệt, hay cả hai?
+    Có công tắc tự duyệt khung không? (đề xuất: cả hai, có công tắc như tuyến nội dung)
+    TRẢ LỜI (2026-11-20): Người dùng (đội A51) nhận yêu cầu của các shop rồi cùng Claude xây khung mới.
+    Shop KHÔNG tự thêm, AI KHÔNG tự đề xuất khung. => Thư viện khung do A51 quản lý, dùng chung cho mọi shop.
+12 (trả lời 2026-11-20): KHUNG QUYẾT ĐỊNH slide nào có chữ.
+
+
+==================================================
+7. ĐỔI TÊN GỌI (2026-11-20)
+==================================================
+- "Khung" / "khung nội dung" đổi tên thành "BÀI VIẾT MẪU". Từ đây trở đi trong mọi note, màn hình, code dùng
+  "bài viết mẫu". (các mục trên viết trước khi đổi tên nên vẫn còn chữ "khung")
+- Vướng tên: trang AI viết nội dung hiện đã có mục "Bài viết mẫu" (tối đa 10 bài tiêu đề + nội dung để AI học giọng văn).
+  Cần đặt lại tên một trong hai để không nhầm - xem câu 14.
+
+
+==================================================
+8. CÂU HỎI CÒN LẠI
+==================================================
+14. Trùng tên "Bài viết mẫu": mục cũ (AI học giọng văn) đổi tên thành gì? Đề xuất: "Mẫu giọng văn".
+    TRẢ LỜI (2026-11-20): BỎ mục "Bài viết mẫu" cũ ở trang AI viết nội dung. Hướng dẫn giọng văn / cách viết
+    được viết luôn trong ô "Yêu cầu" (Yêu cầu bắt buộc). => Tên "bài viết mẫu" chỉ còn một nghĩa (khung cũ).
+14b. Hệ quả cần chốt:
+    - Ô "Yêu cầu" hiện tối đa 1000 ký tự: có tăng lên không (vd 3000) để đủ chỗ viết cả giọng văn?
+    - Bài viết mẫu cũ các shop đã nhập: bỏ luôn, hay tự chép vào ô Yêu cầu khi chuyển (có thể vượt giới hạn)?
+    TRẢ LỜI (2026-11-20): Ô Yêu cầu tăng lên tối đa 3000 ký tự. Bài viết mẫu cũ (samples) BỎ LUÔN, không chép.
+15. Bài viết mẫu mới (do A51 + Claude xây) được đưa vào hệ thống bằng cách nào?
+    a) Viết thẳng vào code / dữ liệu mặc định, mỗi lần thêm thì Claude sửa và deploy (đề xuất cho GĐ1, nhanh)
+    b) Trang admin để A51 thêm / sửa bài viết mẫu không cần deploy
+    TRẢ LỜI (2026-11-20): a) Viết vào code.
+16. Bài viết mẫu dùng chung cho mọi shop, hay có bài viết mẫu chỉ mở cho shop đã yêu cầu?
+    TRẢ LỜI (2026-11-20): Dùng chung cho mọi shop.
+
+
+==================================================
+9. TỔNG HỢP ĐÃ CHỐT GĐ1 (2026-11-20) - ĐỌC MỤC NÀY TRƯỚC
+==================================================
+KÊNH
+- Shop có nhiều kênh. Mỗi kênh gắn đúng 1 worker (worker giữ 1 tài khoản TikTok), 1 worker chỉ thuộc 1 kênh.
+- Mỗi kênh có: chân dung khách hàng, tuyến nội dung, cấu hình, cài đặt AI viết nội dung riêng.
+
+CÀI ĐẶT AI VIẾT NỘI DUNG -> CHUYỂN HẲN VỀ TỪNG KÊNH
+- Giữ: độ dài tiêu đề / nội dung, kho hashtag, ô "Yêu cầu" (tăng 1000 -> 3000 ký tự, viết cả giọng văn vào đây).
+- BỎ mục "Bài viết mẫu" cũ (samples), dữ liệu cũ bỏ luôn.
+- Kênh đầu tiên của shop chép cài đặt shop hiện có (trừ samples). Trang /seller/ai-content chuyển vào cấu hình kênh.
+
+BÀI VIẾT MẪU (tên mới của "khung")
+- = cách dựng 1 bài: số slide, slide nào dùng loại ảnh gì (sản phẩm / phối đồ), slide nào có chữ, mục tiêu.
+- Viết trong CODE, dùng chung mọi shop. Ban đầu: các khung của 8 nhóm (file gốc mục 3).
+- Thêm mới: đội A51 nhận yêu cầu shop -> cùng Claude xây -> Claude thêm vào code, deploy. Shop / AI không tự thêm.
+- Bài viết mẫu quyết định slide nào có chữ.
+
+TUYẾN NỘI DUNG
+- AI đề xuất bài viết mẫu nào dùng + tỉ lệ cho kênh (theo chân dung khách hàng) -> chủ kênh duyệt / tự duyệt.
+
+TEMPLATE CHÈN CHỮ (làm trong GĐ1, chỉ cho bài ẢNH; bài video chưa chèn chữ)
+- Gồm: vị trí (trên / giữa / dưới), font, cỡ chữ, màu chữ, viền chữ, nền chữ (ô trắng / ô đỏ / không nền).
+- AI tạo NHIỀU mẫu -> chủ shop duyệt / tự duyệt.
+- Chèn NGAY KHI SINH BÀI: worker chèn chữ, gửi ảnh có chữ về A51 -> chủ shop review thấy đúng ảnh sẽ đăng.
+- Chủ shop sửa được câu chữ trên ảnh -> worker làm lại ảnh đó.
+
+CẤU HÌNH KÊNH (1 trang, riêng từng kênh)
+- Số ngày mỗi kỳ, số bài / ngày, NHIỀU khung giờ (số bài tạm chia đều vào các khung, giờ ngẫu nhiên trong khung),
+  tỉ lệ ảnh / video.
+- Mỗi thứ một công tắc duyệt tự động: tuyến nội dung, template chèn chữ, kế hoạch.
+
+LẬP KẾ HOẠCH (chủ shop bấm, hết kỳ bấm lại)
+- Bước A: AI lên kế hoạch cả kỳ (không gửi ảnh, chỉ thông tin ảnh + lịch sử bài đã đăng): mỗi bài = ngày giờ,
+  bài viết mẫu, hook, chữ từng slide, định dạng (+ video template), id ảnh theo thứ tự.
+- Bước B: từng bài dùng luồng AI viết nội dung hiện có (xem ảnh) viết caption, truyền thêm hook + bài viết mẫu.
+- Dùng lại ảnh được, miễn nội dung không giống: không trùng (bộ ảnh + bài viết mẫu + hook) với bài cũ của kênh,
+  caption khác. Backend chặn trùng y hệt.
+- Kế hoạch Nháp -> duyệt / tự duyệt -> sinh việc chèn chữ + bài đăng (social_posts có scheduled_at, worker của kênh).
+
+LỊCH / REVIEW
+- Xem theo ngày; sửa bài, sửa chữ trên ảnh, huỷ, "Làm lại" (AI làm lại bài đó). Mặc định tới giờ là đăng.
+
+WORKER
+- Đăng công khai (không lưu nháp), trả post_url. Thêm việc chèn chữ lên ảnh theo template.
+
+DATA
+- social_posts lưu thêm: kênh, kỳ kế hoạch, bài viết mẫu, hook -> GĐ4 ghép số liệu.
+
+KHÔNG TRỪ CREDIT cho AI lập kế hoạch / tạo ảnh.
+
+BƯỚC TIẾP: ĐẶC TẢ CHI TIẾT GĐ1 đã viết (bản nháp, 2026-11-20): note/xay-kenh-tiktok/dac-ta-giai-doan-1.txt
+-> chờ người dùng duyệt + trả lời mục 11 của file đó.

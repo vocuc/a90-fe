@@ -1,0 +1,480 @@
+ĐẶC TẢ CHI TIẾT GIAI ĐOẠN 1 - KÊNH + KẾ HOẠCH NỘI DUNG + CHÈN CHỮ + ĐĂNG TỰ ĐỘNG
+==================================================================================
+
+Ngày: 2026-11-20. Trạng thái: ĐÃ CODE XONG GĐ1 (2026-11-20, chưa commit, chưa deploy, chưa chạy thử kênh thật).
+Xem mục 13 "ĐÃ TRIỂN KHAI" cuối file: chỗ khác so với đặc tả + việc còn lại.
+Nguồn đã chốt: note/xay-kenh-tiktok/giai-doan-1.txt mục 9, note/xay-kenh-tiktok/xay-dung-ke-hoach-xay-kenh.txt mục 6f.
+Backend: D:\OSPanel\home\a90.local. Frontend: D:\a90-fe. Worker + skill: D:\FlowKit.
+Trả lời câu hỏi ngay dưới dòng "TRẢ LỜI:". Mục "Claude tự chọn" đổi được, cần đổi thì báo.
+
+ĐIỂM CỐT LÕI:
+- A51 KHÔNG gọi Claude API cho tính năng này, KHÔNG có worker AI.
+- Mọi việc AI làm bằng LỆNH /lap-ke-hoach <id-kênh> do người dùng (đội A51) gõ trong Claude Code. Skill nằm ở
+  D:\FlowKit\.claude\skills\lap-ke-hoach. Lệnh tự làm luôn chân dung / tuyến nội dung / template chữ nếu kênh còn thiếu,
+  rồi lập kế hoạch + viết caption, gửi về A51 qua API.
+- Tạm thời KHÔNG có nút "Lập kế hoạch" trên A51 (người dùng tự chạy lệnh một thời gian rồi mới làm tiếp).
+- Mọi bài đăng BẮT BUỘC thuộc 1 kênh.
+- Chèn chữ do WORKER ĐĂNG BÀI của kênh làm, theo template chữ.
+
+
+==================================================
+0. HIỆN TRẠNG LIÊN QUAN (đọc từ code 2026-11-20)
+==================================================
+- social_posts: type photo|video, worker_id, platforms, scheduled_at, status (generating, pending_review, queued,
+  publishing, published), trạng thái từng nền tảng, source (batch, existing, lookbook, video), ai_content.
+  isEditable() = pending_review | queued. readyStatus(): có worker + platforms -> queued.
+- social_post_images: generation_id / output_id, hoặc image_path (ảnh upload thẳng, dùng cho lookbook cũ).
+- Worker: type image | publish | outfit, gắn nhiều tài khoản A51 (bảng worker_user), admin gắn.
+  Worker publish nhận bài tới giờ: GET/POST /api/v1/post-jobs, kết quả có post_url.
+- Ảnh: generations.kind = creative (ảnh sản phẩm) | outfit_cover | outfit (ảnh phối đồ). Ảnh dùng được:
+  generation_outputs usable (xong, chưa tắt).
+- AI viết nội dung (nút trên A51 khi tạo bài / "Viết lại bằng AI"): ClaudeSocialContentWriter gọi Claude API,
+  cài đặt ShopAiSetting theo chủ shop (title_max, content_max, samples, requirements 1000 ký tự) + shop_hashtag.
+- Đã có POST /social/posts/schedule-batches: dải giờ đăng trong khung giờ (dùng lại cách tính giờ).
+- CREDIT ĐÃ BỎ TOÀN A51 (migration 2026_11_14_110000_remove_credit).
+- LỊCH SỬ: đã từng có "kế hoạch nội dung" (commit backend 9369f94: PlanContextController, PlannerController,
+  PlannerTokenController, plan_contexts, social_posts.script, status awaiting_approval, token ability planner),
+  gỡ bằng migration 2026_11_14_100000_remove_content_planner VÌ CHƯA CÓ THỜI GIAN LÀM TIẾP (không phải thiết kế sai).
+  Khi code: xem lại commit 9369f94, phần token + API lấy ngữ cảnh dùng lại được ý tưởng. Tên bảng / cột mới dưới đây
+  khác tên cũ để migration gỡ cũ không đụng vào.
+- Skill FlowKit hiện có (.claude/skills/dang-tiktok, tao-anh-phoi-do...): script Python trong scripts/ in JSON,
+  lỗi in {"error","message"} exit 1, cấu hình .env cùng thư mục skill.
+
+
+==================================================
+1. PHẠM VI GĐ1
+==================================================
+CÓ:
+- Kênh (nhiều kênh / shop, mỗi kênh 1 worker publish riêng). Mọi bài đăng thuộc 1 kênh.
+- Chân dung khách hàng theo kênh.
+- Cài đặt AI viết nội dung theo kênh (bỏ bài viết mẫu cũ, Yêu cầu 3000 ký tự, kho hashtag theo kênh).
+- Thư viện BÀI VIẾT MẪU viết trong code backend, dùng chung mọi shop.
+- Tuyến nội dung: lệnh đề xuất, chủ kênh duyệt / tự duyệt.
+- Template chữ: lệnh tạo 6 mẫu, chủ shop duyệt / tự duyệt. Chỉ bài ẢNH.
+- Cấu hình kênh (1 trang): số ngày / kỳ, số bài / ngày, nhiều khung giờ, tỉ lệ ảnh / video, 3 công tắc tự duyệt.
+- Lệnh /lap-ke-hoach: lập kỳ N ngày (bài viết mẫu + hook + ảnh + chữ từng slide + caption), làm lại bài được đánh dấu.
+- Chèn chữ khi sinh bài (worker đăng bài của kênh chèn), chủ shop sửa chữ -> chèn lại.
+- Lịch đăng: xem, sửa, huỷ, đánh dấu làm lại. Tới giờ worker đăng công khai, trả post_url.
+- Lưu kênh / kỳ / bài viết mẫu / hook vào bài để GĐ4 phân tích.
+KHÔNG: nút lập kế hoạch trên A51, tạo ảnh còn thiếu (GĐ3), số liệu TikTok (GĐ4), chèn chữ lên video,
+video quay / video AI.
+
+
+==================================================
+2. THUẬT NGỮ
+==================================================
+- KÊNH: 1 tài khoản TikTok của shop, đăng qua 1 worker publish.
+- BÀI VIẾT MẪU (sample): cách dựng 1 bài (số slide, loại ảnh từng slide, slide nào có chữ, mục tiêu). Viết trong code.
+- TUYẾN NỘI DUNG (lineup): danh sách bài viết mẫu kênh dùng + tỉ lệ %.
+- HOOK: câu mở đầu / chủ đề của bài (Tết, đi làm, hẹn hò...).
+- TEMPLATE CHỮ (text template): kiểu chữ chèn lên ảnh (vị trí, font, cỡ, màu, viền, nền).
+- KỲ KẾ HOẠCH (plan): N ngày bài đăng của 1 kênh. Mỗi dòng trong kỳ = 1 BÀI KẾ HOẠCH (plan item).
+
+
+==================================================
+3. BÀI VIẾT MẪU (TRONG CODE BACKEND)
+==================================================
+File: backend app/Support/PostSamples.php (mảng tĩnh). Frontend + skill lấy qua API (không chép sang nơi khác).
+Thêm bài viết mẫu mới = đội A51 cùng Claude xây theo yêu cầu shop -> sửa file này + deploy.
+
+Mỗi bài viết mẫu:
+  key            chuỗi cố định, vd "unboxing" (lưu vào bài, KHÔNG đổi sau khi đã dùng)
+  name           tên hiển thị, vd "Đập hộp"
+  group          1 trong 8 nhóm: showcase | compare | outfit | story | tips | gift | series | promo
+  goal           mục tiêu: reach | engagement | save | sale | trust
+  formats        ["photo"] | ["photo","video"]
+  slides         { min, max }
+  slide_rules    mô tả từng vị trí slide: [{ at: "first"|"middle"|"last"|"each", image: "product"|"outfit"|"any"|
+                 "collage", text: true|false, note: "..." }]   -> bài viết mẫu quyết định slide nào có chữ
+  same_product   true: mọi ảnh cùng 1 sản phẩm (vd đập hộp)
+  guide          hướng dẫn cho người lập kế hoạch (cách viết hook, chữ từng slide, ví dụ)
+
+Danh sách ban đầu (từ 8 nhóm đã bàn):
+  showcase  unboxing (Đập hộp), closeup (Soi cận cảnh), new_arrival (Hàng mới về), color_options (1 mẫu nhiều màu)
+  compare   this_or_that (A hay B), top_n (Top N), which_suits_you (Bạn hợp đôi nào)
+  outfit    lookbook (Lookbook N outfit), one_shoe_many_looks (1 đôi N cách phối), box_to_feet (Từ hộp lên chân),
+            outfit_by_day (Outfit theo ngày / dịp)
+  story     pov (POV), meme_types (Meme "khách mua giày có 3 loại"), before_after (Trước / sau)
+  tips      size_guide (Chọn size), care_tips (Bảo quản / mẹo), faq (Hỏi đáp)
+  gift      gift_by_receiver (Quà theo người nhận), by_budget (Theo mức giá)
+  series    daily_drop (Mỗi ngày 1 mẫu / đếm ngược), numbered (Đánh số tập)
+  promo     sale (Ưu đãi, số lượng có hạn)
+Claude tự chọn: slide "collage" (ảnh ghép) GĐ1 chưa làm -> bài viết mẫu dùng ảnh ghép tạm thay bằng ảnh đẹp nhất có chữ.
+
+
+==================================================
+4. DỮ LIỆU
+==================================================
+4.1 channels (mới)
+  id, user_id (chủ shop), name (<=100)
+  worker_id          worker loại publish, UNIQUE (1 worker chỉ thuộc 1 kênh), nullable khi worker bị gỡ
+  platform           'tiktok' (GĐ1 chỉ TikTok)
+  persona            json chân dung khách hàng (4.2)
+  plan_days          1..30, mặc định 7
+  posts_per_day      1..20, mặc định 3
+  time_slots         json [{ "start": "11:00", "end": "13:00" }, ...], 1..6 khung, không chồng nhau
+  video_percent      0..100, mặc định 0 (tỉ lệ bài video trong kỳ)
+  auto_approve_lineup, auto_approve_templates, auto_approve_plan   boolean, mặc định false
+  -- cài đặt AI viết nội dung (chuyển từ shop_ai_settings):
+  title_max          10..90, mặc định 90
+  content_max        50..AI_CONTENT_MAX, mặc định như hiện tại
+  requirements       text, <= 3000 ký tự (viết cả giọng văn, cách xưng hô vào đây)
+  is_active, timestamps
+  channel_hashtag (mới): channel_id, hashtag_id - kho hashtag của kênh, tối đa 100 (như shop_hashtag).
+
+4.2 persona (json, mọi trường không bắt buộc, mỗi trường <= 300 ký tự)
+  age_range, gender, occupation, price_range, style, pain_points, occasions, tone, active_hours, note
+
+4.3 channel_lineups (mới) - tuyến nội dung
+  id, channel_id, status: pending | approved | rejected
+  items json [{ sample_key, percent, reason }]   tổng percent = 100, sample_key phải có trong PostSamples
+  approved_at, timestamps
+  Kênh dùng bản approved MỚI NHẤT. Đề xuất mới không xoá bản cũ.
+
+4.4 channel_text_templates (mới) - template chữ
+  id, channel_id, name, status: pending | approved | rejected
+  style json:
+    position     top | middle | bottom
+    font         1 trong danh sách font cố định có tiếng Việt (Be Vietnam Pro, Montserrat, Roboto, Lexend, Nunito)
+    weight       400..900
+    size         % chiều rộng ảnh, 3..10
+    color        #RRGGBB
+    stroke       { color, width_px } | null
+    background   none | box   (box: ô màu sau chữ)
+    box_color    #RRGGBB | null, box_radius px
+    align        center | left
+    max_lines    1..6
+  sample_text   câu ví dụ để xem trước
+  timestamps
+
+4.5 content_plans (mới) - kỳ kế hoạch
+  id, channel_id, start_date, days
+  status: draft (chờ duyệt) | approved | cancelled
+  warnings json (bài bị loại khi kiểm tra, tỉ lệ lệch...), approved_at, timestamps
+  Mỗi kênh tối đa 1 kỳ draft cùng lúc.
+
+4.6 content_plan_items (mới) - bài kế hoạch
+  id, plan_id, position
+  scheduled_at
+  sample_key, hook (<= 200), format: photo | video, video_template_id nullable
+  images json [{ generation_id, output_id, text (chữ trên ảnh, nullable, <= 150) }]   đúng thứ tự slide
+  text_template_id nullable
+  title, content, hashtags json        (caption)
+  status: draft | cancelled | posted    (posted = đã sinh social_post)
+  social_post_id nullable
+  timestamps
+
+4.7 social_posts (thêm cột)
+  channel_id NOT NULL cho bài mới (bài cũ: gán theo kênh của worker nếu có, không thì null - chỉ xem)
+  plan_item_id nullable, sample_key nullable, hook nullable
+  redo_requested_at nullable (chủ shop bấm "Làm lại", chờ lệnh xử lý)
+  source thêm giá trị 'plan'.
+
+4.8 social_post_images (thêm cột)
+  overlay_text nullable (<= 150), text_template_id nullable
+  overlay_path nullable (ảnh đã chèn chữ), overlay_status: null | pending | done | failed
+  Có overlay_path: worker đăng nhận ảnh đã chèn; output gốc giữ để chèn lại khi sửa chữ.
+
+4.9 text_overlay_jobs (mới) - việc chèn chữ
+  id, social_post_id, worker_id (= worker publish của kênh), status: queued | processing | completed | failed |
+  superseded
+  request json (ảnh + chữ + style từng ảnh), claimed_at, finished_at, error_code, error_message, timestamps
+  1 BÀI = 1 job (gồm mọi ảnh có chữ của bài). Sửa chữ -> job cũ superseded, tạo job mới.
+
+4.10 shop_ai_settings / shop_hashtag -> BỎ HẲN
+  Khi shop tạo KÊNH ĐẦU TIÊN: chép title_max, content_max, requirements, hashtag sang kênh. Cột samples bỏ luôn.
+  Shop đã chép xong (hoặc sau 1 thời gian) -> xoá bảng.
+
+4.11 Token cho skill lập kế hoạch
+  Sanctum token ability "channel-plan" (đã chốt 12.1). Token này đọc / ghi được kênh của MỌI shop
+  (đội A51 chạy lệnh cho các shop). Tạo ở trang admin, chỉ admin.
+
+
+==================================================
+5. LUỒNG CHI TIẾT
+==================================================
+5.1 TẠO KÊNH
+  - Chủ shop: Công cụ -> Kênh -> Thêm kênh: tên + chọn worker publish (chỉ hiện worker được gắn cho shop và CHƯA
+    thuộc kênh nào). Tạo xong vào trang kênh, tab Cấu hình.
+  - Worker bị admin gỡ khỏi shop: kênh worker_id = null, bài đang chờ giữ nguyên, hiện cảnh báo "Kênh chưa có worker".
+
+5.2 MỌI BÀI THUỘC 1 KÊNH (trả lời 11.2)
+  - Mọi chỗ đang "chọn worker" khi tạo / đăng bài đổi thành "chọn KÊNH" (worker = worker của kênh):
+    tạo bài từ lô / ảnh đã có (POST /social/posts/from-images), bấm đăng (publish), lập lịch nhiều lô
+    (schedule-batches), tạo video tự động / thủ công (video-posts). API nhận channel_id thay cho worker_id.
+  - Shop chưa có kênh -> không tạo / đăng bài được, giao diện dẫn sang tạo kênh.
+  - AI viết nội dung trên A51 (công tắc khi tạo bài, "Viết lại bằng AI") giữ nguyên code, vẫn gọi Claude API, chỉ
+    đổi sang cài đặt của kênh. Chỉ dùng cho bài tạo tay; bài kế hoạch đã có caption từ lệnh /lap-ke-hoach (12.3).
+
+5.3 CHÂN DUNG KHÁCH HÀNG
+  - Chủ shop sửa form các trường 4.2 trên A51. Kênh chưa có chân dung -> lệnh /lap-ke-hoach tự soạn (5.7 bước 2).
+
+5.4 TUYẾN NỘI DUNG
+  - Lệnh soạn: chọn bài viết mẫu + % theo chân dung, mục tiêu view + tương tác, ảnh đang có.
+  - Gửi lên -> backend kiểm tra key hợp lệ, tổng 100, lưu lineup pending (auto_approve_lineup bật -> approved).
+  - Chủ shop trên A51: xem, sửa % / bỏ / thêm bài viết mẫu, Duyệt hoặc Từ chối.
+
+5.5 TEMPLATE CHỮ
+  - Lệnh soạn 6 mẫu style (4.4) hợp chân dung, mỗi mẫu có sample_text. Gửi lên -> kiểm tra style hợp lệ, lưu pending
+    (auto_approve_templates bật -> approved).
+  - A51 xem trước: frontend vẽ chữ lên 1 ảnh thật của shop bằng CSS theo style (bản xem trước; ảnh thật do worker chèn).
+  - Chủ shop Duyệt / Từ chối / sửa style từng mẫu.
+
+5.6 CẤU HÌNH KÊNH (1 trang)
+  - Kế hoạch: plan_days, posts_per_day, time_slots, video_percent.
+  - Duyệt tự động: 3 công tắc (tuyến nội dung, template chữ, kế hoạch).
+  - AI viết nội dung: title_max, content_max, requirements (3000), kho hashtag (+ nút lấy hashtag từ sản phẩm).
+
+5.7 LỆNH /lap-ke-hoach <id-kênh>  (skill D:\FlowKit\.claude\skills\lap-ke-hoach)
+  Bước 1. Lấy ngữ cảnh: GET context (6.2). Backend trả đủ mọi thứ, kể cả các SLOT GIỜ của kỳ kế tiếp do backend tính:
+          - ngày bắt đầu: ngày sau ngày cuối của bài tương lai đã có của kênh; không có thì hôm nay (nếu còn khung giờ
+            chưa qua) hoặc ngày mai;
+          - mỗi ngày posts_per_day bài chia đều vào các khung giờ (dư thì khung đầu nhận thêm), giờ ngẫu nhiên trong
+            khung, các bài cùng khung cách nhau >= 20 phút;
+          - số bài video = làm tròn(tổng x video_percent / 100), rải đều.
+          Context báo luôn "thiếu gì": worker, chân dung, tuyến approved, template approved, khung giờ.
+  Bước 2. Làm phần còn thiếu (theo thứ tự):
+          - Chưa có chân dung -> soạn từ sản phẩm của shop, gửi lên (LƯU THẲNG, không cần duyệt - 12.2; chủ shop sửa sau).
+          - Chưa có tuyến approved -> soạn, gửi lên. Nếu công tắc tự duyệt TẮT -> DỪNG, báo người dùng nhờ chủ shop
+            duyệt trên A51 rồi chạy lại lệnh.
+          - Chưa có template chữ approved (và kỳ có bài ảnh) -> soạn 6 mẫu, gửi lên. Tự duyệt TẮT -> DỪNG như trên.
+          - Thiếu worker / khung giờ -> DỪNG, báo cần cấu hình trên A51 (lệnh không tự sửa cấu hình).
+  Bước 3. Làm lại các bài chủ shop đã bấm "Làm lại" (redo_requests trong context): mỗi bài soạn lại nội dung + ảnh +
+          chữ, GIỮ giờ đăng, gửi lên (6.2 redo).
+  Bước 4. Lập kỳ: với từng slot chọn bài viết mẫu (theo tỉ lệ tuyến), hook (theo chân dung + dịp lễ trong kỳ), ảnh
+          (đúng slide_rules; tải ảnh nhỏ về xem để chọn đúng giày / outfit), chữ từng slide, template chữ,
+          caption (tiêu đề, nội dung, hashtag trong kho kênh tối đa 5, theo cài đặt AI của kênh), video template nếu
+          slot video. Tránh trùng với 60 bài gần nhất của kênh.
+  Bước 5. Gửi kỳ lên (POST plans). Backend kiểm tra từng bài (5.8), trả bài đạt + bài lỗi kèm lý do.
+          Bài lỗi -> sửa rồi gửi bổ sung (POST plans/{plan}/items), tối đa 2 lần; vẫn lỗi thì để trống slot và báo.
+  Bước 6. Báo người dùng: số bài đã lập, cảnh báo, kỳ đang draft hay đã tự duyệt, link trang kênh.
+  Kênh đã có kỳ draft chưa duyệt -> lệnh chỉ làm bước 3 (làm lại) và báo, không lập kỳ mới.
+
+5.8 BACKEND KIỂM TRA MỖI BÀI KẾ HOẠCH
+  - sample_key có trong PostSamples và thuộc tuyến approved; format thuộc formats của bài viết mẫu.
+  - Số ảnh trong slides.min..max (video: đúng image_count của template); ảnh của shop, dùng được, đúng kind theo
+    slide_rules, same_product đúng; chữ chỉ ở slide được phép; text_template_id approved của kênh.
+  - Caption: hashtag thuộc kho kênh (tối đa 5, bỏ cái lạ), tiêu đề / nội dung cắt theo title_max / content_max.
+  - KHÔNG trùng y hệt (cùng bộ ảnh + cùng sample_key + cùng hook) với bài cũ của kênh hoặc bài khác trong kỳ.
+    (ảnh được dùng lại, miễn nội dung không giống)
+  - scheduled_at phải là 1 slot backend đã cấp trong context (chống gửi sai giờ).
+  - Tỉ lệ thực tế lệch tuyến quá 15 điểm % -> chỉ cảnh báo.
+
+5.9 DUYỆT KỲ -> SINH BÀI
+  - Kỳ draft: chủ shop xem trên A51, sửa / huỷ từng bài, "Duyệt kỳ" hoặc "Huỷ kỳ". auto_approve_plan bật -> backend
+    duyệt ngay khi nhận kỳ.
+  - Duyệt: mỗi item draft -> 1 social_post: source plan, channel_id, plan_item_id, sample_key, hook, type theo format,
+    worker_id = worker của kênh, platforms ["tiktok"], scheduled_at, title / content / hashtags, ảnh theo thứ tự.
+  - Bài ảnh có chữ: overlay_text + text_template_id, overlay_status pending, tạo 1 text_overlay_job cho bài.
+    Bài status generating ("Đang chuẩn bị ảnh"). Job xong -> queued (chờ tới giờ). Job failed -> pending_review +
+    last_error OVERLAY_FAILED, chủ shop sửa chữ / bấm "Chèn lại".
+  - Bài không có chữ / bài video: queued ngay.
+  - Tới giờ mà bài còn generating: worker không nhận (chỉ nhận queued), lịch hiện cảnh báo trễ.
+
+5.10 LỊCH ĐĂNG / REVIEW (chỉ bài worker chưa nhận: generating | pending_review | queued)
+  - Sửa bài: tiêu đề, nội dung, hashtag, giờ, thứ tự / đổi ảnh (dùng lại sửa bài hiện có).
+  - Sửa chữ trên ảnh / đổi template chữ -> job chèn cũ superseded, tạo job mới, bài về generating.
+  - Huỷ: xoá social_post, item -> cancelled. Không tự bù bài.
+  - "Làm lại": đặt redo_requested_at, bài về pending_review (worker không nhận). Lần chạy /lap-ke-hoach kế tiếp làm lại
+    bài đó (5.7 bước 3), giữ giờ đăng, chèn chữ lại. Bỏ yêu cầu làm lại được.
+  - Huỷ cả kỳ: huỷ mọi bài chưa được worker nhận của kỳ.
+
+5.11 CHÈN CHỮ - WORKER ĐĂNG BÀI CỦA KÊNH LÀM (trả lời 11.3)
+  - Không có loại worker mới. Gộp vào API post-jobs đang có (Claude tự chọn):
+    GET /api/v1/post-jobs trả job chèn chữ TRƯỚC (ưu tiên, không cần tới giờ), hết mới trả job đăng bài tới giờ.
+      200 { data: { id, type: "overlay", request: { post_id, images: [{ image_id, image_url (ảnh gốc), text,
+            style (4.4), width, height }] } } }
+  - POST /api/v1/post-jobs/{id} với job overlay: multipart
+      status=completed + files[image_id] (jpeg/png/webp <= 15MB / ảnh, cùng kích thước gốc)
+      hoặc status=failed + error_code + error_message
+    409 JOB_NOT_ASSIGNED: job đã bị thay (chủ shop sửa chữ), bỏ qua.
+  - Worker tự lo font (5 font ở 4.4) và tự xuống dòng theo max_lines. Job processing quá 10 phút -> giao lại.
+  - Đổi worker của kênh khi còn job chèn chữ queued -> chuyển job sang worker mới.
+
+5.12 WORKER ĐĂNG BÀI
+  - Worker publish TikTok đăng CÔNG KHAI (không lưu nháp) cho cả bài ảnh và video. Kiểm tra D:\FlowKit (web/flowkit,
+    skill dang-tiktok) hiện còn lưu nháp không.
+  - Luôn gửi post_url khi completed (API đã có).
+  - Payload post-jobs bài ảnh: images trả overlay_path nếu có, không thì ảnh gốc (sửa SocialPublishJobService::request).
+
+
+==================================================
+6. API
+==================================================
+6.1 CHO FRONTEND (chủ shop, middleware creator, kênh của người khác -> 404)
+  GET    /channels/post-samples                    danh sách bài viết mẫu (từ code)
+  GET    /channels                                 danh sách kênh + số bài sắp đăng + kỳ hiện tại + thiếu gì
+  POST   /channels { name, worker_id }
+  GET    /channels/{id}                            kênh + cấu hình + persona + cài đặt AI + hashtag
+  PUT    /channels/{id}                            sửa tên, worker, cấu hình, công tắc, cài đặt AI, hashtag, persona
+  DELETE /channels/{id}                            409 khi còn bài chưa đăng
+  GET    /channel-workers                          worker publish của shop còn trống
+
+  GET    /channels/{id}/lineups                    bản đang dùng + đề xuất
+  PUT    /channels/{id}/lineups/{lineup}           sửa items
+  POST   /channels/{id}/lineups/{lineup}/approve | /reject
+
+  GET    /channels/{id}/text-templates
+  PUT    /channels/{id}/text-templates/{t}         sửa style / tên
+  POST   /channels/{id}/text-templates/{t}/approve | /reject
+
+  GET    /channels/{id}/plans                      danh sách kỳ
+  GET    /channels/{id}/plans/{plan}               kỳ + items
+  POST   /channels/{id}/plans/{plan}/approve | /cancel
+  PUT    /channels/{id}/plans/{plan}/items/{item}  sửa item khi kỳ draft
+  POST   /channels/{id}/plans/{plan}/items/{item}/cancel
+
+  GET    /channels/{id}/calendar?from=&to=         bài đăng của kênh theo ngày
+  PUT    /social/posts/{post}/overlays             [{ image_id, text, text_template_id }] -> chèn lại
+  POST   /social/posts/{post}/redo | DELETE /social/posts/{post}/redo    đánh dấu / bỏ đánh dấu làm lại
+  Sửa / xoá bài: API social/posts hiện có. Các API tạo / đăng bài đổi worker_id -> channel_id (5.2).
+  Bỏ: GET/PUT /creator/ai-content (trang /seller/ai-content).
+
+6.2 CHO SKILL /lap-ke-hoach (Bearer token ability channel-plan, prefix /api/v1/channel-plan)
+  GET  /channels/{id}/context
+       -> { channel (cấu hình, cài đặt AI, hashtag), persona, lineup (approved + pending), text_templates,
+            post_samples, products (tên, prompt_note, hashtag của sản phẩm đang bán),
+            images: tối đa 400 ảnh mới nhất dùng được [{ ref: "g{generation_id}-o{output_id}", thumb_url, kind,
+                    product, creative, group, used_in_channel, last_used_at }],
+            video_templates (đang bật, có image_count), recent_posts (60 bài: sample_key, hook, image refs),
+            holidays (dịp lễ trong kỳ), slots [{ index, at, format }], start_date, days,
+            redo_requests [{ post_id, sample_key, hook, images, scheduled_at }],
+            missing [ "worker" | "persona" | "lineup" | "text_templates" | "time_slots" ], draft_plan_id }
+  PUT  /channels/{id}/persona                      { persona }
+  POST /channels/{id}/lineups                      { items } -> lineup (pending | approved)
+  POST /channels/{id}/text-templates               { templates: [ {name, style, sample_text} x 6 ] }
+  POST /channels/{id}/plans                        { start_date, items: [ { slot_index, sample_key, hook, format,
+                                                     video_template_id?, images: [{ ref, text? }], text_template_id?,
+                                                     title, content, hashtags } ] }
+       -> { plan, accepted: [slot_index], rejected: [{ slot_index, errors }], warnings }
+  POST /channels/{id}/plans/{plan}/items           gửi bổ sung bài cho slot còn trống (cùng định dạng)
+  POST /posts/{post}/redo                          { sample_key, hook, images, text_template_id?, title, content,
+                                                     hashtags } -> thay nội dung bài, chèn chữ lại, bỏ đánh dấu
+
+
+==================================================
+7. SKILL /lap-ke-hoach (D:\FlowKit\.claude\skills\lap-ke-hoach)
+==================================================
+  SKILL.md        quy trình 5.7, quy tắc viết hook / chữ / caption, đọc guide của bài viết mẫu từ context.
+  scripts/kehoach.py  phần cố định, mọi lệnh in JSON (theo cách các skill FlowKit khác):
+      context <id-kênh> [--out DIR]   lấy context, lưu DIR/context.json
+      thumbs DIR <ref...>             tải ảnh nhỏ về DIR/img để xem
+      persona <id-kênh> FILE.json
+      lineup <id-kênh> FILE.json
+      templates <id-kênh> FILE.json
+      plan <id-kênh> FILE.json        gửi kỳ, in accepted / rejected
+      plan-items <id-kênh> <plan> FILE.json
+      redo <post-id> FILE.json
+  .env: A51_BASE_URL, A51_PLAN_TOKEN (token 4.11). Mẫu .env.example.
+  Thư mục làm việc mỗi lần chạy: skill/job/<id-kênh>-<ngày giờ>/ (context.json, img/, plan.json) để xem lại khi lỗi.
+
+
+==================================================
+8. MÀN HÌNH (frontend)
+==================================================
+  Công cụ -> "Kênh TikTok" (/channels): thẻ mỗi kênh (tên, worker, bài sắp đăng, kỳ hiện tại, thiếu gì).
+  /channels/new: tên + chọn worker.
+  /channels/:id - các tab:
+    Lịch đăng (mặc định): theo ngày, mỗi bài: ảnh bìa đã chèn chữ, bài viết mẫu, hook, giờ, trạng thái;
+                          popup sửa / sửa chữ / huỷ / làm lại.
+    Kế hoạch: danh sách kỳ; kỳ draft có Duyệt / Huỷ, sửa / huỷ từng bài, cảnh báo.
+              Không có nút lập kế hoạch (GĐ1): hiện dòng "Kế hoạch do đội A51 lập".
+    Tuyến nội dung: bản đang dùng + đề xuất chờ duyệt.
+    Template chữ: lưới mẫu xem trước trên ảnh thật, Duyệt / Từ chối / Sửa.
+    Chân dung khách hàng: form.
+    Cấu hình: kế hoạch, khung giờ, tỉ lệ video, 3 công tắc tự duyệt, cài đặt AI viết nội dung + kho hashtag.
+  Các chỗ tạo / đăng bài: "Chọn worker" -> "Chọn kênh". Trang Bài đăng: thêm cột / lọc theo kênh.
+  /seller/ai-content -> chuyển hướng /channels.
+  Admin: trang tạo / thu hồi token channel-plan.
+
+
+==================================================
+9. GIỚI HẠN / CLAUDE TỰ CHỌN
+==================================================
+- Tối đa 10 kênh / shop. plan_days 1..30, posts_per_day 1..20 -> tối đa 600 bài / kỳ.
+- Context gửi tối đa 400 ảnh. Mỗi bài tối đa 35 ảnh (như hiện tại).
+- Ngày lễ: bảng cố định trong code backend (Tết dương, Tết âm 2027 = 06/02, Valentine, 8/3, 30/4, 1/5, 20/10, Noel,
+  Black Friday, 11/11, 12/12...), cập nhật Tết âm mỗi năm.
+- Slot giờ trong context giữ chỗ 24 giờ; gửi kỳ sau đó -> backend tính lại, trả lỗi để chạy lại lệnh.
+
+
+==================================================
+10. THỨ TỰ TRIỂN KHAI
+==================================================
+  1. Backend: bảng + PostSamples + API kênh / cấu hình / cài đặt AI theo kênh; đổi worker_id -> channel_id ở các API
+     tạo / đăng bài; bỏ ai-content shop.
+  2. Backend: lineup, text templates, plans, kiểm tra 5.8, duyệt -> sinh bài, overlay job trong post-jobs,
+     API + token channel-plan.
+  3. Frontend: /channels và các tab, đổi "Chọn worker" -> "Chọn kênh", trang admin token.
+  4. FlowKit: skill lap-ke-hoach; worker đăng bài làm job overlay + đăng công khai + post_url.
+  5. Chạy thử 1 kênh thật, kỳ 3 ngày x 2 bài.
+  Mỗi bước có test feature (tests/Feature) như các tính năng trước.
+
+
+==================================================
+11. CÂU HỎI ĐÃ TRẢ LỜI (2026-11-20)
+==================================================
+11.1 Kế hoạch nội dung cũ gỡ vì: chưa có thời gian làm tiếp.
+11.2 Bài không thuộc kênh: KHÔNG có - mọi bài bắt buộc thuộc 1 kênh.
+11.3 Chèn chữ: worker đăng bài của kênh làm theo template.
+11.4 AI tạo 6 mẫu template chữ mỗi lần.
+11.5 A51 tạm thời không gọi Claude API cho phần này. Ban đầu định để worker AI nhận job rồi gọi Claude, sau đổi thành
+     lệnh /lap-ke-hoach <id-kênh>. Bỏ worker AI. Việc chân dung / tuyến / template gộp vào lệnh. Chưa cần nút lập kế
+     hoạch trên A51. Skill viết ở D:\FlowKit.
+
+
+==================================================
+12. CÂU HỎI MỞ
+==================================================
+12.1 Token cho skill: dùng token Sanctum ability "channel-plan" do admin tạo, đọc / ghi được kênh của mọi shop (đề xuất),
+     hay mỗi shop tạo token riêng rồi đưa cho đội A51?
+     TRẢ LỜI (2026-11-20): Theo đề xuất - 1 token admin tạo, dùng cho mọi shop.
+12.2 Chân dung khách hàng do lệnh tự soạn: lưu thẳng (đề xuất, chủ shop sửa sau), hay cũng cần duyệt như tuyến?
+     TRẢ LỜI (2026-11-20): Lưu thẳng.
+12.3 AI viết nội dung trên A51 hiện có (công tắc khi tạo bài tay, nút "Viết lại bằng AI") vẫn gọi Claude API như
+     hiện tại (chỉ đổi sang cài đặt của kênh), hay cũng bỏ?
+     TRẢ LỜI (2026-11-20): GIỮ NGUYÊN code (chỉ đổi sang cài đặt của kênh), nhưng bài kế hoạch KHÔNG dùng nó vì caption
+     đã được viết sẵn khi lập kế hoạch. Chỉ bài tạo tay mới dùng.
+
+=> MỌI CÂU HỎI ĐÃ CHỐT (2026-11-20). Đặc tả GĐ1 sẵn sàng để code khi người dùng yêu cầu.
+
+
+==================================================
+13. ĐÃ TRIỂN KHAI (2026-11-20)
+==================================================
+Backend (D:\OSPanel\home\a90.local) - 246 test qua (tests/Feature/ChannelTest.php, ChannelPlanTest.php mới):
+  migration 2026_11_20_100000_create_channels_table, 2026_11_20_110000_create_channel_plan_tables
+  app/Models: Channel, ChannelLineup, ChannelTextTemplate, ContentPlan, ContentPlanItem, TextOverlayJob
+  app/Support: PostSamples (22 bài viết mẫu), VietnamHolidays
+  app/Services/Channel: ChannelPlanService (context, slot giờ, kiểm tra bài, duyệt / huỷ, làm lại, sửa chữ),
+                        TextOverlayService (job chèn chữ)
+  Controllers: Creator/ChannelController, Creator/ChannelContentController, ChannelPlanApiController,
+               WorkerPostJobController (thêm overlay), Admin/PlanTokenController (+ view admin/plan-tokens)
+  Middleware: channel-plan (EnsureChannelPlanToken), full-token (EnsureFullAccessToken, gắn vào nhóm API thường)
+  Bỏ: AiContentSettingController + route /creator/ai-content; cột shop_ai_settings.samples
+Frontend (D:\a90-fe): src/api/channels.js, pages ChannelsPage / ChannelPage, components/channel/* (6 tab),
+  /seller/ai-content -> chuyển /channels, Công cụ: "Kênh TikTok" thay "AI viết nội dung", xoá AiContentPage.
+FlowKit: skill .claude/skills/lap-ke-hoach (SKILL.md, scripts/kehoach.py, .env.example);
+  web/flowkit/overlay.py (chèn chữ bằng Pillow), runner xử lý job overlay, a51.py submit_overlay,
+  publishers/tiktok.py thêm TIKTOK_PUBLISH_MODE=public.
+
+KHÁC SO VỚI ĐẶC TẢ (Claude tự chọn khi code, cần đổi thì báo):
+- 5.2 "chọn kênh": API tạo / đăng bài VẪN nhận worker_id (1 kênh = 1 worker nên tương đương). Backend chặn 422 nếu worker
+  chưa thuộc kênh; bài tự nhận channel_id theo worker (SocialPost::booted). Ô chọn worker chỉ hiện worker đã thuộc kênh,
+  nhãn "Kênh X · worker".
+- Bài tạo tay CHƯA giao worker (vừa tạo từ lô) bật AI viết nội dung: dùng cài đặt của kênh ĐẦU TIÊN của shop.
+- 4.5 kỳ có thêm trạng thái preparing (giữ slot khi lệnh lấy context, hết hạn 24 giờ). API gửi bài:
+  POST /channel-plan/channels/{id}/plans/{plan}/items (dùng cho cả lần đầu và gửi bổ sung).
+- 5.11 nộp kết quả chèn chữ: POST /api/v1/post-jobs/overlay/{id} (route riêng, tránh lẫn id với job đăng bài).
+- Route chủ shop sửa chữ / làm lại: /creator/channel-posts/{post}/overlays, /creator/channel-posts/{post}/redo.
+- Đánh dấu "Làm lại": bài queued về pending_review để worker không đăng trong lúc chờ lệnh.
+- Template chữ: preview trên A51 vẽ bằng CSS; style.box_radius / stroke.width_px tính theo khung xem trước rộng 300px,
+  worker quy đổi theo chiều rộng ảnh. Chữ trên ảnh bỏ emoji (Pillow không vẽ emoji màu).
+
+CÒN LẠI / CẦN NGƯỜI DÙNG LÀM:
+- Chạy migration trên server, deploy backend + frontend.
+- Admin -> "Token lập kế hoạch" -> tạo token, dán vào D:\FlowKit\.claude\skills\lap-ke-hoach\.env (A51_PLAN_TOKEN).
+- Font cho worker: đặt file .ttf vào D:\FlowKit\web\fonts\ (BeVietnamPro-800.ttf, Montserrat-700.ttf...), thiếu thì Arial.
+- TikTok đăng công khai (TIKTOK_PUBLISH_MODE=public) CHƯA chạy thử trên TikTok thật -> thử bằng --mock trước.
+  post_url khi đăng công khai CHƯA lấy được (TODO trong tiktok.py) -> cần trước GĐ4.
+- Chạy thử 1 kênh thật: kỳ 3 ngày x 2 bài (mục 10 bước 5).

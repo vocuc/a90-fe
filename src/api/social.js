@@ -17,8 +17,7 @@ import client from './client';
  * POST   /social/posts/{id}/retry                        -> { data: SocialPost }   "Đăng lại" (lỗi) / "Tạo lại" (đang đăng)
  * POST   /social/posts/{id}/ai-content                   -> { data: { title, content, hashtags } }
  *        "Viết lại bằng AI": không lưu vào bài (note/ai-viet-noi-dung-bai-dang.txt)
- * GET    /creator/ai-content                             -> { data: AiContentSettings }  (trang "AI viết nội dung", chủ shop)
- * PUT    /creator/ai-content { hashtags, samples, requirements, title_max, content_max } -> như trên
+ * Cài đặt AI viết nội dung nay theo từng kênh: src/api/channels.js (trang /channels/:id, tab Cấu hình)
  * DELETE /social/posts/{id}                              -> 204
  */
 
@@ -220,36 +219,6 @@ export const saveAiContentPref = (on) => {
     // Trình duyệt chặn localStorage: không nhớ được, lần sau vẫn bật mặc định
   }
 };
-
-// ---- Cài đặt AI viết nội dung của shop (trang /seller/ai-content) ----
-// hashtags: kho hashtag (AI chọn tối đa limits.aiHashtags, kho rỗng thì bài không có hashtag); samples: bài viết mẫu
-// [{ title, content }] để AI học giọng văn; titleMax / contentMax: số ký tự tối đa AI viết.
-
-const mapAiContentSettings = (d) => ({
-  hashtags: d.hashtags ?? [],
-  samples: d.samples ?? [],
-  requirements: d.requirements ?? '',
-  titleMax: d.title_max,
-  contentMax: d.content_max,
-  productHashtags: d.product_hashtags ?? [],
-  limits: {
-    hashtags: d.limits.hashtags,
-    aiHashtags: d.limits.ai_hashtags,
-    samples: d.limits.samples,
-    sampleTitle: d.limits.sample_title,
-    sampleContent: d.limits.sample_content,
-    requirements: d.limits.requirements ?? 1000,
-    titleMax: d.limits.title_max,
-    contentMax: d.limits.content_max,
-  },
-});
-
-export const getAiContentSettings = () => client.get('/creator/ai-content').then(({ data }) => mapAiContentSettings(data));
-
-export const saveAiContentSettings = ({ hashtags, samples, requirements, titleMax, contentMax }) =>
-  client
-    .put('/creator/ai-content', { hashtags, samples, requirements, title_max: titleMax, content_max: contentMax })
-    .then(({ data }) => mapAiContentSettings(data));
 
 /**
  * "Đăng bài" (note/gop-luong-dang-bai.txt): lưu chỉnh sửa + worker + loại bài + nền tảng + giờ đăng, bài sang "Chờ đăng".

@@ -27,9 +27,9 @@ const FEATURES = [
   {
     icon: 'edit_note',
     title: 'AI viết nội dung',
-    desc: 'AI tự viết tiêu đề, nội dung và chọn hashtag từ kho của shop cho mỗi bài đăng.',
-    to: '/seller/ai-content',
-    cta: 'Cài đặt AI viết',
+    desc: 'AI tự viết tiêu đề, nội dung và chọn hashtag từ kho của từng kênh cho mỗi bài đăng.',
+    to: '/channels',
+    cta: 'Cài đặt kênh',
   },
   {
     icon: 'send',

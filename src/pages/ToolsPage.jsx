@@ -56,10 +56,8 @@ export default function ToolsPage() {
     { to: '/seller/video-templates', icon: 'movie', title: 'Quản lý video template', description: 'Tên và video TikTok mẫu của từng template', locked: noShop },
     // note/quan-ly-worker.txt
     { to: '/seller/workers', icon: 'dns', title: 'Quản lý worker', description: 'Worker được cấp, chức năng và trạng thái online', locked: noShop },
-    // AI viết nội dung bài đăng (note/ai-viet-noi-dung-bai-dang.txt): chỉ hiện khi backend bật tính năng
-    ...(me?.socialAi?.enabled
-      ? [{ to: '/seller/ai-content', icon: 'auto_awesome', title: 'AI viết nội dung', description: 'Kho hashtag, bài mẫu và độ dài nội dung bài đăng', locked: noShop }]
-      : []),
+    // Kênh TikTok (note/xay-kenh-tiktok/dac-ta-giai-doan-1.txt): mỗi kênh 1 worker, kế hoạch nội dung, cài đặt AI viết nội dung
+    { to: '/channels', icon: 'smart_display', title: 'Kênh TikTok', description: 'Kênh, kế hoạch nội dung, lịch đăng và cài đặt AI viết nội dung', locked: noShop },
   ];
 
   return (
