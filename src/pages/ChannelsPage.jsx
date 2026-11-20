@@ -71,7 +71,11 @@ function ChannelCard({ channel }) {
         <Icon name="smart_display" className="text-xl" />
       </span>
       <div className="min-w-0 flex-1 space-y-1">
-        <p className="truncate text-sm font-bold text-on-surface">{channel.name}</p>
+        <p className="flex items-center gap-1.5 text-sm font-bold text-on-surface">
+          <span className="truncate">{channel.name}</span>
+          {/* ID kênh: dùng cho lệnh /lap-ke-hoach <id> */}
+          <span className="shrink-0 rounded bg-surface-container px-1.5 py-0.5 text-[11px] font-semibold text-on-surface-variant">ID: {channel.id}</span>
+        </p>
         <p className="text-xs text-on-surface-variant">
           {channel.worker ? `Worker: ${channel.worker.name}` : 'Chưa có worker'} · {channel.upcomingPosts} bài sắp đăng
         </p>

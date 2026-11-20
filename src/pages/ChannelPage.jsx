@@ -36,7 +36,10 @@ export default function ChannelPage() {
             <Icon name="arrow_back" />
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-bold text-on-surface">{channel?.name ?? 'Kênh TikTok'}</h1>
+            <h1 className="flex items-center gap-1.5 text-base font-bold text-on-surface">
+              <span className="truncate">{channel?.name ?? 'Kênh TikTok'}</span>
+              {channel && <span className="shrink-0 rounded bg-surface-container px-1.5 py-0.5 text-[11px] font-semibold text-on-surface-variant">ID: {channel.id}</span>}
+            </h1>
             {channel && <p className="truncate text-[11px] text-on-surface-variant">{channel.worker ? `Worker: ${channel.worker.name}` : 'Chưa có worker'}</p>}
           </div>
         </div>
