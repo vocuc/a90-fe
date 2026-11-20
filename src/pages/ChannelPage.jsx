@@ -33,7 +33,7 @@ export default function ChannelPage() {
   const withPreview = tab === 'calendar';
 
   return (
-    <div className={withPreview ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-2' : ''}>
+    <div className={withPreview ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start lg:gap-2' : ''}>
     <div className="min-w-0">
       <header className="border-b border-surface-container bg-surface-container-lowest">
         <div className="flex items-center gap-2 px-2 py-2">

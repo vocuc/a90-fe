@@ -46,15 +46,15 @@ function Rail({ icon, mirror = false }) {
 }
 
 function Caption({ post }) {
-  const [open, setOpen] = useState(false);
   const tags = (post.hashtags ?? []).map((h) => `#${h}`).join(' ');
   if (!post.title && !tags && !post.content) return null;
+  // Tiêu đề + nội dung + hashtag chỉ hiện 1 dòng (cắt "...")
   return (
-    <button type="button" onClick={() => setOpen((v) => !v)} className={`block w-full text-left text-[12px] leading-snug text-white ${open ? '' : 'line-clamp-2'}`}>
+    <p className="truncate text-[12px] leading-snug text-white">
       {post.title && <span className="font-semibold">{post.title} </span>}
       {post.content && <span>{post.content} </span>}
       {tags && <span className="font-semibold">{tags}</span>}
-    </button>
+    </p>
   );
 }
 
@@ -277,7 +277,7 @@ export default function TikTokPreview({ post, channelName, templates = {}, onEdi
   const name = channelName || 'Kênh';
   const handle = `@${name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '') || 'kenh'}`;
 
-  const phoneWidth = fitScreen ? 'min(100%, 360px, calc((100vh - 200px) * 0.4615))' : 'min(100%, 360px)';
+  const phoneWidth = fitScreen ? 'min(100%, 400px, calc((100vh - 180px) * 0.4615))' : 'min(100%, 400px)';
 
   return (
     <div className="space-y-2" style={{ '--phone-w': phoneWidth }}>
