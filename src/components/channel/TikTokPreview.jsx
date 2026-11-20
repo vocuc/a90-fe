@@ -10,11 +10,19 @@ import TextOverlayPreview from './TextOverlayPreview';
  * Biểu tượng chung (Material Symbols), không dùng logo / tài nguyên của TikTok.
  */
 
+/** Kiểu chữ dự phòng khi template của ảnh không còn (đã bỏ): chữ trắng viền đen phía trên. */
+const FALLBACK_STYLE = {
+  position: 'top', font: 'Be Vietnam Pro', weight: 800, size: 6, color: '#FFFFFF', stroke: { color: '#000000', width_px: 8 },
+  background: 'none', box_color: null, box_radius: 0, align: 'center', max_lines: 3,
+};
+
 function Slide({ image, templates, className = '' }) {
   if (!image) return null;
   if (image.overlay_url) return <img src={image.overlay_url} alt="" className={`size-full object-contain ${className}`} />;
-  if (image.overlay_text && templates[image.text_template_id]) {
-    return <TextOverlayPreview image={image.thumb_url} text={image.overlay_text} style={templates[image.text_template_id]} rounded={false} className={`w-full ${className}`} />;
+  if (image.overlay_text) {
+    // Template của ảnh đã bị bỏ: dùng template khác của kênh, không có thì kiểu dự phòng (không để mất chữ hook)
+    const style = templates[image.text_template_id] ?? Object.values(templates)[0] ?? FALLBACK_STYLE;
+    return <TextOverlayPreview image={image.thumb_url} text={image.overlay_text} style={style} rounded={false} className={`w-full ${className}`} />;
   }
   return <img src={image.thumb_url} alt="" className={`size-full object-contain ${className}`} />;
 }

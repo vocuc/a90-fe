@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState, ErrorState, Skeleton } from '../common/Feedback';
 import { FormAlert, SelectField, TextField } from '../common/Form';
 import Dialog from '../common/Dialog';
+import { useConfirm } from '../common/ConfirmDialog';
 import { CHANNEL_KEYS, decideTextTemplate, getTextTemplates, updateTextTemplate } from '../../api/channels';
 import TextOverlayPreview from './TextOverlayPreview';
 
@@ -95,14 +96,25 @@ function EditDialog({ channelId, template, meta, onClose }) {
 export default function TextTemplatesTab({ channel }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(null);
+  const { confirm, alert } = useConfirm();
   const { data, error, refetch } = useQuery({ queryKey: CHANNEL_KEYS.templates(channel.id), queryFn: () => getTextTemplates(channel.id) });
   const decide = useMutation({
     mutationFn: ({ id, approve }) => decideTextTemplate(channel.id, id, approve),
-    onSuccess: () => {
+    onSuccess: (d) => {
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.templates(channel.id) });
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.detail(channel.id) });
+      // Bài đang dùng template bị bỏ đã chuyển sang template khác: tải lại lịch đăng
+      queryClient.invalidateQueries({ queryKey: ['creator', 'channels', String(channel.id), 'calendar'] });
+      if (d?.moved_posts) alert(`${d.moved_posts} bài đang dùng template này đã chuyển sang template khác và sẽ được chèn chữ lại.`);
     },
   });
+  const reject = async (t) => {
+    const ok = await confirm(
+      `Bỏ template "${t.name}"? Bài chưa đăng đang dùng template này sẽ chuyển sang template đã duyệt khác và chèn chữ lại.`,
+      { confirmLabel: 'Bỏ template', danger: true },
+    );
+    if (ok) decide.mutate({ id: t.id, approve: false });
+  };
 
   if (error) return <ErrorState error={error} onRetry={refetch} />;
   if (!data) return <Skeleton className="h-60 w-full" />;
@@ -131,7 +143,7 @@ export default function TextTemplatesTab({ channel }) {
               <button type="button" onClick={() => setEditing(t)} className="rounded-lg border border-outline-variant/60 px-2 py-1 text-[11px] font-bold text-on-surface">
                 Sửa
               </button>
-              <button type="button" onClick={() => decide.mutate({ id: t.id, approve: false })} className="rounded-lg px-2 py-1 text-[11px] font-bold text-error hover:bg-error-container/40">
+              <button type="button" onClick={() => (t.status === 'pending' ? decide.mutate({ id: t.id, approve: false }) : reject(t))} className="rounded-lg px-2 py-1 text-[11px] font-bold text-error hover:bg-error-container/40">
                 {t.status === 'pending' ? 'Từ chối' : 'Bỏ'}
               </button>
             </div>
