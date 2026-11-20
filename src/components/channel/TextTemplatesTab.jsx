@@ -4,7 +4,8 @@ import { EmptyState, ErrorState, Skeleton } from '../common/Feedback';
 import { FormAlert, SelectField, TextField } from '../common/Form';
 import Dialog from '../common/Dialog';
 import { useConfirm } from '../common/ConfirmDialog';
-import { CHANNEL_KEYS, decideTextTemplate, getTextTemplates, updateTextTemplate } from '../../api/channels';
+import { CHANNEL_KEYS, createTextTemplate, decideTextTemplate, getTextTemplates, updateTextTemplate } from '../../api/channels';
+import Icon from '../common/Icon';
 import TextOverlayPreview from './TextOverlayPreview';
 
 const STATUS = {
@@ -12,28 +13,43 @@ const STATUS = {
   pending: { label: 'Chờ duyệt', className: 'bg-amber-50 text-amber-700' },
 };
 
+/** Template mới chủ shop thêm: ô trắng chữ đen phía trên (sửa tiếp trong popup). */
+const NEW_TEMPLATE = {
+  name: 'Template của tôi',
+  sample_text: 'Đập hộp đôi giày đi chúc Tết',
+  style: { position: 'top', font: 'Be Vietnam Pro', weight: 800, size: 6, color: '#111111', stroke: null, background: 'box',
+    box_color: '#FFFFFF', box_radius: 8, align: 'center', max_lines: 3 },
+};
+
+/** template có id: sửa; template không có id (NEW_TEMPLATE): thêm mới (được duyệt luôn). */
 function EditDialog({ channelId, template, meta, onClose }) {
+  const creating = !template.id;
   const queryClient = useQueryClient();
   const [name, setName] = useState(template.name);
   const [sample, setSample] = useState(template.sample_text ?? '');
   const [style, setStyle] = useState(template.style);
   const set = (patch) => setStyle((s) => ({ ...s, ...patch }));
   const mutation = useMutation({
-    mutationFn: () => updateTextTemplate(channelId, template.id, { name, sample_text: sample, style }),
+    mutationFn: () =>
+      creating
+        ? createTextTemplate(channelId, { name, sample_text: sample, style })
+        : updateTextTemplate(channelId, template.id, { name, sample_text: sample, style }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.templates(channelId) });
+      queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.detail(channelId) });
       onClose();
     },
   });
 
   return (
     <Dialog
-      title="Sửa template chữ"
+      title={creating ? 'Thêm template chữ' : 'Sửa template chữ'}
+      subtitle={creating ? 'Template bạn thêm được duyệt luôn' : undefined}
       onClose={onClose}
       footer={
         <button type="button" onClick={() => mutation.mutate()} disabled={mutation.isPending}
           className="h-11 w-full rounded-xl bg-primary-container text-sm font-bold text-on-primary disabled:opacity-50">
-          Lưu template
+          {creating ? 'Thêm template' : 'Lưu template'}
         </button>
       }
     >
@@ -118,13 +134,32 @@ export default function TextTemplatesTab({ channel }) {
 
   if (error) return <ErrorState error={error} onRetry={refetch} />;
   if (!data) return <Skeleton className="h-60 w-full" />;
+  const addButton = (
+    <button type="button" onClick={() => setEditing(NEW_TEMPLATE)}
+      className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary">
+      <Icon name="add" className="text-base" />
+      Thêm template
+    </button>
+  );
+  const dialog = editing && <EditDialog channelId={channel.id} template={editing} meta={data.meta} onClose={() => setEditing(null)} />;
+
   if (!data.items.length) {
-    return <EmptyState icon="text_fields" message="Chưa có template chữ. Đội A51 sẽ tạo mẫu khi lập kế hoạch lần đầu." />;
+    return (
+      <>
+        <EmptyState icon="text_fields" message="Chưa có template chữ. Đội A51 sẽ tạo mẫu khi lập kế hoạch lần đầu, hoặc bạn tự thêm.">
+          <div className="mt-2 flex justify-center">{addButton}</div>
+        </EmptyState>
+        {dialog}
+      </>
+    );
   }
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-on-surface-variant">Bản xem trước trên ảnh của shop. Ảnh thật do worker chèn chữ trước khi đăng.</p>
+      <div className="flex items-center gap-3">
+        <p className="min-w-0 flex-1 text-xs text-on-surface-variant">Bản xem trước trên ảnh của shop. Ảnh thật do worker chèn chữ trước khi đăng.</p>
+        {addButton}
+      </div>
       {decide.error && <FormAlert>{decide.error.message}</FormAlert>}
       <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
         {data.items.map((t) => (
@@ -150,7 +185,7 @@ export default function TextTemplatesTab({ channel }) {
           </li>
         ))}
       </ul>
-      {editing && <EditDialog channelId={channel.id} template={editing} meta={data.meta} onClose={() => setEditing(null)} />}
+      {dialog}
     </div>
   );
 }

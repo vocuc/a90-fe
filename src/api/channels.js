@@ -12,6 +12,7 @@ import client from './client';
  * GET    /creator/channels/{id}/lineups               -> { data: { current, pending[] } }
  * PUT    /creator/channels/{id}/lineups/{l} { items } ; POST .../{l}/approve | /reject
  * GET    /creator/channels/{id}/text-templates        -> { data: TextTemplate[], meta: { fonts, preview_image, ... } }
+ * POST   /creator/channels/{id}/text-templates { name, style, sample_text } -> 201 (chủ shop tự thêm, duyệt luôn)
  * PUT    /creator/channels/{id}/text-templates/{t} { name?, style?, sample_text? } ; POST .../{t}/approve | /reject
  * GET    /creator/channels/{id}/plans                 -> { data: PlanSummary[] }
  * GET    /creator/channels/{id}/plans/{p}             -> { data: Plan (kèm items) }
@@ -140,6 +141,10 @@ export const decideLineup = (id, lineupId, approve) =>
 
 export const getTextTemplates = (id) =>
   client.get(`/creator/channels/${id}/text-templates`).then(({ data, meta }) => ({ items: data, meta }));
+
+/** Chủ shop tự thêm template chữ: được duyệt luôn. */
+export const createTextTemplate = (id, values) =>
+  client.post(`/creator/channels/${id}/text-templates`, values).then(({ data }) => data);
 
 export const updateTextTemplate = (id, templateId, values) =>
   client.put(`/creator/channels/${id}/text-templates/${templateId}`, values).then(({ data }) => data);
