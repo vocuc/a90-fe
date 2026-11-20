@@ -5,13 +5,14 @@ import Dialog from '../common/Dialog';
 import { EmptyState, ErrorState, Skeleton } from '../common/Feedback';
 import { FormAlert, TextField } from '../common/Form';
 import { PostStatusBadge } from '../social/PostStatus';
-import { CHANNEL_KEYS, getCalendar, setRedo, updateOverlays } from '../../api/channels';
+import { CHANNEL_KEYS, getCalendar, getTextTemplates, setRedo, updateOverlays } from '../../api/channels';
+import TikTokPreview from './TikTokPreview';
 import { formatDateTime, formatDay } from './Section';
 
 const EDITABLE = ['generating', 'pending_review', 'queued'];
 const toDate = (d) => d.toISOString().slice(0, 10);
 
-function PostDialog({ channelId, post, onClose }) {
+function PostDialog({ channelId, channelName, templates, post, onClose, showPreview }) {
   const queryClient = useQueryClient();
   const [texts, setTexts] = useState(() => Object.fromEntries(post.images.map((i) => [i.id, i.overlay_text ?? ''])));
   const editable = EDITABLE.includes(post.status);
@@ -36,6 +37,7 @@ function PostDialog({ channelId, post, onClose }) {
   return (
     <Dialog title={post.sample_name ?? 'Bài đăng'} subtitle={formatDateTime(post.scheduled_at)} onClose={onClose}>
       <div className="space-y-4 p-4">
+        {showPreview && <TikTokPreview post={post} channelName={channelName} templates={templates} />}
         <div className="flex items-center gap-2">
           <PostStatusBadge status={post.status} />
           {post.redo_requested_at && <span className="rounded bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700">Chờ đội A51 làm lại</span>}
@@ -102,7 +104,12 @@ function PostDialog({ channelId, post, onClose }) {
 /** Tab Lịch đăng: bài của kênh theo ngày (14 ngày từ hôm nay, lùi / tiến từng 14 ngày). */
 export default function CalendarTab({ channel }) {
   const [offset, setOffset] = useState(0);
+  // Desktop: bấm bài -> xem trước bên phải; điện thoại: bấm bài -> mở popup (có xem trước ở đầu)
+  const [previewId, setPreviewId] = useState(null);
   const [selected, setSelected] = useState(null);
+  const isDesktop = () => window.matchMedia('(min-width: 1024px)').matches;
+  const { data: tpl } = useQuery({ queryKey: CHANNEL_KEYS.templates(channel.id), queryFn: () => getTextTemplates(channel.id) });
+  const templates = useMemo(() => Object.fromEntries((tpl?.items ?? []).map((t) => [t.id, t.style])), [tpl]);
   const { from, to } = useMemo(() => {
     const start = new Date();
     start.setDate(start.getDate() + offset * 14);
@@ -125,8 +132,11 @@ export default function CalendarTab({ channel }) {
     return [...groups.entries()];
   }, [data]);
   const current = selected ? data?.find((p) => p.id === selected) : null;
+  // Mặc định xem trước bài sắp đăng gần nhất
+  const preview = data?.find((p) => p.id === previewId) ?? data?.find((p) => new Date(p.scheduled_at) >= new Date()) ?? data?.[0] ?? null;
 
   return (
+    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => setOffset((o) => o - 1)} aria-label="14 ngày trước" className="flex size-8 items-center justify-center rounded-lg hover:bg-surface-container">
@@ -146,14 +156,20 @@ export default function CalendarTab({ channel }) {
       ) : !days.length ? (
         <EmptyState icon="calendar_month" message="Không có bài nào trong khoảng này." />
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-4 2xl:grid-cols-2">
         {days.map(([day, posts]) => (
           <div key={day} className="space-y-2">
             <p className="text-xs font-bold capitalize text-on-surface-variant">{formatDay(day)}</p>
             <ul className="space-y-2">
               {posts.map((p) => (
                 <li key={p.id}>
-                  <button type="button" onClick={() => setSelected(p.id)} className="flex w-full gap-3 rounded-xl border border-outline-variant/40 p-2 text-left hover:bg-surface-container-low">
+                  <button
+                    type="button"
+                    onClick={() => (isDesktop() ? setPreviewId(p.id) : setSelected(p.id))}
+                    className={`flex w-full gap-3 rounded-xl border p-2 text-left hover:bg-surface-container-low ${
+                      preview?.id === p.id ? 'lg:border-primary-container lg:bg-primary-fixed/20' : 'border-outline-variant/40'
+                    }`}
+                  >
                     <img src={p.images[0]?.overlay_url || p.images[0]?.thumb_url} alt="" className="h-16 w-12 shrink-0 rounded-lg bg-surface-container object-cover" loading="lazy" />
                     <div className="min-w-0 flex-1 space-y-0.5">
                       <p className="text-[11px] text-on-surface-variant">
@@ -174,7 +190,14 @@ export default function CalendarTab({ channel }) {
         ))}
         </div>
       )}
-      {current && <PostDialog channelId={channel.id} post={current} onClose={() => setSelected(null)} />}
+      {current && (
+        <PostDialog channelId={channel.id} channelName={channel.name} templates={templates} post={current} showPreview={!isDesktop()} onClose={() => setSelected(null)} />
+      )}
+    </div>
+    {/* Xem trước kiểu TikTok, ghim bên phải trên desktop */}
+    <aside className="hidden lg:sticky lg:top-[150px] lg:block">
+      <TikTokPreview post={preview} channelName={channel.name} templates={templates} onEdit={preview ? () => setSelected(preview.id) : undefined} />
+    </aside>
     </div>
   );
 }
