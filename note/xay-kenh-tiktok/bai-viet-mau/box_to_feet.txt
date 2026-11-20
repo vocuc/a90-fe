@@ -1,0 +1,58 @@
+BÀI VIẾT MẪU: TỪ HỘP LÊN CHÂN (box_to_feet)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC NẾU CÓ ẢNH KHỚP (rất khó)
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Phối đồ   Mục tiêu: Bán hàng   Định dạng: Ảnh   Số slide: 2-4
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Có ảnh phối đồ mang ĐÚNG đôi giày của 1 ảnh sản phẩm.
+Không dùng khi: Không chắc là cùng đôi -> không dùng (sai sẽ mất uy tín).
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh sản phẩm trong hộp. Có chữ bỏ lửng: 'Đôi này...'.
+- Slide giữa: Ảnh phối đồ mang ĐÚNG đôi đó. Có chữ: '...mang lên thế này'.
+- Slide cuối: Ảnh bất kỳ. Có chữ: mã / size.
+
+3. HOOK
+----------------------------------------
+Câu bỏ lửng chia 2 slide.
+Ví dụ:
+  - Đôi sneaker trắng này... mang lên trông thế này
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Câu nối 2 slide, mỗi phần <= 6 từ.
+
+5. CAPTION
+----------------------------------------
+'Mã ..., inbox tư vấn size'.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Tìm cặp ảnh sản phẩm + ảnh phối đồ cùng đôi (xem thumb).
+2. Chỉ dùng khi chắc chắn.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- Slide đầu sản phẩm, slide giữa phối đồ.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Không có cặp khớp -> bỏ (thường xuyên).
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Giống 1 đôi N cách phối: cần ảnh phối đồ vẽ đúng giày sản phẩm.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Có cần chức năng 'tạo ảnh phối đồ từ ảnh sản phẩm' riêng cho bài này (GĐ3)?
+   TRẢ LỜI:

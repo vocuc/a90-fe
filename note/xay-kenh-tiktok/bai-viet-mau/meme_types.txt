@@ -1,0 +1,56 @@
+BÀI VIẾT MẪU: MEME 'N KIỂU NGƯỜI' (meme_types)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Kể chuyện, cảm xúc   Mục tiêu: Kéo view   Định dạng: Ảnh   Số slide: 3-5
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Kéo view, tag bạn bè.
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh bất kỳ. Có chữ: 'Khách mua giày có N loại'.
+- Các slide còn lại: Ảnh bất kỳ + 1 đôi hợp. Có chữ: 1 kiểu người. Hài nhẹ, không chê khách.
+
+3. HOOK
+----------------------------------------
+'... có N loại', 'N kiểu người khi ...'.
+Ví dụ:
+  - Khách mua giày có 4 loại
+  - 3 kiểu người khi sắm giày Tết
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Mỗi kiểu <= 8 từ.
+
+5. CAPTION
+----------------------------------------
+'Bạn thuộc loại nào? Tag đứa bạn'.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Viết N kiểu người.
+2. Mỗi kiểu chọn 1 ảnh hợp.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- 3-5 ảnh.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Luôn đủ.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Không có.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+Không có.

@@ -1,0 +1,57 @@
+BÀI VIẾT MẪU: ĐÁNH SỐ TẬP (numbered)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Chuỗi bài   Mục tiêu: Tương tác (comment)   Định dạng: Ảnh, video   Số slide: 1-4
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Xây thói quen theo dõi: 'Outfit số 37', 'Tập 12'.
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh bất kỳ. Có chữ: 'Tập N: ...'.
+- Các slide còn lại: Ảnh bất kỳ. Không chữ.
+
+3. HOOK
+----------------------------------------
+Số tập TĂNG DẦN: lấy số lớn nhất trong recent_posts (sample_key=numbered) + 1, tăng theo thứ tự slot.
+Ví dụ:
+  - Tập 12: phối đồ đi làm thứ Hai
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Định dạng số tập giữ cố định cho cả chuỗi.
+
+5. CAPTION
+----------------------------------------
+'Follow để xem tập sau'.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Đọc số tập cuối trong recent_posts.
+2. Gán số tăng dần theo giờ đăng.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- 1-4 ảnh.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Luôn đủ.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- recent_posts chỉ 60 bài: chuỗi dài có thể mất số tập cuối.
+- Backend chưa kiểm tra số tập.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Chuỗi đánh số theo chủ đề gì (outfit / giày mỗi ngày)? Có nhiều chuỗi song song không?
+   TRẢ LỜI:

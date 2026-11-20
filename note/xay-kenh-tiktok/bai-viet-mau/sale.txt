@@ -1,0 +1,57 @@
+BÀI VIẾT MẪU: ƯU ĐÃI (sale)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC NẾU CÓ THÔNG TIN ƯU ĐÃI
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Ưu đãi   Mục tiêu: Bán hàng   Định dạng: Ảnh   Số slide: 1-4
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Yêu cầu kênh / chủ shop có nêu chương trình ưu đãi đang chạy.
+Không dùng khi: Không có ưu đãi thật -> KHÔNG dùng (không bịa giảm giá).
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh sản phẩm. Có chữ: hook ưu đãi.
+- Các slide còn lại: Ảnh sản phẩm. Có chữ: mẫu + lợi ích.
+
+3. HOOK
+----------------------------------------
+Ưu đãi thật + thời hạn.
+Ví dụ:
+  - Sale 12/12: giày Tết giảm sâu
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Chỉ dùng số liệu ưu đãi có trong Yêu cầu kênh.
+
+5. CAPTION
+----------------------------------------
+Thời hạn + cách nhận ưu đãi.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Kiểm tra requirements có ưu đãi.
+2. Không có -> không dùng.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- 1-4 ảnh sản phẩm.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Luôn đủ ảnh; thiếu thông tin ưu đãi thì bỏ.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- A51 chưa có chỗ nhập chương trình ưu đãi (thời gian, mức giảm).
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Thêm mục 'Ưu đãi đang chạy' vào kênh (nội dung + từ ngày - đến ngày)?
+   TRẢ LỜI:

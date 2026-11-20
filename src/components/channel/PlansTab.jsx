@@ -24,6 +24,13 @@ function PlanItem({ channelId, planId, item, canCancel }) {
   return (
     <li className={`flex gap-3 rounded-xl border border-outline-variant/40 p-2 ${cancelled ? 'opacity-50' : ''}`}>
       <div className="flex shrink-0 gap-1">
+        {/* Bài lô phối đồ (vd lookbook): chưa có ảnh, duyệt kỳ mới tạo lô */}
+        {item.outfit && (
+          <div className="flex h-16 w-12 flex-col items-center justify-center rounded-lg bg-surface-container text-center text-[9px] font-semibold text-on-surface-variant">
+            <Icon name="checkroom" className="text-lg text-primary" />
+            Lô phối đồ
+          </div>
+        )}
         {item.images.slice(0, 3).map((img) => (
           <div key={img.ref} className="relative h-16 w-12 overflow-hidden rounded-lg bg-surface-container">
             {img.thumb_url && <img src={img.thumb_url} alt="" className="size-full object-cover" loading="lazy" />}
@@ -33,10 +40,13 @@ function PlanItem({ channelId, planId, item, canCancel }) {
       </div>
       <div className="min-w-0 flex-1 space-y-0.5">
         <p className="text-[11px] text-on-surface-variant">
-          {formatDateTime(item.scheduled_at)} · {item.sample_name} · {item.format === 'video' ? 'Video' : `${item.images.length} ảnh`}
+          {formatDateTime(item.scheduled_at)} · {item.sample_name} · {item.format === 'video' ? 'Video' : item.outfit ? `Tạo lô phối đồ ${item.outfit.count} ảnh khi duyệt` : `${item.images.length} ảnh`}
         </p>
         <p className="line-clamp-2 text-sm font-semibold text-on-surface">{item.hook}</p>
         {item.title && <p className="truncate text-xs text-on-surface-variant">{item.title}</p>}
+        {item.outfit?.tags?.length > 0 && (
+          <p className="truncate text-[11px] text-on-surface-variant">Tìm outfit theo: {item.outfit.tags.map((t) => `#${t}`).join(' ')}</p>
+        )}
         {item.hashtags.length > 0 && <p className="truncate text-[11px] text-primary">{item.hashtags.map((h) => `#${h}`).join(' ')}</p>}
       </div>
       {canCancel && !cancelled && (

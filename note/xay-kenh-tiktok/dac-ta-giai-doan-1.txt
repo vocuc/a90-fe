@@ -478,3 +478,29 @@ CÒN LẠI / CẦN NGƯỜI DÙNG LÀM:
 - TikTok đăng công khai (TIKTOK_PUBLISH_MODE=public) CHƯA chạy thử trên TikTok thật -> thử bằng --mock trước.
   post_url khi đăng công khai CHƯA lấy được (TODO trong tiktok.py) -> cần trước GĐ4.
 - Chạy thử 1 kênh thật: kỳ 3 ngày x 2 bài (mục 10 bước 5).
+
+
+==================================================
+14. TỪNG BÀI VIẾT MẪU - LOOKBOOK N OUTFIT (2026-11-21)
+==================================================
+Chốt (người dùng): bài lookbook KHÔNG lấy ảnh có sẵn mà tạo 1 LÔ PHỐI ĐỒ mới kèm số lượng ảnh, worker phối đồ chạy như
+luồng hiện tại.
+Đã làm:
+- PostSamples: thêm image_source (library | outfit_batch). lookbook = outfit_batch, chỉ bài ảnh, 3-9 slide, không chữ.
+- Bài kế hoạch lookbook gửi outfit { count (2-10, trong khoảng slide), product_id? }, không gửi images.
+  Kiểm tra: shop phải được gắn worker phối đồ; product_id phải là sản phẩm đang hoạt động có ảnh.
+- Cột content_plan_items.outfit (migration 2026_11_21_100000).
+- Duyệt kỳ: OutfitBatchService::create(1 lô, count ảnh, worker phối đồ đầu tiên của shop, chèn logo nếu shop có logo,
+  có product_id -> lô gắn sản phẩm, không có -> lô không gắn sản phẩm). Bài = ảnh của lô (bìa trước), status generating,
+  image_batch_id = lô; ảnh xong -> SocialPostService::advanceIfReady -> queued (luồng có sẵn).
+- Làm lại bài lookbook: tạo lô phối đồ MỚI.
+- Context có channel.outfit_worker. Skill /lap-ke-hoach đã cập nhật.
+Lưu ý:
+- Hook in trên ảnh bìa do worker phối đồ tự chọn (chủ đề OOTD), không phải hook của kế hoạch.
+- Ảnh lô lỗi hết thì bài vẫn vào hàng chờ với ảnh dùng được (có thể 0 ảnh) -> cần xem lại.
+
+
+15. ĐẶC TẢ TỪNG BÀI VIẾT MẪU (2026-11-21)
+==================================================
+Mỗi loại 1 file trong note/xay-kenh-tiktok/bai-viet-mau/<key>.txt (22 file) + README.txt (quy tắc chung, mục lục,
+tổng hợp chỗ cần quyết). Trả lời câu hỏi ở mục 10 của từng file.

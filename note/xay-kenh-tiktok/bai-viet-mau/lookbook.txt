@@ -1,0 +1,83 @@
+BÀI VIẾT MẪU: PHỐI ĐỒ (lookbook)
+(Tên hiển thị đổi "Lookbook N outfit" -> "Phối đồ" ngày 2026-11-21; key vẫn là lookbook)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: ĐÃ LÀM (2026-11-21): bài = chủ đề + hashtag; duyệt -> lô phối đồ có sẵn hook, worker không tạo hook,
+tìm outfit theo hashtag chủ đề.
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Phối đồ   Mục tiêu: Lưu bài   Định dạng: Ảnh   Số slide: 5-9
+Nguồn ảnh: Tạo LÔ PHỐI ĐỒ mới khi duyệt kỳ (worker phối đồ làm ảnh), lệnh KHÔNG chọn ảnh.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Shop được gắn worker phối đồ (context: channel.outfit_worker = true).
+Không dùng khi: channel.outfit_worker = false.
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide 1: Ảnh bìa lô phối đồ (worker làm). Không chèn thêm chữ. Worker in ĐÚNG hook (chủ đề) của bài lên bìa.
+- Slide 2..N: Ảnh outfit của lô (worker vẽ). Không chèn thêm chữ. Ảnh đã in sẵn 'Outfit N'.
+
+3. HOOK
+----------------------------------------
+Hook = CHỦ ĐỀ cả lô: '<N> outfit <dịp / phong cách>'. In nguyên lên ảnh bìa, worker phối đồ không tạo hook khác.
+Ví dụ:
+  - 5 outfit đi chơi Tết xinh xỉu
+  - 7 cách phối boot cao cổ cho nàng chân ngắn
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Lệnh KHÔNG gửi chữ trên ảnh.
+
+5. CAPTION
+----------------------------------------
+Kết bằng 'Bạn chọn outfit số mấy?'. Hashtag outfit / phối đồ / dịp.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Kiểm tra channel.outfit_worker.
+2. Chọn count (tổng ảnh lô, gồm 1 bìa): 2-10, trong khoảng 3-9 của mẫu, nên 5-7.
+3. Chọn product_id (tuỳ chọn) nếu muốn lô gắn 1 đôi giày đang bán; bỏ trống = lô không gắn sản phẩm.
+4. Chọn outfit.tags: 1-5 hashtag CÓ TRÊN OOTD (kehoach.py ootd-tags) hợp với hook; kiểm tra kehoach.py ootd-count
+   ra >= count - 1 outfit.
+5. Gửi {sample_key:'lookbook', hook, outfit:{count, tags, product_id?}, title, hashtags}, KHÔNG gửi images.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- Slot ảnh, outfit.count trong 3-9 và 2-10, outfit.tags 1-5 hashtag (chuẩn hoá dạng OOTD).
+- Shop có worker phối đồ.
+- product_id (nếu có) là sản phẩm đang hoạt động có ảnh.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Không phải lo ảnh: duyệt kỳ tạo lô mới. Lô lỗi ảnh -> bài vẫn vào hàng chờ với ảnh dùng được (cần chặn, xem câu hỏi).
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- (Đã xử lý 2026-11-21) Lệnh đọc hashtag OOTD bằng kehoach.py ootd-tags / ootd-count trước khi chọn outfit.tags.
+- OOTD 1 tài khoản / token: nhiều shop dùng chung tài khoản OOTD của worker phối đồ.
+- Lô lỗi hết ảnh vẫn đăng.
+
+LUỒNG ĐÃ LÀM (2026-11-21):
+- A51: image_batches.hook_locked + outfit_tags (migration 2026_11_21_110000). Duyệt kỳ / làm lại -> OutfitBatchService::create
+  với hook (title) + hashtag. Job worker phối đồ có batch.hook_locked, batch.outfit_tags. Worker gửi title khác -> A51 bỏ qua.
+- Worker (D:\FlowKit\.claude\skills\tao-anh-phoi-do\scripts\phoido.py auto): lô hook_locked -> không gọi OOTD /themes,
+  tiêu đề + hook bìa = batch.title, outfit có đủ batch.outfit_tags (thiếu thì trùng nhiều nhất), lô có sản phẩm vẫn lọc
+  hashtag giày; ưu tiên layout không có {HOOK} (chỉ có layout có {HOOK} thì in lại chính hook).
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Chọn outfit theo gì khi dùng hook kế hoạch?
+   TRẢ LỜI (2026-11-21): theo hashtag trong chủ đề của bài viết (outfit.tags).
+2. Layout có hook trên ảnh (01) với lô hook cố định?
+   TRẢ LỜI (Claude tự chọn): ưu tiên layout không có hook trong ảnh; chỉ có layout có hook thì in lại chính hook của bài.
+3. Lô lỗi bao nhiêu ảnh thì bài chuyển 'Chờ gửi' thay vì đăng?
+   TRẢ LỜI:
+4. Có cho lệnh /lap-ke-hoach đọc danh sách hashtag outfit trên OOTD (cần token OOTD) để đặt hashtag chắc chắn có outfit?
+   TRẢ LỜI (2026-11-21): Có. OOTD thêm API GET /api/outfit-hashtags (hashtag + số outfit có ảnh gốc của chủ token) và
+   GET /api/outfit-hashtags/count?tags=a,b (số outfit có đủ hashtag). Skill: kehoach.py ootd-tags / ootd-count, token
+   OUTFIT_API_TOKEN cùng tài khoản với worker phối đồ.

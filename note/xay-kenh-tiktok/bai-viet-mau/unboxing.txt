@@ -1,0 +1,64 @@
+BÀI VIẾT MẪU: ĐẬP HỘP (unboxing)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Trưng bày hàng   Mục tiêu: Bán hàng   Định dạng: Ảnh, video   Số slide: 2-5
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Có
+Dùng khi: Shop có ít nhất 2 ảnh sản phẩm của CÙNG 1 mẫu (thường MSx + MSx.1: ảnh tay cầm giày, hộp mở). Dùng xen kẽ để giới thiệu từng mẫu.
+Không dùng khi: Mẫu chỉ có 1 ảnh. Mẫu đã lên bài đập hộp trong 14 ngày gần đây (trừ khi đổi hook theo dịp khác).
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh sản phẩm, ưu tiên ảnh TAY cầm / đang mở hộp. Có chữ: hook. Ảnh rõ giày nhất, có người.
+- Slide giữa: Ảnh sản phẩm CÙNG mẫu, góc khác. Không chữ. Toàn cảnh hộp, phụ kiện, góc nghiêng.
+- Slide cuối: Ảnh sản phẩm CÙNG mẫu. Có chữ: chốt ngắn. Mã sản phẩm / 'inbox giữ size' / câu hỏi.
+
+3. HOOK
+----------------------------------------
+Gợi tò mò + nêu dịp / tình huống: 'Đập hộp đôi ... đi chúc Tết', 'Mở hộp em sandal đi biển'. Nêu LOẠI giày, không nêu hãng.
+Ví dụ:
+  - Đập hộp đôi sandal đi chúc Tết
+  - Mở hộp em búp bê đi làm thứ Hai
+  - Unbox đôi sneaker trắng cân mọi outfit
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Slide đầu <= 10 từ. Slide cuối <= 8 từ, có thể dùng tên sản phẩm (không dùng mã nội bộ khó hiểu nếu shop không bán theo mã).
+
+5. CAPTION
+----------------------------------------
+Tiêu đề 1 câu cảm thán theo giọng kênh. Hashtag: loại giày + dịp (vd giaytet2027, sandalnutet2027).
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Lọc images kind=product, gom theo product (nếu product null thì gom theo creative).
+2. Chọn 1 nhóm có >= 2 ảnh, ưu tiên used_in_channel thấp, lâu chưa dùng.
+3. Tải thumb xem: chọn ảnh có tay làm slide đầu.
+4. Sắp 2-5 ảnh, viết hook (slide đầu) + chốt (slide cuối).
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- Mọi ảnh cùng 1 sản phẩm (product_id, hoặc cùng creative nếu không có sản phẩm).
+- 2-5 ảnh, đều là ảnh sản phẩm.
+- Chữ chỉ ở slide đầu / cuối.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Không mẫu nào đủ 2 ảnh -> không chọn bài này cho slot, chọn bài viết mẫu khác trong tuyến.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Ảnh không có product_id (tạo lẻ) thì gom theo creative: 2 ảnh cùng creative có thể là 2 đôi khác nhau -> phải xem thumb.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Chốt bằng mã sản phẩm (MS26) hay tên sản phẩm? Shop có muốn hiện mã trên ảnh không?
+   TRẢ LỜI:

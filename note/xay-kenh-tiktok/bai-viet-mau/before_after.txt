@@ -1,0 +1,56 @@
+BÀI VIẾT MẪU: TRƯỚC / SAU (before_after)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: THIẾU ẢNH 'TRƯỚC'
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Kể chuyện, cảm xúc   Mục tiêu: Kéo view   Định dạng: Ảnh   Số slide: 2-4
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Có ảnh 'trước' (bình thường / lúng túng) và 'sau' (xinh, tự tin).
+Không dùng khi: Chỉ có ảnh đẹp -> không có đối lập.
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh 'trước'. Có chữ: 'Trước khi có đôi này...'.
+- Slide cuối: Ảnh phối đồ đẹp. Có chữ: '...và sau khi có'.
+
+3. HOOK
+----------------------------------------
+Đối lập rõ trước / sau.
+Ví dụ:
+  - Trước và sau khi có đôi cao gót này
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+2 câu nối nhau.
+
+5. CAPTION
+----------------------------------------
+Vui, tự giễu.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Tìm ảnh 'trước' phù hợp.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- Slide cuối ảnh phối đồ.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Không có ảnh 'trước' -> không dùng (hiện tại luôn thiếu).
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Shop chỉ có ảnh sản phẩm đẹp + ảnh phối đồ đẹp, không có ảnh 'trước'.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Bỏ bài này khỏi danh sách, hay tạo ảnh 'trước' bằng creative riêng (GĐ3)?
+   TRẢ LỜI:

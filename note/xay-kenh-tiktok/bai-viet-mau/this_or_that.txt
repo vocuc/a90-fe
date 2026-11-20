@@ -1,0 +1,57 @@
+BÀI VIẾT MẪU: A HAY B (this_or_that)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC (chưa có slide ghép 2 ảnh)
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: So sánh, chọn lựa   Mục tiêu: Tương tác (comment)   Định dạng: Ảnh   Số slide: 2-3
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Luôn dùng được khi có >= 2 mẫu. Hợp để kéo comment.
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh đôi A. Có chữ: câu hỏi 'A hay B?'.
+- Các slide còn lại: Ảnh đôi B (và slide 3 nếu cần). Có chữ: 'A: ...' / 'B: ...'. Mô tả ngắn điểm khác.
+
+3. HOOK
+----------------------------------------
+Tình huống + câu hỏi chọn: '... chọn A hay B?'. 2 đôi khác kiểu, cùng tầm (cùng màu / cùng dịp) để khó chọn.
+Ví dụ:
+  - Mùng 1 đi chúc Tết chọn A hay B?
+  - Đi làm thứ Hai: búp bê hay cao gót?
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Chữ 'A: ...' <= 6 từ.
+
+5. CAPTION
+----------------------------------------
+'Comment A hoặc B nha'.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Chọn 2 mẫu khác kiểu cùng tông.
+2. Slide 1 = A + câu hỏi, slide 2 = B, (slide 3 = A và B lần lượt nếu muốn nhắc lại).
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- 2-3 ảnh sản phẩm.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Ít hơn 2 mẫu -> bỏ.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Chưa có slide GHÉP 2 ảnh (A trên, B dưới) như mẫu đã bàn.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Có cần worker ghép ảnh (collage) để slide đầu hiện cả A và B không?
+   TRẢ LỜI:

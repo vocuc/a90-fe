@@ -1,0 +1,58 @@
+BÀI VIẾT MẪU: QUÀ THEO NGƯỜI NHẬN (gift_by_receiver)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Gợi ý theo người nhận   Mục tiêu: Bán hàng   Định dạng: Ảnh   Số slide: 3-6
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Trước dịp tặng quà: Tết (từ đầu tháng Chạp), 8/3, 20/10, Valentine, Noel, sinh nhật.
+Không dùng khi: Xa dịp tặng quà.
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh sản phẩm. Có chữ: 'Hết đau đầu chọn quà ...'.
+- Các slide còn lại: Mỗi slide 1 đôi. Có chữ: 'Tặng <người>: <kiểu>'. Hợp tuổi / phong cách người nhận.
+
+3. HOOK
+----------------------------------------
+Gắn dịp + người nhận.
+Ví dụ:
+  - Hết đau đầu chọn quà Tết
+  - Quà 8/3 cho mẹ, chị, bạn thân
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+'Tặng <người>: <kiểu giày>' <= 7 từ.
+
+5. CAPTION
+----------------------------------------
+Nhắc gói quà nếu Yêu cầu kênh có.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Kiểm tra holidays có dịp tặng quà trong 3 tuần tới.
+2. Chọn 2-5 người nhận + đôi hợp.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- 3-6 ảnh sản phẩm.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Ít mẫu -> giảm người nhận.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Không có.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Shop có gói quà miễn phí không (để ghi vào caption)?
+   TRẢ LỜI:

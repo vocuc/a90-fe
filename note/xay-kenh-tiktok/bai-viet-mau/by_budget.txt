@@ -1,0 +1,56 @@
+BÀI VIẾT MẪU: THEO MỨC GIÁ (by_budget)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: CHƯA LÀM ĐƯỢC (không có giá sản phẩm)
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Gợi ý theo người nhận   Mục tiêu: Bán hàng   Định dạng: Ảnh   Số slide: 3-6
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Có giá sản phẩm.
+Không dùng khi: Không có giá -> không dùng.
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh sản phẩm. Có chữ: 'Giày xinh dưới ...k'.
+- Các slide còn lại: Mẫu trong tầm giá. Có chữ: kiểu + giá.
+
+3. HOOK
+----------------------------------------
+Mức giá rõ ràng.
+Ví dụ:
+  - 5 đôi giày xinh dưới 500k
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Giá phải đúng dữ liệu.
+
+5. CAPTION
+----------------------------------------
+Theo quy tắc chung.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Cần giá sản phẩm.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- 3-6 ảnh sản phẩm.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Không có giá -> bỏ.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Sản phẩm trên A51 không có trường giá.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Thêm giá bán vào sản phẩm A51, hay bỏ bài này?
+   TRẢ LỜI:

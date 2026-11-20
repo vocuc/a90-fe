@@ -1,0 +1,58 @@
+BÀI VIẾT MẪU: TOP N (top_n)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC (bìa chưa ghép được nhiều ảnh)
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: So sánh, chọn lựa   Mục tiêu: Lưu bài   Định dạng: Ảnh, video   Số slide: 4-8
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Có >= 3 mẫu hợp 1 tiêu chí (dịp, kiểu, tầm giá).
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh bất kỳ (đẹp nhất). Có chữ: tiêu đề 'Top N ...'.
+- Các slide còn lại: Mỗi slide 1 mẫu. Có chữ: '#1 ...', '#2 ...' + lý do ngắn. Số thứ tự đúng thứ tự slide.
+
+3. HOOK
+----------------------------------------
+'Top N đôi ... cho ...'. N = số slide - 1.
+Ví dụ:
+  - Top 5 đôi giày đi chúc Tết
+  - Top 4 đôi bệt đi làm cả ngày không đau
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+'#k <kiểu giày>, <lý do 2-4 từ>'.
+
+5. CAPTION
+----------------------------------------
+'Bạn chốt số mấy? Lưu lại để sắm'.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Chọn tiêu chí theo chân dung / dịp.
+2. Chọn N mẫu hợp tiêu chí, xếp hạng.
+3. Bìa = ảnh đẹp nhất + tiêu đề, các slide #1..#N.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- 4-8 ảnh, slide 2.. là ảnh sản phẩm.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Ít mẫu -> giảm N (tối thiểu Top 3 = 4 slide).
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Chưa có ảnh bìa GHÉP nhiều mẫu.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Có làm bìa ghép (collage) không?
+   TRẢ LỜI:

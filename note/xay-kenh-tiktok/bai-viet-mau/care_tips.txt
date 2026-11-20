@@ -1,0 +1,56 @@
+BÀI VIẾT MẪU: BẢO QUẢN / MẸO (care_tips)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Hữu ích, tư vấn   Mục tiêu: Lưu bài   Định dạng: Ảnh   Số slide: 2-5
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Nội dung đáng lưu: giữ giày trắng, đi cao gót không đau...
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh sản phẩm. Có chữ: hook mẹo.
+- Các slide còn lại: Ảnh sản phẩm. Có chữ: 1 mẹo / slide.
+
+3. HOOK
+----------------------------------------
+'N mẹo ...', 'Đi cao gót cả ngày không đau'.
+Ví dụ:
+  - 3 mẹo đi cao gót cả ngày không đau
+  - Giữ giày trắng luôn như mới
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Mẹo <= 15 từ, thực tế, an toàn.
+
+5. CAPTION
+----------------------------------------
+'Lưu lại dùng dần'.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Chọn chủ đề mẹo hợp loại giày trong ảnh.
+2. 2-4 mẹo.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- 2-5 ảnh sản phẩm.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Luôn đủ.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Không có.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+Không có.

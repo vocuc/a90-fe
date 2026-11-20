@@ -1,0 +1,56 @@
+BÀI VIẾT MẪU: CHỌN SIZE (size_guide)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC (chữ dài, xem lại độ đẹp)
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Hữu ích, tư vấn   Mục tiêu: Tạo tin tưởng   Định dạng: Ảnh   Số slide: 2-4
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Khách hay hỏi size, chân dung có nỗi đau 'sợ sai size'.
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh sản phẩm. Có chữ: 'Mua giày online sợ sai size?'.
+- Các slide còn lại: Ảnh sản phẩm. Có chữ: 1 mẹo / slide. Tối đa 2 dòng.
+
+3. HOOK
+----------------------------------------
+Đánh vào nỗi lo sai size.
+Ví dụ:
+  - Mua giày online sợ sai size? Lưu ngay
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Mẹo đúng thực tế, <= 15 từ; không bịa bảng size nếu Yêu cầu kênh không có.
+
+5. CAPTION
+----------------------------------------
+'Inbox chiều dài bàn chân, shop tư vấn'.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Viết 2-3 mẹo chọn size.
+2. Chọn template chữ nền ô (dễ đọc chữ dài).
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- 2-4 ảnh sản phẩm.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Luôn đủ.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Chưa có dữ liệu bảng size của shop.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Shop có bảng size chuẩn để ghi vào Yêu cầu kênh không?
+   TRẢ LỜI:

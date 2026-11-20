@@ -1,0 +1,59 @@
+BÀI VIẾT MẪU: SOI CẬN CẢNH (closeup)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC MỘT PHẦN (chưa cắt cận được)
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Trưng bày hàng   Mục tiêu: Tạo tin tưởng   Định dạng: Ảnh   Số slide: 2-4
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Có
+Dùng khi: Muốn chứng minh chất lượng 1 mẫu: đường may, đế, lót, logo.
+Không dùng khi: Mẫu chỉ có ảnh toàn cảnh xa, không thấy chi tiết.
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh sản phẩm toàn cảnh. Có chữ: hook 'Soi kỹ ...'.
+- Các slide còn lại: Ảnh sản phẩm CÙNG mẫu, càng cận càng tốt. Có chữ: 1 chi tiết / slide. Mỗi slide đúng 1 điểm: 'Đường may đều', 'Lót êm'...
+
+3. HOOK
+----------------------------------------
+'Soi kỹ ... trước khi mua', 'Chất lượng thật của đôi ...'.
+Ví dụ:
+  - Soi kỹ em sandal này trước khi mua
+  - Cận cảnh đôi búp bê đen giá hạt dẻ
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Mỗi slide <= 6 từ, nêu đúng chi tiết NHÌN THẤY trong ảnh (xem thumb trước, không bịa).
+
+5. CAPTION
+----------------------------------------
+'Shop chụp thật, hỏi gì cứ inbox'. Hashtag loại giày.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Chọn mẫu có 2-4 ảnh khác nhau.
+2. Xem thumb, ghi chi tiết thấy được ở từng ảnh.
+3. Viết chữ đúng chi tiết đó.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- Cùng 1 sản phẩm, 2-4 ảnh sản phẩm, KHÔNG trùng ảnh trong bài.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Không đủ 2 ảnh khác nhau -> bỏ, chọn bài khác.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Backend chặn 1 ảnh dùng 2 lần trong bài, và chưa có chức năng CẮT CẬN (crop) 1 ảnh thành nhiều slide -> slide cận phải là ảnh khác có sẵn.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Có làm chức năng cắt cận (worker cắt vùng ảnh theo toạ độ lệnh gửi) không? Nếu có: lệnh gửi {ref, crop:{x,y,w,h}} cho từng slide.
+   TRẢ LỜI:

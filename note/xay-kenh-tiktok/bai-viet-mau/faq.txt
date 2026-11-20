@@ -1,0 +1,57 @@
+BÀI VIẾT MẪU: HỎI ĐÁP (faq)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC NẾU CÓ THÔNG TIN SHOP
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Hữu ích, tư vấn   Mục tiêu: Tạo tin tưởng   Định dạng: Ảnh   Số slide: 2-5
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Trả lời câu hỏi hay gặp: ship, đổi size, chất liệu.
+Không dùng khi: Không có thông tin chính sách shop (dễ bịa).
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh sản phẩm. Có chữ: câu hỏi.
+- Các slide còn lại: Ảnh sản phẩm. Có chữ: trả lời ngắn.
+
+3. HOOK
+----------------------------------------
+Câu hỏi thật của khách.
+Ví dụ:
+  - Shop có cho đổi size không?
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Chỉ ghi thông tin có trong Yêu cầu kênh / chân dung. KHÔNG bịa chính sách.
+
+5. CAPTION
+----------------------------------------
+'Còn thắc mắc gì comment nha'.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Lấy chính sách trong channel.ai.requirements.
+2. Không có -> không dùng bài này.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- 2-5 ảnh sản phẩm.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Không có thông tin -> bỏ.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- A51 chưa có chỗ lưu chính sách shop (ship, đổi trả).
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Thêm mục 'Thông tin shop' (ship, đổi trả, bảo hành) vào kênh để lệnh dùng?
+   TRẢ LỜI:

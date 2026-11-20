@@ -1,0 +1,60 @@
+BÀI VIẾT MẪU: 1 ĐÔI N CÁCH PHỐI (one_shoe_many_looks)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC NẾU CÓ ẢNH KHỚP (khó)
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Phối đồ   Mục tiêu: Lưu bài   Định dạng: Ảnh   Số slide: 3-6
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Có ảnh phối đồ mang kiểu giày giống 1 sản phẩm đang có.
+Không dùng khi: Không tìm được outfit mang kiểu giày tương tự.
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh sản phẩm (đôi giày). Có chữ: '1 đôi ... phối N kiểu'.
+- Các slide còn lại: Ảnh phối đồ có giày CÙNG KIỂU. Có chữ: dịp / phong cách. 'Đi làm', 'Hẹn hò', 'Cafe'...
+
+3. HOOK
+----------------------------------------
+'1 đôi ... phối N kiểu', '... mặc gì cho đẹp?'.
+Ví dụ:
+  - 1 đôi búp bê đen phối 4 kiểu
+  - Sneaker trắng mặc gì cho đẹp?
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+Chữ slide outfit 1-3 từ (dịp).
+
+5. CAPTION
+----------------------------------------
+Câu hỏi 'Bạn thích kiểu số mấy?'.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Chọn 1 ảnh sản phẩm.
+2. Xem thumb ảnh phối đồ, chọn ảnh có giày cùng kiểu (cùng loại + màu gần giống).
+3. Ghép 3-6 slide.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- Slide đầu ảnh sản phẩm, slide sau ảnh phối đồ.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Không đủ 2 ảnh phối đồ khớp -> bỏ.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Ảnh phối đồ hiện vẽ giày theo ảnh gốc outfit OOTD, KHÔNG theo sản phẩm -> hiếm khi khớp đôi giày của shop.
+- Nếu muốn đúng đôi giày: cần lô phối đồ gắn sản phẩm VÀ worker vẽ đúng giày sản phẩm (hiện quy tắc OOTD không gửi ảnh sản phẩm cho ChatGPT).
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Bài này có chuyển sang tạo lô phối đồ gắn sản phẩm như lookbook không? Nếu có cần đổi quy tắc worker để vẽ đúng giày sản phẩm.
+   TRẢ LỜI:

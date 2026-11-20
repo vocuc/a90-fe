@@ -1,0 +1,58 @@
+BÀI VIẾT MẪU: BẠN HỢP ĐÔI NÀO (which_suits_you)
+======================================================================
+
+Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
+Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
+TRẠNG THÁI: LÀM ĐƯỢC
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: So sánh, chọn lựa   Mục tiêu: Tương tác (comment)   Định dạng: Ảnh   Số slide: 3-6
+Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Cùng 1 sản phẩm: Không bắt buộc
+Dùng khi: Kéo tương tác, người xem tag bạn bè.
+
+2. CẤU TRÚC SLIDE
+----------------------------------------
+- Slide đầu: Ảnh bất kỳ. Có chữ: 'Bạn hợp đôi nào theo ...?'.
+- Các slide còn lại: Ảnh sản phẩm, mỗi slide 1 nhóm. Có chữ: tên nhóm + gợi ý. 'Nàng bánh bèo: búp bê nơ', 'Nàng cá tính: boot'...
+
+3. HOOK
+----------------------------------------
+Theo phong cách / tính cách / cung hoàng đạo / tháng sinh.
+Ví dụ:
+  - Bạn hợp đôi nào theo tính cách?
+  - Mỗi cung hoàng đạo 1 đôi giày
+
+4. CHỮ TRÊN ẢNH
+----------------------------------------
+'<nhóm>: <kiểu giày>' <= 7 từ.
+
+5. CAPTION
+----------------------------------------
+'Tag đứa bạn hợp đôi số ...'.
+
+6. CÁC BƯỚC LỆNH LÀM
+----------------------------------------
+1. Chọn kiểu chia nhóm.
+2. Mỗi nhóm 1 mẫu hợp.
+3. Viết chữ từng slide.
+
+7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
+----------------------------------------
+- 3-6 ảnh.
+- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
+
+8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
+----------------------------------------
+Ít mẫu -> giảm số nhóm.
+
+9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
+----------------------------------------
+- Bản 'cung hoàng đạo' cần 12 slide nhưng bài viết mẫu tối đa 6 -> cần bài viết mẫu riêng nếu muốn.
+
+10. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Có tách 'Giày theo cung hoàng đạo' (12 slide) thành bài viết mẫu riêng?
+   TRẢ LỜI:
