@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Icon from '../common/Icon';
 import { useConfirm } from '../common/ConfirmDialog';
+import SuccessDialog from '../common/SuccessDialog';
 import { FormAlert, SelectField, SubmitButton, TextArea, TextField } from '../common/Form';
 import HashtagInput from '../template/HashtagInput';
 import { hashtagSlug } from '../../utils/hashtag';
@@ -174,12 +175,7 @@ export default function SettingsTab({ channel }) {
 
       <div className="space-y-3 lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-md">
       {mutation.error && !mutation.error.errors && <FormAlert>{mutation.error.message}</FormAlert>}
-      {saved && (
-        <p className="flex items-center gap-1 text-xs font-semibold text-emerald-700">
-          <Icon name="check_circle" className="text-sm" />
-          Đã lưu cấu hình.
-        </p>
-      )}
+      {saved && <SuccessDialog title="Đã lưu cấu hình" message={`Cấu hình kênh "${channel.name}" đã được cập nhật.`} onClose={() => setSaved(false)} />}
       <SubmitButton loading={mutation.isPending} loadingText="Đang lưu...">
         Lưu cấu hình
       </SubmitButton>

@@ -38,6 +38,8 @@ export default function PersonaTab({ channel }) {
           <TextField
             key={key}
             label={PERSONA_LABELS[key] ?? key}
+            // Ô tự cao lên theo nội dung (chân dung thường dài hơn 1 dòng)
+            multiline
             value={form[key] ?? ''}
             maxLength={channel.limits.persona_field}
             onChange={(e) => {
