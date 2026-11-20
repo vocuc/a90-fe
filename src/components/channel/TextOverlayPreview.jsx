@@ -10,7 +10,7 @@ const FONT_STACK = {
  * Xem trước chữ chèn lên ảnh theo style template (bản xem trước bằng CSS; ảnh thật do worker chèn).
  * size: % chiều rộng ảnh -> dùng container query (cqw).
  */
-export default function TextOverlayPreview({ image, text, style, className = '' }) {
+export default function TextOverlayPreview({ image, text, style, className = '', rounded = true }) {
   if (!style) return null;
   const position = { top: 'top-[8%]', middle: 'top-1/2 -translate-y-1/2', bottom: 'bottom-[10%]' }[style.position] ?? 'top-[8%]';
   const box = style.background === 'box';
@@ -19,7 +19,7 @@ export default function TextOverlayPreview({ image, text, style, className = '' 
     : {};
 
   return (
-    <div className={`relative overflow-hidden rounded-xl bg-surface-container @container ${className}`} style={{ aspectRatio: '3 / 4' }}>
+    <div className={`relative overflow-hidden bg-surface-container @container ${rounded ? 'rounded-xl' : ''} ${className}`} style={{ aspectRatio: '3 / 4' }}>
       {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />}
       <div
         className={`absolute inset-x-[6%] ${position} ${style.align === 'left' ? 'text-left' : 'text-center'}`}

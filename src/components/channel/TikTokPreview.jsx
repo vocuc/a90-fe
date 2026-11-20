@@ -14,7 +14,7 @@ function Slide({ image, templates, className = '' }) {
   if (!image) return null;
   if (image.overlay_url) return <img src={image.overlay_url} alt="" className={`size-full object-contain ${className}`} />;
   if (image.overlay_text && templates[image.text_template_id]) {
-    return <TextOverlayPreview image={image.thumb_url} text={image.overlay_text} style={templates[image.text_template_id]} className={`w-full rounded-none ${className}`} />;
+    return <TextOverlayPreview image={image.thumb_url} text={image.overlay_text} style={templates[image.text_template_id]} rounded={false} className={`w-full ${className}`} />;
   }
   return <img src={image.thumb_url} alt="" className={`size-full object-contain ${className}`} />;
 }
