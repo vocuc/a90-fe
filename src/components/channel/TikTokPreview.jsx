@@ -10,8 +10,6 @@ import TextOverlayPreview from './TextOverlayPreview';
  * Biểu tượng chung (Material Symbols), không dùng logo / tài nguyên của TikTok.
  */
 
-const shadow = 'drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]';
-
 function Slide({ image, templates, className = '' }) {
   if (!image) return null;
   if (image.overlay_url) return <img src={image.overlay_url} alt="" className={`size-full object-contain ${className}`} />;
@@ -19,30 +17,6 @@ function Slide({ image, templates, className = '' }) {
     return <TextOverlayPreview image={image.thumb_url} text={image.overlay_text} style={templates[image.text_template_id]} className={`w-full rounded-none ${className}`} />;
   }
   return <img src={image.thumb_url} alt="" className={`size-full object-contain ${className}`} />;
-}
-
-function Avatar({ name, size = 'size-10', plus = false }) {
-  return (
-    <div className="relative">
-      <span className={`flex ${size} items-center justify-center rounded-full border border-white bg-neutral-800 text-xs font-bold text-white`}>
-        {(name || 'K').trim().charAt(0).toUpperCase()}
-      </span>
-      {plus && (
-        <span className="absolute -bottom-1.5 left-1/2 flex size-4 -translate-x-1/2 items-center justify-center rounded-full bg-[#FE2C55] text-white">
-          <Icon name="add" className="text-[12px] font-bold" />
-        </span>
-      )}
-    </div>
-  );
-}
-
-function Rail({ icon, mirror = false }) {
-  return (
-    <div className="flex flex-col items-center">
-      <Icon name={icon} fill className={`text-[28px] text-white ${shadow} ${mirror ? '-scale-x-100' : ''}`} />
-      <span className={`-mt-1 text-[10px] font-bold leading-none text-white ${shadow}`}>...</span>
-    </div>
-  );
 }
 
 function Caption({ post }) {
@@ -103,18 +77,8 @@ function FeedView({ post, name, templates, index, setIndex }) {
           </span>
         )}
         {index > 0 && <button type="button" onClick={() => go(-1)} aria-label="Ảnh trước" className="absolute inset-y-0 left-0 w-1/3" />}
-        {index < total - 1 && <button type="button" onClick={() => go(1)} aria-label="Ảnh sau" className="absolute inset-y-0 right-12 w-1/3" />}
+        {index < total - 1 && <button type="button" onClick={() => go(1)} aria-label="Ảnh sau" className="absolute inset-y-0 right-0 w-1/3" />}
 
-        {/* Thanh hành động bên phải */}
-        <div className="absolute bottom-3 right-2 flex flex-col items-center gap-3">
-          <div className="mb-1">
-            <Avatar name={name} plus />
-          </div>
-          <Rail icon="favorite" />
-          <Rail icon="sms" />
-          <Rail icon="bookmark" />
-          <Rail icon="reply" mirror />
-        </div>
       </div>
 
       {/* Chân: chấm trang, tên kênh, chú thích, âm thanh */}
@@ -259,6 +223,8 @@ function WebView({ post, name, handle, templates, index, setIndex }) {
   );
 }
 
+const AUTOPLAY_MS = 3000;
+
 const MODES = [
   ['feed', 'Feed'],
   ['profile', 'Profile'],
@@ -274,10 +240,19 @@ export default function TikTokPreview({ post, channelName, templates = {}, onEdi
   const [index, setIndex] = useState(0);
   useEffect(() => setIndex(0), [post?.id]);
 
+  // Tự chuyển ảnh như chế độ ảnh của TikTok: mỗi AUTOPLAY_MS sang ảnh kế, hết thì quay về ảnh đầu.
+  // Đặt lại hẹn giờ mỗi lần đổi ảnh (kể cả khi bấm chuyển tay).
+  const total = post?.images.length ?? 0;
+  useEffect(() => {
+    if (total < 2 || mode === 'profile') return undefined;
+    const timer = setTimeout(() => setIndex((i) => (i + 1) % total), AUTOPLAY_MS);
+    return () => clearTimeout(timer);
+  }, [index, total, mode]);
+
   const name = channelName || 'Kênh';
   const handle = `@${name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '') || 'kenh'}`;
 
-  const phoneWidth = fitScreen ? 'min(100%, 400px, calc((100vh - 180px) * 0.4615))' : 'min(100%, 400px)';
+  const phoneWidth = fitScreen ? 'min(100%, 440px, calc((100vh - 150px) * 0.4615))' : 'min(100%, 440px)';
 
   return (
     <div className="space-y-2" style={{ '--phone-w': phoneWidth }}>

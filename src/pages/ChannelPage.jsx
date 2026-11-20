@@ -33,7 +33,7 @@ export default function ChannelPage() {
   const withPreview = tab === 'calendar';
 
   return (
-    <div className={withPreview ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start lg:gap-2' : ''}>
+    <div className={withPreview ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_480px] lg:items-start lg:gap-2' : ''}>
     <div className="min-w-0">
       <header className="border-b border-surface-container bg-surface-container-lowest">
         <div className="flex items-center gap-2 px-2 py-2">
@@ -94,7 +94,7 @@ export default function ChannelPage() {
       </section>
     </div>
     {/* Cột phải: chỉ có khung xem trước, ghim khi cuộn, vừa chiều cao màn hình */}
-    {withPreview && <aside ref={setPreviewSlot} className="hidden lg:sticky lg:top-[72px] lg:block lg:py-4 lg:pr-4" />}
+    {withPreview && <aside ref={setPreviewSlot} className="hidden lg:sticky lg:top-[64px] lg:block lg:py-2 lg:pr-4" />}
     </div>
   );
 }
