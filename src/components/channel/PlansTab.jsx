@@ -236,9 +236,9 @@ function DeletePlanButton({ channelId, plan }) {
   );
 }
 
-/** Trạng thái + báo cáo của lượt lập kế hoạch gần nhất. */
+/** Trạng thái lượt lập kế hoạch gần nhất: chỉ hiện khi đang chạy hoặc lỗi (xong thì ẩn, kỳ mới đã ở danh sách bên dưới). */
 function PlanJobStatus({ job, planExists, onOpenPlan }) {
-  if (!job) return null;
+  if (!job || job.status === 'completed') return null;
   const running = isPlanJobRunning(job);
   const box = running
     ? 'bg-sky-50 text-sky-900'
