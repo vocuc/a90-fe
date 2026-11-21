@@ -12,8 +12,11 @@ QUY TẮC CHUNG (mọi loại)
 - Chữ trên ảnh: chỉ slide bài viết mẫu cho phép, ngắn, KHÔNG emoji, nói như người thật; chọn template chữ đã duyệt.
 - Caption: title <= title_max của kênh, theo Yêu cầu kênh; content để RỖNG (nội dung dài làm TikTok co khung ảnh 3:4);
   hashtag tối đa hashtags_max, chỉ trong kho hashtag kênh.
-- Ảnh: ưu tiên used_in_channel thấp / lâu chưa dùng; dùng lại được nếu không trùng y hệt (bộ ảnh + mẫu + hook).
-- Cần nhìn ảnh để chọn đúng: kehoach.py thumbs <dir> <ref...>.
+- Chủ đề (2026-11-21): mọi bài có topic_id, CHỈ chọn chủ đề có sẵn của kênh (worker lập chủ đề / chủ shop tạo);
+  cùng chủ đề + cùng loại bài không lặp trong 14 ngày. Hook viết theo chủ đề + loại bài.
+- Ảnh sản phẩm (2026-11-21): KHÔNG xem ảnh. kehoach.py products <id-kênh> <tag>=... lọc sản phẩm đã gắn tag theo tag
+  của chủ đề, mỗi sản phẩm 1 ref (A51 chọn ngẫu nhiên trong 10 ảnh tạo gần nhất); ưu tiên used thấp / lâu chưa dùng.
+  Sản phẩm chưa gắn tag: chạy /gan-tag-san-pham. Xem ../chu-de-va-tag-san-pham.txt.
 - Không bịa thông tin: giá, ưu đãi, chính sách, bảng size chỉ dùng khi có trong Yêu cầu kênh.
 - Bài sai bị backend trả rejected kèm lý do: sửa, gửi lại tối đa 2 lần, vẫn sai thì để trống slot.
 

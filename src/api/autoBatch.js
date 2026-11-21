@@ -61,6 +61,8 @@ export const mapProduct = (p) => ({
   aiLabel: p.ai_label ?? '',
   tags: p.tags ?? null,
   tagSources: p.tag_sources ?? {},
+  // Gắn tag bằng AI được không (có ảnh trường anh_san_pham)
+  taggable: !!p.taggable,
   autoBatchCount: p.auto_batch_count,
   // Số ảnh đã tạo xong cho sản phẩm (không tính ảnh lỗi / đang tạo / đã tắt)
   generatedImageCount: p.generated_image_count ?? 0,

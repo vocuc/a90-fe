@@ -1,0 +1,50 @@
+WORKER ĐIỀU PHỐI (1 token / máy, giao việc cho các bộ xử lý con)
+======================================================================
+
+Ngày: 2026-11-21. Trạng thái: ĐÃ LÀM (2026-11-21), chưa deploy. Test backend 265 passed; chạy thử local trọn luồng lập chủ đề qua điều phối (19 giây, 3 chủ đề).
+Liên quan: note/gop-viec-worker.txt (mọi việc ở worker_jobs, API /v1/worker-jobs), xay-kenh-tiktok/worker-lap-chu-de.txt,
+xay-kenh-tiktok/worker-gan-tag.txt, xay-kenh-tiktok/worker-content.txt.
+
+1. NGƯỜI DÙNG CHỐT (2026-11-21)
+----------------------------------------
+- Không phải mỗi worker 1 token: mỗi MÁY chạy 1 worker điều phối, 1 token, nhận nhiều loại việc rồi giao bộ xử lý con.
+- Đợt 1: dựng nội dung (content), lập chủ đề (topic), gắn tag (tag). Tạo ảnh / phối đồ / đăng bài để đợt sau (gắn Chrome,
+  ChatGPT, điện thoại), vẫn chạy chương trình riêng như cũ.
+- Mỗi máy 1 token (A51 biết việc đang ở máy nào).
+- Số việc song song mỗi loại đặt ở .env của máy.
+- Gộp: worker cũ loại content / topic / tag -> 1 worker loại "Điều phối"; form tạo worker không còn 3 loại đó.
+
+2. BACKEND
+----------------------------------------
+- Worker loại mới dispatch ("Điều phối") làm được các loại Worker::DISPATCH_TYPES = content, topic, tag.
+  Worker::jobTypes() / hasType(): mọi chỗ kiểm tra "worker loại X" (assignedTo, assertType, shop có worker lập chủ đề /
+  gắn tag / dựng nội dung chưa) tính cả worker điều phối.
+- GET /api/v1/worker-jobs?types=content,tag: chỉ nhận việc các loại này (máy còn chỗ trống); không gửi = mọi loại worker
+  làm được. Thử lần lượt theo thứ tự gửi lên.
+- POST /api/v1/worker-jobs/{id}/extend dùng cho mọi loại việc (trước chỉ việc ảnh): việc lâu không bị giao lại giữa chừng.
+- Admin: tạo worker chọn "Điều phối" thay cho Dựng nội dung / Lập chủ đề / Gắn tag (worker cũ 3 loại vẫn chạy tới khi
+  admin tắt / đổi sang Điều phối).
+
+3. CHƯƠNG TRÌNH ĐIỀU PHỐI (D:\FlowKit\dieu-phoi)
+----------------------------------------
+.env: A51_API_BASE_URL, A51_WORKER_TOKEN (worker loại Điều phối), SLOTS_CONTENT, SLOTS_TOPIC, SLOTS_TAG (số việc song song
+mỗi loại, 0 = máy không làm loại đó), POLL_SECONDS, EXTEND_SECONDS, JOB_TIMEOUT_<LOẠI>.
+Vòng lặp: loại còn chỗ -> GET /worker-jobs?types=... -> chạy bộ xử lý con trong TIẾN TRÌNH RIÊNG (có hạn giờ) -> định kỳ
+gia hạn -> bộ con xong ghi result.json -> điều phối gửi kết quả (JSON, hoặc multipart files[] với dựng nội dung) /
+báo lỗi.
+Bộ xử lý con (không token, không tự hỏi / gửi): python <bộ con> <job.json> <thư mục việc> <result.json>
+  content: content-worker/handle.py (dựng ảnh theo dang/<key>.py) -> {status: completed, files: [...]}
+  topic:   dieu-phoi/handlers/topic.py (claude -p "/lap-chu-de <thư mục>") -> {status: completed, topics}
+  tag:     dieu-phoi/handlers/tag.py (gantag.py sheet + claude -p "/gan-tag-san-pham <thư mục>") -> {status: completed, items}
+  lỗi:     {status: failed, error_code, error_message}
+topic-worker, tag-worker (riêng) bỏ, gộp vào dieu-phoi. content-worker/worker.py (chạy riêng) giữ cho tới khi chuyển xong.
+
+4. GHI CHÚ TRIỂN KHAI
+----------------------------------------
+- Backend làm bằng loại worker mới "dispatch" (thay vì cột nhiều loại): DISPATCH_TYPES cố định content / topic / tag,
+  máy tự chọn loại làm bằng SLOTS_* trong .env (gửi ?types=). Đợt sau thêm loại vào DISPATCH_TYPES + bộ xử lý con.
+- Gộp worker cũ: admin đổi loại worker cũ (Lập chủ đề / Gắn tag / Dựng nội dung) sang "Điều phối" (giữ nguyên token)
+  hoặc tạo worker Điều phối mới, gắn shop, tắt worker cũ. Việc dựng nội dung đã tạo trước gắn cứng worker_id cũ: giữ
+  worker cũ tới khi hết việc dở hoặc đổi loại worker cũ sang Điều phối.
+- Đã bỏ D:/FlowKit/topic-worker, tag-worker (gộp vào dieu-phoi/handlers). content-worker/worker.py (chạy riêng) còn giữ,
+  content-worker/handle.py là bộ xử lý con cho điều phối.

@@ -35,11 +35,13 @@ Ví dụ:
 ----------------------------------------
 'Bạn chốt số mấy? Lưu lại để sắm'.
 
-6. CÁC BƯỚC LỆNH LÀM
+6. CÁC BƯỚC LỆNH LÀM (cập nhật 2026-11-21: không xem ảnh, chu-de-va-tag-san-pham.txt)
 ----------------------------------------
-1. Chọn tiêu chí theo chân dung / dịp.
-2. Chọn N mẫu hợp tiêu chí, xếp hạng.
-3. Bìa = ảnh đẹp nhất + tiêu đề, các slide #1..#N.
+1. Chọn CHỦ ĐỀ có sẵn của kênh (topic_id), hook "Top N đôi ..." theo chủ đề.
+2. kehoach.py products <id-kênh> <tag của chủ đề> -> sản phẩm đã gắn tag {id, label, tags, used, ref}. < 4 -> nới bộ lọc
+   (giữ dip) tối đa 2 lần -> đổi chủ đề -> bỏ Top N, nhắc /gan-tag-san-pham.
+3. Chọn N = 4-7 sản phẩm khác nhau (used thấp, khớp nhiều tag chủ đề), ảnh đầu khác kiểu / màu cho bìa ghép; ảnh =
+   ref A51 trả. Chữ "#k <label>, <lý do 2-4 từ>". Không gửi ảnh bìa (content-worker dựng).
 
 7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
 ----------------------------------------

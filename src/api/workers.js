@@ -22,6 +22,7 @@ export const WORKER_FUNCTIONS = {
   outfit: { label: 'Phối đồ', icon: 'checkroom' },
   content: { label: 'Dựng nội dung', icon: 'auto_awesome_mosaic' },
   topic: { label: 'Lập chủ đề', icon: 'tag' },
+  tag: { label: 'Gắn tag sản phẩm', icon: 'sell' },
 };
 
 const mapWorker = (w) => ({

@@ -7,6 +7,14 @@ import client from './client';
  * PUT /creator/products/{id}/tags { ai_label?: string|null, tags?: { kieu?, got?, mau?, phong_cach?, dip? } } -> { data: Product }
  *     Chỉ gửi trường muốn sửa (trường gửi lên thành nguồn owner). Sai giá trị -> 422 errors.tags.
  * Giá trị khớp App\Support\ProductTags ở backend.
+ *
+ * Gắn tag bằng AI (note/xay-kenh-tiktok/worker-gan-tag.txt): chọn sản phẩm -> việc cho worker gắn tag (skill Claude
+ * /gan-tag-san-pham). Chỉ sản phẩm có ảnh trường anh_san_pham (product.taggable).
+ * GET  /creator/products/tag-jobs/latest -> { data: { tag_worker, job, max, field_key } }
+ *        job: { id, status: queued|processing|completed|failed, product_count, result: { updated, skipped, errors,
+ *        requested }, error_message, created_at, finished_at } | null
+ * POST /creator/products/tag-jobs { product_ids } -> 201 { data: job }; 409 TAG_WORKER_REQUIRED | TAG_JOB_RUNNING;
+ *        422 errors.product_ids
  */
 
 export const TAG_SOURCE = { AI: 'ai', OWNER: 'owner' };
@@ -72,3 +80,11 @@ export const updateProductTags = (id, { aiLabel, tags }) =>
       ...(tags && Object.keys(tags).length ? { tags } : {}),
     })
     .then(({ data }) => data);
+
+export const TAG_JOB_KEY = ['creator', 'products', 'tag-job'];
+
+export const getTagJob = () => client.get('/creator/products/tag-jobs/latest').then(({ data }) => data);
+
+export const startTagJob = (productIds) => client.post('/creator/products/tag-jobs', { product_ids: productIds }).then(({ data }) => data);
+
+export const isTagJobRunning = (job) => job?.status === 'queued' || job?.status === 'processing';

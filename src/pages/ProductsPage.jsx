@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import CoverImage from '../components/common/CoverImage';
@@ -8,7 +8,8 @@ import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback'
 import ProductFormDialog from '../components/product/ProductFormDialog';
 import ProductShareDialog from '../components/product/ProductShareDialog';
 import ProductTagsDialog from '../components/product/ProductTagsDialog';
-import { tagChips } from '../api/productTags';
+import AiTagDialog from '../components/product/AiTagDialog';
+import { TAG_JOB_KEY, getTagJob, isTagJobRunning, tagChips } from '../api/productTags';
 import { useCreatorProfile } from '../hooks/creatorQueries';
 import { AUTO_KEYS, deleteProduct, getProductImageFile, listProducts, setProductActive } from '../api/autoBatch';
 import { Switch } from '../components/template/inputs';
@@ -59,6 +60,28 @@ function ProductTags({ product, onEditTags }) {
         <p className="mt-0.5 text-[11px] text-on-surface-variant">Đội A51 gắn tag (cần ảnh trường anh_san_pham), hoặc bạn tự gắn.</p>
       )}
     </div>
+  );
+}
+
+/** Trạng thái lượt "Gắn tag bằng AI" gần nhất. */
+function TagJobStatus({ job }) {
+  if (!job) return null;
+  const running = isTagJobRunning(job);
+  const box = running ? 'bg-sky-50 text-sky-900' : job.status === 'completed' ? 'bg-emerald-50 text-emerald-900' : 'bg-error-container/60 text-on-error-container';
+  const r = job.result ?? {};
+  const text = {
+    queued: `Đang chờ worker gắn tag nhận việc (${job.product_count} sản phẩm)...`,
+    processing: `AI đang gắn tag ${job.product_count} sản phẩm...`,
+    completed: `Gắn tag bằng AI xong: ${r.updated ?? 0}/${r.requested ?? job.product_count} sản phẩm${
+      r.skipped ? ` (${r.skipped} sản phẩm giữ trường bạn đã sửa)` : ''
+    }${r.errors ? `, ${r.errors} sản phẩm lỗi` : ''}.`,
+    failed: `Gắn tag bằng AI lỗi: ${job.error_message || 'worker không gắn được tag'}. Bấm gắn lại.`,
+  }[job.status];
+  return (
+    <p className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${box}`}>
+      <Icon name={running ? 'progress_activity' : job.status === 'completed' ? 'check_circle' : 'error'} className={`text-base ${running ? 'animate-spin' : ''}`} />
+      {text}
+    </p>
   );
 }
 
@@ -248,6 +271,24 @@ export default function ProductsPage() {
   const [sharing, setSharing] = useState(false);
   // Sản phẩm đang sửa tag
   const [tagging, setTagging] = useState(null);
+  // Hộp thoại "Gắn tag bằng AI" (chọn nhiều sản phẩm)
+  const [aiTagging, setAiTagging] = useState(false);
+  // Lượt gắn tag AI gần nhất: đang chạy thì tải lại mỗi 10 giây; vừa xong thì tải lại danh sách sản phẩm
+  const lastTagStatus = useRef(null);
+  const { data: tagInfo } = useQuery({
+    queryKey: TAG_JOB_KEY,
+    queryFn: getTagJob,
+    enabled: hasProfile,
+    refetchInterval: (q) => (isTagJobRunning(q.state.data?.job) ? 10_000 : false),
+  });
+  useEffect(() => {
+    const status = tagInfo?.job?.status;
+    if (isTagJobRunning({ status: lastTagStatus.current }) && status && !isTagJobRunning({ status })) {
+      queryClient.invalidateQueries({ queryKey: AUTO_KEYS.products });
+    }
+    lastTagStatus.current = status ?? null;
+  }, [tagInfo, queryClient]);
+  const tagRunning = isTagJobRunning(tagInfo?.job);
 
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: AUTO_KEYS.products,
@@ -307,6 +348,18 @@ export default function ProductsPage() {
         <h1 className="flex-1 text-base font-bold text-on-surface">Quản lý sản phẩm</h1>
         {hasProfile && (
           <span className="mr-2 flex items-center gap-2">
+            {tagInfo?.tag_worker && (
+              <button
+                type="button"
+                onClick={() => setAiTagging(true)}
+                disabled={tagRunning}
+                title={tagRunning ? 'Đang có lượt gắn tag chưa xong' : undefined}
+                className="flex h-8 items-center gap-1 rounded-lg border border-outline-variant/60 px-3 text-xs font-bold text-on-surface hover:border-primary-container hover:text-primary disabled:opacity-50"
+              >
+                <Icon name="auto_awesome" className="text-base" />
+                Gắn tag AI
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setSharing(true)}
@@ -353,6 +406,7 @@ export default function ProductsPage() {
                 {' '}có creative trùng hashtag với sản phẩm. Sản phẩm ít lô nhất được tạo trước.
               </span>
             </p>
+            {tagInfo?.job && <TagJobStatus job={tagInfo.job} />}
             <div role="tablist" aria-label="Trạng thái sản phẩm" className="flex gap-1 rounded-xl bg-surface-container-low p-1 lg:w-fit">
               {TABS.map((t) => {
                 const count = countOf(t);
@@ -414,6 +468,18 @@ export default function ProductsPage() {
           onClose={() => setSharing(false)}
           // Giữ hộp thoại mở để xem kết quả / chia sẻ tiếp; danh sách tải lại số tài khoản đang chia sẻ
           onSaved={() => queryClient.invalidateQueries({ queryKey: AUTO_KEYS.products })}
+        />
+      )}
+
+      {aiTagging && (
+        <AiTagDialog
+          max={tagInfo?.max}
+          fieldKey={tagInfo?.field_key}
+          onClose={() => setAiTagging(false)}
+          onStarted={() => {
+            setAiTagging(false);
+            queryClient.invalidateQueries({ queryKey: TAG_JOB_KEY });
+          }}
         />
       )}
 

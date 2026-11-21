@@ -1,0 +1,43 @@
+WORKER GẮN TAG SẢN PHẨM (nút "Gắn tag AI" ở trang Sản phẩm)
+======================================================================
+
+Ngày: 2026-11-21. Trạng thái: ĐÃ LÀM (backend + frontend + worker + skill), chưa deploy.
+Liên quan: chu-de-va-tag-san-pham.txt (mục 2 tag sản phẩm), a90-fe note/gop-viec-worker.txt (việc worker ở worker_jobs).
+
+1. NGƯỜI DÙNG CHỐT (2026-11-21)
+----------------------------------------
+Trang Sản phẩm (/seller/items) có nút "Gắn tag AI": bấm -> chọn nhiều sản phẩm -> Đồng ý -> tạo việc cho worker gắn tag;
+worker gọi skill Claude /gan-tag-san-pham rồi trả tag về A51.
+Claude chọn (người dùng chưa phản đối): chỉ chọn sản phẩm của mình có ảnh trường anh_san_pham; tối đa 100 sản phẩm /
+lượt; mỗi shop 1 lượt chạy tại 1 thời điểm; sản phẩm đã có tag được gắn lại, trường chủ shop đã sửa giữ nguyên.
+
+2. LUỒNG
+----------------------------------------
+Chủ shop bấm "Gắn tag AI" (chỉ hiện khi tài khoản có worker loại "Gắn tag sản phẩm") -> hộp thoại chọn sản phẩm (nhanh:
+"Chưa gắn tag", "Tất cả"; sản phẩm thiếu ảnh anh_san_pham bị khoá) -> POST /creator/products/tag-jobs { product_ids }
+-> worker_jobs type tag (queued, payload {product_ids}). 409 TAG_WORKER_REQUIRED | TAG_JOB_RUNNING; 422 errors.product_ids.
+Worker gắn tag (D:\FlowKit\tag-worker) GET /worker-jobs -> { id, type: tag, request: { products: [{id, name,
+  prompt_note, cover: {image_id, thumb_url} (ảnh anh_san_pham), ai_label, tags, tag_sources}], tag_options, label_max } }
+  -> ghi job/<ngày>/job<id>/request.json + list.json -> gantag.py sheet (lưới 4x4, mỗi ô ghi id) -> sheets.json
+  -> claude -p "/gan-tag-san-pham <thư mục>" (chế độ việc worker: chỉ Read / Write / Glob) -> tags.json
+     { items: [{id, image_id, ai_label, tags}] }
+  -> POST /worker-jobs/{id} { status: completed, items } -> ProductTagService::saveAi (như skill gọi tay):
+     result { updated[], skipped {id: [trường chủ shop giữ]}, errors[] }. Lỗi -> failed.
+Việc giữ 30 phút (TagJob::LEASE_MINUTES), quá hạn worker khác nhận lại.
+Trang Sản phẩm hiện trạng thái lượt gần nhất (chờ worker / AI đang gắn / xong X/Y / lỗi), tự tải lại 10 giây khi đang
+chạy, xong thì tải lại danh sách sản phẩm. Thẻ sản phẩm có taggable (có ảnh anh_san_pham).
+
+3. CODE
+----------------------------------------
+Backend: Worker::TYPE_TAG ("Gắn tag sản phẩm"), WorkerJob::TYPE_TAG, model TagJob, Services\Channel\TagJobService,
+  ProductTagService::taggable / untagged(ids), ProductController::startTagJob / latestTagJob, ProductResource.taggable.
+  Route GET /creator/products/tag-jobs/latest, POST /creator/products/tag-jobs. Test: tests/Feature/TagWorkerTest.php.
+Frontend: components/product/AiTagDialog.jsx, pages/ProductsPage.jsx (nút + TagJobStatus), api/productTags.js.
+Worker: D:\FlowKit\tag-worker. Skill: D:\FlowKit\.claude\skills\gan-tag-san-pham (thêm chế độ việc worker; gọi tay vẫn
+  như cũ). Chạy thử chế độ việc worker với 1 tấm 16 sản phẩm: gắn 16/16.
+
+4. CÀI ĐẶT
+----------------------------------------
+1. Admin A51 -> Worker -> tạo worker loại "Gắn tag sản phẩm", gắn tài khoản shop.
+2. Máy worker: Claude Code đã đăng nhập, Pillow; chép tag-worker/.env.example -> .env, điền A51_WORKER_TOKEN; chạy
+   run_tag_worker.bat.
