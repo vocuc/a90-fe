@@ -12,8 +12,8 @@ import client from './client';
  * GET    /creator/channels/{id}/lineups               -> { data: { current, pending[] } }
  * PUT    /creator/channels/{id}/lineups/{l} { items } ; POST .../{l}/approve | /reject
  * GET    /creator/channels/{id}/text-templates        -> { data: TextTemplate[], meta: { fonts, preview_image, ... } }
- * POST   /creator/channels/{id}/text-templates { name, style, sample_text } -> 201 (chủ shop tự thêm, duyệt luôn)
- * PUT    /creator/channels/{id}/text-templates/{t} { name?, style?, sample_text? } ; POST .../{t}/approve | /reject
+ * POST   /creator/channels/{id}/text-templates { name, style, sample_text, sample_keys } -> 201 (chủ shop tự thêm, duyệt luôn)
+ * PUT    /creator/channels/{id}/text-templates/{t} { name?, style?, sample_text?, sample_keys? } ; POST .../{t}/approve | /reject
  * GET    /creator/channels/{id}/plans                 -> { data: PlanSummary[] }
  * GET    /creator/channels/{id}/plans/{p}             -> { data: Plan (kèm items) }
  * POST   /creator/channels/{id}/plans/{p}/approve | /cancel

@@ -28,12 +28,14 @@ function EditDialog({ channelId, template, meta, onClose }) {
   const [name, setName] = useState(template.name);
   const [sample, setSample] = useState(template.sample_text ?? '');
   const [style, setStyle] = useState(template.style);
+  const [sampleKeys, setSampleKeys] = useState(template.sample_keys ?? []);
   const set = (patch) => setStyle((s) => ({ ...s, ...patch }));
+  const toggleSample = (key) => setSampleKeys((keys) => (keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key]));
   const mutation = useMutation({
     mutationFn: () =>
       creating
-        ? createTextTemplate(channelId, { name, sample_text: sample, style })
-        : updateTextTemplate(channelId, template.id, { name, sample_text: sample, style }),
+        ? createTextTemplate(channelId, { name, sample_text: sample, style, sample_keys: sampleKeys })
+        : updateTextTemplate(channelId, template.id, { name, sample_text: sample, style, sample_keys: sampleKeys }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.templates(channelId) });
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.detail(channelId) });
@@ -103,6 +105,21 @@ function EditDialog({ channelId, template, meta, onClose }) {
           </div>
           {mutation.error && <FormAlert>{mutation.error.message}</FormAlert>}
         </div>
+        <fieldset className="space-y-2 sm:col-span-2">
+          <legend className="text-xs font-semibold text-on-surface">Dùng cho loại bài</legend>
+          <p className="text-[11px] text-on-surface-variant">Template chỉ được dùng cho các loại bài được chọn. Không chọn loại nào thì template không được dùng.</p>
+          <div className="flex flex-wrap gap-2">
+            {(meta.post_samples ?? []).map((s) => {
+              const on = sampleKeys.includes(s.key);
+              return (
+                <button key={s.key} type="button" onClick={() => toggleSample(s.key)} aria-pressed={on}
+                  className={`rounded-lg border px-2 py-1 text-[11px] font-bold ${on ? 'border-primary bg-primary-container text-on-primary' : 'border-outline-variant/60 text-on-surface'}`}>
+                  {s.name}{s.in_lineup ? '' : ' (ngoài tuyến)'}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
       </div>
     </Dialog>
   );
@@ -134,6 +151,7 @@ export default function TextTemplatesTab({ channel }) {
 
   if (error) return <ErrorState error={error} onRetry={refetch} />;
   if (!data) return <Skeleton className="h-60 w-full" />;
+  const sampleNames = Object.fromEntries((data.meta.post_samples ?? []).map((s) => [s.key, s.name]));
   const addButton = (
     <button type="button" onClick={() => setEditing(NEW_TEMPLATE)}
       className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary">
@@ -169,6 +187,13 @@ export default function TextTemplatesTab({ channel }) {
               <p className="min-w-0 flex-1 truncate text-xs font-bold text-on-surface">{t.name}</p>
               <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${STATUS[t.status]?.className}`}>{STATUS[t.status]?.label}</span>
             </div>
+            {t.sample_keys?.length ? (
+              <p className="text-[11px] text-on-surface-variant">
+                Dùng cho: {t.sample_keys.map((k) => sampleNames[k] ?? k).join(', ')}
+              </p>
+            ) : (
+              <p className="text-[11px] font-semibold text-error">Chưa gắn loại bài: không được dùng</p>
+            )}
             <div className="flex flex-wrap gap-1">
               {t.status === 'pending' && (
                 <button type="button" onClick={() => decide.mutate({ id: t.id, approve: true })} className="rounded-lg bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white">
