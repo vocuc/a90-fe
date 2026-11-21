@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Icon from '../common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../common/Feedback';
@@ -113,21 +114,61 @@ function PlanDetail({ channelId, planId }) {
   );
 }
 
-/** Tab Kế hoạch: các kỳ đội A51 lập bằng lệnh /lap-ke-hoach; kỳ chờ duyệt thì chủ shop duyệt / huỷ / bỏ bài. */
+/** Tab Kế hoạch: các kỳ đội A51 lập bằng lệnh /lap-ke-hoach; kỳ chờ duyệt thì chủ shop duyệt / huỷ / bỏ bài.
+ *  Kỳ đã huỷ tách sang tab con "Đã huỷ" (?view=cancelled). */
 export default function PlansTab({ channel }) {
   const { data, error, refetch } = useQuery({ queryKey: CHANNEL_KEYS.plans(channel.id), queryFn: () => listPlans(channel.id) });
   const [openId, setOpenId] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const view = params.get('view') === 'cancelled' ? 'cancelled' : 'active';
 
   if (error) return <ErrorState error={error} onRetry={refetch} />;
   if (!data) return <Skeleton className="h-32 w-full" />;
   if (!data.length) {
     return <EmptyState icon="event_note" message="Chưa có kỳ kế hoạch nào. Kế hoạch do đội A51 lập theo cấu hình của kênh." />;
   }
-  const current = openId ?? data.find((p) => p.status === 'draft')?.id ?? data[0].id;
+
+  const cancelledPlans = data.filter((p) => p.status === 'cancelled');
+  const activePlans = data.filter((p) => p.status !== 'cancelled');
+  const plans = view === 'cancelled' ? cancelledPlans : activePlans;
+  const current = plans.some((p) => p.id === openId) ? openId : (plans.find((p) => p.status === 'draft')?.id ?? plans[0]?.id);
+
+  const setView = (v) => {
+    const next = new URLSearchParams(params);
+    if (v === 'cancelled') next.set('view', 'cancelled');
+    else next.delete('view');
+    setParams(next, { replace: true });
+  };
+  const views = [
+    { key: 'active', label: 'Đang dùng', count: activePlans.length },
+    { key: 'cancelled', label: 'Đã huỷ', count: cancelledPlans.length },
+  ];
 
   return (
     <div className="space-y-3">
-      {data.map((p) => (
+      <div className="flex gap-1" role="tablist" aria-label="Lọc kỳ kế hoạch">
+        {views.map((v) => (
+          <button
+            key={v.key}
+            type="button"
+            role="tab"
+            aria-selected={view === v.key}
+            onClick={() => setView(v.key)}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+              view === v.key ? 'bg-primary-container text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+            }`}
+          >
+            {v.label} ({v.count})
+          </button>
+        ))}
+      </div>
+      {!plans.length && (
+        <EmptyState
+          icon="event_note"
+          message={view === 'cancelled' ? 'Chưa có kỳ nào bị huỷ.' : 'Không có kỳ đang dùng. Kế hoạch do đội A51 lập theo cấu hình của kênh.'}
+        />
+      )}
+      {plans.map((p) => (
         <Section
           key={p.id}
           title={`Kỳ ${new Date(p.start_date).toLocaleDateString('vi-VN')} · ${p.days} ngày`}
