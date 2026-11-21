@@ -1,0 +1,105 @@
+WORKER-CONTENT - MỖI DẠNG BÀI VIẾT MẪU DO 1 WORKER DỰNG ẢNH, A51 CHỈ ĐƯA NGUYÊN LIỆU
+==================================================================================
+
+Ngày: 2026-11-21. Trạng thái: ĐÃ CODE (2026-11-21, chưa commit / deploy / chạy thật). Xem mục 5 "ĐÃ LÀM". Trả lời câu hỏi ngay dưới dòng "TRẢ LỜI:".
+Mục "Claude tự chọn" đổi được, cần đổi thì báo.
+
+NGƯỜI DÙNG CHỐT (2026-11-21):
+- A51 (D:\OSPanel\home\a90.local) KHÔNG dựng ảnh (không ghép bìa, không chèn chữ). A51 chỉ đưa NGUYÊN LIỆU.
+- Mỗi dạng bài viết mẫu (PostSamples key) do 1 WORKER-CONTENT làm, ra ảnh hoàn chỉnh rồi gửi lại A51.
+- Lệnh /lap-ke-hoach vẫn chọn sẵn ảnh, hook, chữ từng slide (như hiện tại).
+- Bài ảnh thường (đập hộp, A hay B...) cũng chuyển sang worker-content: worker đăng bài KHÔNG chèn chữ nữa, chỉ đăng.
+- Top N: bìa GHÉP ảnh các slide #1..#N + hook (do worker-content Top N làm).
+
+
+1. HIỆN TRẠNG (đọc code 2026-11-21)
+----------------------------------------
+- Bài ảnh có chữ: A51 tạo text_overlay_jobs, giao WORKER ĐĂNG BÀI của kênh (GET /post-jobs type overlay), worker vẽ chữ
+  bằng D:\FlowKit\web\flowkit\overlay.py, gửi lại từng ảnh (overlay_path). Xong -> bài queued.
+- Bài lô phối đồ (lookbook, outfit_by_day): worker phối đồ v2 (D:\FlowKit\phoi-do-v2) làm ảnh qua lô phối đồ
+  (image_batches + generations). Đây đã là kiểu "worker-content" -> giữ nguyên, không đổi.
+
+
+2. THIẾT KẾ (Claude tự chọn)
+----------------------------------------
+2.1 Loại worker mới: Worker::TYPE_CONTENT ("Dựng nội dung").
+  - Admin gắn worker cho shop như worker phối đồ.
+  - Mỗi worker khai báo DẠNG BÀI nó làm: workers.sample_keys (json, admin chọn). 1 worker = 1 dạng (đúng ý "mỗi dạng
+    1 worker-content"); cho phép 1 worker nhiều dạng nếu sau này muốn gộp.
+  - Bài thuộc dạng X của shop S -> giao worker-content đầu tiên gắn với S có X trong sample_keys.
+  - Lập kế hoạch: dạng X chỉ dùng được khi shop có worker-content làm X (thêm vào context như channel.outfit_worker).
+
+2.2 Job dựng nội dung (đổi tên text_overlay_jobs -> content_jobs, thêm sample_key + worker_id = worker-content).
+  - Tạo khi duyệt kỳ / làm lại bài / sửa chữ (như job chèn chữ bây giờ). Bài ở generating tới khi job xong.
+  - Bài KHÔNG có chữ và dạng bài không cần dựng (vd ảnh để nguyên) -> không tạo job, vào hàng chờ luôn.
+  - Nguyên liệu (GET /api/v1/content-jobs):
+      { id, sample_key, post_id, hook, text_template: {id, name, style} | null,
+        images: [ {image_id, url, kind: product|outfit, text, product: {id, name}} ...theo thứ tự slide] }
+  - Worker gửi lại (POST /api/v1/content-jobs/{id}, multipart): files[] = ẢNH HOÀN CHỈNH THEO THỨ TỰ SLIDE (số ảnh có thể
+    khác số nguyên liệu: Top N gửi N+1 ảnh vì thêm bìa). A51 thay ảnh bài bằng các ảnh này (ảnh upload), giữ liên kết
+    ảnh gốc để thống kê "đã dùng". Mọi ảnh phải cùng cỡ ảnh đầu (TikTok crop 3:4 nếu lệch) -> A51 kiểm tra.
+  - Lỗi: status=failed + error_code -> bài pending_review, last_error CONTENT_FAILED (như OVERLAY_FAILED bây giờ).
+
+2.3 Worker đăng bài: bỏ xử lý job overlay (runner.process_overlay). Chỉ đăng.
+
+2.4 Code worker-content: D:\FlowKit\content-worker\ - 1 chương trình chung (nhận job, tải nguyên liệu, gửi kết quả,
+  gia hạn), mỗi dạng bài 1 file dựng (dang/top_n.py, dang/anh_thuong.py...). Mỗi worker đăng ký trên A51 chạy 1 bản với
+  token riêng, chỉ nhận job các dạng của nó.
+  - anh_thuong (mọi dạng bài ảnh còn lại: unboxing, this_or_that...): in chữ từng slide theo template (chép overlay.py).
+  - top_n: bìa = lưới 2 cột ghép ảnh #1..#N, cỡ = ảnh #1, in hook theo template; slide k in "#k ..." theo template.
+
+2.5 Lệnh /lap-ke-hoach - Top N: gửi N ảnh (3-7) xếp hạng + chữ "#k ...", KHÔNG gửi bìa. A51 kiểm tra: N trong hook
+  "Top N" = số ảnh, chữ ảnh k bắt đầu "#k", N mẫu khác nhau (kiểm tra dữ liệu, không dựng ảnh).
+  Top N chỉ bài ảnh (bỏ video).
+
+
+3. THỨ TỰ LÀM (Claude tự chọn)
+----------------------------------------
+1. A51: TYPE_CONTENT + workers.sample_keys + content_jobs + API nguyên liệu / nhận ảnh; trang admin gắn dạng bài.
+2. content-worker: khung chung + dang anh_thuong (thay chèn chữ của worker đăng bài) -> chạy thử bài đập hộp.
+3. Bỏ overlay ở worker đăng bài.
+4. Dạng top_n (bìa ghép) + bật top_n trong PostSamples::READY.
+
+
+4. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Mỗi dạng bài 1 worker đăng ký riêng trên A51 (Claude chọn: 1 chương trình chung, chạy nhiều bản, mỗi bản 1 token +
+   dạng bài riêng), hay 1 worker-content làm hết các dạng?
+   TRẢ LỜI (2026-11-21): tách riêng khỏi worker đăng bài, 1 content-worker CHUNG cho mọi dạng (không cần workers.sample_keys).
+2. Worker-content chạy ở máy nào: cùng máy worker đăng bài, hay máy riêng? (ảnh hưởng: bài kênh chờ worker-content của
+   shop, không theo worker đăng bài của kênh nữa)
+   TRẢ LỜI (Claude chọn): lúc đầu chung máy worker đăng bài.
+3. Bài video (ảnh -> video template) giữ như hiện tại (worker đăng bài dựng video) hay cũng chuyển sang worker-content?
+   TRẢ LỜI (Claude chọn): giữ như hiện tại.
+4. Worker phối đồ v2 (lookbook, outfit_by_day) giữ riêng như hiện tại, hay sau này gộp vào content-worker?
+   TRẢ LỜI (Claude chọn): giữ riêng (đã chạy được).
+
+
+5. ĐÃ LÀM (2026-11-21) - khác mục 2: 1 content-worker chung, bỏ workers.sample_keys
+----------------------------------------
+A51 (a90.local):
+- Worker::TYPE_CONTENT "Dựng nội dung" (admin tạo worker, gắn tài khoản shop).
+- Migration 2026_11_21_150000_create_content_jobs: text_overlay_jobs -> content_jobs (+ sample_key);
+  social_post_images.added_by_worker (bìa worker thêm, làm lại thì bỏ).
+- App\Services\Channel\ContentJobService (thay TextOverlayService), App\Models\ContentJob.
+  Job tạo khi bài ảnh có chữ hoặc dạng có bìa ghép (PostSamples cover_collage). Shop chưa có content-worker -> bài
+  pending_review CONTENT_WORKER_REQUIRED; lập kế hoạch từ chối bài cần dựng. Context có channel.content_worker.
+- API: GET /api/v1/content-jobs, POST /api/v1/content-jobs/{id} (WorkerContentJobController). Kiểm tra: đúng số ảnh
+  (+1 nếu cover_collage), mọi ảnh cùng cỡ. Ảnh worker gửi lưu vào overlay_path (bìa = dòng ảnh mới ở vị trí 1).
+- Worker đăng bài: GET /post-jobs không còn job overlay, bỏ route /post-jobs/overlay/{id}.
+- Top N: lệnh gửi N ảnh, A51 kiểm tra N trong hook / "#k" / mẫu khác nhau; bật trong PostSamples::READY.
+- Frontend: tab Lịch đăng nút "Dựng lại" khi CONTENT_FAILED / CONTENT_WORKER_REQUIRED.
+- Test: ChannelPlanTest (content flow, top n, thiếu content-worker) - cả bộ 254 test đạt.
+FlowKit:
+- D:\FlowKit\content-worker: worker.py (vòng nhận job), cw/ (config, api, overlay chép từ phoi-do-v2, images),
+  dang/anh_thuong.py (in chữ từng slide, đưa về cỡ ảnh đầu), dang/top_n.py (bìa lưới 2 cột + hook giữa, slide "#k").
+  .env.example, run_content_worker.bat, fonts/.
+- web/flowkit (worker đăng bài): bỏ process_overlay + submit_overlay (overlay.py còn để tham khảo, không dùng).
+- Skill /lap-ke-hoach: thêm Top N + content_worker.
+
+CẦN NGƯỜI DÙNG LÀM:
+- Chạy migration, deploy backend + frontend; cập nhật worker đăng bài (web/flowkit).
+- Admin A51 -> Worker -> tạo worker loại "Dựng nội dung", gắn shop -> dán token vào D:\FlowKit\content-worker\.env
+  (chép .env.example) -> chạy run_content_worker.bat.
+- Bài ảnh có chữ đang chờ chèn chữ trước khi deploy: job cũ (worker đăng bài) thành job content-worker sau migration;
+  shop chưa gắn content-worker thì job nằm chờ -> gắn worker rồi bấm "Dựng lại" nếu cần.

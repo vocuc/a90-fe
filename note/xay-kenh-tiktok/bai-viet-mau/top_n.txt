@@ -4,7 +4,8 @@ BÀI VIẾT MẪU: TOP N (top_n)
 Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
 Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
 D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
-TRẠNG THÁI: LÀM ĐƯỢC (bìa chưa ghép được nhiều ảnh)
+TRẠNG THÁI: ĐÃ LÀM (2026-11-21): lệnh gửi N ảnh xếp hạng, content-worker dựng bìa ghép + in chữ (worker-content.txt).
+Chỉ bài ảnh (bỏ video). Lệnh KHÔNG gửi ảnh bìa; N = số ảnh gửi (3-7).
 
 1. THÔNG TIN
 ----------------------------------------
@@ -50,9 +51,10 @@ Ví dụ:
 
 9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
 ----------------------------------------
-- Chưa có ảnh bìa GHÉP nhiều mẫu.
+- (Đã xử lý 2026-11-21) Bìa ghép do content-worker dựng.
 
 10. CÂU HỎI CẦN CHỐT
 ----------------------------------------
 1. Có làm bìa ghép (collage) không?
-   TRẢ LỜI:
+   TRẢ LỜI (2026-11-21): Có. Content-worker (D:\FlowKit\content-worker\dang\top_n.py) ghép lưới 2 cột các ảnh #1..#N
+   (cùng cỡ ảnh #1, ảnh lẻ thì ô cuối trải ngang), in hook ở giữa theo template chữ.

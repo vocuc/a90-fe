@@ -79,13 +79,13 @@ function PostDialog({ channelId, channelName, templates, post, onClose, showPrev
             {changed && (
               <button type="button" onClick={() => saveText.mutate()} disabled={saveText.isPending}
                 className="rounded-lg bg-primary-container px-3 py-2 text-xs font-bold text-on-primary disabled:opacity-50">
-                Lưu chữ, chèn lại ảnh
+                Lưu chữ, dựng lại ảnh
               </button>
             )}
-            {post.last_error?.code === 'OVERLAY_FAILED' && !changed && (
+            {['CONTENT_FAILED', 'CONTENT_WORKER_REQUIRED', 'OVERLAY_FAILED'].includes(post.last_error?.code) && !changed && (
               <button type="button" onClick={() => saveText.mutate()} disabled={saveText.isPending}
                 className="rounded-lg bg-primary-container px-3 py-2 text-xs font-bold text-on-primary disabled:opacity-50">
-                Chèn lại
+                Dựng lại
               </button>
             )}
             <button type="button" onClick={() => redo.mutate(!post.redo_requested_at)} disabled={redo.isPending}

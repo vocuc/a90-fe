@@ -19,7 +19,7 @@ QUY TẮC CHUNG (mọi loại)
 
 CHỈ BÀI ĐÃ LÀM XONG MỚI BẬT (người dùng chốt 2026-11-21)
 ----------------------------------------
-- PostSamples::READY (D:\OSPanel\home\a90.local\app\Support\PostSamples.php) = danh sách bài bật, hiện: lookbook,
+- PostSamples::READY (D:\OSPanel\home\a90.local\app\Support\PostSamples.php) = danh sách bài bật, hiện: top_n, lookbook,
   outfit_by_day. Làm xong bài nào thì thêm key vào READY + đổi trạng thái trong mục lục thành "ĐÃ LÀM".
 - Bài chưa bật: không thêm được vào tuyến (SAMPLE_NOT_READY), không lập kế hoạch được, không gắn template chữ được;
   tuyến cũ có bài chưa bật thì bài đó bị bỏ qua; tuyến không còn bài bật nào = kênh thiếu tuyến.
@@ -35,7 +35,7 @@ Trưng bày hàng:
   color_options          1 mẫu nhiều màu              LÀM ĐƯỢC NẾU CÓ ẢNH (hệ thống chưa biết màu)
 So sánh, chọn lựa:
   this_or_that           A hay B                      LÀM ĐƯỢC (chưa có slide ghép 2 ảnh)
-  top_n                  Top N                        LÀM ĐƯỢC (bìa chưa ghép được nhiều ảnh)
+  top_n                  Top N                        ĐÃ LÀM: content-worker dựng bìa ghép + chữ #1..#N
   which_suits_you        Bạn hợp đôi nào              LÀM ĐƯỢC
 Phối đồ:
   lookbook               Phối đồ                      ĐÃ LÀM: chủ đề + hashtag -> lô phối đồ có sẵn hook, tìm outfit theo hashtag
