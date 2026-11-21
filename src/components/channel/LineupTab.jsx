@@ -6,22 +6,23 @@ import { FormAlert } from '../common/Form';
 import { CHANNEL_KEYS, decideLineup, getLineups, listPostSamples, updateLineup } from '../../api/channels';
 import Section from './Section';
 
+/** Chỉ dạng nội dung A51 ĐÃ BẬT (bài viết mẫu làm xong): dạng chưa bật trong tuyến cũ bị ẩn, kế hoạch cũng bỏ qua. */
+const enabledOnly = (items, samples) => {
+  const enabled = new Set(samples.filter((s) => s.enabled).map((s) => s.key));
+  return items.filter((i) => enabled.has(i.sample_key));
+};
+
 function LineupRows({ items, editing, onChange, samples }) {
   const total = items.reduce((s, i) => s + Number(i.percent || 0), 0);
   // Chỉ bài viết mẫu ĐÃ LÀM XONG (enabled) mới thêm được vào tuyến
   const unused = samples.filter((s) => s.enabled && !items.some((i) => i.sample_key === s.key));
-  const disabled = new Set(samples.filter((s) => !s.enabled).map((s) => s.key));
   return (
     <div className="space-y-2">
+      {!items.length && !editing && <p className="text-xs text-on-surface-variant">Tuyến chưa có dạng nội dung nào đang bật.</p>}
       {items.map((item, idx) => (
         <div key={item.sample_key} className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-on-surface">
-              {item.name ?? item.sample_key}
-              {disabled.has(item.sample_key) && (
-                <span className="ml-1.5 rounded bg-error-container/60 px-1.5 py-0.5 text-[10px] font-bold text-error">Chưa làm xong, bỏ qua</span>
-              )}
-            </p>
+            <p className="truncate text-sm font-semibold text-on-surface">{item.name ?? item.sample_key}</p>
             {item.reason && <p className="truncate text-[11px] text-on-surface-variant">{item.reason}</p>}
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-container">
               <div className="h-full rounded-full bg-primary-container" style={{ width: `${Math.min(100, item.percent)}%` }} />
@@ -74,7 +75,8 @@ function LineupRows({ items, editing, onChange, samples }) {
 function LineupCard({ channelId, lineup, pending, samples }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [items, setItems] = useState(lineup.items);
+  const shown = enabledOnly(lineup.items, samples);
+  const [items, setItems] = useState(shown);
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.lineups(channelId) });
     queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.detail(channelId) });
@@ -82,7 +84,7 @@ function LineupCard({ channelId, lineup, pending, samples }) {
   const save = useMutation({
     mutationFn: () => updateLineup(channelId, lineup.id, items.map((i) => ({ sample_key: i.sample_key, percent: Number(i.percent || 0), reason: i.reason }))),
     onSuccess: (d) => {
-      setItems(d.items);
+      setItems(enabledOnly(d.items, samples));
       setEditing(false);
       refresh();
     },
@@ -92,7 +94,7 @@ function LineupCard({ channelId, lineup, pending, samples }) {
 
   return (
     <div className="space-y-3">
-      <LineupRows items={editing ? items : lineup.items} editing={editing} onChange={setItems} samples={samples} />
+      <LineupRows items={editing ? items : shown} editing={editing} onChange={setItems} samples={samples} />
       {error && <FormAlert>{error.message}</FormAlert>}
       <div className="flex flex-wrap gap-2">
         {editing ? (
@@ -100,12 +102,12 @@ function LineupCard({ channelId, lineup, pending, samples }) {
             <button type="button" onClick={() => save.mutate()} disabled={save.isPending} className="rounded-lg bg-primary-container px-3 py-1.5 text-xs font-bold text-on-primary disabled:opacity-50">
               Lưu tỉ lệ
             </button>
-            <button type="button" onClick={() => { setItems(lineup.items); setEditing(false); }} className="rounded-lg px-3 py-1.5 text-xs font-bold text-on-surface-variant hover:bg-surface-container">
+            <button type="button" onClick={() => { setItems(shown); setEditing(false); }} className="rounded-lg px-3 py-1.5 text-xs font-bold text-on-surface-variant hover:bg-surface-container">
               Huỷ
             </button>
           </>
         ) : (
-          <button type="button" onClick={() => setEditing(true)} className="rounded-lg border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-on-surface hover:bg-surface-container">
+          <button type="button" onClick={() => { setItems(shown); setEditing(true); }} className="rounded-lg border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-on-surface hover:bg-surface-container">
             Sửa tỉ lệ
           </button>
         )}
