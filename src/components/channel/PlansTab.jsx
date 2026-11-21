@@ -1,11 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Dialog from '../common/Dialog';
 import Icon from '../common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../common/Feedback';
-import { FormAlert } from '../common/Form';
+import { FormAlert, TextArea } from '../common/Form';
 import { useConfirm } from '../common/ConfirmDialog';
-import { CHANNEL_KEYS, cancelPlanItem, decidePlan, getPlan, listPlans } from '../../api/channels';
+import {
+  CHANNEL_KEYS,
+  cancelPlanItem,
+  decidePlan,
+  getPlan,
+  getPlanJob,
+  isPlanJobRunning,
+  listPlans,
+  startPlanJob,
+} from '../../api/channels';
 import Section, { TopicBadge, formatDateTime } from './Section';
 
 const PLAN_STATUS = {
@@ -118,18 +128,174 @@ function PlanDetail({ channelId, planId }) {
   );
 }
 
-/** Tab Kế hoạch: các kỳ đội A51 lập bằng lệnh /lap-ke-hoach; kỳ chờ duyệt thì chủ shop duyệt / huỷ / bỏ bài.
- *  Kỳ đã huỷ tách sang tab con "Đã huỷ" (?view=cancelled). */
+// Lượt lập kế hoạch đang chạy: tải lại mỗi 15 giây để thấy kết quả
+const POLL_MS = 15_000;
+
+/** Lập kế hoạch mới: ghi chú (không bắt buộc) -> việc cho worker điều phối chạy AI lập kỳ. */
+function NewPlanDialog({ channelId, noteMax, onClose }) {
+  const queryClient = useQueryClient();
+  const [note, setNote] = useState('');
+  const mutation = useMutation({
+    mutationFn: () => startPlanJob(channelId, note),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.planJob(channelId) });
+      onClose();
+    },
+  });
+
+  return (
+    <Dialog
+      title="Lập kế hoạch mới"
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="flex h-11 items-center rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container">
+            Huỷ
+          </button>
+          <button
+            type="button"
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+          >
+            <Icon name={mutation.isPending ? 'progress_activity' : 'auto_awesome'} className={`text-lg ${mutation.isPending ? 'animate-spin' : ''}`} />
+            Bắt đầu lập
+          </button>
+        </>
+      }
+    >
+      <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
+        <Icon name="info" className="text-base" />
+        <span>
+          AI lập kỳ mới theo cấu hình kênh (số ngày, số bài / ngày, khung giờ), tuyến nội dung, chủ đề đang bật và sản phẩm đã gắn
+          tag; làm luôn các bài đang đánh dấu &quot;Làm lại&quot;. Kênh còn thiếu chân dung / tuyến / template chữ thì AI soạn
+          trước (có thể cần bạn duyệt rồi bấm lại). Thường mất 10-30 phút.
+        </span>
+      </p>
+      <TextArea
+        label="Ghi chú cho AI (không bắt buộc)"
+        value={note}
+        maxLength={noteMax ?? 500}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="VD: tuần này đẩy giày đi tiệc cuối năm, hook vui hơn"
+      />
+      {mutation.error && <FormAlert>{mutation.error.message}</FormAlert>}
+    </Dialog>
+  );
+}
+
+/** Trạng thái + báo cáo của lượt lập kế hoạch gần nhất. */
+function PlanJobStatus({ job, onOpenPlan }) {
+  if (!job) return null;
+  const running = isPlanJobRunning(job);
+  const box = running
+    ? 'bg-sky-50 text-sky-900'
+    : job.status === 'completed'
+      ? 'bg-emerald-50 text-emerald-900'
+      : 'bg-error-container/60 text-on-error-container';
+  const head = {
+    queued: 'Đang chờ worker nhận việc lập kế hoạch...',
+    processing: 'AI đang lập kế hoạch (thường 10-30 phút)...',
+    completed: `Lượt lập kế hoạch lúc ${formatDateTime(job.finished_at)} đã xong.`,
+    failed: `Lập kế hoạch lỗi: ${job.error_message || 'worker không lập được'}. Bấm Lập kế hoạch mới để thử lại.`,
+  }[job.status];
+
+  return (
+    <div className={`space-y-1.5 rounded-xl px-3 py-2 text-xs ${box}`}>
+      <p className="flex items-center gap-2 font-semibold">
+        <Icon name={running ? 'progress_activity' : job.status === 'completed' ? 'check_circle' : 'error'} className={`text-base ${running ? 'animate-spin' : ''}`} />
+        <span className="flex-1">{head}</span>
+        {job.status === 'completed' && job.result?.plan_id && (
+          <button type="button" onClick={() => onOpenPlan(job.result.plan_id)} className="shrink-0 font-bold underline">
+            Xem kỳ
+          </button>
+        )}
+      </p>
+      {job.note && <p className="opacity-80">Ghi chú: {job.note}</p>}
+      {job.status === 'completed' && job.result?.summary && <p className="whitespace-pre-line leading-relaxed">{job.result.summary}</p>}
+    </div>
+  );
+}
+
+/** Tab Kế hoạch: nút "Lập kế hoạch mới" (việc cho worker điều phối chạy AI /lap-ke-hoach) + các kỳ đã lập; kỳ chờ duyệt
+ *  thì chủ shop duyệt / huỷ / bỏ bài. Kỳ đã huỷ tách sang tab con "Đã huỷ" (?view=cancelled). */
 export default function PlansTab({ channel }) {
+  const queryClient = useQueryClient();
   const { data, error, refetch } = useQuery({ queryKey: CHANNEL_KEYS.plans(channel.id), queryFn: () => listPlans(channel.id) });
+  const { data: planJob } = useQuery({
+    queryKey: CHANNEL_KEYS.planJob(channel.id),
+    queryFn: () => getPlanJob(channel.id),
+    refetchInterval: (q) => (isPlanJobRunning(q.state.data?.job) ? POLL_MS : false),
+  });
   const [openId, setOpenId] = useState(null);
+  const [newOpen, setNewOpen] = useState(false);
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'cancelled' ? 'cancelled' : 'active';
+  const job = planJob?.job;
+  const running = isPlanJobRunning(job);
+  // Lượt vừa chạy xong -> tải lại danh sách kỳ + lịch
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && !running) {
+      queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.plans(channel.id) });
+      queryClient.invalidateQueries({ queryKey: ['creator', 'channels', String(channel.id), 'calendar'] });
+    }
+    wasRunning.current = running;
+  }, [running, channel.id, queryClient]);
+
+  const hasDraft = data?.some((p) => p.status === 'draft');
+  const disabledReason = !planJob?.plan_worker
+    ? 'Shop chưa được gắn worker điều phối'
+    : running
+      ? 'Đang có lượt lập kế hoạch chưa xong'
+      : hasDraft
+        ? 'Kỳ trước đang chờ duyệt: duyệt hoặc huỷ kỳ đó trước'
+        : null;
+  const header = (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-on-surface-variant">AI lập kỳ đăng bài theo cấu hình kênh; kỳ mới chờ bạn duyệt (trừ khi bật tự duyệt).</p>
+        <button
+          type="button"
+          onClick={() => setNewOpen(true)}
+          disabled={!planJob || !!disabledReason}
+          title={disabledReason ?? undefined}
+          className="flex h-9 shrink-0 items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+        >
+          <Icon name="auto_awesome" className="text-base" />
+          Lập kế hoạch mới
+        </button>
+      </div>
+      {planJob && !planJob.plan_worker && (
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Shop chưa được gắn worker điều phối nên chưa lập kế hoạch tự động được. Liên hệ đội A51 để gắn.
+        </p>
+      )}
+      {planJob?.plan_worker && hasDraft && !running && (
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">Kỳ trước đang chờ duyệt: duyệt hoặc huỷ kỳ đó rồi mới lập kỳ mới.</p>
+      )}
+      <PlanJobStatus
+        job={job}
+        onOpenPlan={(id) => {
+          const next = new URLSearchParams(params);
+          next.delete('view');
+          setParams(next, { replace: true });
+          setOpenId(id);
+        }}
+      />
+      {newOpen && <NewPlanDialog channelId={channel.id} noteMax={planJob?.note_max} onClose={() => setNewOpen(false)} />}
+    </div>
+  );
 
   if (error) return <ErrorState error={error} onRetry={refetch} />;
   if (!data) return <Skeleton className="h-32 w-full" />;
   if (!data.length) {
-    return <EmptyState icon="event_note" message="Chưa có kỳ kế hoạch nào. Kế hoạch do đội A51 lập theo cấu hình của kênh." />;
+    return (
+      <div className="space-y-3">
+        {header}
+        <EmptyState icon="event_note" message="Chưa có kỳ kế hoạch nào. Bấm Lập kế hoạch mới để AI lập kỳ đầu tiên." />
+      </div>
+    );
   }
 
   const cancelledPlans = data.filter((p) => p.status === 'cancelled');
@@ -150,6 +316,7 @@ export default function PlansTab({ channel }) {
 
   return (
     <div className="space-y-3">
+      {header}
       <div className="flex gap-1" role="tablist" aria-label="Lọc kỳ kế hoạch">
         {views.map((v) => (
           <button
@@ -169,7 +336,7 @@ export default function PlansTab({ channel }) {
       {!plans.length && (
         <EmptyState
           icon="event_note"
-          message={view === 'cancelled' ? 'Chưa có kỳ nào bị huỷ.' : 'Không có kỳ đang dùng. Kế hoạch do đội A51 lập theo cấu hình của kênh.'}
+          message={view === 'cancelled' ? 'Chưa có kỳ nào bị huỷ.' : 'Không có kỳ đang dùng. Bấm Lập kế hoạch mới để AI lập kỳ mới.'}
         />
       )}
       {plans.map((p) => (

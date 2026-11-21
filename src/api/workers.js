@@ -23,6 +23,7 @@ export const WORKER_FUNCTIONS = {
   content: { label: 'Dựng nội dung', icon: 'auto_awesome_mosaic' },
   topic: { label: 'Lập chủ đề', icon: 'tag' },
   tag: { label: 'Gắn tag sản phẩm', icon: 'sell' },
+  plan: { label: 'Lập kế hoạch', icon: 'event_note' },
 };
 
 const mapWorker = (w) => ({

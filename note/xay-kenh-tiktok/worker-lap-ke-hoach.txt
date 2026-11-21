@@ -1,0 +1,42 @@
+WORKER LẬP KẾ HOẠCH (nút "Lập kế hoạch mới" ở tab Kế hoạch)
+======================================================================
+
+Ngày: 2026-11-21. Trạng thái: ĐÃ LÀM, chưa deploy.
+Người dùng yêu cầu: "ở trang kế hoạch cũng cho tao nút để bấm tạo kế hoạch mới" + "xây dựng worker kế hoạch".
+Liên quan: note/worker-dieu-phoi.txt (1 token / máy), note/gop-viec-worker.txt (worker_jobs), skill
+D:\FlowKit\.claude\skills\lap-ke-hoach.
+
+1. LUỒNG
+----------------------------------------
+Chủ shop vào /channels/<id>?tab=plans -> "Lập kế hoạch mới" -> nhập ghi chú (không bắt buộc) -> Bắt đầu lập
+ -> A51 tạo 1 việc worker_jobs type plan (payload {note})
+ -> worker ĐIỀU PHỐI của shop nhận (GET /api/v1/worker-jobs?types=...,plan) -> bộ xử lý con dieu-phoi/handlers/plan.py
+ -> claude -p "/lap-ke-hoach <id kênh> -- Chạy từ worker điều phối ... Ghi chú của chủ shop: ..." (Read, Write, Glob,
+    Bash(python:*)); skill tự lấy context + gửi kỳ qua API channel-plan bằng A51_PLAN_TOKEN trong .env của skill
+    (thư mục chạy = <thư mục việc>/run qua KEHOACH_RUN_DIR)
+ -> câu trả lời cuối của Claude (báo cáo bước 5) gửi về: POST /worker-jobs/{id} {status: completed, summary}
+ -> A51 lưu result {summary, plan_id, plan_status} (kỳ draft / approved mới nhất của kênh cập nhật trong lượt này)
+ -> tab Kế hoạch hiện trạng thái (tải lại 15 giây / lần khi đang chạy), báo cáo nguyên văn, nút "Xem kỳ".
+
+2. CHẶN KHI BẤM (409)
+----------------------------------------
+PLAN_WORKER_REQUIRED  shop chưa gắn worker điều phối
+CHANNEL_NOT_READY     kênh chưa chọn worker đăng bài / chưa có khung giờ
+TOPICS_REQUIRED       chưa có chủ đề đang bật (skill chỉ chọn chủ đề có sẵn)
+PLAN_DRAFT_PENDING    kỳ trước đang chờ duyệt (duyệt / huỷ trước)
+PLAN_JOB_RUNNING      đang có lượt chưa xong
+Chân dung / tuyến / template chữ còn thiếu thì KHÔNG chặn: skill tự soạn; cần duyệt thì skill dừng, báo cáo nhắc chủ shop
+duyệt rồi bấm lại.
+
+3. API
+----------------------------------------
+GET  /api/v1/creator/channels/{id}/plan-job         -> { plan_worker, job, note_max }
+POST /api/v1/creator/channels/{id}/plan-jobs {note?} -> 201 job
+Worker: GET /worker-jobs -> { id, type: plan, request: { channel_id, channel_name, note } };
+        POST /worker-jobs/{id} { status, summary | error_code, error_message }; extend như mọi loại (hạn 30 phút).
+
+4. MÁY ĐIỀU PHỐI
+----------------------------------------
+Worker::DISPATCH_TYPES thêm plan (worker điều phối có sẵn tự làm được, không tạo worker / token mới).
+dieu-phoi/.env: SLOTS_PLAN (mặc định 1), JOB_TIMEOUT_PLAN (mặc định 3000 giây). Cần .env của skill lap-ke-hoach trên máy
+(A51_PLAN_TOKEN, OUTFIT_API_TOKEN). Điều phối bản cũ (chưa cập nhật) không gửi plan trong ?types= nên không nhận nhầm.

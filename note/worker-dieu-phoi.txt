@@ -27,7 +27,7 @@ xay-kenh-tiktok/worker-gan-tag.txt, xay-kenh-tiktok/worker-content.txt.
 
 3. CHƯƠNG TRÌNH ĐIỀU PHỐI (D:\FlowKit\dieu-phoi)
 ----------------------------------------
-.env: A51_API_BASE_URL, A51_WORKER_TOKEN (worker loại Điều phối), SLOTS_CONTENT, SLOTS_TOPIC, SLOTS_TAG (số việc song song
+.env: A51_API_BASE_URL, A51_WORKER_TOKEN (worker loại Điều phối), SLOTS_CONTENT, SLOTS_TOPIC, SLOTS_TAG, SLOTS_PLAN (số việc song song
 mỗi loại, 0 = máy không làm loại đó), POLL_SECONDS, EXTEND_SECONDS, JOB_TIMEOUT_<LOẠI>.
 Vòng lặp: loại còn chỗ -> GET /worker-jobs?types=... -> chạy bộ xử lý con trong TIẾN TRÌNH RIÊNG (có hạn giờ) -> định kỳ
 gia hạn -> bộ con xong ghi result.json -> điều phối gửi kết quả (JSON, hoặc multipart files[] với dựng nội dung) /
@@ -36,6 +36,8 @@ Bộ xử lý con (không token, không tự hỏi / gửi): python <bộ con> <
   content: content-worker/handle.py (dựng ảnh theo dang/<key>.py) -> {status: completed, files: [...]}
   topic:   dieu-phoi/handlers/topic.py (claude -p "/lap-chu-de <thư mục>") -> {status: completed, topics}
   tag:     dieu-phoi/handlers/tag.py (gantag.py sheet + claude -p "/gan-tag-san-pham <thư mục>") -> {status: completed, items}
+  plan:    dieu-phoi/handlers/plan.py (claude -p "/lap-ke-hoach <id kênh> ...", thêm 2026-11-21,
+           xay-kenh-tiktok/worker-lap-ke-hoach.txt) -> {status: completed, summary}
   lỗi:     {status: failed, error_code, error_message}
 topic-worker, tag-worker (riêng) bỏ, gộp vào dieu-phoi. content-worker/worker.py (chạy riêng) giữ cho tới khi chuyển xong.
 

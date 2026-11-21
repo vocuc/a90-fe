@@ -16,6 +16,10 @@ import client from './client';
  * PUT    /creator/channels/{id}/text-templates/{t} { name?, style?, sample_text?, sample_keys? } ; POST .../{t}/approve | /reject
  * GET    /creator/channels/{id}/plans                 -> { data: PlanSummary[] }
  * GET    /creator/channels/{id}/plans/{p}             -> { data: Plan (kèm items) }
+ * GET    /creator/channels/{id}/plan-job              -> { data: { plan_worker, job, note_max } } (lượt "Lập kế hoạch mới"
+ *          gần nhất: { id, status: queued|processing|completed|failed, note, result: { summary, plan_id, plan_status },
+ *          error_message, created_at, finished_at })
+ * POST   /creator/channels/{id}/plan-jobs { note? }   -> 201 { data: job } (việc cho worker điều phối chạy /lap-ke-hoach)
  * POST   /creator/channels/{id}/plans/{p}/approve | /cancel
  * PUT    /creator/channels/{id}/plans/{p}/items/{i}   ; POST .../items/{i}/cancel
  * GET    /creator/channels/{id}/calendar?from=&to=    -> { data: CalendarPost[] }
@@ -45,6 +49,7 @@ export const CHANNEL_KEYS = {
   plan: (id, planId) => ['creator', 'channels', String(id), 'plans', String(planId)],
   calendar: (id, from, to) => ['creator', 'channels', String(id), 'calendar', from, to],
   topics: (id) => ['creator', 'channels', String(id), 'topics'],
+  planJob: (id) => ['creator', 'channels', String(id), 'plan-job'],
 };
 
 /** Nhãn những gì kênh còn thiếu (channel.missing). */
@@ -166,6 +171,13 @@ export const decideTextTemplate = (id, templateId, approve) =>
 // ---- Kỳ kế hoạch ----
 
 export const listPlans = (id) => client.get(`/creator/channels/${id}/plans`).then(({ data }) => data);
+
+export const getPlanJob = (id) => client.get(`/creator/channels/${id}/plan-job`).then(({ data }) => data);
+
+export const startPlanJob = (id, note) =>
+  client.post(`/creator/channels/${id}/plan-jobs`, { note: note?.trim() || null }).then(({ data }) => data);
+
+export const isPlanJobRunning = (job) => job?.status === 'queued' || job?.status === 'processing';
 
 export const getPlan = (id, planId) => client.get(`/creator/channels/${id}/plans/${planId}`).then(({ data }) => data);
 
