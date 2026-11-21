@@ -27,7 +27,8 @@ CHỈ BÀI ĐÃ LÀM XONG MỚI BẬT (người dùng chốt 2026-11-21)
 - Bài chưa bật: không thêm được vào tuyến (SAMPLE_NOT_READY), không lập kế hoạch được, không gắn template chữ được;
   tuyến cũ có bài chưa bật thì bài đó bị bỏ qua; tuyến không còn bài bật nào = kênh thiếu tuyến.
 - Frontend: tab Bài viết mẫu hiện "Chưa làm xong", tab Tuyến nội dung chỉ thêm được bài bật.
-- Bài video: chỉ Video - Type 01 (slot video theo tỉ lệ video của kênh). Kênh không dùng video: đặt tỉ lệ video = 0%.
+- Bài video: chỉ Video - Type 01. Số slot video của kỳ = % các bài viết mẫu video trong tuyến (ô "% bài video" ở Cấu hình đã
+  bỏ 2026-11-22). Kênh không dùng video: tuyến không có Video - Type 01.
 
 MỤC LỤC
 ----------------------------------------

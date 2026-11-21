@@ -18,7 +18,6 @@ const toForm = (c) => ({
   planDays: String(c.planDays),
   postsPerDay: String(c.postsPerDay),
   timeSlots: c.timeSlots.length ? c.timeSlots : [{ start: '11:00', end: '13:00' }],
-  videoPercent: String(c.videoPercent),
   autoApproveLineup: c.autoApproveLineup,
   autoApproveTemplates: c.autoApproveTemplates,
   autoApprovePlan: c.autoApprovePlan,
@@ -67,7 +66,6 @@ export default function SettingsTab({ channel }) {
       planDays: Number(form.planDays),
       postsPerDay: Number(form.postsPerDay),
       timeSlots: form.timeSlots,
-      videoPercent: Number(form.videoPercent || 0),
       autoApproveLineup: form.autoApproveLineup,
       autoApproveTemplates: form.autoApproveTemplates,
       autoApprovePlan: form.autoApprovePlan,
@@ -105,14 +103,16 @@ export default function SettingsTab({ channel }) {
       </Section>
 
       <Section title="Kế hoạch" subtitle="Đội A51 lập kế hoạch theo cấu hình này.">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <TextField label="Số ngày / kỳ" inputMode="numeric" value={form.planDays} onChange={(e) => change({ planDays: digits(e.target.value, 2) })}
             error={errors.plan_days} hint={`1-${limits.plan_days}`} />
           <TextField label="Số bài / ngày" inputMode="numeric" value={form.postsPerDay} onChange={(e) => change({ postsPerDay: digits(e.target.value, 2) })}
             error={errors.posts_per_day} hint={`1-${limits.posts_per_day}`} />
-          <TextField label="% bài video" inputMode="numeric" value={form.videoPercent} onChange={(e) => change({ videoPercent: digits(e.target.value, 3) })}
-            error={errors.video_percent} hint="0-100" />
         </div>
+        {/* Bỏ ô "% bài video" (2026-11-22): số bài video theo tỉ lệ bài viết mẫu video trong tuyến nội dung */}
+        <p className="text-[11px] text-on-surface-variant">
+          Số bài video mỗi kỳ theo tuyến nội dung (tỉ lệ các dạng bài video, vd Video - Type 01){channel.videoPercent ? `: hiện ${channel.videoPercent}% số bài.` : ': tuyến hiện chưa có dạng video.'}
+        </p>
         <div className="space-y-2">
           <p className="text-xs font-semibold text-on-surface">Khung giờ đăng (số bài chia đều vào các khung, giờ ngẫu nhiên trong khung)</p>
           {form.timeSlots.map((slot, i) => (

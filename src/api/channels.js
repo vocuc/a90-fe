@@ -122,7 +122,6 @@ export const updateChannel = (id, values) => {
     planDays: 'plan_days',
     postsPerDay: 'posts_per_day',
     timeSlots: 'time_slots',
-    videoPercent: 'video_percent',
     autoApproveLineup: 'auto_approve_lineup',
     autoApproveTemplates: 'auto_approve_templates',
     autoApprovePlan: 'auto_approve_plan',
