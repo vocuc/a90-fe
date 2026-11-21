@@ -52,3 +52,7 @@ dieu-phoi/.env: SLOTS_PLAN (mặc định 1), JOB_TIMEOUT_PLAN (mặc định 30
   tạo kỳ preparing. Skill bỏ bước soạn chân dung / tuyến / template, soạn bài cho đúng slot thiếu theo mọi luật cũ.
 - Gửi bài: kỳ đã duyệt nhận bài cho slot thiếu và tạo bài đăng ngay; dòng bài cũ (đã huỷ / mất bài đăng) của slot bị thay.
   Slot đã có bài -> rejected "Slot này đã có bài"; slot đã qua giờ -> rejected "Slot đã qua giờ đăng".
+- Slot thiếu tính theo CẤU HÌNH HIỆN TẠI (người dùng sửa cấu hình rồi nút không bấm được, sửa 2026-11-21): mỗi ngày của
+  kỳ cần posts_per_day bài; bài đang dùng giữ giờ; thiếu thì dùng lại giờ trống cũ, rồi thêm giờ mới (giữa mỗi phần của khung
+  giờ hiện tại, cách bài khác >= 20 phút, sau hiện tại 30 phút); giảm số bài thì giờ trống thừa bị bỏ. Video theo
+  video_percent hiện tại. Context bổ sung lưu lại slot của kỳ (refitSlots) để gửi bài đúng index.

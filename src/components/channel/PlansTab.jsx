@@ -27,9 +27,16 @@ const PLAN_STATUS = {
 
 function PlanItem({ channelId, planId, item, canCancel }) {
   const queryClient = useQueryClient();
+  const { confirm, alert } = useConfirm();
+  // Nút X: xoá hẳn bài khỏi kỳ (kèm bài đăng chưa được worker nhận); giờ đăng đó thành thiếu bài -> "Tạo bổ sung"
   const cancel = useMutation({
     mutationFn: () => cancelPlanItem(channelId, planId, item.id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.plan(channelId, planId) }),
+    onError: (err) => alert(err?.message || 'Không xoá được bài, vui lòng thử lại.'),
+    // Tải lại cả danh sách kỳ (số bài, số giờ thiếu bài của nút "Tạo bổ sung") + lịch
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.plans(channelId) });
+      queryClient.invalidateQueries({ queryKey: ['creator', 'channels', String(channelId), 'calendar'] });
+    },
   });
   const cancelled = item.status === 'cancelled';
 
@@ -77,7 +84,13 @@ function PlanItem({ channelId, planId, item, canCancel }) {
         {item.hashtags.length > 0 && <p className="truncate text-[11px] text-primary">{item.hashtags.map((h) => `#${h}`).join(' ')}</p>}
       </div>
       {canCancel && !cancelled && (
-        <button type="button" onClick={() => cancel.mutate()} disabled={cancel.isPending} aria-label="Huỷ bài này"
+        <button
+          type="button"
+          onClick={async () => {
+            if (await confirm('Xoá bài này khỏi kỳ? Bài đăng của bài (nếu có) cũng bị xoá.', { confirmLabel: 'Xoá bài', danger: true })) cancel.mutate();
+          }}
+          disabled={cancel.isPending}
+          aria-label="Xoá bài này"
           className="flex size-8 shrink-0 items-center justify-center rounded-lg text-error hover:bg-error-container/40">
           <Icon name="close" className="text-lg" />
         </button>
@@ -111,7 +124,8 @@ function PlanDetail({ channelId, planId }) {
         </ul>
       )}
       <ul className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
-        {plan.items.map((item) => (
+        {/* Kỳ chưa huỷ: bài đã huỷ (nút X bản cũ) coi như đã xoá, không hiện */}
+        {plan.items.filter((item) => !open || item.status !== 'cancelled').map((item) => (
           <PlanItem key={item.id} channelId={channelId} planId={planId} item={item} canCancel={open} />
         ))}
       </ul>
@@ -184,7 +198,8 @@ function NewPlanDialog({ channelId, noteMax, fillPlan = null, onClose }) {
         {fillPlan ? (
           <span>
             AI xem lại từng ngày của kỳ, giờ đăng nào chưa có bài (chưa lập, bài đã huỷ hoặc bài đăng đã bị xoá) thì soạn bài bổ
-            sung, cùng tuyến nội dung và chủ đề với kỳ. Hiện kỳ thiếu {fillPlan.missing_slots} bài.{' '}
+            sung, cùng tuyến nội dung và chủ đề với kỳ (tính theo cấu hình kênh hiện tại).{' '}
+            {fillPlan.missing_slots ? `Hiện kỳ thiếu ${fillPlan.missing_slots} bài. ` : ''}
             {fillPlan.status === 'approved' ? 'Kỳ đã duyệt: bài bổ sung vào lịch đăng luôn.' : 'Kỳ chờ duyệt: bài bổ sung chờ bạn duyệt cùng kỳ.'}
           </span>
         ) : (
@@ -408,18 +423,10 @@ export default function PlansTab({ channel }) {
               {(p.status === 'draft' || p.status === 'approved') && (
                 <button
                   type="button"
+                  // Luôn bấm được (người dùng chốt 2026-11-21): không được thì hộp thoại báo lý do (kỳ đủ bài, đang có lượt chạy...)
                   onClick={() => setFillPlan(p)}
-                  disabled={!planJob?.plan_worker || running || !p.missing_slots}
-                  title={
-                    !planJob?.plan_worker
-                      ? 'Shop chưa được gắn worker điều phối'
-                      : running
-                        ? 'Đang có lượt lập kế hoạch chưa xong'
-                        : !p.missing_slots
-                          ? 'Kỳ đã đủ bài (giờ đăng còn lại đều có bài)'
-                          : `Còn ${p.missing_slots} giờ đăng chưa có bài`
-                  }
-                  className="flex h-7 items-center gap-1 rounded-lg border border-outline-variant/60 px-2 text-[11px] font-bold text-on-surface hover:border-primary-container hover:text-primary disabled:opacity-50"
+                  title={p.missing_slots ? `Còn ${p.missing_slots} giờ đăng chưa có bài` : 'Bổ sung bài cho giờ đăng còn thiếu của kỳ'}
+                  className="flex h-7 items-center gap-1 rounded-lg border border-outline-variant/60 px-2 text-[11px] font-bold text-on-surface hover:border-primary-container hover:text-primary"
                 >
                   <Icon name="playlist_add" className="text-base" />
                   Tạo bổ sung{p.missing_slots ? ` (${p.missing_slots})` : ''}
