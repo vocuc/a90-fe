@@ -1,0 +1,170 @@
+ĐẶC TẢ: CHỦ ĐỀ KÊNH + TAG SẢN PHẨM AI + LẤY SẢN PHẨM QUA API (tối ưu token /lap-ke-hoach)
+======================================================================
+
+Ngày: 2026-11-21. Trạng thái: ĐÃ DUYỆT. Backend, frontend, skill /gan-tag-san-pham ĐÃ LÀM (2026-11-21); còn sửa /lap-ke-hoach.
+Liên quan: dac-ta-giai-doan-1.txt (mục 5.7, 6.2), bai-viet-mau/top_n.txt, skill D:\FlowKit\.claude\skills\lap-ke-hoach.
+Backend: D:\OSPanel\home\a90.local. Frontend: D:\a90-fe.
+
+0. LÝ DO
+----------------------------------------
+- context.json ~310KB / lần chạy: images 252KB (400 ảnh), riêng thumb_url (link S3 ký) 170KB. Lệnh phải đọc hết.
+- Sản phẩm không có tên (kênh 1: 62/63 name null) -> Top N phải xem ảnh để biết kiểu giày, lần chạy nào cũng xem lại.
+- Hướng: thông tin sản phẩm AI xem 1 lần, lưu DB A51; /lap-ke-hoach lấy dữ liệu gọn qua API, không đọc ảnh.
+
+1. QUYẾT ĐỊNH ĐÃ CHỐT (người dùng 2026-11-21)
+----------------------------------------
+1. Xem ảnh + gắn tag sản phẩm = SKILL RIÊNG, chỉ chạy khi người dùng gọi. Chạy theo SHOP.
+2. Tag sản phẩm theo bộ enum ở mục 2. Không có điểm đẹp (ai_score).
+3. Chủ shop sửa được tag trên A51; AI chỉ cập nhật tag do AI đặt, không ghi đè tag chủ shop đã sửa.
+4. Top N: AI nghĩ hook theo chủ đề, tìm sản phẩm theo tag; mỗi sản phẩm A51 trả 1 ảnh NGẪU NHIÊN trong 10 ảnh tạo
+   gần nhất của sản phẩm, AI dùng luôn ảnh đó (không chọn ảnh). Phần "ưu tiên ảnh có tay người mẫu" TẠM BỎ (2026-11-21).
+5. CHỦ ĐỀ là dữ liệu của KÊNH, dùng chung cho MỌI loại bài (không riêng Top N), để sau này thống kê chủ đề nào được
+   quan tâm. Chủ đề CỤ THỂ (dịp + tình huống: "Đi chúc Tết", không phải "Tết"). AI tự tạo chủ đề, không cần duyệt.
+   AI tạo hook theo chủ đề + loại bài.
+6. Chống lặp: cùng chủ đề + cùng loại bài không lặp trong 14 ngày (khác loại bài thì được).
+7. Bài cũ chưa có chủ đề: bỏ qua (không gắn bù).
+
+2. TAG SẢN PHẨM
+----------------------------------------
+Bảng products thêm:
+- ai_label        varchar(60) null   nhãn ngắn, vd "Cao gót mũi nhọn đỏ" (Top N in "#k <ai_label>, <lý do>")
+- tags            json null           {kieu, got, mau, phong_cach[], dip[]}
+- tag_sources     json null           nguồn từng trường: {"ai_label":"ai","kieu":"owner",...} (ai | owner)
+- tagged_at       datetime null       lần AI gắn gần nhất
+- tagged_image_id bigint null         product_images.id của ảnh bìa AI đã xem (đổi ảnh bìa -> coi là cần gắn lại)
+
+Giá trị (enum, backend kiểm tra, sai -> 422):
+- kieu        (1):    cao_got, sandal, bup_be, mule, sneaker, boot, dep, slingback
+- got         (1):    bet, thap, vua, cao
+- mau         (1-2):  chữ tự do ngắn, vd "do", "kem", "den"
+- phong_cach  (1-3):  sang_chanh, nhe_nhang, tre_trung, ca_tinh, basic
+- dip         (1-4):  di_lam, di_tiec, tet, hen_ho, di_choi, cafe
+- ai_label:   <= 60 ký tự, không emoji, không tên hãng.
+
+Luật ghi:
+- AI gửi tag -> backend chỉ ghi trường có nguồn "ai" hoặc chưa có; trường "owner" giữ nguyên (bỏ qua, không lỗi).
+- Chủ shop sửa trường nào trên A51 -> nguồn trường đó thành "owner". Chủ shop xoá giá trị -> trả về chưa có (AI gắn lại được).
+
+Frontend (trang Sản phẩm, sửa sản phẩm): khối "Tag (AI)" hiện ai_label + các tag, sửa được (chọn enum), trường do AI
+đặt có nhãn nhỏ "AI".
+
+3. ẢNH CỦA SẢN PHẨM (tạm bỏ "ảnh có tay người mẫu" 2026-11-21)
+----------------------------------------
+- Mỗi sản phẩm A51 trả 1 ảnh ngẫu nhiên trong 10 ảnh tạo gần nhất (generation_outputs usable, kind=product, đúng
+  product_id). Mỗi lần gọi random lại -> bài Top N sau tự đổi ảnh.
+- Sau này nếu làm lại: cờ has_model_hand trên ai_creatives, ưu tiên ảnh từ Creative có cờ.
+
+4. CHỦ ĐỀ KÊNH
+----------------------------------------
+Bảng channel_topics:
+- id, channel_id, name varchar(80) (cụ thể: "Đi chúc Tết", "Đi làm cả ngày không đau chân")
+- tags json null     bộ lọc tag sản phẩm của chủ đề, cùng enum mục 2 (vd {"dip":["tet"],"phong_cach":["sang_chanh"]})
+- source             ai | owner
+- status             active | paused (chủ shop tạm tắt -> AI không dùng)
+- timestamps. Unique (channel_id, name) không phân biệt hoa thường.
+
+social_posts thêm topic_id null (FK channel_topics, null on delete). Bài cũ để null.
+Sau này (NGOÀI phạm vi): A51 chưa thu view / like / lưu của bài TikTok; khi có thì thống kê gom theo topic_id.
+
+Ghi chủ đề:
+- Item plan / redo gửi topic_id (chủ đề có sẵn) HOẶC topic {name, tags} (chủ đề mới -> A51 tạo, source ai; trùng tên
+  -> dùng chủ đề có sẵn). Bắt buộc với MỌI loại bài.
+- Backend từ chối (rejected) nếu cùng topic + cùng sample_key đã có bài trong kênh có scheduled_at trong vòng 14 ngày
+  trước / sau slot (TOPIC_REPEATED). Bài bị xoá / làm lại không tính.
+
+Frontend (Kênh TikTok -> kênh): tab / khối "Chủ đề": danh sách chủ đề, số bài theo loại bài, lần dùng gần nhất; sửa
+tên / tags, tạm tắt. Bài trong lịch hiện tên chủ đề.
+
+5. API CHO /lap-ke-hoach (prefix v1/channel-plan, token channel-plan)
+----------------------------------------
+GET channels/{id}/context (GỌN LẠI)
+  - BỎ images, products (chuyển sang endpoint riêng). Giữ: channel, persona, lineup, text_templates, post_samples,
+    all_post_samples, video_templates, recent_posts (thêm topic), holidays, plan, draft_plan_id, redo_requests, missing.
+  - Thêm topics: [{id, name, tags, status, posts: {<sample_key>: số bài}, last_used: {<sample_key>: ngày}}]
+    (chỉ active).
+  - Thêm product_tags: {tagged: số sản phẩm đã gắn tag, untagged: số chưa} để lệnh nhắc chạy skill gắn tag.
+
+GET channels/{id}/products?kieu=&got=&mau=&phong_cach=&dip=&limit=
+  - Sản phẩm active của shop ĐÃ CÓ TAG, lọc theo tag (mỗi tham số nhiều giá trị cách dấu phẩy = HOẶC; giữa các tham số
+    = VÀ). Không tham số = tất cả đã gắn tag.
+  - Mỗi sản phẩm: {id, label, tags, used (số bài trong kênh có ảnh sản phẩm này), last_used_at,
+    ref (1 ảnh ngẫu nhiên trong 10 ảnh tạo gần nhất kind=product của sản phẩm)}.
+    Sản phẩm không có ảnh tạo nào -> không trả.
+  - Không trả thumb_url.
+
+6. SKILL GẮN TAG SẢN PHẨM (mới, tên tạm /gan-tag-san-pham <id-shop>)
+----------------------------------------
+Thư mục D:\FlowKit\.claude\skills\gan-tag-san-pham, dùng chung .env token channel-plan.
+API:
+- GET  shops/{user}/products/untagged?all=0|1  sản phẩm active chưa gắn tag hoặc đổi ảnh bìa (all=1: mọi sản phẩm):
+       [{id, name, prompt_note, cover: {image_id, thumb_url}, tags, tag_sources}]
+- PUT  shops/{user}/products/tags  {items: [{id, image_id, ai_label, tags}]} -> {updated, skipped_owner_fields, errors}
+Bước:
+0. CHỈ xem ảnh sản phẩm có trường anh_san_pham (người dùng chốt 2026-11-21): danh sách untagged chỉ gồm sản phẩm có
+   ảnh trường này, cover = ảnh đó; tagged_image_id = id ảnh đó (thay ảnh anh_san_pham -> cần gắn lại).
+1. Lấy danh sách. Rỗng -> báo "đã gắn đủ", dừng.
+2. Script ghép ảnh bìa thành lưới (16 ô / tấm, mỗi ô ghi id) -> Claude xem từng tấm.
+3. Claude soạn ai_label + tags (đúng enum) cho từng sản phẩm, đọc thêm name / prompt_note nếu có.
+4. Gửi PUT theo lô; báo số đã gắn / bỏ qua trường chủ shop sửa / lỗi.
+
+7. /lap-ke-hoach SAU KHI ĐỔI (mọi loại bài)
+----------------------------------------
+Mỗi slot:
+1. Chọn CHỦ ĐỀ: dùng chủ đề có sẵn trong context.topics hoặc tạo mới (cụ thể, hợp chân dung + dịp gần ngày đăng).
+   Không chọn chủ đề đã dùng cho cùng loại bài trong 14 ngày.
+2. Chọn loại bài theo tỉ lệ tuyến.
+3. Tạo HOOK từ chủ đề + loại bài.
+4. Lấy nguyên liệu theo tags chủ đề (Top N: API products; Lookbook / Outfit theo ngày: hashtag OOTD như hiện tại).
+5. Gửi item kèm topic_id hoặc topic {name, tags}.
+Không đọc ảnh, không gọi thumbs cho Top N.
+
+Riêng Top N:
+1. Chủ đề -> tags lọc (vd "Đi chúc Tết" -> dip=tet; "Đi làm cả ngày không đau chân" -> dip=di_lam, got=bet,thap).
+2. GET products theo tags. < 4 sản phẩm -> nới (bỏ tham số hẹp: got, phong_cach, mau; giữ dip), tối đa 2 lần; vẫn
+   thiếu -> đổi chủ đề; vẫn thiếu -> bỏ Top N ở slot đó, báo "còn X sản phẩm chưa gắn tag, chạy /gan-tag-san-pham".
+3. Chọn N = 4-7 sản phẩm KHÁC NHAU: ưu tiên used thấp / lâu chưa dùng, khớp nhiều tag chủ đề hơn.
+   Ảnh đầu (4 ảnh khi N = 4-5, 6 ảnh khi N >= 6) ghép bìa -> chọn khác kieu / mau.
+4. Ảnh = ref A51 trả về (không chọn, không xem ảnh).
+5. #1 = hợp chủ đề nhất. Chữ ảnh "#k <label>, <lý do 2-4 từ theo tag khớp chủ đề>". Hook "Top N đôi ..." N = số ảnh.
+
+8. VÍ DỤ ITEM TOP N
+----------------------------------------
+{"slot_index": 0, "sample_key": "top_n", "format": "photo",
+ "topic": {"name": "Đi chúc Tết", "tags": {"dip": ["tet"]}},
+ "hook": "Top 5 đôi giày đi chúc Tết", "text_template_id": 5,
+ "images": [{"ref": "g3976-o3988", "text": "#1 Cao gót mũi nhọn đỏ, sang chảnh"},
+            {"ref": "g3970-o3982", "text": "#2 Sandal quai mảnh kem, nhẹ nhàng"},
+            {"ref": "g3955-o3967", "text": "#3 Slingback gót vuông, đi lâu êm"},
+            {"ref": "g3962-o3974", "text": "#4 Búp bê nơ nhung, dịu dàng"},
+            {"ref": "g2993-o3005", "text": "#5 Mule đỏ đô, hợp áo dài"}],
+ "title": "Đi chúc Tết chốt đôi nào đây các nàng ơi", "content": "",
+ "hashtags": ["giaydichuctet", "caogotdontet", "giaytetxinh"]}
+
+9. THỨ TỰ LÀM
+----------------------------------------
+BACKEND ĐÃ LÀM (2026-11-21):
+- Migration 2026_11_21_160000_add_product_tags_and_channel_topics. App\Support\ProductTags (enum, clean, apply nguồn),
+  App\Models\ChannelTopic, Services\Channel\ChannelTopicService, Services\Channel\ProductTagService.
+- API lệnh (v1/channel-plan): GET channels/{id}/products, GET shops/{user}/products/untagged, PUT shops/{user}/products/tags;
+  context bỏ images + products, thêm topics, topic_repeat_days, product_tags {tagged, untagged}; recent_posts có topic.
+  Item plan / redo bắt buộc topic_id hoặc topic {name, tags}; chủ shop sửa bài draft không gửi chủ đề -> giữ chủ đề cũ.
+- API chủ shop (v1/creator): PUT products/{id}/tags {ai_label?, tags?}; GET channels/{id}/topics -> {topics, tag_options};
+  PUT channels/{id}/topics/{topic} {name?, tags?, status?}. ProductResource có ai_label, tags, tag_sources, tagged_at;
+  lịch đăng + bài kế hoạch có topic (tên).
+
+1. Backend: migration (products tag, channel_topics, social_posts.topic_id), API mục 5-6,
+   ghi topic + luật 14 ngày khi nhận plan / redo, test.
+2. Frontend: tag sản phẩm, khối Chủ đề kênh.
+3. Skill /gan-tag-san-pham.
+4. Sửa skill /lap-ke-hoach (SKILL.md + kehoach.py: lệnh products, bỏ đọc images) + bai-viet-mau/top_n.txt, README.txt.
+
+FRONTEND ĐÃ LÀM (2026-11-21):
+- Sản phẩm (/seller/items): thẻ sản phẩm có khối Tag (nhãn + chip), nút "Sửa tag" (chủ sản phẩm) -> ProductTagsDialog
+  (components/product), chỉ gửi trường đã đổi; nhãn "AI" / "Shop sửa" từng trường. api/productTags.js (enum + nhãn).
+- Kênh: tab "Chủ đề" (components/channel/TopicsTab.jsx): danh sách, số bài theo loại bài, sửa tên + tag lọc, tạm tắt / bật.
+- Lịch đăng, kế hoạch: nhãn chủ đề (TopicBadge) trên bài.
+
+10. CÂU HỎI CÒN MỞ
+----------------------------------------
+1. Tên skill gắn tag: /gan-tag-san-pham được chưa?
+2. Ảnh tạo chưa gắn sản phẩm (product_id null, kind=product) -> Top N không dùng được (không biết tag). Chấp nhận?

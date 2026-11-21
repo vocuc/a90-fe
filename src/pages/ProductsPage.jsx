@@ -7,6 +7,8 @@ import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
 import ProductFormDialog from '../components/product/ProductFormDialog';
 import ProductShareDialog from '../components/product/ProductShareDialog';
+import ProductTagsDialog from '../components/product/ProductTagsDialog';
+import { tagChips } from '../api/productTags';
 import { useCreatorProfile } from '../hooks/creatorQueries';
 import { AUTO_KEYS, deleteProduct, getProductImageFile, listProducts, setProductActive } from '../api/autoBatch';
 import { Switch } from '../components/template/inputs';
@@ -19,7 +21,48 @@ const TABS = [
   { value: 'inactive', label: 'Không hoạt động', icon: 'toggle_off', isActive: false },
 ];
 
-function ProductCard({ product, onEdit }) {
+/** Tag sản phẩm (AI gắn, chủ shop sửa): nhãn ngắn + chip tag, nút sửa cho chủ sản phẩm. */
+function ProductTags({ product, onEditTags }) {
+  const chips = tagChips(product.tags);
+  return (
+    <div className="!mt-2 rounded-lg border border-outline-variant/40 px-2 py-1.5">
+      <div className="flex items-center gap-1">
+        <p className="flex-1 truncate text-[11px] font-semibold text-on-surface-variant">
+          {product.aiLabel ? (
+            <>
+              Tag: <span className="text-on-surface">{product.aiLabel}</span>
+            </>
+          ) : (
+            'Chưa gắn tag'
+          )}
+        </p>
+        {product.isOwner && (
+          <button
+            type="button"
+            onClick={onEditTags}
+            className="flex h-6 items-center gap-0.5 rounded-md px-1.5 text-[11px] font-bold text-primary hover:bg-surface-container"
+          >
+            <Icon name="sell" className="text-sm" />
+            Sửa tag
+          </button>
+        )}
+      </div>
+      {chips.length > 0 ? (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {chips.map((c) => (
+            <span key={`${c.field}-${c.value}`} className="rounded bg-surface-container px-1.5 py-0.5 text-[11px] text-on-surface-variant">
+              {c.label}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-0.5 text-[11px] text-on-surface-variant">Đội A51 gắn tag (cần ảnh trường anh_san_pham), hoặc bạn tự gắn.</p>
+      )}
+    </div>
+  );
+}
+
+function ProductCard({ product, onEdit, onEditTags }) {
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -126,6 +169,7 @@ function ProductCard({ product, onEdit }) {
         <p className="text-xs text-on-surface-variant">
           {product.images.length} ảnh sản phẩm · Đã tạo {product.generatedImageCount} ảnh
         </p>
+        <ProductTags product={product} onEditTags={onEditTags} />
         {/* Bật tắt là của chủ sản phẩm; người được chia sẻ chỉ xem trạng thái */}
         <div className="!mt-2 rounded-lg bg-surface-container-low px-2 py-1.5">
           <Switch
@@ -202,6 +246,8 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState(null);
   // Hộp thoại chia sẻ hàng loạt
   const [sharing, setSharing] = useState(false);
+  // Sản phẩm đang sửa tag
+  const [tagging, setTagging] = useState(null);
 
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: AUTO_KEYS.products,
@@ -346,7 +392,7 @@ export default function ProductsPage() {
               <ul className="grid gap-3 lg:grid-cols-4">
                 {products.map((p) => (
                   <li key={p.id}>
-                    <ProductCard product={p} onEdit={() => setEditing({ product: p })} />
+                    <ProductCard product={p} onEdit={() => setEditing({ product: p })} onEditTags={() => setTagging(p)} />
                   </li>
                 ))}
               </ul>
@@ -368,6 +414,26 @@ export default function ProductsPage() {
           onClose={() => setSharing(false)}
           // Giữ hộp thoại mở để xem kết quả / chia sẻ tiếp; danh sách tải lại số tài khoản đang chia sẻ
           onSaved={() => queryClient.invalidateQueries({ queryKey: AUTO_KEYS.products })}
+        />
+      )}
+
+      {tagging && (
+        <ProductTagsDialog
+          product={tagging}
+          onClose={() => setTagging(null)}
+          onSaved={(saved) => {
+            setTagging(null);
+            // Cập nhật thẻ ngay trong cache (giữ số liệu khác của danh sách)
+            queryClient.setQueryData(AUTO_KEYS.products, (old) =>
+              old && {
+                ...old,
+                pages: old.pages.map((pg) => ({
+                  ...pg,
+                  items: pg.items.map((it) => (it.id === saved.id ? { ...it, aiLabel: saved.aiLabel, tags: saved.tags, tagSources: saved.tagSources } : it)),
+                })),
+              },
+            );
+          }}
         />
       )}
 

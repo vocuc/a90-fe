@@ -5,7 +5,8 @@ Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loạ
 Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
 D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
 TRẠNG THÁI: ĐÃ LÀM (2026-11-21): lệnh gửi N ảnh xếp hạng, content-worker dựng bìa ghép + in chữ (worker-content.txt).
-Chỉ bài ảnh (bỏ video). Lệnh KHÔNG gửi ảnh bìa; N = số ảnh gửi (3-7).
+Chỉ bài ảnh (bỏ video). Lệnh KHÔNG gửi ảnh bìa; N = số ảnh gửi (4-7, bỏ Top 3 từ 2026-11-21).
+Bìa ghép (chốt 2026-11-21): N = 4-5 -> 4 ảnh đầu (2x2); N >= 6 -> 6 ảnh đầu (2x3).
 
 1. THÔNG TIN
 ----------------------------------------

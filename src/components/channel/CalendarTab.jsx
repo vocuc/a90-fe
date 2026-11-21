@@ -8,7 +8,7 @@ import { FormAlert, TextField } from '../common/Form';
 import { PostStatusBadge } from '../social/PostStatus';
 import { CHANNEL_KEYS, getCalendar, getTextTemplates, setRedo, updateOverlays } from '../../api/channels';
 import TikTokPreview from './TikTokPreview';
-import { formatDateTime, formatDay } from './Section';
+import { TopicBadge, formatDateTime, formatDay } from './Section';
 
 const EDITABLE = ['generating', 'pending_review', 'queued'];
 const toDate = (d) => d.toISOString().slice(0, 10);
@@ -49,6 +49,7 @@ function PostDialog({ channelId, channelName, templates, post, onClose, showPrev
           )}
         </div>
         {post.last_error && <FormAlert>{post.last_error.message}</FormAlert>}
+        {post.topic && <TopicBadge name={post.topic} />}
         {post.hook && <p className="text-sm font-semibold text-on-surface">Hook: {post.hook}</p>}
         {post.title && <p className="text-sm text-on-surface">{post.title}</p>}
         {post.hashtags.length > 0 && <p className="text-xs text-primary">{post.hashtags.map((h) => `#${h}`).join(' ')}</p>}
@@ -177,6 +178,7 @@ export default function CalendarTab({ channel, previewSlot }) {
                         {new Date(p.scheduled_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                         {p.sample_name && ` · ${p.sample_name}`} · {p.type === 'video' ? 'Video' : `${p.images.length} ảnh`}
                       </p>
+                      {p.topic && <TopicBadge name={p.topic} />}
                       <p className="line-clamp-2 text-sm font-semibold text-on-surface">{p.hook || p.title || 'Bài đăng'}</p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">

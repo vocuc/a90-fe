@@ -31,6 +31,16 @@ export function Switch({ checked, onChange, label, hint, disabled }) {
   );
 }
 
+/** Nhãn chủ đề của bài (chủ đề kênh, note/xay-kenh-tiktok/chu-de-va-tag-san-pham.txt mục 4). */
+export function TopicBadge({ name }) {
+  return (
+    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary-fixed/40 px-2 py-0.5 text-[11px] font-semibold text-primary">
+      <span aria-hidden="true">#</span>
+      <span className="truncate">{name}</span>
+    </span>
+  );
+}
+
 export const formatDateTime = (iso) =>
   iso ? new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
 

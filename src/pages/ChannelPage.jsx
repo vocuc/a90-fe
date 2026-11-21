@@ -10,6 +10,7 @@ import PlansTab from '../components/channel/PlansTab';
 import LineupTab from '../components/channel/LineupTab';
 import PostSamplesTab from '../components/channel/PostSamplesTab';
 import TextTemplatesTab from '../components/channel/TextTemplatesTab';
+import TopicsTab from '../components/channel/TopicsTab';
 import PersonaTab from '../components/channel/PersonaTab';
 import SettingsTab from '../components/channel/SettingsTab';
 
@@ -17,6 +18,7 @@ const TABS = [
   { key: 'calendar', label: 'Lịch đăng', icon: 'calendar_month' },
   { key: 'plans', label: 'Kế hoạch', icon: 'event_note' },
   { key: 'lineup', label: 'Tuyến nội dung', icon: 'view_list' },
+  { key: 'topics', label: 'Chủ đề', icon: 'tag' },
   // Tab Bài viết mẫu: tạm ẩn (người dùng yêu cầu 2026-11-20), bỏ comment dòng dưới để hiện lại
   // { key: 'samples', label: 'Bài viết mẫu', icon: 'library_books' },
   { key: 'templates', label: 'Template chữ', icon: 'text_fields' },
@@ -24,7 +26,7 @@ const TABS = [
   { key: 'settings', label: 'Cấu hình', icon: 'tune' },
 ];
 
-/** /channels/:id: lịch đăng, kế hoạch, tuyến nội dung, template chữ, chân dung khách hàng, cấu hình của 1 kênh. */
+/** /channels/:id: lịch đăng, kế hoạch, tuyến nội dung, chủ đề, template chữ, chân dung khách hàng, cấu hình của 1 kênh. */
 export default function ChannelPage() {
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
@@ -89,6 +91,7 @@ export default function ChannelPage() {
             {tab === 'calendar' && <CalendarTab channel={channel} previewSlot={previewSlot} />}
             {tab === 'plans' && <PlansTab channel={channel} />}
             {tab === 'lineup' && <LineupTab channel={channel} />}
+            {tab === 'topics' && <TopicsTab channel={channel} />}
             {tab === 'samples' && <PostSamplesTab channel={channel} />}
             {tab === 'templates' && <TextTemplatesTab channel={channel} />}
             {tab === 'persona' && <PersonaTab channel={channel} />}

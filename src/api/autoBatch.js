@@ -15,6 +15,7 @@ import { mapBatch } from './batches';
  *          cho sản phẩm (generations.product_id: lô tay, lô tự động, tạo lại); quá dài -> 422 errors["prompt_note"]
  * DELETE /creator/products/{id}                   -> 204
  * PUT    /creator/products/{id}/active            { is_active } -> { data: Product }; sản phẩm tắt không được tạo tự động
+ * PUT    /creator/products/{id}/tags              tag sản phẩm (api/productTags.js)
  * GET    /creator/creative-groups                 -> { data: CreativeGroup[] } (cũ nhất trước = thứ tự tạo lô)
  * POST   /creator/creative-groups                 { name, creative_ids } -> 201 ; PUT /creator/creative-groups/{id}
  * DELETE /creator/creative-groups/{id}            -> 204
@@ -48,7 +49,7 @@ export const AUTO_STOP = {
 // Product::PROMPT_NOTE_MAX ở backend
 export const PROMPT_NOTE_MAX = 2000;
 
-const mapProduct = (p) => ({
+export const mapProduct = (p) => ({
   id: p.id,
   name: p.name,
   promptNote: p.prompt_note ?? '',
@@ -56,6 +57,10 @@ const mapProduct = (p) => ({
   coverUrl: p.cover_url,
   images: p.images.map((i) => ({ id: i.id, url: i.url, thumbUrl: i.thumb_url ?? i.url, fieldKey: i.field_key })),
   hashtags: (p.hashtags ?? []).map((h) => h.name),
+  // Tag sản phẩm (AI gắn, chủ shop sửa): nhãn ngắn + { kieu, got, mau[], phong_cach[], dip[] } + nguồn từng trường ai|owner
+  aiLabel: p.ai_label ?? '',
+  tags: p.tags ?? null,
+  tagSources: p.tag_sources ?? {},
   autoBatchCount: p.auto_batch_count,
   // Số ảnh đã tạo xong cho sản phẩm (không tính ảnh lỗi / đang tạo / đã tắt)
   generatedImageCount: p.generated_image_count ?? 0,

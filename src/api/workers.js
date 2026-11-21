@@ -19,6 +19,8 @@ export const WORKER_FUNCTIONS = {
   image: { label: 'Tạo ảnh', icon: 'image' },
   publish: { label: 'Đăng bài', icon: 'upload' },
   video: { label: 'Tạo video', icon: 'movie' },
+  outfit: { label: 'Phối đồ', icon: 'checkroom' },
+  content: { label: 'Dựng nội dung', icon: 'auto_awesome_mosaic' },
 };
 
 const mapWorker = (w) => ({

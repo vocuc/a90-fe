@@ -21,6 +21,11 @@ import client from './client';
  * GET    /creator/channels/{id}/calendar?from=&to=    -> { data: CalendarPost[] }
  * PUT    /creator/channel-posts/{post}/overlays { overlays: [{ image_id, text, text_template_id }] }
  * POST   /creator/channel-posts/{post}/redo | DELETE  đánh dấu / bỏ đánh dấu làm lại
+ * GET    /creator/channels/{id}/topics                -> { data: { topics: Topic[], tag_options } }
+ *          Topic: { id, name, tags (bộ lọc tag sản phẩm), source: ai|owner, status: active|paused,
+ *                   posts: { sample_key: số bài }, last_used: { sample_key: 'YYYY-MM-DD' } }
+ * PUT    /creator/channels/{id}/topics/{t} { name?, tags?, status? } -> { data: Topic } (sửa tên / tags -> nguồn owner)
+ *          Chủ đề: note/xay-kenh-tiktok/chu-de-va-tag-san-pham.txt mục 4. AI tự tạo khi lập kế hoạch; tạm tắt -> AI không dùng.
  * Soạn nội dung (chân dung, tuyến, template, kỳ) do lệnh /lap-ke-hoach của đội A51 làm, không có API ở đây.
  */
 
@@ -34,6 +39,7 @@ export const CHANNEL_KEYS = {
   plans: (id) => ['creator', 'channels', String(id), 'plans'],
   plan: (id, planId) => ['creator', 'channels', String(id), 'plans', String(planId)],
   calendar: (id, from, to) => ['creator', 'channels', String(id), 'calendar', from, to],
+  topics: (id) => ['creator', 'channels', String(id), 'topics'],
 };
 
 /** Nhãn những gì kênh còn thiếu (channel.missing). */
@@ -177,3 +183,12 @@ export const updateOverlays = (postId, overlays) =>
 
 export const setRedo = (postId, on) =>
   (on ? client.post(`/creator/channel-posts/${postId}/redo`) : client.delete(`/creator/channel-posts/${postId}/redo`)).then(({ data }) => data);
+
+// ---- Chủ đề ----
+
+export const TOPIC_STATUS = { ACTIVE: 'active', PAUSED: 'paused' };
+
+export const getTopics = (id) => client.get(`/creator/channels/${id}/topics`).then(({ data }) => data.topics);
+
+export const updateTopic = (id, topicId, values) =>
+  client.put(`/creator/channels/${id}/topics/${topicId}`, values).then(({ data }) => data);

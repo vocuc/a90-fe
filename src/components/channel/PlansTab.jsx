@@ -6,7 +6,7 @@ import { EmptyState, ErrorState, Skeleton } from '../common/Feedback';
 import { FormAlert } from '../common/Form';
 import { useConfirm } from '../common/ConfirmDialog';
 import { CHANNEL_KEYS, cancelPlanItem, decidePlan, getPlan, listPlans } from '../../api/channels';
-import Section, { formatDateTime } from './Section';
+import Section, { TopicBadge, formatDateTime } from './Section';
 
 const PLAN_STATUS = {
   draft: { label: 'Chờ duyệt', className: 'bg-amber-50 text-amber-700' },
@@ -43,6 +43,7 @@ function PlanItem({ channelId, planId, item, canCancel }) {
         <p className="text-[11px] text-on-surface-variant">
           {formatDateTime(item.scheduled_at)} · {item.sample_name} · {item.format === 'video' ? 'Video' : item.outfit ? `Tạo lô phối đồ ${item.outfit.count} ảnh khi duyệt` : `${item.images.length} ảnh`}
         </p>
+        {item.topic && <TopicBadge name={item.topic} />}
         <p className="line-clamp-2 text-sm font-semibold text-on-surface">{item.hook}</p>
         {item.title && <p className="truncate text-xs text-on-surface-variant">{item.title}</p>}
         {item.outfit?.tags?.length > 0 && (
