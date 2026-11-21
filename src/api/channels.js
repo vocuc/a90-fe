@@ -21,6 +21,7 @@ import client from './client';
  *          error_message, created_at, finished_at })
  * POST   /creator/channels/{id}/plan-jobs { note? }   -> 201 { data: job } (việc cho worker điều phối chạy /lap-ke-hoach)
  * POST   /creator/channels/{id}/plans/{p}/approve | /cancel
+ * DELETE /creator/channels/{id}/plans/{p}            -> xoá hẳn kỳ ĐÃ HUỶ
  * PUT    /creator/channels/{id}/plans/{p}/items/{i}   ; POST .../items/{i}/cancel
  * GET    /creator/channels/{id}/calendar?from=&to=    -> { data: CalendarPost[] }
  * PUT    /creator/channel-posts/{post}/overlays { overlays: [{ image_id, text, text_template_id }] }
@@ -183,6 +184,9 @@ export const getPlan = (id, planId) => client.get(`/creator/channels/${id}/plans
 
 export const decidePlan = (id, planId, approve) =>
   client.post(`/creator/channels/${id}/plans/${planId}/${approve ? 'approve' : 'cancel'}`).then(({ data }) => data);
+
+/** Xoá hẳn kỳ đã huỷ (409 PLAN_NOT_CANCELLED khi kỳ chưa huỷ). */
+export const deletePlan = (id, planId) => client.delete(`/creator/channels/${id}/plans/${planId}`).then(({ data }) => data);
 
 export const cancelPlanItem = (id, planId, itemId) =>
   client.post(`/creator/channels/${id}/plans/${planId}/items/${itemId}/cancel`).then(({ data }) => data);

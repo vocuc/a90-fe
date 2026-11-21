@@ -10,6 +10,7 @@ import {
   CHANNEL_KEYS,
   cancelPlanItem,
   decidePlan,
+  deletePlan,
   getPlan,
   getPlanJob,
   isPlanJobRunning,
@@ -184,8 +185,37 @@ function NewPlanDialog({ channelId, noteMax, onClose }) {
   );
 }
 
+/** Xoá hẳn kỳ đã huỷ (bài đã đăng của kỳ vẫn giữ). */
+function DeletePlanButton({ channelId, plan }) {
+  const queryClient = useQueryClient();
+  const { confirm, alert } = useConfirm();
+  const remove = useMutation({
+    mutationFn: () => deletePlan(channelId, plan.id),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: CHANNEL_KEYS.plan(channelId, plan.id) });
+      queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.plans(channelId) });
+    },
+    onError: (err) => alert(err?.message || 'Không xoá được kỳ, vui lòng thử lại.'),
+  });
+
+  return (
+    <button
+      type="button"
+      disabled={remove.isPending}
+      aria-label="Xoá kỳ đã huỷ"
+      title="Xoá kỳ"
+      onClick={async () => {
+        if (await confirm('Xoá hẳn kỳ đã huỷ này? Không khôi phục được (bài đã đăng vẫn giữ).', { confirmLabel: 'Xoá kỳ', danger: true })) remove.mutate();
+      }}
+      className="flex size-7 items-center justify-center rounded-lg text-error hover:bg-error-container/40 disabled:opacity-50"
+    >
+      <Icon name={remove.isPending ? 'progress_activity' : 'delete'} className={`text-lg ${remove.isPending ? 'animate-spin' : ''}`} />
+    </button>
+  );
+}
+
 /** Trạng thái + báo cáo của lượt lập kế hoạch gần nhất. */
-function PlanJobStatus({ job, onOpenPlan }) {
+function PlanJobStatus({ job, planExists, onOpenPlan }) {
   if (!job) return null;
   const running = isPlanJobRunning(job);
   const box = running
@@ -205,7 +235,7 @@ function PlanJobStatus({ job, onOpenPlan }) {
       <p className="flex items-center gap-2 font-semibold">
         <Icon name={running ? 'progress_activity' : job.status === 'completed' ? 'check_circle' : 'error'} className={`text-base ${running ? 'animate-spin' : ''}`} />
         <span className="flex-1">{head}</span>
-        {job.status === 'completed' && job.result?.plan_id && (
+        {job.status === 'completed' && job.result?.plan_id && planExists && (
           <button type="button" onClick={() => onOpenPlan(job.result.plan_id)} className="shrink-0 font-bold underline">
             Xem kỳ
           </button>
@@ -276,6 +306,7 @@ export default function PlansTab({ channel }) {
       )}
       <PlanJobStatus
         job={job}
+        planExists={!!data?.some((p) => p.id === job?.result?.plan_id)}
         onOpenPlan={(id) => {
           const next = new URLSearchParams(params);
           next.delete('view');
@@ -345,7 +376,10 @@ export default function PlansTab({ channel }) {
           title={`Kỳ ${new Date(p.start_date).toLocaleDateString('vi-VN')} · ${p.days} ngày`}
           subtitle={`${p.total_items} bài`}
           action={
-            <span className={`shrink-0 rounded px-2 py-0.5 text-[11px] font-bold ${PLAN_STATUS[p.status]?.className}`}>{PLAN_STATUS[p.status]?.label ?? p.status}</span>
+            <div className="flex shrink-0 items-center gap-1">
+              <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${PLAN_STATUS[p.status]?.className}`}>{PLAN_STATUS[p.status]?.label ?? p.status}</span>
+              {p.status === 'cancelled' && <DeletePlanButton channelId={channel.id} plan={p} />}
+            </div>
           }
         >
           {current === p.id ? (
