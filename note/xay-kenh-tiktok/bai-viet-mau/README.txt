@@ -17,6 +17,15 @@ QUY TẮC CHUNG (mọi loại)
 - Không bịa thông tin: giá, ưu đãi, chính sách, bảng size chỉ dùng khi có trong Yêu cầu kênh.
 - Bài sai bị backend trả rejected kèm lý do: sửa, gửi lại tối đa 2 lần, vẫn sai thì để trống slot.
 
+CHỈ BÀI ĐÃ LÀM XONG MỚI BẬT (người dùng chốt 2026-11-21)
+----------------------------------------
+- PostSamples::READY (D:\OSPanel\home\a90.local\app\Support\PostSamples.php) = danh sách bài bật, hiện: lookbook,
+  outfit_by_day. Làm xong bài nào thì thêm key vào READY + đổi trạng thái trong mục lục thành "ĐÃ LÀM".
+- Bài chưa bật: không thêm được vào tuyến (SAMPLE_NOT_READY), không lập kế hoạch được, không gắn template chữ được;
+  tuyến cũ có bài chưa bật thì bài đó bị bỏ qua; tuyến không còn bài bật nào = kênh thiếu tuyến.
+- Frontend: tab Bài viết mẫu hiện "Chưa làm xong", tab Tuyến nội dung chỉ thêm được bài bật.
+- Hai bài bật đều CHỈ LÀ ẢNH -> slot video không có bài nào: đặt tỉ lệ video của kênh = 0%.
+
 MỤC LỤC
 ----------------------------------------
 Trưng bày hàng:
@@ -30,9 +39,9 @@ So sánh, chọn lựa:
   which_suits_you        Bạn hợp đôi nào              LÀM ĐƯỢC
 Phối đồ:
   lookbook               Phối đồ                      ĐÃ LÀM: chủ đề + hashtag -> lô phối đồ có sẵn hook, tìm outfit theo hashtag
-  one_shoe_many_looks    1 đôi N cách phối            LÀM ĐƯỢC NẾU CÓ ẢNH KHỚP (khó)
+  one_shoe_many_looks    1 đôi N cách phối            LÀM ĐƯỢC NẾU CÓ ẢNH KHỚP (khó) - tạm gác 2026-11-21
   box_to_feet            Từ hộp lên chân              LÀM ĐƯỢC NẾU CÓ ẢNH KHỚP (rất khó)
-  outfit_by_day          Outfit theo ngày / dịp       LÀM ĐƯỢC (dùng ảnh phối đồ có sẵn)
+  outfit_by_day          Outfit theo ngày / dịp       ĐÃ LÀM: lô phối đồ mới, worker in nhãn ngày thay 'Outfit N'
 Kể chuyện, cảm xúc:
   pov                    POV                          LÀM ĐƯỢC
   meme_types             Meme 'N kiểu người'          LÀM ĐƯỢC

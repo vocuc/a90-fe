@@ -48,6 +48,9 @@ function PlanItem({ channelId, planId, item, canCancel }) {
         {item.outfit?.tags?.length > 0 && (
           <p className="truncate text-[11px] text-on-surface-variant">Tìm outfit theo: {item.outfit.tags.map((t) => `#${t}`).join(' ')}</p>
         )}
+        {item.outfit?.labels?.length > 0 && (
+          <p className="line-clamp-2 text-[11px] text-on-surface-variant">Nhãn ảnh: {item.outfit.labels.join(' · ')}</p>
+        )}
         {item.hashtags.length > 0 && <p className="truncate text-[11px] text-primary">{item.hashtags.map((h) => `#${h}`).join(' ')}</p>}
       </div>
       {canCancel && !cancelled && (

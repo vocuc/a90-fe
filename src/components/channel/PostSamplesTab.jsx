@@ -19,13 +19,15 @@ function SampleCard({ sample, percent }) {
   const goal = GOALS[sample.goal];
   const used = percent != null;
   return (
-    <article className={`space-y-2 rounded-2xl border p-3 ${used ? 'border-primary-container bg-primary-fixed/10' : 'border-outline-variant/40'}`}>
+    <article className={`space-y-2 rounded-2xl border p-3 ${used ? 'border-primary-container bg-primary-fixed/10' : 'border-outline-variant/40'} ${sample.enabled ? '' : 'opacity-60'}`}>
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-bold text-on-surface">{sample.name}</h3>
           <p className="text-[11px] text-outline">{sample.key}</p>
         </div>
-        {used ? (
+        {!sample.enabled ? (
+          <span className="shrink-0 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-semibold text-outline">Chưa làm xong</span>
+        ) : used ? (
           <span className="shrink-0 rounded-full bg-primary-container px-2 py-0.5 text-[11px] font-bold text-on-primary">Kênh dùng {percent}%</span>
         ) : (
           <span className="shrink-0 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-semibold text-on-surface-variant">Chưa dùng</span>
@@ -81,7 +83,9 @@ export default function PostSamplesTab({ channel }) {
   if (!data) return <Skeleton className="h-60 w-full" />;
 
   const percents = Object.fromEntries((lineups?.current?.items ?? []).map((i) => [i.sample_key, i.percent]));
-  const samples = onlyUsed ? data.items.filter((s) => percents[s.key] != null) : data.items;
+  // Bài đã làm xong (enabled) xếp trước; bài chưa làm xong chỉ để xem, không dùng được
+  const samples = (onlyUsed ? data.items.filter((s) => percents[s.key] != null) : data.items)
+    .slice().sort((a, b) => Number(b.enabled) - Number(a.enabled));
   const groups = Object.entries(data.groups)
     .map(([key, label]) => ({ key, label, items: samples.filter((s) => s.group === key) }))
     .filter((g) => g.items.length);
@@ -90,7 +94,7 @@ export default function PostSamplesTab({ channel }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <p className="min-w-0 flex-1 text-xs text-on-surface-variant">
-          {data.items.length} bài viết mẫu dùng chung mọi shop. Mỗi bài là một cách dựng bài: số slide, loại ảnh từng slide, slide nào có chữ. Muốn
+          {data.items.length} bài viết mẫu dùng chung mọi shop, mới dùng được {data.items.filter((s) => s.enabled).length} bài đã làm xong. Mỗi bài là một cách dựng bài: số slide, loại ảnh từng slide, slide nào có chữ. Muốn
           thêm bài viết mẫu mới, liên hệ đội A51.
         </p>
         <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs font-semibold text-on-surface">

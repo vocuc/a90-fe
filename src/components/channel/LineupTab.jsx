@@ -8,13 +8,20 @@ import Section from './Section';
 
 function LineupRows({ items, editing, onChange, samples }) {
   const total = items.reduce((s, i) => s + Number(i.percent || 0), 0);
-  const unused = samples.filter((s) => !items.some((i) => i.sample_key === s.key));
+  // Chỉ bài viết mẫu ĐÃ LÀM XONG (enabled) mới thêm được vào tuyến
+  const unused = samples.filter((s) => s.enabled && !items.some((i) => i.sample_key === s.key));
+  const disabled = new Set(samples.filter((s) => !s.enabled).map((s) => s.key));
   return (
     <div className="space-y-2">
       {items.map((item, idx) => (
         <div key={item.sample_key} className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-on-surface">{item.name ?? item.sample_key}</p>
+            <p className="truncate text-sm font-semibold text-on-surface">
+              {item.name ?? item.sample_key}
+              {disabled.has(item.sample_key) && (
+                <span className="ml-1.5 rounded bg-error-container/60 px-1.5 py-0.5 text-[10px] font-bold text-error">Chưa làm xong, bỏ qua</span>
+              )}
+            </p>
             {item.reason && <p className="truncate text-[11px] text-on-surface-variant">{item.reason}</p>}
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-container">
               <div className="h-full rounded-full bg-primary-container" style={{ width: `${Math.min(100, item.percent)}%` }} />

@@ -4,12 +4,13 @@ BÀI VIẾT MẪU: OUTFIT THEO NGÀY / DỊP (outfit_by_day)
 Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
 Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
 D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
-TRẠNG THÁI: LÀM ĐƯỢC (dùng ảnh phối đồ có sẵn)
+TRẠNG THÁI: ĐÃ LÀM (2026-11-21): bài = hook + nhãn ngày + hashtag; duyệt -> lô phối đồ mới, worker v2 in nhãn ngày lên
+ảnh outfit thay "Outfit N" (theo template chữ).
 
 1. THÔNG TIN
 ----------------------------------------
-Nhóm: Phối đồ   Mục tiêu: Lưu bài   Định dạng: Ảnh, video   Số slide: 3-8
-Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
+Nhóm: Phối đồ   Mục tiêu: Lưu bài   Định dạng: Ảnh (bỏ video từ 2026-11-21: lô phối đồ chỉ cho bài ảnh)   Số slide: 3-8
+Nguồn ảnh: Tạo LÔ PHỐI ĐỒ mới khi duyệt kỳ (như lookbook), lệnh KHÔNG chọn ảnh.
 Cùng 1 sản phẩm: Không bắt buộc
 Dùng khi: Có >= 3 ảnh phối đồ, gần dịp có nhiều ngày (Tết, tuần đi làm, chuyến du lịch).
 Không dùng khi: Ít ảnh phối đồ.
@@ -53,9 +54,23 @@ Ví dụ:
 - Ảnh phối đồ đã in 'Outfit N' của lô gốc -> số in trên ảnh lệch với 'Mùng 1, Mùng 2'.
 - Có thể bị lộn số nếu lấy ảnh từ nhiều lô.
 
+LUỒNG ĐÃ LÀM (2026-11-21) - mục 2, 4, 6, 7 ở trên là bản cũ, theo luồng này:
+- Lệnh gửi {sample_key:'outfit_by_day', hook:'3 ngày Tết mặc gì cho xinh?', outfit:{count, tags, labels, product_id?},
+  text_template_id?, title, hashtags}, KHÔNG gửi images. labels = đúng count - 1 nhãn "<Ngày>: <mô tả 2-4 từ>",
+  <= 30 ký tự, không trùng; A51 bỏ emoji, gộp khoảng trắng.
+- A51: PostSamples outfit_by_day = outfit_batch, chỉ ảnh, cờ outfit_labels. ChannelPlanService::validateLabels.
+  image_batches.outfit_labels (migration 2026_11_21_140000). Job worker có batch.outfit_labels.
+  Template chữ phải gắn loại bài outfit_by_day (tab Template chữ).
+- Worker v2 (D:\FlowKit\phoi-do-v2\worker.py do_outfit): lô có nhãn -> ChatGPT vẽ không chữ (prompt/bia.txt), in
+  nhãn theo template chữ của lô, logo. Bìa như lookbook (in hook).
+- Skill /lap-ke-hoach đã cập nhật. Frontend PlansTab hiện "Nhãn ảnh".
+- Test: ChannelPlanTest::test_outfit_by_day_creates_outfit_batch_with_day_labels.
+Hạn chế: worker chọn outfit theo hashtag, KHÔNG theo mô tả trong nhãn -> nhãn nên chung chung theo dịp
+("Mùng 1: Đi chúc Tết"), tránh tả món cụ thể ("Áo dài đỏ") vì ảnh có thể không phải áo dài.
+
 10. CÂU HỎI CẦN CHỐT
 ----------------------------------------
 1. Bài này có chuyển sang tạo lô phối đồ như lookbook không?
-   TRẢ LỜI:
+   TRẢ LỜI (2026-11-21): Có, lô mới, in nhãn ngày thay "Outfit N".
 2. Có ưu tiên ảnh cùng 1 lô, đúng thứ tự Outfit N?
-   TRẢ LỜI:
+   TRẢ LỜI: Không cần nữa (lô mới, nhãn in theo vị trí ảnh).
