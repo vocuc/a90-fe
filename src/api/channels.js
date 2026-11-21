@@ -175,8 +175,9 @@ export const listPlans = (id) => client.get(`/creator/channels/${id}/plans`).the
 
 export const getPlanJob = (id) => client.get(`/creator/channels/${id}/plan-job`).then(({ data }) => data);
 
-export const startPlanJob = (id, note) =>
-  client.post(`/creator/channels/${id}/plan-jobs`, { note: note?.trim() || null }).then(({ data }) => data);
+/** planId: "Tạo bổ sung" cho kỳ đó (worker soạn bài cho slot còn thiếu); bỏ trống = lập kỳ mới. */
+export const startPlanJob = (id, note, planId = null) =>
+  client.post(`/creator/channels/${id}/plan-jobs`, { note: note?.trim() || null, plan_id: planId || undefined }).then(({ data }) => data);
 
 export const isPlanJobRunning = (job) => job?.status === 'queued' || job?.status === 'processing';
 

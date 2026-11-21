@@ -40,3 +40,15 @@ Worker: GET /worker-jobs -> { id, type: plan, request: { channel_id, channel_nam
 Worker::DISPATCH_TYPES thêm plan (worker điều phối có sẵn tự làm được, không tạo worker / token mới).
 dieu-phoi/.env: SLOTS_PLAN (mặc định 1), JOB_TIMEOUT_PLAN (mặc định 3000 giây). Cần .env của skill lap-ke-hoach trên máy
 (A51_PLAN_TOKEN, OUTFIT_API_TOKEN). Điều phối bản cũ (chưa cập nhật) không gửi plan trong ?types= nên không nhận nhầm.
+
+5. TẠO BỔ SUNG CHO 1 KỲ (người dùng yêu cầu 2026-11-21)
+----------------------------------------
+"ở mỗi kỳ thêm nút tạo bổ sung, worker kế hoạch sẽ xem lại danh sách nội dung của ngày hôm đó nếu thiếu thì bổ sung".
+- Kỳ chờ duyệt / đã duyệt có nút "Tạo bổ sung (N)", N = số slot THIẾU BÀI: giờ đăng còn sau 30 phút và chưa có bài đang
+  dùng (chưa có bài / bài đã huỷ / bài đăng của slot đã bị xoá) - ChannelPlanService::missingSlots. N = 0 thì nút mờ.
+- Bấm -> việc plan payload {note, plan_id}; không bị chặn PLAN_DRAFT_PENDING. 409 PLAN_FULL (hết slot thiếu), PLAN_CLOSED
+  (kỳ đã huỷ). Worker chạy /lap-ke-hoach <id kênh> --bo-sung <id kỳ>.
+- Context ?fill_plan=<id kỳ>: plan = kỳ đó {fill: true, status, slots = chỉ slot thiếu, items = bài đang có của kỳ}, không
+  tạo kỳ preparing. Skill bỏ bước soạn chân dung / tuyến / template, soạn bài cho đúng slot thiếu theo mọi luật cũ.
+- Gửi bài: kỳ đã duyệt nhận bài cho slot thiếu và tạo bài đăng ngay; dòng bài cũ (đã huỷ / mất bài đăng) của slot bị thay.
+  Slot đã có bài -> rejected "Slot này đã có bài"; slot đã qua giờ -> rejected "Slot đã qua giờ đăng".

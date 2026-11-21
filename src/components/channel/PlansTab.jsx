@@ -143,12 +143,15 @@ function PlanDetail({ channelId, planId }) {
 // Lượt lập kế hoạch đang chạy: tải lại mỗi 15 giây để thấy kết quả
 const POLL_MS = 15_000;
 
-/** Lập kế hoạch mới: ghi chú (không bắt buộc) -> việc cho worker điều phối chạy AI lập kỳ. */
-function NewPlanDialog({ channelId, noteMax, onClose }) {
+/**
+ * Lập kế hoạch mới, hoặc "Tạo bổ sung" cho 1 kỳ (fillPlan: kỳ đó, worker xem từng ngày của kỳ, slot nào chưa có bài thì
+ * soạn bổ sung): ghi chú (không bắt buộc) -> việc cho worker điều phối chạy AI.
+ */
+function NewPlanDialog({ channelId, noteMax, fillPlan = null, onClose }) {
   const queryClient = useQueryClient();
   const [note, setNote] = useState('');
   const mutation = useMutation({
-    mutationFn: () => startPlanJob(channelId, note),
+    mutationFn: () => startPlanJob(channelId, note, fillPlan?.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.planJob(channelId) });
       onClose();
@@ -157,7 +160,7 @@ function NewPlanDialog({ channelId, noteMax, onClose }) {
 
   return (
     <Dialog
-      title="Lập kế hoạch mới"
+      title={fillPlan ? 'Tạo bổ sung cho kỳ' : 'Lập kế hoạch mới'}
       onClose={onClose}
       footer={
         <>
@@ -171,18 +174,26 @@ function NewPlanDialog({ channelId, noteMax, onClose }) {
             className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
           >
             <Icon name={mutation.isPending ? 'progress_activity' : 'auto_awesome'} className={`text-lg ${mutation.isPending ? 'animate-spin' : ''}`} />
-            Bắt đầu lập
+            {fillPlan ? 'Bắt đầu bổ sung' : 'Bắt đầu lập'}
           </button>
         </>
       }
     >
       <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
         <Icon name="info" className="text-base" />
-        <span>
-          AI lập kỳ mới theo cấu hình kênh (số ngày, số bài / ngày, khung giờ), tuyến nội dung, chủ đề đang bật và sản phẩm đã gắn
-          tag; làm luôn các bài đang đánh dấu &quot;Làm lại&quot;. Kênh còn thiếu chân dung / tuyến / template chữ thì AI soạn
-          trước (có thể cần bạn duyệt rồi bấm lại). Thường mất 10-30 phút.
-        </span>
+        {fillPlan ? (
+          <span>
+            AI xem lại từng ngày của kỳ, giờ đăng nào chưa có bài (chưa lập, bài đã huỷ hoặc bài đăng đã bị xoá) thì soạn bài bổ
+            sung, cùng tuyến nội dung và chủ đề với kỳ. Hiện kỳ thiếu {fillPlan.missing_slots} bài.{' '}
+            {fillPlan.status === 'approved' ? 'Kỳ đã duyệt: bài bổ sung vào lịch đăng luôn.' : 'Kỳ chờ duyệt: bài bổ sung chờ bạn duyệt cùng kỳ.'}
+          </span>
+        ) : (
+          <span>
+            AI lập kỳ mới theo cấu hình kênh (số ngày, số bài / ngày, khung giờ), tuyến nội dung, chủ đề đang bật và sản phẩm đã
+            gắn tag; làm luôn các bài đang đánh dấu &quot;Làm lại&quot;. Kênh còn thiếu chân dung / tuyến / template chữ thì AI
+            soạn trước (có thể cần bạn duyệt rồi bấm lại). Thường mất 10-30 phút.
+          </span>
+        )}
       </p>
       <TextArea
         label="Ghi chú cho AI (không bắt buộc)"
@@ -234,11 +245,12 @@ function PlanJobStatus({ job, planExists, onOpenPlan }) {
     : job.status === 'completed'
       ? 'bg-emerald-50 text-emerald-900'
       : 'bg-error-container/60 text-on-error-container';
+  const what = job.fill_plan_id ? 'tạo bổ sung kỳ' : 'lập kế hoạch';
   const head = {
-    queued: 'Đang chờ worker nhận việc lập kế hoạch...',
-    processing: 'AI đang lập kế hoạch (thường 10-30 phút)...',
-    completed: `Lượt lập kế hoạch lúc ${formatDateTime(job.finished_at)} đã xong.`,
-    failed: `Lập kế hoạch lỗi: ${job.error_message || 'worker không lập được'}. Bấm Lập kế hoạch mới để thử lại.`,
+    queued: `Đang chờ worker nhận việc ${what}...`,
+    processing: `AI đang ${what} (thường 10-30 phút)...`,
+    completed: `Lượt ${what} lúc ${formatDateTime(job.finished_at)} đã xong.`,
+    failed: `${job.fill_plan_id ? 'Tạo bổ sung' : 'Lập kế hoạch'} lỗi: ${job.error_message || 'worker không làm được'}. Bấm lại để thử lại.`,
   }[job.status];
 
   return (
@@ -270,6 +282,8 @@ export default function PlansTab({ channel }) {
   });
   const [openId, setOpenId] = useState(null);
   const [newOpen, setNewOpen] = useState(false);
+  // Kỳ đang mở hộp "Tạo bổ sung"
+  const [fillPlan, setFillPlan] = useState(null);
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'cancelled' ? 'cancelled' : 'active';
   const job = planJob?.job;
@@ -326,6 +340,7 @@ export default function PlansTab({ channel }) {
         }}
       />
       {newOpen && <NewPlanDialog channelId={channel.id} noteMax={planJob?.note_max} onClose={() => setNewOpen(false)} />}
+      {fillPlan && <NewPlanDialog channelId={channel.id} noteMax={planJob?.note_max} fillPlan={fillPlan} onClose={() => setFillPlan(null)} />}
     </div>
   );
 
@@ -390,6 +405,26 @@ export default function PlansTab({ channel }) {
             <div className="flex shrink-0 items-center gap-1">
               <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${PLAN_STATUS[p.status]?.className}`}>{PLAN_STATUS[p.status]?.label ?? p.status}</span>
               {p.status === 'cancelled' && <DeletePlanButton channelId={channel.id} plan={p} />}
+              {(p.status === 'draft' || p.status === 'approved') && (
+                <button
+                  type="button"
+                  onClick={() => setFillPlan(p)}
+                  disabled={!planJob?.plan_worker || running || !p.missing_slots}
+                  title={
+                    !planJob?.plan_worker
+                      ? 'Shop chưa được gắn worker điều phối'
+                      : running
+                        ? 'Đang có lượt lập kế hoạch chưa xong'
+                        : !p.missing_slots
+                          ? 'Kỳ đã đủ bài (giờ đăng còn lại đều có bài)'
+                          : `Còn ${p.missing_slots} giờ đăng chưa có bài`
+                  }
+                  className="flex h-7 items-center gap-1 rounded-lg border border-outline-variant/60 px-2 text-[11px] font-bold text-on-surface hover:border-primary-container hover:text-primary disabled:opacity-50"
+                >
+                  <Icon name="playlist_add" className="text-base" />
+                  Tạo bổ sung{p.missing_slots ? ` (${p.missing_slots})` : ''}
+                </button>
+              )}
             </div>
           }
         >
