@@ -1,0 +1,47 @@
+WORKER LẬP CHỦ ĐỀ (xây dựng chủ đề kênh tự động / thủ công)
+======================================================================
+
+Ngày: 2026-11-21. Trạng thái: ĐÃ LÀM (backend + frontend + worker + skill), chưa deploy / chưa migrate.
+Liên quan: chu-de-va-tag-san-pham.txt (mục 4 chủ đề kênh), a90-fe note/gop-viec-worker.txt (mọi việc worker ở worker_jobs).
+
+1. NGƯỜI DÙNG CHỐT (2026-11-21)
+----------------------------------------
+- Trang /channels/{id}?tab=topics có 2 nút: "Tự động" (xây dựng chủ đề tự động) và "Thủ công".
+- Tự động: tạo 1 việc cho worker lập chủ đề; worker nhận việc -> gọi skill Claude /lap-chu-de -> trả chủ đề về A51.
+- Chủ shop nhập SỐ chủ đề (1-30, mặc định 10) + ghi chú tuỳ chọn cho AI.
+- Chủ đề worker trả về: LƯU LUÔN, bật sẵn (nguồn ai), bỏ qua trùng tên.
+- /lap-ke-hoach CHỈ chọn chủ đề có sẵn của kênh (không tự tạo); hết chủ đề dùng được -> nhắc chủ shop bấm xây dựng.
+
+2. LUỒNG
+----------------------------------------
+Chủ shop bấm Tự động (số chủ đề, ghi chú)
+  -> POST /creator/channels/{id}/topic-jobs -> worker_jobs type topic (queued, payload {count, note}).
+     409 TOPIC_WORKER_REQUIRED: shop chưa gắn worker loại "Lập chủ đề"; 409 TOPIC_JOB_RUNNING: đang có lượt chưa xong.
+Worker lập chủ đề (D:\FlowKit\topic-worker) GET /worker-jobs -> { id, type: topic, request }
+  request: count, note, today, channel {id, name, shop, requirements}, persona, post_samples, holidays (120 ngày tới),
+  existing_topics, tag_options, product_tags {counts theo giá trị tag, tagged, untagged}.
+  -> ghi job/<ngày>/kenh<id>-job<id>/request.json
+  -> claude -p "/lap-chu-de <thư mục>" --permission-mode acceptEdits --allowedTools Read,Write,Glob (chạy ở D:\FlowKit)
+  -> skill ghi topics.json = { topics: [{ name, tags }] }
+  -> POST /worker-jobs/{id} { status: completed, topics } -> A51 tạo chủ đề hợp lệ chưa có, trả result
+     { created[], skipped[] (trùng tên), errors[] }; lỗi -> { status: failed, error_code, error_message }.
+Việc giữ 30 phút (TopicJob::LEASE_MINUTES), quá hạn worker khác nhận lại.
+Tab Chủ đề hiện trạng thái lượt gần nhất (chờ worker / AI đang lập / xong: thêm X, bỏ qua Y / lỗi), tự tải lại 10 giây
+khi đang chạy.
+
+Thủ công: POST /creator/channels/{id}/topics { name, tags? } (nguồn owner, bật sẵn; trùng tên -> 422).
+
+3. CODE
+----------------------------------------
+Backend: Worker::TYPE_TOPIC ("Lập chủ đề"), WorkerJob::TYPE_TOPIC, model TopicJob, Services\Channel\TopicJobService,
+  migration 2026_11_21_180000 (worker_jobs + channel_id, payload, result), ProductTagService::summary,
+  ChannelTopicService::check từ chối chủ đề chưa có (TOPIC_NOT_FOUND). Test: tests/Feature/TopicWorkerTest.php.
+Frontend: components/channel/TopicsTab.jsx (2 nút, AutoBuildDialog, TopicDialog thêm / sửa, JobStatus), api/channels.js.
+Worker: D:\FlowKit\topic-worker (worker.py, .env.example, run_topic_worker.bat). Skill: D:\FlowKit\.claude\skills\lap-chu-de.
+Chạy thử skill với request mẫu 3 chủ đề: ~16 giây, ra topics.json đúng dạng.
+
+4. CÀI ĐẶT
+----------------------------------------
+1. Admin A51 -> Worker -> tạo worker loại "Lập chủ đề", gắn tài khoản shop.
+2. Máy worker: có Claude Code đã đăng nhập; chép topic-worker/.env.example -> .env, điền A51_WORKER_TOKEN; chạy
+   run_topic_worker.bat.

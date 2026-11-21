@@ -1,0 +1,89 @@
+ĐẶC TẢ: GỘP MỌI VIỆC CỦA WORKER VÀO 1 BẢNG (worker_jobs, phân biệt bằng type)
+======================================================================
+
+Ngày: 2026-11-21. Trạng thái: ĐÃ LÀM backend + worker FlowKit (2026-11-21), CHƯA deploy / chưa chạy migrate.
+Người dùng chốt: "tất cả các công việc cần worker đều lưu tập trung vào một nơi".
+Backend: D:\OSPanel\home\a90.local. Worker: D:\FlowKit. Frontend: D:\a90-fe.
+
+1. HIỆN TRẠNG (4 loại việc, 3 cách lưu, 3 API)
+----------------------------------------
+| type    | Việc                               | Lưu ở                     | 1 việc  | Worker  | API                    | FlowKit              |
+| image   | Tạo ảnh Creative (lô tay / tự động) | generation_outputs        | 1 ảnh   | image   | GET/POST /v1/jobs      | image-worker         |
+| outfit  | Tạo ảnh lô phối đồ (bìa + outfit)  | generation_outputs        | 1 ảnh   | outfit  | GET/POST /v1/jobs (+extend, /batch) | phoi-do-v2, phoi-do-worker |
+| content | Dựng bài ảnh (in chữ, bìa Top N)   | content_jobs              | 1 bài   | content | GET/POST /v1/content-jobs | content-worker    |
+| publish | Đăng bài (video: dựng rồi đăng)    | social_publish_jobs       | 1 bài   | publish | GET/POST /v1/post-jobs | web, phone-video     |
+Không phải việc worker (giữ nguyên): social_content_jobs (AI viết caption qua queue Laravel), API phụ
+/v1/video-images, /v1/video-templates/sync.
+Khác nhau hiện tại: hạn giữ việc (ảnh: ai90.worker.lease_minutes, content: 10 phút, publish: không hết hạn); trạng thái
+bị thay (content: status superseded, publish: cột superseded boolean); kết quả (ảnh: 1 file, content: nhiều file,
+publish: post_url).
+
+2. BẢNG MỚI worker_jobs
+----------------------------------------
+- id
+- type                 image | outfit | content | publish (= loại worker nhận việc)
+- user_id              shop sở hữu việc (worker nhận việc của các shop được gắn, như hiện tại)
+- preferred_worker_id  null | worker người dùng chọn (generations.worker_id; worker đó tắt / gỡ -> worker khác cùng loại nhận)
+- worker_id            worker đang / đã nhận
+- generation_output_id null | ảnh (type image, outfit)
+- social_post_id       null | bài (type content, publish)
+- status               queued | processing | completed | failed | superseded
+- available_at         sớm nhất được giao (publish = giờ đăng; còn lại = lúc tạo)
+- attempts, lease_expires_at (null = không hết hạn), claimed_at, finished_at
+- result json          kết quả nhỏ (publish: post_url; outfit bìa: title)
+- error_code, error_message, timestamps
+- index (type, status, available_at), (worker_id, status), (social_post_id), (generation_output_id)
+
+Quy tắc giữ nguyên như hiện tại, chỉ đổi nơi lưu:
+- Thứ tự lô phối đồ (bìa / ảnh outfit đầu chờ nhau, mục WorkerJobService::claim) giữ nguyên, điều kiện viết trên worker_jobs.
+- Việc bị thay (sửa chữ, làm lại, chủ shop "Tạo lại") -> status superseded; worker gửi kết quả việc superseded -> 409
+  JOB_NOT_ASSIGNED như hiện tại.
+- Hạn giữ việc theo type: image / outfit = ai90.worker.lease_minutes; content = 10 phút; publish = không hết hạn.
+  Quá hạn -> về queued cho worker khác (như hiện tại).
+
+Bảng cũ:
+- generation_outputs GIỮ: là ẢNH (đường dẫn ảnh, status để giao diện lô ảnh hiển thị). Bỏ cột của hàng đợi: worker_id,
+  attempts, lease_expires_at, started_at (chuyển sang worker_jobs). status ảnh do service cập nhật theo việc.
+- content_jobs, social_publish_jobs: chuyển dữ liệu sang worker_jobs rồi XOÁ bảng.
+
+3. API WORKER CHUNG
+----------------------------------------
+GET  /api/v1/worker-jobs           -> 204 | { data: { id, type, request } } (worker nhận đúng type của mình; request như
+                                      hiện tại của từng loại)
+POST /api/v1/worker-jobs/{id}      status=completed|failed + kết quả theo type:
+                                      image / outfit: file image (+ title với bìa lô phối đồ)
+                                      content: files[0..n-1]
+                                      publish: post_url
+                                    failed: error_code, error_message
+POST /api/v1/worker-jobs/{id}/extend   gia hạn (việc có hạn)
+GET  /api/v1/worker-jobs/{id}/batch    thông tin lô (outfit), như /jobs/{id}/batch
+Lỗi chung: 409 JOB_NOT_ASSIGNED (việc không còn của worker), 403 sai loại worker.
+
+4. NGOÀI PHẠM VI / SAU
+----------------------------------------
+- Logic nghiệp vụ (giao diện lô ảnh, lịch đăng, kế hoạch kênh) không đổi, chỉ đọc trạng thái qua bảng mới.
+
+5. ĐÃ CHỐT (người dùng 2026-11-21)
+----------------------------------------
+1. BỎ LUÔN API cũ (/v1/jobs, /v1/content-jobs, /v1/post-jobs), chỉ còn /v1/worker-jobs; sửa mọi chương trình worker
+   FlowKit (image-worker, phoi-do-v2, phoi-do-worker, content-worker, web, phone-video) CÙNG LÚC, deploy cùng backend.
+2. Dữ liệu cũ: CHỈ chuyển việc CHƯA XONG (queued / processing) sang worker_jobs; lịch sử bỏ khi xoá bảng cũ.
+3. Trang admin xem việc: ĐỂ SAU.
+
+6. ĐÃ LÀM (2026-11-21)
+----------------------------------------
+Backend:
+- Migration 2026_11_21_170000_create_worker_jobs_table: tạo worker_jobs; chuyển việc chưa xong (ảnh queued/processing,
+  content_jobs, social_publish_jobs chưa xong) + RIÊNG đăng bài giữ thêm việc gần nhất mỗi bài (giao diện đọc link bài
+  đã đăng / trạng thái nền tảng từ việc này); xoá content_jobs, social_publish_jobs; bỏ cột hàng đợi của generation_outputs.
+- Model: WorkerJob (gốc, bảng worker_jobs) + model con theo type: ImageJob (image|outfit), ContentJob, SocialPublishJob.
+  GenerationOutput tạo ra ở trạng thái queued tự sinh 1 ImageJob; GenerationFinalizer đóng việc khi ảnh chốt kết quả.
+  OutputStatus thêm Superseded (việc đăng bài bị thay, thay cho cột superseded cũ).
+- API: chỉ còn /api/v1/worker-jobs (WorkerJobController). id = id việc worker_jobs. Ảnh: thêm output_id; đăng bài:
+  type = "publish", ảnh / video nằm ở request.type. Đã xoá WorkerPostJobController, WorkerContentJobController.
+- Worker::pendingJobCount đọc worker_jobs. Test: 258 passed.
+- Còn khác biệt: việc ĐĂNG BÀI vẫn sinh lúc worker nhận (bài chờ đăng nằm ở social_posts theo giờ đăng), chưa có dòng
+  queued trước giờ đăng như 3 loại kia.
+Worker FlowKit đổi URL sang /worker-jobs: image-worker, phoi-do-v2, phoi-do-worker, content-worker, web (flowkit),
+phone-video. web/flowkit/overlay.py là code cũ (job overlay đã bỏ từ trước), không dùng.
+Ghi chú cũ (gop-luong-dang-bai.txt, quan-ly-worker.txt, worker-content.txt, logo-tao-anh.txt...) còn nhắc API cũ: là lịch sử.

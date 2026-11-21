@@ -21,7 +21,12 @@ import client from './client';
  * GET    /creator/channels/{id}/calendar?from=&to=    -> { data: CalendarPost[] }
  * PUT    /creator/channel-posts/{post}/overlays { overlays: [{ image_id, text, text_template_id }] }
  * POST   /creator/channel-posts/{post}/redo | DELETE  đánh dấu / bỏ đánh dấu làm lại
- * GET    /creator/channels/{id}/topics                -> { data: { topics: Topic[], tag_options } }
+ * GET    /creator/channels/{id}/topics                -> { data: { topics: Topic[], tag_options, topic_worker, job, count } }
+ *          topic_worker: shop có worker lập chủ đề; job: lượt xây dựng tự động gần nhất { id, status: queued|processing|
+ *          completed|failed, count, note, result: { created, skipped, errors }, error_message, created_at, finished_at }
+ * POST   /creator/channels/{id}/topics { name, tags? } -> 201 { data: Topic }  (xây dựng chủ đề thủ công)
+ * POST   /creator/channels/{id}/topic-jobs { count, note? } -> 201 { data: job } (tự động: việc cho worker lập chủ đề)
+ *          409 TOPIC_WORKER_REQUIRED | TOPIC_JOB_RUNNING. note/xay-kenh-tiktok/worker-lap-chu-de.txt
  *          Topic: { id, name, tags (bộ lọc tag sản phẩm), source: ai|owner, status: active|paused,
  *                   posts: { sample_key: số bài }, last_used: { sample_key: 'YYYY-MM-DD' } }
  * PUT    /creator/channels/{id}/topics/{t} { name?, tags?, status? } -> { data: Topic } (sửa tên / tags -> nguồn owner)
@@ -188,7 +193,15 @@ export const setRedo = (postId, on) =>
 
 export const TOPIC_STATUS = { ACTIVE: 'active', PAUSED: 'paused' };
 
-export const getTopics = (id) => client.get(`/creator/channels/${id}/topics`).then(({ data }) => data.topics);
+export const getTopics = (id) => client.get(`/creator/channels/${id}/topics`).then(({ data }) => data);
+
+export const createTopic = (id, values) => client.post(`/creator/channels/${id}/topics`, values).then(({ data }) => data);
+
+export const startTopicJob = (id, { count, note }) =>
+  client.post(`/creator/channels/${id}/topic-jobs`, { count: Number(count), note: note?.trim() || null }).then(({ data }) => data);
+
+/** Lượt xây dựng tự động còn đang chạy (chờ worker / worker đang lập). */
+export const isTopicJobRunning = (job) => job?.status === 'queued' || job?.status === 'processing';
 
 export const updateTopic = (id, topicId, values) =>
   client.put(`/creator/channels/${id}/topics/${topicId}`, values).then(({ data }) => data);

@@ -21,6 +21,7 @@ export const WORKER_FUNCTIONS = {
   video: { label: 'Tạo video', icon: 'movie' },
   outfit: { label: 'Phối đồ', icon: 'checkroom' },
   content: { label: 'Dựng nội dung', icon: 'auto_awesome_mosaic' },
+  topic: { label: 'Lập chủ đề', icon: 'tag' },
 };
 
 const mapWorker = (w) => ({
