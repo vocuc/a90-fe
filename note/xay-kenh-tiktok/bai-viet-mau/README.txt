@@ -23,7 +23,7 @@ QUY TẮC CHUNG (mọi loại)
 CHỈ BÀI ĐÃ LÀM XONG MỚI BẬT (người dùng chốt 2026-11-21)
 ----------------------------------------
 - PostSamples::READY (D:\OSPanel\home\a90.local\app\Support\PostSamples.php) = danh sách bài bật, hiện: top_n, lookbook,
-  outfit_by_day. Làm xong bài nào thì thêm key vào READY + đổi trạng thái trong mục lục thành "ĐÃ LÀM".
+  outfit_by_day, unboxing. Làm xong bài nào thì thêm key vào READY + đổi trạng thái trong mục lục thành "ĐÃ LÀM".
 - Bài chưa bật: không thêm được vào tuyến (SAMPLE_NOT_READY), không lập kế hoạch được, không gắn template chữ được;
   tuyến cũ có bài chưa bật thì bài đó bị bỏ qua; tuyến không còn bài bật nào = kênh thiếu tuyến.
 - Frontend: tab Bài viết mẫu hiện "Chưa làm xong", tab Tuyến nội dung chỉ thêm được bài bật.
@@ -32,7 +32,7 @@ CHỈ BÀI ĐÃ LÀM XONG MỚI BẬT (người dùng chốt 2026-11-21)
 MỤC LỤC
 ----------------------------------------
 Trưng bày hàng:
-  unboxing               Đập hộp                      LÀM ĐƯỢC
+  unboxing               Đập hộp                      ĐÃ LÀM: kiểu bài ảnh chủ shop hay đăng, duyệt kỳ tạo lô tự động, không chữ
   closeup                Soi cận cảnh                 LÀM ĐƯỢC MỘT PHẦN (chưa cắt cận được)
   new_arrival            Hàng mới về                  LÀM ĐƯỢC
   color_options          1 mẫu nhiều màu              LÀM ĐƯỢC NẾU CÓ ẢNH (hệ thống chưa biết màu)

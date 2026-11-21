@@ -43,6 +43,13 @@ function PlanItem({ channelId, planId, item, canCancel }) {
             Lô phối đồ
           </div>
         )}
+        {/* Bài lô ảnh sản phẩm (unboxing): chưa có ảnh, duyệt kỳ mới tạo lô tự động cho sản phẩm */}
+        {item.product_batch && (
+          <div className="flex h-16 w-12 flex-col items-center justify-center rounded-lg bg-surface-container text-center text-[9px] font-semibold text-on-surface-variant">
+            <Icon name="photo_library" className="text-lg text-primary" />
+            Lô ảnh
+          </div>
+        )}
         {item.images.slice(0, 3).map((img) => (
           <div key={img.ref} className="relative h-16 w-12 overflow-hidden rounded-lg bg-surface-container">
             {img.thumb_url && <img src={img.thumb_url} alt="" className="size-full object-cover" loading="lazy" />}
@@ -52,7 +59,11 @@ function PlanItem({ channelId, planId, item, canCancel }) {
       </div>
       <div className="min-w-0 flex-1 space-y-0.5">
         <p className="text-[11px] text-on-surface-variant">
-          {formatDateTime(item.scheduled_at)} · {item.sample_name} · {item.format === 'video' ? 'Video' : item.outfit ? `Tạo lô phối đồ ${item.outfit.count} ảnh khi duyệt` : `${item.images.length} ảnh`}
+          {formatDateTime(item.scheduled_at)} · {item.sample_name} · {item.format === 'video' ? 'Video' : item.outfit
+            ? `Tạo lô phối đồ ${item.outfit.count} ảnh khi duyệt`
+            : item.product_batch
+              ? `Tạo lô ảnh "${item.product_batch.product_name ?? `sản phẩm #${item.product_batch.product_id}`}" khi duyệt`
+              : `${item.images.length} ảnh`}
         </p>
         {item.topic && <TopicBadge name={item.topic} />}
         <p className="line-clamp-2 text-sm font-semibold text-on-surface">{item.hook}</p>

@@ -733,11 +733,23 @@ function PostEditor({ post, type, worker }) {
 
       {/* Cột phải: worker, template, nội dung, nền tảng, giờ đăng, nút đăng */}
       <div className="space-y-6">
+        {/* Bài kế hoạch lấy ảnh từ lô (unboxing / lô phối đồ): ảnh theo lô, sửa / tạo lại ở trang Lô ảnh */}
+        {post.source === 'plan' && post.imageBatchId && (
+          <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
+            <Icon name="photo_library" className="text-base" />
+            <span>
+              Ảnh của bài lấy từ một lô ảnh. Tạo lại / sửa / xoá ảnh ở{' '}
+              <Link to={`/batches/${post.imageBatchId}`} className="font-bold text-primary hover:underline">trang lô</Link>: bài tự về chờ,
+              lô xong bài tự vào hàng chờ đăng.
+            </span>
+          </p>
+        )}
         {post.lastError && !formError && (
           <p className="flex items-start gap-2 rounded-xl bg-error-container/60 px-3 py-2 text-xs text-on-error-container">
             <Icon name="error" className="text-base" />
             <span>
-              <b>Đăng lần trước không thành công.</b> {post.lastError.message}
+              {post.lastError.code !== 'BATCH_IMAGES_FAILED' && <b>Đăng lần trước không thành công. </b>}
+              {post.lastError.message}
             </span>
           </p>
         )}

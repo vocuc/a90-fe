@@ -1,64 +1,52 @@
-BÀI VIẾT MẪU: ĐẬP HỘP (unboxing)
+BÀI VIẾT MẪU: ĐẬP HỘP (unboxing) - KIỂU BÀI ẢNH CHỦ SHOP HAY ĐĂNG (LÔ TỰ ĐỘNG)
 ======================================================================
 
 Ngày: 2026-11-21. Đặc tả việc lệnh /lap-ke-hoach phải làm cho loại bài này.
-Quy tắc chung (caption, hashtag, chữ trên ảnh, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
+Quy tắc chung (caption, hashtag, không trùng...): bai-viet-mau/README.txt. Định nghĩa trong code:
 D:\OSPanel\home\a90.local\app\Support\PostSamples.php (key không được đổi).
-TRẠNG THÁI: LÀM ĐƯỢC
+TRẠNG THÁI: ĐÃ LÀM (2026-11-21), chưa deploy.
+
+Người dùng chốt 2026-11-21: "loại nội dung tiếp theo là dạng ảnh giống như tao thường đăng" -> "để nó là dạng unboxing".
+Đổi hẳn cách làm cũ của unboxing (chọn ảnh có sẵn + chữ hook / chốt) thành:
+- Nguồn ảnh: TẠO LÔ MỚI KHI DUYỆT KỲ (image_source product_batch), không chọn ảnh có sẵn.
+- Ảnh KHÔNG CHỮ (không template chữ, không content-worker).
 
 1. THÔNG TIN
 ----------------------------------------
-Nhóm: Trưng bày hàng   Mục tiêu: Bán hàng   Định dạng: Ảnh, video   Số slide: 2-5
-Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
-Cùng 1 sản phẩm: Có
-Dùng khi: Shop có ít nhất 2 ảnh sản phẩm của CÙNG 1 mẫu (thường MSx + MSx.1: ảnh tay cầm giày, hộp mở). Dùng xen kẽ để giới thiệu từng mẫu.
-Không dùng khi: Mẫu chỉ có 1 ảnh. Mẫu đã lên bài đập hộp trong 14 ngày gần đây (trừ khi đổi hook theo dịp khác).
+Nhóm: Trưng bày hàng   Mục tiêu: Bán hàng   Định dạng: CHỈ ẢNH   Số ảnh: = số Creative của nhóm (1-35)
+Cùng 1 sản phẩm: Có. Cần: shop có worker tạo ảnh (context channel.image_worker), sản phẩm đang bật ghép được với ít nhất
+1 nhóm Creative đang bán (cùng luật nút "Tạo tự động" ở trang lô: có ảnh đúng trường nguyên liệu).
 
-2. CẤU TRÚC SLIDE
+2. LUỒNG
 ----------------------------------------
-- Slide đầu: Ảnh sản phẩm, ưu tiên ảnh TAY cầm / đang mở hộp. Có chữ: hook. Ảnh rõ giày nhất, có người.
-- Slide giữa: Ảnh sản phẩm CÙNG mẫu, góc khác. Không chữ. Toàn cảnh hộp, phụ kiện, góc nghiêng.
-- Slide cuối: Ảnh sản phẩm CÙNG mẫu. Có chữ: chốt ngắn. Mã sản phẩm / 'inbox giữ size' / câu hỏi.
+Lệnh gửi bài: { sample_key: unboxing, topic_id, hook, product_batch: { product_id }, title, content: "", hashtags } (KHÔNG
+images, KHÔNG text_template_id).
+Duyệt kỳ (hoặc tự duyệt) -> A51 tạo 1 LÔ TỰ ĐỘNG cho sản phẩm (AutoBatchService: nhóm Creative ít lượt tạo nhất với sản
+phẩm, mỗi Creative 1 ảnh, chèn logo nếu shop có logo) -> bài ở trạng thái Đang chuẩn bị, ảnh xong thì vào hàng chờ đăng
+(tiêu đề + hashtag của kế hoạch). Làm lại bài -> tạo lô tự động MỚI.
+Kiểm tra khi gửi (rejected): thiếu product_batch.product_id; sản phẩm không phải của shop / đang tắt; sản phẩm không ghép được
+nhóm Creative nào; shop chưa gắn worker tạo ảnh; có images; slot video; trùng hook + sản phẩm với bài khác của kênh.
 
-3. HOOK
+3. HOOK + CAPTION
 ----------------------------------------
-Gợi tò mò + nêu dịp / tình huống: 'Đập hộp đôi ... đi chúc Tết', 'Mở hộp em sandal đi biển'. Nêu LOẠI giày, không nêu hãng.
-Ví dụ:
-  - Đập hộp đôi sandal đi chúc Tết
-  - Mở hộp em búp bê đi làm thứ Hai
-  - Unbox đôi sneaker trắng cân mọi outfit
+Hook = ý chính của bài theo CHỦ ĐỀ (không in lên ảnh; dùng để viết tiêu đề, chặn trùng). Tiêu đề nêu dịp / tình huống của
+chủ đề + điểm nổi bật của đôi giày (theo nhãn + tag sản phẩm), giọng chân dung khách hàng. content để rỗng.
+Ví dụ: chủ đề "Đi chúc Tết" -> hook "Đôi cao gót đỏ đi chúc Tết", tiêu đề "Tết này diện đôi đỏ là chuẩn sang".
 
-4. CHỮ TRÊN ẢNH
+4. CÁC BƯỚC LỆNH LÀM
 ----------------------------------------
-Slide đầu <= 10 từ. Slide cuối <= 8 từ, có thể dùng tên sản phẩm (không dùng mã nội bộ khó hiểu nếu shop không bán theo mã).
+1. Chọn chủ đề (không lặp unboxing + chủ đề trong 14 ngày).
+2. kehoach.py products <id-kênh> <tag chủ đề> -> chọn 1 sản phẩm hợp chủ đề, used thấp / lâu chưa dùng.
+3. Gửi bài như mục 2. Bị từ chối "không ghép được với nhóm Creative" -> chọn sản phẩm khác.
+4. Template chữ: tuyến chỉ có bài không chữ (unboxing) thì kênh không cần template chữ; unboxing không gắn được template.
 
-5. CAPTION
+5. BÀI ĐI THEO LÔ (người dùng chốt 2026-11-21)
 ----------------------------------------
-Tiêu đề 1 câu cảm thán theo giọng kênh. Hashtag: loại giày + dịp (vd giaytet2027, sandalnutet2027).
-
-6. CÁC BƯỚC LỆNH LÀM
-----------------------------------------
-1. Lọc images kind=product, gom theo product (nếu product null thì gom theo creative).
-2. Chọn 1 nhóm có >= 2 ảnh, ưu tiên used_in_channel thấp, lâu chưa dùng.
-3. Tải thumb xem: chọn ảnh có tay làm slide đầu.
-4. Sắp 2-5 ảnh, viết hook (slide đầu) + chốt (slide cuối).
-
-7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
-----------------------------------------
-- Mọi ảnh cùng 1 sản phẩm (product_id, hoặc cùng creative nếu không có sản phẩm).
-- 2-5 ảnh, đều là ảnh sản phẩm.
-- Chữ chỉ ở slide đầu / cuối.
-- Chung: bài viết mẫu thuộc tuyến đã duyệt, format khớp slot, không trùng y hệt bài cũ.
-
-8. KHÔNG ĐỦ ẢNH / ĐIỀU KIỆN
-----------------------------------------
-Không mẫu nào đủ 2 ảnh -> không chọn bài này cho slot, chọn bài viết mẫu khác trong tuyến.
-
-9. CHỖ HỆ THỐNG CHƯA ĐÁP ỨNG
-----------------------------------------
-- Ảnh không có product_id (tạo lẻ) thì gom theo creative: 2 ảnh cùng creative có thể là 2 đôi khác nhau -> phải xem thumb.
-
-10. CÂU HỎI CẦN CHỐT
-----------------------------------------
-1. Chốt bằng mã sản phẩm (MS26) hay tên sản phẩm? Shop có muốn hiện mã trên ảnh không?
-   TRẢ LỜI:
+"ảnh của bài viết unbox sẽ sinh ra các lô ảnh ở trang /batches và giữ nguyên các chức năng của trang này. khi lô hoàn thành
+thì đánh dấu bài sẵn sàng để đăng khi bấm tạo lại thì chuyển bài về chờ".
+- Lô của bài là lô tự động bình thường ở /batches (tạo lại, sửa nguyên liệu, cắt / tải ảnh, xoá ảnh, đăng TikTok... giữ nguyên).
+- Bài kế hoạch có image_batch_id (unboxing, cả lô phối đồ) ĐI THEO LÔ tới khi worker nhận đăng: mỗi lần tạo lại / sửa
+  nguyên liệu / cắt / xoá ảnh trong lô -> ảnh bài chép lại theo lô, bài về "Đang chuẩn bị" (SocialPostService::followBatch).
+- Lô xong hết -> bài vào hàng chờ đăng. Lô còn ảnh lỗi -> bài "Chờ duyệt" + last_error BATCH_IMAGES_FAILED (không tự đăng),
+  tạo lại ảnh lỗi ở trang lô thì bài tự quay lại.
+- Trang bài đăng hiện dòng nhắc + link tới lô; không có nút tạo lại ảnh riêng ở trang bài.
