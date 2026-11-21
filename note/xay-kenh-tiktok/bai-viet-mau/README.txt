@@ -23,16 +23,17 @@ QUY TẮC CHUNG (mọi loại)
 CHỈ BÀI ĐÃ LÀM XONG MỚI BẬT (người dùng chốt 2026-11-21)
 ----------------------------------------
 - PostSamples::READY (D:\OSPanel\home\a90.local\app\Support\PostSamples.php) = danh sách bài bật, hiện: top_n, lookbook,
-  outfit_by_day, unboxing. Làm xong bài nào thì thêm key vào READY + đổi trạng thái trong mục lục thành "ĐÃ LÀM".
+  outfit_by_day, unboxing, video_type_01. Làm xong bài nào thì thêm key vào READY + đổi trạng thái trong mục lục thành "ĐÃ LÀM".
 - Bài chưa bật: không thêm được vào tuyến (SAMPLE_NOT_READY), không lập kế hoạch được, không gắn template chữ được;
   tuyến cũ có bài chưa bật thì bài đó bị bỏ qua; tuyến không còn bài bật nào = kênh thiếu tuyến.
 - Frontend: tab Bài viết mẫu hiện "Chưa làm xong", tab Tuyến nội dung chỉ thêm được bài bật.
-- Hai bài bật đều CHỈ LÀ ẢNH -> slot video không có bài nào: đặt tỉ lệ video của kênh = 0%.
+- Bài video: chỉ Video - Type 01 (slot video theo tỉ lệ video của kênh). Kênh không dùng video: đặt tỉ lệ video = 0%.
 
 MỤC LỤC
 ----------------------------------------
 Trưng bày hàng:
   unboxing               Đập hộp                      ĐÃ LÀM: kiểu bài ảnh chủ shop hay đăng, duyệt kỳ tạo lô tự động, không chữ
+  video_type_01          Video - Type 01              ĐÃ LÀM: bài video, lệnh chọn sản phẩm, A51 chọn template + ảnh, worker dựng video
   closeup                Soi cận cảnh                 LÀM ĐƯỢC MỘT PHẦN (chưa cắt cận được)
   new_arrival            Hàng mới về                  LÀM ĐƯỢC
   color_options          1 mẫu nhiều màu              LÀM ĐƯỢC NẾU CÓ ẢNH (hệ thống chưa biết màu)

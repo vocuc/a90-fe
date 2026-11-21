@@ -1,0 +1,31 @@
+BÀI VIẾT MẪU: VIDEO - TYPE 01 (video_type_01)
+======================================================================
+
+Ngày: 2026-11-21. TRẠNG THÁI: ĐÃ LÀM, chưa deploy.
+Người dùng: "xây dựng dạng bài viết là video giữ nguyên như hiện nay worker đăng bài sẽ tạo video từ ảnh bài viết và đăng",
+"để dạng bài đăng này là Video - Type 01". Định nghĩa: PostSamples.php (key video_type_01, image_source product_video).
+
+1. THÔNG TIN
+----------------------------------------
+Nhóm: Trưng bày hàng   Mục tiêu: Bán hàng   Định dạng: CHỈ VIDEO (slot format video, theo tỉ lệ video của kênh)
+Số ảnh: = image_count của video template A51 chọn. Cùng 1 sản phẩm. Không chữ. Không gắn template chữ.
+
+2. LUỒNG (giữ luồng "Tạo video" hiện nay)
+----------------------------------------
+Lệnh gửi: { sample_key: video_type_01, topic_id, product_id, title, content: "", hashtags } (KHÔNG hook, KHÔNG images,
+KHÔNG video_template_id). Hook = TIÊU ĐỀ (A51 tự lấy, người dùng chốt 2026-11-22).
+A51 khi nhận bài (ChannelPlanService::pickVideo): video template đang bật của shop, ngẫu nhiên trong các template mà sản phẩm
+đủ ảnh; ảnh = ShopImageLibrary::productImagesForVideo (ảnh ít dùng cho video trước, mới trước) -> lưu vào bài kế hoạch như bài
+video thường (images + video_template_id). Duyệt kỳ -> bài đăng type video (snapshot template, product_id) vào hàng chờ;
+worker đăng bài dựng video từ ảnh theo template rồi đăng (như bài "Tạo video").
+Chủ shop sửa bài: gửi lại images + video_template_id (không product_id) -> kiểm tra như bài video thường.
+Từ chối: slot ảnh; sản phẩm không phải của shop / đang tắt; shop chưa có video template đang bật; sản phẩm không đủ ảnh cho
+template nào.
+
+3. HOOK + CAPTION
+----------------------------------------
+Chỉ viết tiêu đề (A51 dùng làm hook): dịp / tình huống của chủ đề + điểm nổi bật đôi giày, giọng chân dung.
+
+4. CẦN Ở KÊNH
+----------------------------------------
+Tỉ lệ video > 0% (Cấu hình kênh), có video template đang bật (Công cụ -> Video template), tuyến có Video - Type 01.

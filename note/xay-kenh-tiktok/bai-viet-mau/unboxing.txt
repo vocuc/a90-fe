@@ -19,8 +19,8 @@ Cùng 1 sản phẩm: Có. Cần: shop có worker tạo ảnh (context channel.i
 
 2. LUỒNG
 ----------------------------------------
-Lệnh gửi bài: { sample_key: unboxing, topic_id, hook, product_batch: { product_id }, title, content: "", hashtags } (KHÔNG
-images, KHÔNG text_template_id).
+Lệnh gửi bài: { sample_key: unboxing, topic_id, product_batch: { product_id }, title, content: "", hashtags } (KHÔNG hook,
+KHÔNG images, KHÔNG text_template_id). Hook = TIÊU ĐỀ (A51 tự lấy, người dùng chốt 2026-11-22: hook không hiện ở đâu).
 Duyệt kỳ (hoặc tự duyệt) -> A51 tạo 1 LÔ TỰ ĐỘNG cho sản phẩm (AutoBatchService: nhóm Creative ít lượt tạo nhất với sản
 phẩm, mỗi Creative 1 ảnh, chèn logo nếu shop có logo) -> bài ở trạng thái Đang chuẩn bị, ảnh xong thì vào hàng chờ đăng
 (tiêu đề + hashtag của kế hoạch). Làm lại bài -> tạo lô tự động MỚI.
@@ -29,9 +29,9 @@ nhóm Creative nào; shop chưa gắn worker tạo ảnh; có images; slot video
 
 3. HOOK + CAPTION
 ----------------------------------------
-Hook = ý chính của bài theo CHỦ ĐỀ (không in lên ảnh; dùng để viết tiêu đề, chặn trùng). Tiêu đề nêu dịp / tình huống của
-chủ đề + điểm nổi bật của đôi giày (theo nhãn + tag sản phẩm), giọng chân dung khách hàng. content để rỗng.
-Ví dụ: chủ đề "Đi chúc Tết" -> hook "Đôi cao gót đỏ đi chúc Tết", tiêu đề "Tết này diện đôi đỏ là chuẩn sang".
+Lệnh chỉ viết TIÊU ĐỀ (A51 dùng làm hook: danh sách hook theo chủ đề, chặn trùng): nêu dịp / tình huống của chủ đề + điểm
+nổi bật của đôi giày (theo nhãn + tag sản phẩm), giọng chân dung khách hàng. content để rỗng.
+Ví dụ: chủ đề "Đi chúc Tết" -> tiêu đề "Tết này diện đôi cao gót đỏ là chuẩn sang".
 
 4. CÁC BƯỚC LỆNH LÀM
 ----------------------------------------
