@@ -141,6 +141,45 @@ function AutoBuildDialog({ channelId, limits, onClose }) {
   );
 }
 
+const HOOK_STATUS = {
+  draft: 'Chờ duyệt kỳ',
+  generating: 'Đang chuẩn bị',
+  pending_review: 'Chờ duyệt',
+  queued: 'Chờ đăng',
+  publishing: 'Đang đăng',
+  published: 'Đã đăng',
+  failed: 'Lỗi',
+};
+
+/** Hook đã viết theo chủ đề (bài đăng + bài kế hoạch chờ duyệt), mới trước; bấm để mở / đóng. */
+function TopicHooks({ hooks, sampleName }) {
+  const [open, setOpen] = useState(false);
+  if (!hooks?.length) return null;
+
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen((v) => !v)} className="flex items-center gap-0.5 text-[11px] font-bold text-primary hover:underline">
+        <Icon name={open ? 'expand_less' : 'expand_more'} className="text-base" />
+        {open ? 'Ẩn hook' : `Xem ${hooks.length} hook đã tạo`}
+      </button>
+      {open && (
+        <ul className="mt-1 space-y-1 border-l-2 border-outline-variant/40 pl-2">
+          {hooks.map((h, i) => (
+            <li key={`${h.at}-${i}`} className="text-xs text-on-surface">
+              <span className="font-semibold">{h.hook}</span>
+              <span className="block text-[10px] text-on-surface-variant">
+                {[sampleName(h.sample_key), h.at && formatDateTime(h.at), HOOK_STATUS[h.kind === 'draft' ? 'draft' : h.status] ?? h.status]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /** Trạng thái lượt xây dựng tự động gần nhất. */
 function JobStatus({ job }) {
   if (!job) return null;
@@ -266,6 +305,7 @@ export default function TopicsTab({ channel }) {
                           ? used.map(([key, n]) => `${sampleName(key)}: ${n} bài (gần nhất ${formatDate(t.last_used?.[key])})`).join(' · ')
                           : 'Chưa có bài'}
                       </p>
+                      <TopicHooks hooks={t.hooks} sampleName={sampleName} />
                     </div>
                     <div className="flex shrink-0 gap-1">
                       <button
