@@ -56,3 +56,10 @@ dieu-phoi/.env: SLOTS_PLAN (mặc định 1), JOB_TIMEOUT_PLAN (mặc định 30
   kỳ cần posts_per_day bài; bài đang dùng giữ giờ; thiếu thì dùng lại giờ trống cũ, rồi thêm giờ mới (giữa mỗi phần của khung
   giờ hiện tại, cách bài khác >= 20 phút, sau hiện tại 30 phút); giảm số bài thì giờ trống thừa bị bỏ. Video theo
   video_percent hiện tại. Context bổ sung lưu lại slot của kỳ (refitSlots) để gửi bài đúng index.
+
+6. LÀM LẠI BÀI (nút "Làm lại" ở tab Lịch đăng, sửa 2026-11-22)
+----------------------------------------
+Trước: bấm "Làm lại" chỉ đánh dấu bài, chờ lượt lập kế hoạch sau -> người dùng "bấm làm lại mà không thấy điều phối phân việc".
+Nay: đánh dấu xong A51 tạo việc plan payload {redo: true} (PlanJobService::queueRedo); kênh đã có việc plan đang chờ (chưa
+worker nhận) thì dùng chung việc đó; shop chưa gắn worker điều phối thì chỉ đánh dấu như cũ.
+Worker chạy /lap-ke-hoach <id kênh> --lam-lai: context ?redo_only=1 (plan null, không giữ slot kỳ mới), chỉ làm bước 3.

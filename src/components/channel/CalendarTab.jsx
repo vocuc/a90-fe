@@ -41,7 +41,7 @@ function PostDialog({ channelId, channelName, templates, post, onClose, showPrev
         {showPreview && <TikTokPreview post={post} channelName={channelName} templates={templates} />}
         <div className="flex items-center gap-2">
           <PostStatusBadge status={post.status} />
-          {post.redo_requested_at && <span className="rounded bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700">Chờ đội A51 làm lại</span>}
+          {post.redo_requested_at && <span className="rounded bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700">Chờ AI làm lại</span>}
           {post.post_url && (
             <a href={post.post_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-primary hover:underline">
               Xem trên TikTok
@@ -96,7 +96,7 @@ function PostDialog({ channelId, channelName, templates, post, onClose, showPrev
           </div>
         )}
         {editable && !post.redo_requested_at && (
-          <p className="text-[11px] text-on-surface-variant">"Làm lại": bài tạm dừng, lần lập kế hoạch tới đội A51 làm lại nội dung, giữ giờ đăng.</p>
+          <p className="text-[11px] text-on-surface-variant">"Làm lại": bài tạm dừng, AI làm lại nội dung ngay (worker điều phối nhận việc trong ít phút), giữ giờ đăng.</p>
         )}
       </div>
     </Dialog>

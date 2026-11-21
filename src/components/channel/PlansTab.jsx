@@ -260,7 +260,7 @@ function PlanJobStatus({ job, planExists, onOpenPlan }) {
     : job.status === 'completed'
       ? 'bg-emerald-50 text-emerald-900'
       : 'bg-error-container/60 text-on-error-container';
-  const what = job.fill_plan_id ? 'tạo bổ sung kỳ' : 'lập kế hoạch';
+  const what = job.fill_plan_id ? 'tạo bổ sung kỳ' : job.redo ? 'làm lại bài' : 'lập kế hoạch';
   const head = {
     queued: `Đang chờ worker nhận việc ${what}...`,
     processing: `AI đang ${what} (thường 10-30 phút)...`,
