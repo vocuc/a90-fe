@@ -2,8 +2,10 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import useSeo from '../hooks/useSeo';
 import Icon from '../components/common/Icon';
-import { ErrorState, Skeleton } from '../components/common/Feedback';
-import { CHANNEL_KEYS, MISSING_LABELS, getChannel } from '../api/channels';
+import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
+import { useCreatorProfile } from '../hooks/creatorQueries';
+import { CHANNEL_KEYS, MISSING_LABELS, getChannel, listChannels } from '../api/channels';
+import CreateChannelForm from '../components/channel/CreateChannelForm';
 import CalendarTab from '../components/channel/CalendarTab';
 import PlansTab from '../components/channel/PlansTab';
 import LineupTab from '../components/channel/LineupTab';
@@ -25,9 +27,53 @@ const TABS = [
   { key: 'settings', label: 'Cấu hình', icon: 'tune' },
 ];
 
-/** /channels/:id: lịch đăng, kế hoạch, tuyến nội dung, chủ đề, template chữ, chân dung khách hàng, cấu hình của 1 kênh. */
+/**
+ * /seller/channel (Công cụ > Quản lý > Kênh TikTok). Giao diện hiện cho mỗi tài khoản 1 kênh: mở thẳng kênh đầu tiên,
+ * chưa có kênh thì hiện form thiết lập. API / dữ liệu vẫn theo danh sách kênh (số kênh tối đa: Channel::MAX_PER_SHOP ở
+ * backend) để sau này mở nhiều kênh chỉ cần thêm ô chọn kênh. /channels/:id vẫn mở đúng kênh theo id.
+ */
 export default function ChannelPage() {
   const { id } = useParams();
+  useSeo({ title: 'Kênh TikTok', noindex: true });
+  const { hasProfile, meLoaded } = useCreatorProfile();
+  const { data, error, refetch } = useQuery({ queryKey: CHANNEL_KEYS.all, queryFn: listChannels, enabled: hasProfile && !id });
+  const channelId = id ?? data?.items[0]?.id;
+
+  if (channelId) return <ChannelView id={channelId} />;
+  return (
+    <>
+      <header className="sticky top-[60px] z-30 flex items-center gap-2 border-b border-surface-container bg-surface-container-lowest/90 px-2 py-2 backdrop-blur-md">
+        <BackLink />
+        <h1 className="flex-1 text-base font-bold text-on-surface">Kênh TikTok</h1>
+      </header>
+      <section className="p-4 lg:py-6">
+        {!meLoaded ? (
+          <Skeleton className="h-40 w-full" />
+        ) : !hasProfile ? (
+          <EmptyState icon="storefront" message="Bạn cần tạo cửa hàng trước khi tạo kênh.">
+            <Link to="/seller/settings" className="text-sm font-bold text-primary hover:underline">
+              Tạo cửa hàng
+            </Link>
+          </EmptyState>
+        ) : error ? (
+          <ErrorState error={error} onRetry={refetch} />
+        ) : !data ? (
+          <Skeleton className="h-40 w-full" />
+        ) : (
+          <CreateChannelForm />
+        )}
+      </section>
+    </>
+  );
+}
+
+const BackLink = () => (
+  <Link to="/tools" aria-label="Quay lại Công cụ" className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container">
+    <Icon name="arrow_back" />
+  </Link>
+);
+
+function ChannelView({ id }) {
   const [params, setParams] = useSearchParams();
   const tab = TABS.some((t) => t.key === params.get('tab')) ? params.get('tab') : 'calendar';
   const { data: channel, error, refetch } = useQuery({ queryKey: CHANNEL_KEYS.detail(id), queryFn: () => getChannel(id) });
@@ -37,9 +83,7 @@ export default function ChannelPage() {
     <div className="min-w-0">
       <header className="border-b border-surface-container bg-surface-container-lowest">
         <div className="flex items-center gap-2 px-2 py-2">
-          <Link to="/channels" aria-label="Quay lại" className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container">
-            <Icon name="arrow_back" />
-          </Link>
+          <BackLink />
           <div className="min-w-0 flex-1">
             <h1 className="flex items-center gap-1.5 text-base font-bold text-on-surface">
               <span className="truncate">{channel?.name ?? 'Kênh TikTok'}</span>

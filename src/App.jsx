@@ -10,7 +10,6 @@ import CreativeDetailPage from './pages/CreativeDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import StoreSettingsPage from './pages/StoreSettingsPage';
-import ChannelsPage from './pages/ChannelsPage';
 import ChannelPage from './pages/ChannelPage';
 import SellerProductsPage from './pages/SellerProductsPage';
 import AccountPage from './pages/AccountPage';
@@ -110,15 +109,16 @@ export default function App() {
           <Route path="profile" element={<Navigate to="/account" replace />} />
           {/* Lịch sử tạo ảnh: lưới thẻ ảnh như Khám phá, trải rộng trên desktop */}
           <Route path="account/history" element={<PurchaseHistoryPage />} />
-          {/* Kênh TikTok + kế hoạch nội dung (note/xay-kenh-tiktok/dac-ta-giai-doan-1.txt): trải rộng trên desktop */}
-          <Route path="channels" element={<ChannelsPage />} />
+          {/* Kênh TikTok + kế hoạch nội dung (note/xay-kenh-tiktok/dac-ta-giai-doan-1.txt): ở Công cụ > Quản lý, giao diện 1 kênh / tài khoản */}
+          <Route path="seller/channel" element={<ChannelPage />} />
+          <Route path="channels" element={<Navigate to="/seller/channel" replace />} />
           <Route path="channels/:id" element={<ChannelPage />} />
           <Route element={<PageColumn />}>
             <Route path="create" element={<CreatePage />} />
             <Route path="seller/settings" element={<StoreSettingsPage />} />
             <Route path="seller/video-templates/new" element={<VideoTemplateFormPage />} />
             <Route path="seller/video-templates/:id/edit" element={<VideoTemplateFormPage />} />
-            <Route path="seller/ai-content" element={<Navigate to="/channels" replace />} />
+            <Route path="seller/ai-content" element={<Navigate to="/seller/channel?tab=settings" replace />} />
             <Route path="account" element={<AccountPage />} />
             {/* Đã bỏ kết nối TikTok (note/gop-luong-dang-bai.txt): link trả về cũ đưa về trang bài đăng */}
             <Route path="mxh/tiktok/author" element={<Navigate to="/posts" replace />} />

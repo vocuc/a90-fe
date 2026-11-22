@@ -81,7 +81,7 @@ export default function SettingsTab({ channel }) {
     try {
       await deleteChannel(channel.id);
       await queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.all });
-      navigate('/channels');
+      navigate('/seller/channel', { replace: true });
     } catch (err) {
       alert(err?.message || 'Không xoá được kênh.');
     }
