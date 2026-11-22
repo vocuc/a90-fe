@@ -5,8 +5,6 @@ import Icon from '../common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../common/Feedback';
 import { TextArea, TextField } from '../common/Form';
 import { useConfirm } from '../common/ConfirmDialog';
-import TagPicker from '../product/TagPicker';
-import { tagChips } from '../../api/productTags';
 import {
   CHANNEL_KEYS,
   TOPIC_STATUS,
@@ -20,6 +18,8 @@ import {
 import Section, { formatDateTime } from './Section';
 
 const NAME_MAX = 80;
+// Ghi chú chủ đề (topic.note) / ghi chú lượt tự động
+const TOPIC_NOTE_MAX = 1000;
 const NOTE_MAX = 500;
 // Lượt tự động đang chạy: tải lại mỗi 10 giây để thấy kết quả
 const POLL_MS = 10_000;
@@ -50,19 +50,19 @@ const ErrorBox = ({ children }) =>
     </p>
   ) : null;
 
-/** Thêm (topic = null, xây dựng thủ công) hoặc sửa chủ đề: tên + bộ lọc tag sản phẩm. Sửa -> nguồn "Shop sửa". */
+/** Thêm (topic = null, xây dựng thủ công) hoặc sửa chủ đề: tên + ghi chú (không bắt buộc). Sửa -> nguồn "Shop sửa". */
 function TopicDialog({ channelId, topic, onClose }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(topic?.name ?? '');
-  const [tags, setTags] = useState(topic?.tags ?? {});
+  const [note, setNote] = useState(topic?.note ?? '');
   const mutation = useMutation({
-    mutationFn: () => (topic ? updateTopic(channelId, topic.id, { name: name.trim(), tags }) : createTopic(channelId, { name: name.trim(), tags })),
+    mutationFn: () => (topic ? updateTopic(channelId, topic.id, { name: name.trim(), note }) : createTopic(channelId, { name: name.trim(), note })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.topics(channelId) });
       onClose();
     },
   });
-  const error = mutation.error && (mutation.error.errors?.name || mutation.error.errors?.tags || mutation.error.message);
+  const error = mutation.error && (mutation.error.errors?.name || mutation.error.errors?.note || mutation.error.message);
 
   return (
     <Dialog
@@ -78,14 +78,14 @@ function TopicDialog({ channelId, topic, onClose }) {
         placeholder="VD: Đi chúc Tết"
         hint="Chủ đề cụ thể (dịp + tình huống). Mọi loại bài đều dùng chung chủ đề này."
       />
-      <div>
-        <p className="mb-1 text-xs font-semibold text-on-surface">Tìm sản phẩm theo tag</p>
-        <p className="mb-2 text-[11px] text-on-surface-variant">
-          Bài cần sản phẩm (VD Top N) chọn sản phẩm có tag khớp: trong 1 nhóm chỉ cần khớp 1 giá trị, các nhóm đều phải khớp. Bỏ
-          trống nhóm = không lọc theo nhóm đó.
-        </p>
-        <TagPicker value={tags} onChange={setTags} filter />
-      </div>
+      <TextArea
+        label="Ghi chú (không bắt buộc)"
+        value={note}
+        maxLength={TOPIC_NOTE_MAX}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="VD: Khách đi chúc Tết nhà nội ngoại, cần sang mà vẫn đi cả ngày được. Ưu tiên cao gót vừa, màu đỏ / kem; tránh kiểu quá cá tính."
+        hint="AI lập kế hoạch đọc ghi chú để chọn sản phẩm và viết hook. Bỏ trống: AI tự do sáng tạo theo tên chủ đề."
+      />
       <ErrorBox>{error}</ErrorBox>
     </Dialog>
   );
@@ -278,7 +278,6 @@ export default function TopicsTab({ channel }) {
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {topics.map((t) => {
               const paused = t.status !== TOPIC_STATUS.ACTIVE;
-              const chips = tagChips(t.tags);
               const used = Object.entries(t.posts ?? {});
               return (
                 <li key={t.id} className={`rounded-xl border border-outline-variant/40 p-3 ${paused ? 'bg-surface-container-low' : ''}`}>
@@ -291,14 +290,10 @@ export default function TopicsTab({ channel }) {
                         </span>
                         {paused && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">Tạm tắt</span>}
                       </p>
-                      {chips.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {chips.map((c) => (
-                            <span key={`${c.field}-${c.value}`} className="rounded bg-surface-container px-1.5 py-0.5 text-[11px] text-on-surface-variant">
-                              {c.label}
-                            </span>
-                          ))}
-                        </div>
+                      {t.note ? (
+                        <p className="line-clamp-3 whitespace-pre-line text-xs text-on-surface" title={t.note}>{t.note}</p>
+                      ) : (
+                        <p className="text-[11px] italic text-outline">Chưa có ghi chú, AI tự do sáng tạo</p>
                       )}
                       <p className="text-[11px] text-on-surface-variant">
                         {used.length

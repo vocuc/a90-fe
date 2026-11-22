@@ -36,7 +36,6 @@ Trưng bày hàng:
   unboxing               Đập hộp                      ĐÃ LÀM: kiểu bài ảnh chủ shop hay đăng, duyệt kỳ tạo lô tự động, không chữ
   video_type_01          Video - Type 01              ĐÃ LÀM: bài video, lệnh chọn sản phẩm, A51 chọn template + ảnh, worker dựng video
   closeup                Soi cận cảnh                 LÀM ĐƯỢC MỘT PHẦN (chưa cắt cận được)
-  new_arrival            Hàng mới về                  LÀM ĐƯỢC
   color_options          1 mẫu nhiều màu              LÀM ĐƯỢC NẾU CÓ ẢNH (hệ thống chưa biết màu)
 So sánh, chọn lựa:
   this_or_that           A hay B                      LÀM ĐƯỢC (chưa có slide ghép 2 ảnh)

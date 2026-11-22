@@ -4,6 +4,16 @@ WORKER LẬP CHỦ ĐỀ (xây dựng chủ đề kênh tự động / thủ cô
 Ngày: 2026-11-21. Trạng thái: ĐÃ LÀM (backend + frontend + worker + skill), chưa deploy / chưa migrate.
 Liên quan: chu-de-va-tag-san-pham.txt (mục 4 chủ đề kênh), a90-fe note/gop-viec-worker.txt (mọi việc worker ở worker_jobs).
 
+CẬP NHẬT 2026-11-22: CHỦ ĐỀ = TÊN + GHI CHÚ, BỎ BỘ LỌC TAG (người dùng chốt)
+----------------------------------------
+- Chủ đề chỉ còn: tên + ghi chú (note, không bắt buộc, <= 1000 ký tự) + lịch sử hook đã viết (đã có, để tránh trùng).
+- Cột channel_topics.tags ĐÃ XOÁ (migration 2026_11_22_100000), không chuyển đổi: chủ shop tự viết ghi chú.
+- Lệnh /lap-ke-hoach: đọc ghi chú chủ đề -> TỰ ĐẶT tag lọc sản phẩm (context.tag_options) cho từng bài + viết hook theo
+  ghi chú; chủ đề không có ghi chú -> sáng tạo tự do theo tên + chân dung + dịp.
+- Worker lập chủ đề (/lap-chu-de) trả [{name, note?}] thay cho [{name, tags}].
+- Tab Chủ đề: popup thêm / sửa có ô Tên + Ghi chú (bỏ bộ chọn tag); thẻ chủ đề hiện ghi chú thay các nhãn tag.
+- Các chỗ "tag của chủ đề" bên dưới và trong bai-viet-mau/*.txt đọc là "tag lệnh tự đặt theo ghi chú chủ đề".
+
 1. NGƯỜI DÙNG CHỐT (2026-11-21)
 ----------------------------------------
 - Trang /channels/{id}?tab=topics có 2 nút: "Tự động" (xây dựng chủ đề tự động) và "Thủ công".

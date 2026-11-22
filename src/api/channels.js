@@ -26,15 +26,15 @@ import client from './client';
  * GET    /creator/channels/{id}/calendar?from=&to=    -> { data: CalendarPost[] }
  * PUT    /creator/channel-posts/{post}/overlays { overlays: [{ image_id, text, text_template_id }] }
  * POST   /creator/channel-posts/{post}/redo | DELETE  đánh dấu / bỏ đánh dấu làm lại
- * GET    /creator/channels/{id}/topics                -> { data: { topics: Topic[], tag_options, topic_worker, job, count } }
+ * GET    /creator/channels/{id}/topics                -> { data: { topics: Topic[], topic_worker, job, count } }
  *          topic_worker: shop có worker lập chủ đề; job: lượt xây dựng tự động gần nhất { id, status: queued|processing|
  *          completed|failed, count, note, result: { created, skipped, errors }, error_message, created_at, finished_at }
- * POST   /creator/channels/{id}/topics { name, tags? } -> 201 { data: Topic }  (xây dựng chủ đề thủ công)
+ * POST   /creator/channels/{id}/topics { name, note? } -> 201 { data: Topic }  (xây dựng chủ đề thủ công)
  * POST   /creator/channels/{id}/topic-jobs { count, note? } -> 201 { data: job } (tự động: việc cho worker lập chủ đề)
  *          409 TOPIC_WORKER_REQUIRED | TOPIC_JOB_RUNNING. note/xay-kenh-tiktok/worker-lap-chu-de.txt
- *          Topic: { id, name, tags (bộ lọc tag sản phẩm), source: ai|owner, status: active|paused,
+ *          Topic: { id, name, note (ghi chú cho lệnh lập kế hoạch, có thể null), source: ai|owner, status: active|paused,
  *                   posts: { sample_key: số bài }, last_used: { sample_key: 'YYYY-MM-DD' } }
- * PUT    /creator/channels/{id}/topics/{t} { name?, tags?, status? } -> { data: Topic } (sửa tên / tags -> nguồn owner)
+ * PUT    /creator/channels/{id}/topics/{t} { name?, note?, status? } -> { data: Topic } (sửa tên / ghi chú -> nguồn owner)
  *          Chủ đề: note/xay-kenh-tiktok/chu-de-va-tag-san-pham.txt mục 4. AI tự tạo khi lập kế hoạch; tạm tắt -> AI không dùng.
  * Soạn nội dung (chân dung, tuyến, template, kỳ) do lệnh /lap-ke-hoach của đội A51 làm, không có API ở đây.
  */

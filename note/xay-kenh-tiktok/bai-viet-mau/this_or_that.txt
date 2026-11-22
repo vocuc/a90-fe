@@ -53,5 +53,16 @@ Chữ 'A: ...' <= 6 từ.
 
 10. CÂU HỎI CẦN CHỐT
 ----------------------------------------
+ĐANG BÀN (2026-11-22, chưa làm code):
+- A và B = 2 đôi của shop cùng hợp chủ đề của bài (cùng tag dịp lệnh tự đặt theo tên + ghi chú chủ đề; chủ đề không còn bộ
+  lọc tag từ 2026-11-22), KHÁC ĐÚNG 1 TRƯỜNG tag theo 1 cách ghép:
+  1. Khác kiểu (kieu), cùng dịp: "Đi làm cả ngày: búp bê hay cao gót?"
+  2. Khác gót (got), cùng dịp + cùng kiểu: "Đi tiệc: gót cao hay gót vừa?"
+  3. Khác phong cách (phong_cach), cùng dịp: "Hẹn hò đầu tiên: nhẹ nhàng hay cá tính?"
+  KHÔNG dùng ghép khác màu (người dùng chốt 2026-11-22). "Cùng 1 đôi 2 cách phối" để sau (chưa đảm bảo ảnh phối có đúng đôi).
+- Hook nêu thẳng điểm khác nhau. Backend kiểm tra 2 sản phẩm khác nhau thật ở trường của cách ghép (theo tag sản phẩm).
+- Đề xuất (chờ chốt): bìa ghép A trên / B dưới (content-worker dựng như bìa Top N) + slide A + slide B; caption
+  "Comment A hoặc B nha".
+
 1. Có cần worker ghép ảnh (collage) để slide đầu hiện cả A và B không?
    TRẢ LỜI:
