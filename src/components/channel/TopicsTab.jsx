@@ -256,7 +256,7 @@ export default function TopicsTab({ channel }) {
   );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="space-y-4">
       <Section
         title="Chủ đề"
         subtitle="Kế hoạch đăng bài chỉ chọn trong các chủ đề ở đây (hook viết theo chủ đề; cùng chủ đề và cùng loại bài không lặp trong 14 ngày). Xây dựng tự động bằng AI hoặc thêm thủ công; tạm tắt chủ đề để không dùng nữa."
@@ -275,7 +275,7 @@ export default function TopicsTab({ channel }) {
         ) : !topics.length ? (
           <EmptyState icon="tag" message="Chưa có chủ đề. Bấm Tự động để AI xây dựng, hoặc Thủ công để tự thêm." />
         ) : (
-          <ul className="space-y-2">
+          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {topics.map((t) => {
               const paused = t.status !== TOPIC_STATUS.ACTIVE;
               const chips = tagChips(t.tags);
