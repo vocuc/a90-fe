@@ -81,6 +81,62 @@ function AutoGrowInput({ value, onChange, onKeyDown, className, ...props }) {
   );
 }
 
+/*
+ * Chọn giờ 24h (thay <input type="time|datetime-local">: trình duyệt / máy đặt locale Mỹ hiện AM/PM).
+ * Giá trị giữ đúng định dạng input gốc: time "HH:mm", datetime-local "YYYY-MM-DDTHH:mm".
+ * onChange nhận { target: { value, name } } như sự kiện input thường.
+ */
+const pad2 = (n) => String(n).padStart(2, '0');
+const HOURS = Array.from({ length: 24 }, (_, i) => pad2(i));
+const MINUTES = Array.from({ length: 60 }, (_, i) => pad2(i));
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+const selectCls = 'cursor-pointer appearance-none border-none bg-transparent p-0 pr-0.5 text-sm font-medium text-on-surface focus:outline-none focus:ring-0 disabled:cursor-not-allowed';
+
+function HourMinute({ id, value, onPick, disabled, labelPrefix = '' }) {
+  const [h = '', m = ''] = (value || '').split(':');
+  return (
+    <span className="inline-flex items-center gap-0.5 tabular-nums">
+      <select id={id} value={h} disabled={disabled} aria-label={`${labelPrefix}Giờ`} className={selectCls}
+        style={{ backgroundImage: 'none' }} onChange={(e) => onPick(`${e.target.value}:${m || '00'}`)}>
+        {!h && <option value="">--</option>}
+        {HOURS.map((x) => <option key={x} value={x}>{x}</option>)}
+      </select>
+      <span className="text-sm text-outline">:</span>
+      <select value={m} disabled={disabled} aria-label={`${labelPrefix}Phút`} className={selectCls}
+        style={{ backgroundImage: 'none' }} onChange={(e) => onPick(`${h || '00'}:${e.target.value}`)}>
+        {!m && <option value="">--</option>}
+        {MINUTES.map((x) => <option key={x} value={x}>{x}</option>)}
+      </select>
+    </span>
+  );
+}
+
+/** Ô giờ 24h "HH:mm" (thay <input type="time">). */
+export function TimeInput24({ value, onChange, name, disabled, className = '', 'aria-label': ariaLabel, id }) {
+  return (
+    <span className={`inline-flex items-center rounded-xl border border-outline-variant/40 bg-surface-container-low px-3 py-2 ${className}`}>
+      <HourMinute id={id} value={value} disabled={disabled} labelPrefix={ariaLabel ? `${ariaLabel} - ` : ''}
+        onPick={(v) => onChange?.({ target: { value: v, name } })} />
+    </span>
+  );
+}
+
+/** Ngày + giờ 24h "YYYY-MM-DDTHH:mm" (thay <input type="datetime-local">), ngày dùng <input type="date">. */
+function DateTimeInput24({ id, value, onChange, name, disabled, min, max, className, ...rest }) {
+  const [date = '', time = ''] = (value || '').split('T');
+  const emit = (d, t) => onChange?.({ target: { value: d ? `${d}T${t || '00:00'}` : '', name } });
+  return (
+    <span className="flex w-full items-center gap-2">
+      <input id={id} type="date" value={date} disabled={disabled} name={name} className={`${className} min-w-0 flex-1`}
+        min={min?.split('T')[0]} max={max?.split('T')[0]} onChange={(e) => emit(e.target.value, time)} {...rest} />
+      <HourMinute value={time} disabled={disabled} onPick={(t) => emit(date || todayStr(), t)} />
+    </span>
+  );
+}
+
 export function TextField({ label, icon, error, hint, type = 'text', multiline = false, ...inputProps }) {
   const id = useId();
   const [reveal, setReveal] = useState(false);
@@ -101,6 +157,17 @@ export function TextField({ label, icon, error, hint, type = 'text', multiline =
             className={inputCls}
             {...inputProps}
           />
+        ) : type === 'datetime-local' ? (
+          <DateTimeInput24
+            id={id}
+            aria-invalid={!!error}
+            aria-describedby={error ? `${id}-error` : undefined}
+            className={inputCls}
+            {...inputProps}
+          />
+        ) : type === 'time' ? (
+          <HourMinute id={id} value={inputProps.value} disabled={inputProps.disabled}
+            onPick={(v) => inputProps.onChange?.({ target: { value: v, name: inputProps.name } })} />
         ) : (
           <input
             id={id}

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Icon from '../common/Icon';
 import { useConfirm } from '../common/ConfirmDialog';
 import SuccessDialog from '../common/SuccessDialog';
-import { FormAlert, SelectField, SubmitButton, TextArea, TextField } from '../common/Form';
+import { FormAlert, SelectField, SubmitButton, TextArea, TextField, TimeInput24 } from '../common/Form';
 import HashtagInput from '../template/HashtagInput';
 import { hashtagSlug } from '../../utils/hashtag';
 import { CHANNEL_KEYS, deleteChannel, listChannelWorkers, updateChannel } from '../../api/channels';
@@ -117,11 +117,9 @@ export default function SettingsTab({ channel }) {
           <p className="text-xs font-semibold text-on-surface">Khung giờ đăng (số bài chia đều vào các khung, giờ ngẫu nhiên trong khung)</p>
           {form.timeSlots.map((slot, i) => (
             <div key={i} className="flex items-center gap-2">
-              <input type="time" value={slot.start} onChange={(e) => setSlot(i, { start: e.target.value })} aria-label={`Khung ${i + 1} bắt đầu`}
-                className="rounded-xl border-outline-variant/40 bg-surface-container-low text-sm" />
+              <TimeInput24 value={slot.start} onChange={(e) => setSlot(i, { start: e.target.value })} aria-label={`Khung ${i + 1} bắt đầu`} />
               <span className="text-xs text-outline">đến</span>
-              <input type="time" value={slot.end} onChange={(e) => setSlot(i, { end: e.target.value })} aria-label={`Khung ${i + 1} kết thúc`}
-                className="rounded-xl border-outline-variant/40 bg-surface-container-low text-sm" />
+              <TimeInput24 value={slot.end} onChange={(e) => setSlot(i, { end: e.target.value })} aria-label={`Khung ${i + 1} kết thúc`} />
               {form.timeSlots.length > 1 && (
                 <button type="button" aria-label="Xoá khung giờ" onClick={() => change({ timeSlots: form.timeSlots.filter((_, j) => j !== i) })}
                   className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40">

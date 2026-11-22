@@ -107,7 +107,7 @@ const mapChannel = (c) => ({
 });
 
 export const listChannels = () =>
-  client.get('/creator/channels').then(({ data, meta }) => ({ items: data.map(mapSummary), max: meta?.max ?? 10 }));
+  client.get('/creator/channels').then(({ data, meta }) => ({ items: data.map(mapSummary), max: meta?.max ?? 1 }));
 
 export const getChannel = (id) => client.get(`/creator/channels/${id}`).then(({ data }) => mapChannel(data));
 
