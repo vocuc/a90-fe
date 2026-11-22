@@ -188,6 +188,13 @@ export const decidePlan = (id, planId, approve) =>
 /** Xoá hẳn kỳ đã huỷ (409 PLAN_NOT_CANCELLED khi kỳ chưa huỷ). */
 export const deletePlan = (id, planId) => client.delete(`/creator/channels/${id}/plans/${planId}`).then(({ data }) => data);
 
+/**
+ * Dời lịch, giữ nguyên giờ đăng. itemIds null = dời cả kỳ (date = ngày đầu kỳ mới); có itemIds = dời các bài đó sang
+ * ngày date. 409 ITEM_PUBLISHING (worker đã nhận) | TIME_CONFLICT (sát bài khác); 422 TIME_PASSED.
+ */
+export const reschedulePlan = (id, planId, date, itemIds = null) =>
+  client.post(`/creator/channels/${id}/plans/${planId}/reschedule`, { date, ...(itemIds ? { item_ids: itemIds } : {}) }).then(({ data }) => data);
+
 export const cancelPlanItem = (id, planId, itemId) =>
   client.post(`/creator/channels/${id}/plans/${planId}/items/${itemId}/cancel`).then(({ data }) => data);
 

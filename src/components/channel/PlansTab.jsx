@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Dialog from '../common/Dialog';
 import Icon from '../common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../common/Feedback';
-import { FormAlert, TextArea } from '../common/Form';
+import { FormAlert, TextArea, TextField } from '../common/Form';
 import { useConfirm } from '../common/ConfirmDialog';
 import {
   CHANNEL_KEYS,
@@ -15,6 +15,7 @@ import {
   getPlanJob,
   isPlanJobRunning,
   listPlans,
+  reschedulePlan,
   startPlanJob,
 } from '../../api/channels';
 import Section, { TopicBadge, formatDateTime } from './Section';
@@ -24,6 +25,163 @@ const PLAN_STATUS = {
   approved: { label: 'Đã duyệt', className: 'bg-emerald-50 text-emerald-700' },
   cancelled: { label: 'Đã huỷ', className: 'bg-surface-container text-on-surface-variant' },
 };
+
+// Ngày dạng YYYY-MM-DD theo giờ máy (input type=date, API dời lịch)
+const ymd = (d) => new Date(d).toLocaleDateString('sv-SE');
+const dmy = (date) => new Date(`${date}T00:00:00`).toLocaleDateString('vi-VN');
+const addDays = (date, n) => {
+  const d = new Date(`${date}T00:00:00`);
+  d.setDate(d.getDate() + n);
+  return ymd(d);
+};
+
+/** Tiêu đề kỳ: "Ngày 22/11/2026" (kỳ 1 ngày) hoặc "Ngày 22/11/2026 – 24/11/2026". */
+const planTitle = (p) =>
+  p.days > 1 ? `Ngày ${dmy(p.start_date)} – ${dmy(addDays(p.start_date, p.days - 1))}` : `Ngày ${dmy(p.start_date)}`;
+
+const EDITABLE_POST = ['generating', 'pending_review', 'queued'];
+/** Bài còn dời được: chưa huỷ và worker chưa nhận đăng / chưa đăng. */
+const canMove = (item) => item.status !== 'cancelled' && (!item.post_status || EDITABLE_POST.includes(item.post_status));
+const timeOf = (iso) => new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+/**
+ * Dời lịch (người dùng chốt 2026-11-22), giữ nguyên giờ đăng: dời toàn bộ kỳ (mọi bài lệch cùng số ngày) hoặc chọn bài
+ * dời sang 1 ngày. Bài worker đã nhận đăng / đã đăng không dời được.
+ */
+function RescheduleDialog({ channelId, plan, onClose }) {
+  const queryClient = useQueryClient();
+  const items = plan.items.filter((i) => i.status !== 'cancelled');
+  const movable = items.filter(canMove);
+  const locked = items.length - movable.length;
+  const [mode, setMode] = useState(locked ? 'pick' : 'all');
+  const [date, setDate] = useState(addDays(plan.start_date, 1));
+  const [picked, setPicked] = useState(() => new Set());
+  const delta = date ? Math.round((new Date(`${date}T00:00:00`) - new Date(`${plan.start_date}T00:00:00`)) / 86_400_000) : 0;
+  const target = (item) => {
+    const day = mode === 'all' ? addDays(ymd(item.scheduled_at), delta) : date;
+    return `${timeOf(item.scheduled_at)} ${dmy(day)}`;
+  };
+  const mutation = useMutation({
+    mutationFn: () => reschedulePlan(channelId, plan.id, date, mode === 'all' ? null : [...picked]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.plans(channelId) });
+      queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.plan(channelId, plan.id) });
+      queryClient.invalidateQueries({ queryKey: ['creator', 'channels', String(channelId), 'calendar'] });
+      onClose();
+    },
+  });
+  const toggle = (id) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const shown = mode === 'all' ? items : movable;
+  const disabled = !date || mutation.isPending || (mode === 'all' ? delta === 0 || locked > 0 : picked.size === 0);
+
+  return (
+    <Dialog
+      title="Dời lịch đăng"
+      subtitle={`${planTitle(plan)} · giữ nguyên giờ đăng`}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="flex h-11 items-center rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container">
+            Huỷ
+          </button>
+          <button
+            type="button"
+            onClick={() => mutation.mutate()}
+            disabled={disabled}
+            className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+          >
+            <Icon name={mutation.isPending ? 'progress_activity' : 'event_repeat'} className={`text-lg ${mutation.isPending ? 'animate-spin' : ''}`} />
+            {mode === 'all' ? 'Dời toàn bộ' : `Dời ${picked.size} bài`}
+          </button>
+        </>
+      }
+    >
+      <div className="flex gap-1" role="tablist" aria-label="Cách dời lịch">
+        {[
+          { key: 'all', label: 'Dời toàn bộ' },
+          { key: 'pick', label: 'Chọn bài' },
+        ].map((m) => (
+          <button
+            key={m.key}
+            type="button"
+            role="tab"
+            aria-selected={mode === m.key}
+            onClick={() => setMode(m.key)}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+              mode === m.key ? 'bg-primary-container text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+      <TextField
+        label={mode === 'all' ? (plan.days > 1 ? 'Ngày đầu kỳ mới' : 'Dời sang ngày') : 'Dời các bài đã chọn sang ngày'}
+        icon="event"
+        type="date"
+        min={ymd(new Date())}
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+      />
+      {mode === 'all' && locked > 0 && (
+        <FormAlert>
+          Kỳ có {locked} bài worker đã nhận đăng / đã đăng nên không dời toàn bộ được. Chuyển sang &quot;Chọn bài&quot; để dời các bài còn lại.
+        </FormAlert>
+      )}
+      {mode === 'all' && date && delta === 0 && <p className="text-xs text-on-surface-variant">Chọn ngày khác ngày hiện tại của kỳ.</p>}
+      {mode === 'pick' && (
+        <div className="flex items-center justify-between gap-2 text-xs text-on-surface-variant">
+          <span>
+            Đã chọn {picked.size}/{movable.length} bài{locked ? ` · ${locked} bài worker đã nhận, không dời được` : ''}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPicked(picked.size === movable.length ? new Set() : new Set(movable.map((i) => i.id)))}
+            className="shrink-0 font-bold text-primary hover:underline"
+          >
+            {picked.size === movable.length ? 'Bỏ chọn hết' : 'Chọn hết'}
+          </button>
+        </div>
+      )}
+      <ul className="space-y-1.5">
+        {shown.map((item) => {
+          const on = mode === 'all' || picked.has(item.id);
+          const Row = mode === 'pick' ? 'label' : 'div';
+          return (
+            <li key={item.id}>
+              <Row
+                className={`flex items-center gap-2 rounded-xl border p-2 text-xs ${on ? 'border-primary-container/60' : 'border-outline-variant/40'} ${
+                  mode === 'pick' ? 'cursor-pointer' : ''
+                }`}
+              >
+                {mode === 'pick' && <input type="checkbox" checked={picked.has(item.id)} onChange={() => toggle(item.id)} className="size-4 accent-primary" />}
+                <span className="min-w-0 flex-1">
+                  <span className="line-clamp-1 font-semibold text-on-surface">{item.hook}</span>
+                  <span className="text-on-surface-variant">
+                    {formatDateTime(item.scheduled_at)}
+                    {on && date && (
+                      <>
+                        {' → '}
+                        <b className="text-primary">{target(item)}</b>
+                      </>
+                    )}
+                  </span>
+                </span>
+              </Row>
+            </li>
+          );
+        })}
+      </ul>
+      {mutation.error && <FormAlert>{mutation.error.message}</FormAlert>}
+    </Dialog>
+  );
+}
 
 function PlanItem({ channelId, planId, item, canCancel }) {
   const queryClient = useQueryClient();
@@ -102,6 +260,7 @@ function PlanItem({ channelId, planId, item, canCancel }) {
 function PlanDetail({ channelId, planId }) {
   const queryClient = useQueryClient();
   const { confirm } = useConfirm();
+  const [moving, setMoving] = useState(false);
   const { data: plan, error, refetch } = useQuery({ queryKey: CHANNEL_KEYS.plan(channelId, planId), queryFn: () => getPlan(channelId, planId) });
   const decide = useMutation({
     mutationFn: (approve) => decidePlan(channelId, planId, approve),
@@ -140,6 +299,16 @@ function PlanDetail({ channelId, planId }) {
         {open && (
           <button
             type="button"
+            onClick={() => setMoving(true)}
+            className="flex items-center gap-1 rounded-lg border border-outline-variant/60 px-4 py-2 text-xs font-bold text-on-surface hover:border-primary-container hover:text-primary"
+          >
+            <Icon name="event_repeat" className="text-base" />
+            Dời lịch
+          </button>
+        )}
+        {open && (
+          <button
+            type="button"
             disabled={decide.isPending}
             onClick={async () => {
               if (await confirm('Huỷ cả kỳ? Bài chưa đăng của kỳ bị xoá khỏi lịch.', { confirmLabel: 'Huỷ kỳ', danger: true })) decide.mutate(false);
@@ -150,6 +319,7 @@ function PlanDetail({ channelId, planId }) {
           </button>
         )}
       </div>
+      {moving && <RescheduleDialog channelId={channelId} plan={plan} onClose={() => setMoving(false)} />}
     </div>
   );
 }
@@ -253,7 +423,8 @@ function DeletePlanButton({ channelId, plan }) {
 
 /** Trạng thái lượt lập kế hoạch gần nhất: chỉ hiện khi đang chạy hoặc lỗi (xong thì ẩn, kỳ mới đã ở danh sách bên dưới). */
 function PlanJobStatus({ job, planExists, onOpenPlan }) {
-  if (!job || job.status === 'completed') return null;
+  // superseded: việc "Tạo bổ sung" của kỳ đã huỷ, không còn giao worker
+  if (!job || job.status === 'completed' || job.status === 'superseded') return null;
   const running = isPlanJobRunning(job);
   const box = running
     ? 'bg-sky-50 text-sky-900'
@@ -414,7 +585,7 @@ export default function PlansTab({ channel }) {
       {plans.map((p) => (
         <Section
           key={p.id}
-          title={`Kỳ ${new Date(p.start_date).toLocaleDateString('vi-VN')} · ${p.days} ngày`}
+          title={planTitle(p)}
           subtitle={`${p.total_items} bài`}
           action={
             <div className="flex shrink-0 items-center gap-1">
