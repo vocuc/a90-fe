@@ -240,7 +240,7 @@ const MODES = [
 ];
 
 /**
- * fitScreen: thu nhỏ khung theo chiều cao màn hình (cột xem trước ghim bên phải trên desktop) để thấy trọn khung, nút
+ * fitScreen: thu nhỏ khung theo chiều cao màn hình (popup xem bài ở tab Lịch đăng) để thấy trọn khung, nút
  * chọn chế độ và dòng thông tin mà không phải cuộn.
  */
 export default function TikTokPreview({ post, channelName, templates = {}, onEdit, fitScreen = false }) {
@@ -260,7 +260,7 @@ export default function TikTokPreview({ post, channelName, templates = {}, onEdi
   const name = channelName || 'Kênh';
   const handle = `@${name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '') || 'kenh'}`;
 
-  const phoneWidth = fitScreen ? 'min(100%, 440px, calc((100vh - 150px) * 0.4615))' : 'min(100%, 440px)';
+  const phoneWidth = fitScreen ? 'min(100%, 440px, calc((90vh - 240px) * 0.4615))' : 'min(100%, 440px)';
 
   return (
     <div className="space-y-2" style={{ '--phone-w': phoneWidth }}>

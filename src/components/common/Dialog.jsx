@@ -3,9 +3,9 @@ import Icon from './Icon';
 
 /**
  * Khung popup: đáy màn hình trên điện thoại, giữa màn hình trên desktop. Esc / bấm nền để đóng, khoá cuộn trang.
- * footer: các nút ở đáy (luôn hiện, nội dung cuộn ở giữa).
+ * footer: các nút ở đáy (luôn hiện, nội dung cuộn ở giữa). wide: rộng hơn trên desktop (vd xem trước + chi tiết bài).
  */
-export default function Dialog({ title, subtitle, onClose, footer, children }) {
+export default function Dialog({ title, subtitle, onClose, footer, wide = false, children }) {
   const titleId = useId();
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function Dialog({ title, subtitle, onClose, footer, children }) {
       onClick={onClose}
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl bg-surface-container-lowest shadow-xl sm:rounded-2xl"
+        className={`flex max-h-[90vh] w-full ${wide ? 'max-w-xl lg:max-w-5xl' : 'max-w-xl'} flex-col overflow-hidden rounded-t-2xl bg-surface-container-lowest shadow-xl sm:rounded-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-surface-container px-4 py-3">

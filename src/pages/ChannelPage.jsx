@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import useSeo from '../hooks/useSeo';
@@ -33,12 +32,8 @@ export default function ChannelPage() {
   const tab = TABS.some((t) => t.key === params.get('tab')) ? params.get('tab') : 'calendar';
   const { data: channel, error, refetch } = useQuery({ queryKey: CHANNEL_KEYS.detail(id), queryFn: () => getChannel(id) });
   useSeo({ title: channel ? `Kênh ${channel.name}` : 'Kênh TikTok', noindex: true });
-  // Cột xem trước bên phải (desktop, tab Lịch đăng): CalendarTab vẽ khung xem trước vào đây (portal)
-  const [previewSlot, setPreviewSlot] = useState(null);
-  const withPreview = tab === 'calendar';
 
   return (
-    <div className={withPreview ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_480px] lg:items-start lg:gap-2' : ''}>
     <div className="min-w-0">
       <header className="border-b border-surface-container bg-surface-container-lowest">
         <div className="flex items-center gap-2 px-2 py-2">
@@ -88,7 +83,7 @@ export default function ChannelPage() {
                 </ul>
               </div>
             )}
-            {tab === 'calendar' && <CalendarTab channel={channel} previewSlot={previewSlot} />}
+            {tab === 'calendar' && <CalendarTab channel={channel} />}
             {tab === 'plans' && <PlansTab channel={channel} />}
             {tab === 'lineup' && <LineupTab channel={channel} />}
             {tab === 'topics' && <TopicsTab channel={channel} />}
@@ -99,9 +94,6 @@ export default function ChannelPage() {
           </>
         )}
       </section>
-    </div>
-    {/* Cột phải: chỉ có khung xem trước, ghim khi cuộn, vừa chiều cao màn hình */}
-    {withPreview && <aside ref={setPreviewSlot} className="hidden lg:sticky lg:top-[64px] lg:block lg:py-2 lg:pr-4" />}
     </div>
   );
 }
