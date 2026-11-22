@@ -16,6 +16,7 @@ import {
   isPlanJobRunning,
   listPlans,
   reschedulePlan,
+  resetPlanTimes,
   startPlanJob,
 } from '../../api/channels';
 import Section, { TopicBadge, formatDateTime } from './Section';
@@ -261,6 +262,7 @@ function PlanDetail({ channelId, planId }) {
   const queryClient = useQueryClient();
   const { confirm } = useConfirm();
   const [moving, setMoving] = useState(false);
+  const [resetNote, setResetNote] = useState('');
   const { data: plan, error, refetch } = useQuery({ queryKey: CHANNEL_KEYS.plan(channelId, planId), queryFn: () => getPlan(channelId, planId) });
   const decide = useMutation({
     mutationFn: (approve) => decidePlan(channelId, planId, approve),
@@ -268,6 +270,20 @@ function PlanDetail({ channelId, planId }) {
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.plans(channelId) });
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.plan(channelId, planId) });
       queryClient.invalidateQueries({ queryKey: ['creator', 'channels', String(channelId), 'calendar'] });
+    },
+  });
+  // Làm mới giờ đăng theo khung giờ hiện tại (sau khi đổi khung giờ ở Cấu hình), giữ ngày
+  const resetTimes = useMutation({
+    mutationFn: () => resetPlanTimes(channelId, planId),
+    onMutate: () => setResetNote(''),
+    onSuccess: ({ moved, skipped }) => {
+      queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.plans(channelId) });
+      queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.plan(channelId, planId) });
+      queryClient.invalidateQueries({ queryKey: ['creator', 'channels', String(channelId), 'calendar'] });
+      setResetNote(
+        (moved ? `Đã đổi giờ ${moved} bài theo khung giờ hiện tại.` : 'Không có bài nào cần đổi giờ.') +
+          (skipped ? ` ${skipped} bài hôm nay giữ giờ cũ vì đã hết khung giờ trong ngày.` : ''),
+      );
     },
   });
 
@@ -289,6 +305,8 @@ function PlanDetail({ channelId, planId }) {
         ))}
       </ul>
       {decide.error && <FormAlert>{decide.error.message}</FormAlert>}
+      {resetTimes.error && <FormAlert>{resetTimes.error.message}</FormAlert>}
+      {resetNote && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800">{resetNote}</p>}
       <div className="flex flex-wrap gap-2">
         {plan.status === 'draft' && (
           <button type="button" onClick={() => decide.mutate(true)} disabled={decide.isPending}
@@ -304,6 +322,25 @@ function PlanDetail({ channelId, planId }) {
           >
             <Icon name="event_repeat" className="text-base" />
             Dời lịch
+          </button>
+        )}
+        {open && (
+          <button
+            type="button"
+            disabled={resetTimes.isPending}
+            onClick={async () => {
+              if (
+                await confirm(
+                  'Làm mới giờ đăng các bài của kỳ theo khung giờ hiện tại ở Cấu hình? Bài giữ nguyên ngày, chỉ đổi giờ; bài worker đã nhận / đã đăng không đổi.',
+                  { confirmLabel: 'Làm mới giờ đăng' },
+                )
+              )
+                resetTimes.mutate();
+            }}
+            className="flex items-center gap-1 rounded-lg border border-outline-variant/60 px-4 py-2 text-xs font-bold text-on-surface hover:border-primary-container hover:text-primary disabled:opacity-50"
+          >
+            <Icon name={resetTimes.isPending ? 'progress_activity' : 'schedule'} className={`text-base ${resetTimes.isPending ? 'animate-spin' : ''}`} />
+            Làm mới giờ đăng
           </button>
         )}
         {open && (

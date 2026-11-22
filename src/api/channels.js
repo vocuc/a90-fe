@@ -195,6 +195,13 @@ export const deletePlan = (id, planId) => client.delete(`/creator/channels/${id}
 export const reschedulePlan = (id, planId, date, itemIds = null) =>
   client.post(`/creator/channels/${id}/plans/${planId}/reschedule`, { date, ...(itemIds ? { item_ids: itemIds } : {}) }).then(({ data }) => data);
 
+/**
+ * "Làm mới giờ đăng": đặt lại giờ các bài của kỳ theo khung giờ hiện tại của kênh, giữ ngày.
+ * -> { data: plan + { moved, skipped } } (skipped: bài hôm nay khi đã hết khung giờ trong ngày, giữ giờ cũ).
+ * 422 NO_TIME_SLOTS | 409 PLAN_CLOSED.
+ */
+export const resetPlanTimes = (id, planId) => client.post(`/creator/channels/${id}/plans/${planId}/reset-times`).then(({ data }) => data);
+
 export const cancelPlanItem = (id, planId, itemId) =>
   client.post(`/creator/channels/${id}/plans/${planId}/items/${itemId}/cancel`).then(({ data }) => data);
 
