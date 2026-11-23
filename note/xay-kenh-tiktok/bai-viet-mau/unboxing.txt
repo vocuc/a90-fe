@@ -13,7 +13,7 @@ Người dùng chốt 2026-11-21: "loại nội dung tiếp theo là dạng ản
 
 1. THÔNG TIN
 ----------------------------------------
-Nhóm: Trưng bày hàng   Mục tiêu: Bán hàng   Định dạng: CHỈ ẢNH   Số ảnh: = số Creative của nhóm (1-35)
+Nhóm: Ảnh sản phẩm   Mục tiêu: Bán hàng   Định dạng: CHỈ ẢNH   Số ảnh: = số Creative của nhóm (1-35)
 Cùng 1 sản phẩm: Có. Cần: shop có worker tạo ảnh (context channel.image_worker), sản phẩm đang bật ghép được với ít nhất
 1 nhóm Creative đang bán (cùng luật nút "Tạo tự động" ở trang lô: có ảnh đúng trường nguyên liệu).
 

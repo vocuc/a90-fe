@@ -8,7 +8,7 @@ TRẠNG THÁI: LÀM ĐƯỢC NẾU CÓ ẢNH (hệ thống chưa biết màu)
 
 1. THÔNG TIN
 ----------------------------------------
-Nhóm: Trưng bày hàng   Mục tiêu: Bán hàng   Định dạng: Ảnh   Số slide: 2-6
+Nhóm: Ảnh sản phẩm   Mục tiêu: Bán hàng   Định dạng: Ảnh   Số slide: 2-6
 Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
 Cùng 1 sản phẩm: Không bắt buộc
 Dùng khi: Cùng 1 kiểu giày có ảnh ở nhiều màu.

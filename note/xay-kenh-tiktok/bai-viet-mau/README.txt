@@ -32,36 +32,35 @@ CHỈ BÀI ĐÃ LÀM XONG MỚI BẬT (người dùng chốt 2026-11-21)
 
 MỤC LỤC
 ----------------------------------------
-Trưng bày hàng:
-  unboxing               Đập hộp                      ĐÃ LÀM: kiểu bài ảnh chủ shop hay đăng, duyệt kỳ tạo lô tự động, không chữ
-  video_type_01          Video - Type 01              ĐÃ LÀM: bài video, lệnh chọn sản phẩm, A51 chọn template + ảnh, worker dựng video
-  closeup                Soi cận cảnh                 LÀM ĐƯỢC MỘT PHẦN (chưa cắt cận được)
-  color_options          1 mẫu nhiều màu              LÀM ĐƯỢC NẾU CÓ ẢNH (hệ thống chưa biết màu)
-So sánh, chọn lựa:
-  this_or_that           A hay B                      LÀM ĐƯỢC (chưa có slide ghép 2 ảnh)
-  top_n                  Top N                        ĐÃ LÀM: content-worker dựng bìa ghép + chữ #1..#N
-  which_suits_you        Bạn hợp đôi nào              LÀM ĐƯỢC
-Phối đồ:
+3 nhóm theo cách sản xuất (chốt 2026-11-23): bài ra VIDEO -> Video (kể cả dựng từ ảnh phối đồ); bài có ảnh phối đồ (kể cả
+lai ảnh sản phẩm) -> Phối đồ; còn lại -> Ảnh sản phẩm. Mục đích bài (kéo view, bán hàng...) xem field goal.
+
+Phối đồ (outfit):
   lookbook               Phối đồ                      ĐÃ LÀM: chủ đề + hashtag -> lô phối đồ có sẵn hook, tìm outfit theo hashtag
+  outfit_by_day          Outfit theo ngày / dịp       ĐÃ LÀM: lô phối đồ mới, worker in nhãn ngày thay 'Outfit N'
   one_shoe_many_looks    1 đôi N cách phối            LÀM ĐƯỢC NẾU CÓ ẢNH KHỚP (khó) - tạm gác 2026-11-21
   box_to_feet            Từ hộp lên chân              LÀM ĐƯỢC NẾU CÓ ẢNH KHỚP (rất khó)
-  outfit_by_day          Outfit theo ngày / dịp       ĐÃ LÀM: lô phối đồ mới, worker in nhãn ngày thay 'Outfit N'
-Kể chuyện, cảm xúc:
+  before_after           Trước / sau                  THIẾU ẢNH 'TRƯỚC'
+Ảnh sản phẩm (product):
+  unboxing               Đập hộp                      ĐÃ LÀM: kiểu bài ảnh chủ shop hay đăng, duyệt kỳ tạo lô tự động, không chữ
+  top_n                  Top N                        ĐÃ LÀM: content-worker dựng bìa ghép + chữ #1..#N
+  closeup                Soi cận cảnh                 LÀM ĐƯỢC MỘT PHẦN (chưa cắt cận được)
+  color_options          1 mẫu nhiều màu              LÀM ĐƯỢC NẾU CÓ ẢNH (hệ thống chưa biết màu)
+  this_or_that           A hay B                      LÀM ĐƯỢC (chưa có slide ghép 2 ảnh)
+  which_suits_you        Bạn hợp đôi nào              LÀM ĐƯỢC
   pov                    POV                          LÀM ĐƯỢC
   meme_types             Meme 'N kiểu người'          LÀM ĐƯỢC
-  before_after           Trước / sau                  THIẾU ẢNH 'TRƯỚC'
-Hữu ích, tư vấn:
   size_guide             Chọn size                    LÀM ĐƯỢC (chữ dài, xem lại độ đẹp)
   care_tips              Bảo quản / mẹo               LÀM ĐƯỢC
   faq                    Hỏi đáp                      LÀM ĐƯỢC NẾU CÓ THÔNG TIN SHOP
-Gợi ý theo người nhận:
   gift_by_receiver       Quà theo người nhận          LÀM ĐƯỢC
   by_budget              Theo mức giá                 CHƯA LÀM ĐƯỢC (không có giá sản phẩm)
-Chuỗi bài:
+  sale                   Ưu đãi                       LÀM ĐƯỢC NẾU CÓ THÔNG TIN ƯU ĐÃI
+Video (video):
+  video_type_01          Video - Type 01              ĐÃ LÀM: bài video, lệnh chọn sản phẩm, A51 chọn template + ảnh, worker dựng video
   daily_drop             Mỗi ngày 1 mẫu / đếm ngược   LÀM ĐƯỢC
   numbered               Đánh số tập                  LÀM ĐƯỢC
-Ưu đãi:
-  sale                   Ưu đãi                       LÀM ĐƯỢC NẾU CÓ THÔNG TIN ƯU ĐÃI
+  (cần xây thêm dạng video: video Top N, video lookbook, video soi cận cảnh, video đếm ngược...)
 
 TỔNG HỢP CHỖ CẦN QUYẾT (chi tiết trong từng file)
 ----------------------------------------

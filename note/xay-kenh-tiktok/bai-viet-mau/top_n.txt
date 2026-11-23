@@ -10,7 +10,7 @@ Bìa ghép (chốt 2026-11-21): N = 4-5 -> 4 ảnh đầu (2x2); N >= 6 -> 6 ả
 
 1. THÔNG TIN
 ----------------------------------------
-Nhóm: So sánh, chọn lựa   Mục tiêu: Lưu bài   Định dạng: Ảnh, video   Số slide: 4-8
+Nhóm: Ảnh sản phẩm   Mục tiêu: Lưu bài   Định dạng: Ảnh, video   Số slide: 4-8
 Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
 Cùng 1 sản phẩm: Không bắt buộc
 Dùng khi: Có >= 3 mẫu hợp 1 tiêu chí (dịp, kiểu, tầm giá).

@@ -8,7 +8,7 @@ TRẠNG THÁI: LÀM ĐƯỢC (chưa có slide ghép 2 ảnh)
 
 1. THÔNG TIN
 ----------------------------------------
-Nhóm: So sánh, chọn lựa   Mục tiêu: Tương tác (comment)   Định dạng: Ảnh   Số slide: 2-3
+Nhóm: Ảnh sản phẩm   Mục tiêu: Tương tác (comment)   Định dạng: Ảnh   Số slide: 2-3
 Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
 Cùng 1 sản phẩm: Không bắt buộc
 Dùng khi: Luôn dùng được khi có >= 2 mẫu. Hợp để kéo comment.

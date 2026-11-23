@@ -80,7 +80,7 @@ Thêm bài viết mẫu mới = đội A51 cùng Claude xây theo yêu cầu sho
 Mỗi bài viết mẫu:
   key            chuỗi cố định, vd "unboxing" (lưu vào bài, KHÔNG đổi sau khi đã dùng)
   name           tên hiển thị, vd "Đập hộp"
-  group          1 trong 8 nhóm: showcase | compare | outfit | story | tips | gift | series | promo
+  group          1 trong 3 nhóm (chốt 2026-11-23): outfit (Phối đồ) | product (Ảnh sản phẩm) | video (Video)
   goal           mục tiêu: reach | engagement | save | sale | trust
   formats        ["photo"] | ["photo","video"]
   slides         { min, max }
@@ -89,7 +89,7 @@ Mỗi bài viết mẫu:
   same_product   true: mọi ảnh cùng 1 sản phẩm (vd đập hộp)
   guide          hướng dẫn cho người lập kế hoạch (cách viết hook, chữ từng slide, ví dụ)
 
-Danh sách ban đầu (từ 8 nhóm đã bàn):
+Danh sách ban đầu (từ 8 nhóm đã bàn; từ 2026-11-23 gộp thành 3 nhóm, xem bai-viet-mau/README.txt):
   showcase  unboxing (Đập hộp), closeup (Soi cận cảnh), color_options (1 mẫu nhiều màu)
   compare   this_or_that (A hay B), top_n (Top N), which_suits_you (Bạn hợp đôi nào)
   outfit    lookbook (Lookbook N outfit), one_shoe_many_looks (1 đôi N cách phối), box_to_feet (Từ hộp lên chân),

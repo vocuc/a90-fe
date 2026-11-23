@@ -8,7 +8,7 @@ TRẠNG THÁI: LÀM ĐƯỢC NẾU CÓ THÔNG TIN SHOP
 
 1. THÔNG TIN
 ----------------------------------------
-Nhóm: Hữu ích, tư vấn   Mục tiêu: Tạo tin tưởng   Định dạng: Ảnh   Số slide: 2-5
+Nhóm: Ảnh sản phẩm   Mục tiêu: Tạo tin tưởng   Định dạng: Ảnh   Số slide: 2-5
 Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
 Cùng 1 sản phẩm: Không bắt buộc
 Dùng khi: Trả lời câu hỏi hay gặp: ship, đổi size, chất liệu.

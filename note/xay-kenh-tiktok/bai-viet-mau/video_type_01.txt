@@ -7,7 +7,7 @@ Người dùng: "xây dựng dạng bài viết là video giữ nguyên như hi�
 
 1. THÔNG TIN
 ----------------------------------------
-Nhóm: Trưng bày hàng   Mục tiêu: Bán hàng   Định dạng: CHỈ VIDEO (slot format video; số slot video = % Video - Type 01 trong tuyến)
+Nhóm: Video   Mục tiêu: Bán hàng   Định dạng: CHỈ VIDEO (slot format video; số slot video = % Video - Type 01 trong tuyến)
 Số ảnh: = image_count của video template A51 chọn. Cùng 1 sản phẩm. Không chữ. Không gắn template chữ.
 
 2. LUỒNG (giữ luồng "Tạo video" hiện nay)

@@ -8,7 +8,7 @@ TRẠNG THÁI: THIẾU ẢNH 'TRƯỚC'
 
 1. THÔNG TIN
 ----------------------------------------
-Nhóm: Kể chuyện, cảm xúc   Mục tiêu: Kéo view   Định dạng: Ảnh   Số slide: 2-4
+Nhóm: Phối đồ   Mục tiêu: Kéo view   Định dạng: Ảnh   Số slide: 2-4
 Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
 Cùng 1 sản phẩm: Không bắt buộc
 Dùng khi: Có ảnh 'trước' (bình thường / lúng túng) và 'sau' (xinh, tự tin).

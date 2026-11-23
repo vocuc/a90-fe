@@ -8,7 +8,7 @@ TRẠNG THÁI: LÀM ĐƯỢC
 
 1. THÔNG TIN
 ----------------------------------------
-Nhóm: Chuỗi bài   Mục tiêu: Tương tác (comment)   Định dạng: Ảnh, video   Số slide: 1-3
+Nhóm: Video   Mục tiêu: Tương tác (comment)   Định dạng: Ảnh, video   Số slide: 1-3
 Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
 Cùng 1 sản phẩm: Có
 Dùng khi: Trước dịp lớn (Tết, 8/3...): mỗi ngày 1 bài, cùng giờ.

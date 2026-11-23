@@ -8,7 +8,7 @@ TRẠNG THÁI: LÀM ĐƯỢC
 
 1. THÔNG TIN
 ----------------------------------------
-Nhóm: Gợi ý theo người nhận   Mục tiêu: Bán hàng   Định dạng: Ảnh   Số slide: 3-6
+Nhóm: Ảnh sản phẩm   Mục tiêu: Bán hàng   Định dạng: Ảnh   Số slide: 3-6
 Nguồn ảnh: Ảnh có sẵn của shop (context.images: ảnh sản phẩm kind=product, ảnh phối đồ kind=outfit), lệnh chọn theo ref.
 Cùng 1 sản phẩm: Không bắt buộc
 Dùng khi: Trước dịp tặng quà: Tết (từ đầu tháng Chạp), 8/3, 20/10, Valentine, Noel, sinh nhật.
