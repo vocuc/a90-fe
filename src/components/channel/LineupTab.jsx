@@ -12,11 +12,20 @@ const enabledOnly = (items, samples) => {
   return items.filter((i) => enabled.has(i.sample_key));
 };
 
-/** Gom dòng tuyến theo nhóm bài viết mẫu (Phối đồ / Ảnh sản phẩm / Video, backend PostSamples::GROUPS), giữ idx gốc để sửa. */
+/** Gom dòng tuyến theo nhóm bài viết mẫu (Phối đồ / Ảnh sản phẩm / Video, backend PostSamples::GROUPS), giữ idx gốc để sửa.
+ * Trong nhóm xếp theo thứ tự thư viện bài viết mẫu (bài "basic" đứng đầu mỗi nhóm). */
 function groupRows(items, samples, groups) {
   const groupOf = Object.fromEntries(samples.map((s) => [s.key, s.group]));
+  const order = Object.fromEntries(samples.map((s, i) => [s.key, i]));
+  const rank = (key) => order[key] ?? Infinity;
   const list = [...Object.entries(groups).map(([key, label]) => ({ key, label })), { key: '_other', label: 'Khác' }]
-    .map((g) => ({ ...g, rows: items.map((item, idx) => ({ item, idx })).filter(({ item }) => (groups[groupOf[item.sample_key]] ? groupOf[item.sample_key] : '_other') === g.key) }));
+    .map((g) => ({
+      ...g,
+      rows: items
+        .map((item, idx) => ({ item, idx }))
+        .filter(({ item }) => (groups[groupOf[item.sample_key]] ? groupOf[item.sample_key] : '_other') === g.key)
+        .sort((a, b) => rank(a.item.sample_key) - rank(b.item.sample_key)),
+    }));
   return list.map((g) => ({ ...g, percent: g.rows.reduce((s, r) => s + Number(r.item.percent || 0), 0) }));
 }
 

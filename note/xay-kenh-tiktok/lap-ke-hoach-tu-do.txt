@@ -1,0 +1,123 @@
+ĐẶC TẢ: LẬP KẾ HOẠCH TỰ DO (AI sáng tạo theo khả năng dựng của worker, bỏ tuyến nội dung cứng)
+======================================================================
+
+Ngày: 2026-11-23. Trạng thái: KHÔNG LÀM - người dùng chốt 2026-11-23 giữ nguyên hệ thống hiện tại (tuyến nội dung + bài viết mẫu). Chỉ giữ lại để tham khảo.
+Liên quan: bai-viet-mau/README.txt, worker-content.txt, chu-de-va-tag-san-pham.txt, dac-ta-giai-doan-1.txt,
+skill D:\FlowKit\.claude\skills\lap-ke-hoach. Backend: D:\OSPanel\home\a90.local. Frontend: D:\a90-fe.
+
+0. LÝ DO
+----------------------------------------
+- Hiện tại: tuyến nội dung (tỉ lệ % bài viết mẫu) là ĐIỀU KIỆN CỨNG: bài dùng bài viết mẫu ngoài tuyến bị từ chối
+  (ChannelPlanService::validateItem). Bài viết mẫu vừa quy định CÁCH DỰNG vừa quy định CÁCH VIẾT (guide, chữ "#k" của
+  Top N...). Lệnh muốn viết bài "Mặc váy thì chọn giày gì?" (chỉ cần ảnh + chữ) mà không có bài viết mẫu khớp -> không làm được.
+- Hướng mới (người dùng chốt 2026-11-23): lệnh /lap-ke-hoach chỉ cần biết WORKER DỰNG ĐƯỢC GÌ, rồi dựa vào CHỦ ĐỀ +
+  TEMPLATE CHỮ để tự nghĩ góc viết, tự viết theo ý nó.
+
+1. KHÁI NIỆM MỚI
+----------------------------------------
+- KHẢ NĂNG DỰNG (thay "bài viết mẫu" về ý nghĩa; code vẫn là PostSamples + sample_key để không phá bài cũ):
+  1 kiểu đầu ra worker làm được + đầu vào cần gửi + giới hạn. KHÔNG quy định góc viết.
+- GÓC VIẾT (angle, mới): lệnh tự đặt cho từng bài, chữ tự do ngắn (vd "Tư vấn theo trang phục", "POV đi date").
+  Lưu vào bài để thống kê góc nào hiệu quả.
+- CHỦ ĐỀ: giữ nguyên (tên + ghi chú, dữ liệu của kênh).
+- TEMPLATE CHỮ: giữ nguyên, gắn theo khả năng dựng (sample_keys).
+- TUYẾN NỘI DUNG: bỏ làm điều kiện cứng (mục 4).
+
+2. DANH MỤC KHẢ NĂNG DỰNG
+----------------------------------------
+key (giữ key cũ)   Tên hiển thị                 Worker              Lệnh tự quyết
+-----------------  ---------------------------  ------------------  ------------------------------------------------
+text_slides (MỚI)  Ảnh sản phẩm + chữ           content-worker      1-8 ảnh sản phẩm có sẵn (theo tag như Top N), chữ
+                                                (anh_thuong)        từng slide có / không, hook ở slide 1. Không bìa ghép.
+top_n              Ảnh sản phẩm + bìa ghép      content-worker      4-7 ảnh, hook bìa, chữ từng slide TỰ DO (bỏ bắt buộc
+                                                (top_n)             "#k"? -> CẦN CHỐT, mục 9). Bìa ghép worker tự dựng.
+unboxing           Lô ảnh tự động, không chữ    worker tạo ảnh      1 sản phẩm + tiêu đề (tiêu đề = hook).
+lookbook           Lô phối đồ                   worker phối đồ v2   Hook bìa, 1-5 hashtag OOTD, số ảnh 3-9, NHÃN ẢNH TUỲ
+                                                                    CHỌN (gửi outfit.labels thì in nhãn, không gửi thì
+                                                                    "Outfit N"). Gộp outfit_by_day vào đây.
+video_type_01      Video từ ảnh sản phẩm        worker đăng bài     1 sản phẩm + tiêu đề; A51 chọn video template + ảnh.
+
+- outfit_by_day: bỏ khỏi READY (key giữ trong định nghĩa cho bài cũ), dữ liệu chuyển sang lookbook (mục 7).
+- Các bài viết mẫu chưa làm xong (closeup, this_or_that, pov, faq...): BỎ khỏi thư viện hiển thị. Ý tưởng của chúng
+  chuyển thành GỢI Ý GÓC VIẾT trong skill (mục 5), làm bằng text_slides. Key vẫn giữ trong code nếu đã có bài dùng
+  (kiểm DB server trước khi xoá).
+- Thêm khả năng mới sau này (ghép 2 ảnh 1 slide, cắt cận, video kiểu mới...) = làm worker trước, rồi thêm vào danh mục.
+
+3. QUY TRÌNH LỆNH /lap-ke-hoach (mỗi slot)
+----------------------------------------
+1. Chọn CHỦ ĐỀ hợp ngày đăng (giữ luật hiện tại: dịp gần, chủ đề cụ thể).
+2. Tự nghĩ GÓC VIẾT theo chủ đề + chân dung khách hàng (tham khảo gợi ý mục 5, không bắt buộc).
+3. Chọn KHẢ NĂNG DỰNG hợp góc đó (slot video -> chỉ video_type_01).
+4. Chọn TEMPLATE CHỮ đã duyệt gắn khả năng đó (bài có chữ / lô phối đồ).
+5. Viết hook, chữ từng slide, tiêu đề, caption, hashtag; chọn sản phẩm / ảnh theo tag (như Top N: kehoach.py products,
+   dùng ảnh ref A51 trả, không chọn ảnh khác).
+Gửi thêm field angle cho mỗi bài.
+
+4. RÀNG BUỘC: BỎ / GIỮ
+----------------------------------------
+BỎ:
+- Bài phải thuộc tuyến nội dung đã duyệt.
+- Cảnh báo lệch tỉ lệ % từng bài viết mẫu (lineupWarnings).
+- Luật slide cứng theo từng bài viết mẫu cũ (slide nào có chữ...) với text_slides: slide nào cũng được có / không chữ.
+GIỮ:
+- Khả năng phải ĐÃ LÀM XONG (READY) và shop có worker tương ứng (content-worker, worker phối đồ, worker tạo ảnh).
+- Giới hạn kỹ thuật: số ảnh, chữ <= 150 ký tự / slide, hook <= 200, ảnh thuộc shop, không trùng ảnh trong bài.
+- Bài trùng y hệt (signature) bị chặn.
+THAY ĐỔI:
+- Số slot video: hiện tính từ % bài video trong tuyến (Channel::videoPercent). Đổi thành ô "% bài video" trong Cấu hình
+  kênh (cột channels.video_percent, mặc định = giá trị đang tính từ tuyến lúc migrate).
+- Chống lặp chủ đề: hiện "cùng chủ đề + cùng bài viết mẫu không lặp 14 ngày". Đổi thành "cùng chủ đề + cùng GÓC VIẾT"
+  (so angle không phân biệt hoa thường) -> CẦN CHỐT, mục 9.
+- Cảnh báo đa dạng (mềm, không chặn): 1 khả năng dựng > 50% số bài kỳ, hoặc 1 góc viết > 30%.
+
+5. GỢI Ý GÓC VIẾT (ghi trong SKILL.md, không bắt buộc)
+----------------------------------------
+- Tư vấn: theo trang phục ("Mặc váy chọn giày gì?"), theo dáng chân / vóc người, theo dịp, theo tình huống (đứng cả
+  ngày, đi mưa), mẹo / lỗi hay gặp.
+- So sánh: A hay B, bạn chọn số mấy, bạn hợp đôi nào (phong cách / tính cách / cung), xếp hạng Top N.
+- Giải trí: POV, "N kiểu người", trend / câu viral, sự thật về...
+- Bán hàng: đập hộp, điểm nổi bật 1 mẫu, gợi ý quà theo người nhận.
+- Mùa / dịp: Tết, 8/3, 20/10, Valentine, mùa cưới, đi biển, đếm ngược.
+Luật dữ liệu: KHÔNG bịa giá, số lượng bán, màu / biến thể, chính sách shop nếu context không có.
+
+6. BACKEND (D:\OSPanel\home\a90.local)
+----------------------------------------
+- app/Support/PostSamples.php: thêm text_slides (group product, image_source library, formats photo, slides 1-8,
+  slide_rules each any text true); lookbook thêm 'outfit_labels' => 'optional'; READY = text_slides, top_n, unboxing,
+  lookbook, video_type_01; definitions() chỉ còn khả năng dựng + key cũ ẩn (cờ hidden) cho bài cũ.
+- ChannelPlanService::validateItem: bỏ kiểm tra tuyến; nhận + kiểm tra angle (bắt buộc, <= 60 ký tự); validateOutfit:
+  labels tuỳ chọn khi 'optional'; lineupWarnings -> diversityWarnings (mục 4).
+- ChannelTopicService::check: luật lặp theo angle (nếu chốt).
+- Channel::videoPercent: đọc cột video_percent; validate 0-100 ở ChannelController (Cấu hình).
+- context của lệnh: bỏ lineup, thêm capabilities (danh mục mục 2 + worker shop có / chưa có) và video_percent.
+- Bỏ API tuyến (/creator/channels/{id}/lineups, lệnh lưu tuyến) hoặc để nguyên không dùng -> CẦN CHỐT, mục 9.
+- Migration: channels.video_percent; social_posts.angle + content_plan_items.angle (varchar 60 null).
+- ContentJobService: text_slides dựng bằng anh_thuong (content-worker chọn dạng theo sample_key, key lạ -> anh_thuong;
+  KIỂM TRA lại worker trước khi bật).
+
+7. DỮ LIỆU CŨ (chạy khi deploy, kiểm DB server trước)
+----------------------------------------
+- Tuyến nội dung đã duyệt: lấy % video -> channels.video_percent; bảng channel_lineups giữ nguyên (không dùng nữa).
+- Template chữ có sample_keys chứa outfit_by_day -> thêm lookbook. Template gắn bài viết mẫu ảnh có chữ -> thêm text_slides
+  (hoặc chủ shop tự gắn lại -> CẦN CHỐT).
+- Bài / kế hoạch cũ giữ sample_key cũ, angle null.
+
+8. FRONTEND (D:\a90-fe)
+----------------------------------------
+- Tab Tuyến nội dung -> đổi thành "Khả năng dựng": xem danh mục mục 2 (worker nào làm, shop đã có worker chưa), chỉ xem.
+  Hoặc bỏ hẳn tab -> CẦN CHỐT.
+- Cấu hình kênh: thêm ô "% bài video".
+- Tab Kế hoạch / Lịch đăng: hiện góc viết trên bài.
+- Template chữ: chọn loại bài theo danh mục mới.
+
+9. CẦN CHỐT
+----------------------------------------
+1. Top N: bỏ bắt buộc chữ "#k" (lệnh viết tự do) hay giữ (Top N vẫn là xếp hạng)?  Đề xuất: GIỮ "#k" - muốn chữ tự do
+   thì dùng text_slides.
+2. Chống lặp: theo chủ đề + góc viết, hay chủ đề + khả năng dựng (như cũ)?  Đề xuất: chủ đề + góc viết.
+3. Tab Tuyến nội dung: đổi thành trang "Khả năng dựng" (chỉ xem) hay bỏ hẳn?  Đề xuất: đổi thành trang xem.
+4. API / dữ liệu tuyến cũ: xoá hay để nguyên không dùng?  Đề xuất: để nguyên 1 thời gian, xoá sau.
+5. Template chữ cho text_slides: tự gắn từ template bài ảnh có chữ cũ hay chủ shop tự gắn?  Đề xuất: tự gắn từ template
+   đang gắn top_n.
+6. Chủ shop có cần chặn khả năng nào cho kênh không (vd kênh không dùng phối đồ)?  Đề xuất: có, ô "Tắt khả năng" trong
+   Cấu hình, mặc định bật hết.
