@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Dialog from '../common/Dialog';
 import Icon from '../common/Icon';
@@ -150,31 +151,110 @@ const HOOK_STATUS = {
   failed: 'Lỗi',
 };
 
-/** Hook đã viết theo chủ đề (bài đăng + bài kế hoạch chờ duyệt), mới trước; bấm để mở / đóng. */
-function TopicHooks({ hooks, sampleName }) {
-  const [open, setOpen] = useState(false);
-  if (!hooks?.length) return null;
+// Backend trả tối đa ChannelTopicService::HOOKS_PER_TOPIC hook gần nhất mỗi chủ đề
+const HOOKS_MAX = 50;
 
+const iconButton = 'flex size-8 items-center justify-center rounded-lg hover:bg-surface-container disabled:opacity-50';
+
+/** Nút sửa / tạm tắt (bật lại) / xoá của 1 chủ đề (thẻ chủ đề và trang chi tiết). */
+function TopicActions({ topic, onEdit, onToggle, onRemove, toggling, removing }) {
+  const paused = topic.status !== TOPIC_STATUS.ACTIVE;
   return (
-    <div>
-      <button type="button" onClick={() => setOpen((v) => !v)} className="flex items-center gap-0.5 text-[11px] font-bold text-primary hover:underline">
-        <Icon name={open ? 'expand_less' : 'expand_more'} className="text-base" />
-        {open ? 'Ẩn hook' : `Xem ${hooks.length} hook đã tạo`}
+    <>
+      <button type="button" onClick={onEdit} aria-label={`Sửa chủ đề ${topic.name}`} title="Sửa" className={`${iconButton} text-on-surface-variant`}>
+        <Icon name="edit" className="text-lg" />
       </button>
-      {open && (
-        <ul className="mt-1 space-y-1 border-l-2 border-outline-variant/40 pl-2">
-          {hooks.map((h, i) => (
-            <li key={`${h.at}-${i}`} className="text-xs text-on-surface">
-              <span className="font-semibold">{h.hook}</span>
-              <span className="block text-[10px] text-on-surface-variant">
-                {[sampleName(h.sample_key), h.at && formatDateTime(h.at), HOOK_STATUS[h.kind === 'draft' ? 'draft' : h.status] ?? h.status]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={toggling}
+        aria-label={paused ? `Bật lại chủ đề ${topic.name}` : `Tạm tắt chủ đề ${topic.name}`}
+        title={paused ? 'Bật lại' : 'Tạm tắt'}
+        className={`${iconButton} text-on-surface-variant`}
+      >
+        <Icon name={paused ? 'play_circle' : 'pause_circle'} className="text-lg" />
+      </button>
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={!!removing}
+        aria-label={`Xoá chủ đề ${topic.name}`}
+        title="Xoá"
+        className={`${iconButton} text-error hover:bg-error-container/40`}
+      >
+        <Icon name={removing ? 'progress_activity' : 'delete'} className={`text-lg ${removing ? 'animate-spin' : ''}`} />
+      </button>
+    </>
+  );
+}
+
+/** Tên + nhãn nguồn / tạm tắt của chủ đề. */
+function TopicTitle({ topic, large = false }) {
+  const paused = topic.status !== TOPIC_STATUS.ACTIVE;
+  return (
+    <p className={`flex flex-wrap items-center gap-1.5 font-bold text-on-surface ${large ? 'text-base' : 'text-sm'}`}>
+      <span className={paused ? 'text-on-surface-variant line-through' : ''}>{topic.name}</span>
+      <span className="rounded bg-surface-container px-1.5 py-0.5 text-[10px] font-bold text-on-surface-variant">
+        {topic.source === 'ai' ? 'AI tạo' : 'Shop tạo / sửa'}
+      </span>
+      {paused && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">Tạm tắt</span>}
+    </p>
+  );
+}
+
+/**
+ * Trang chi tiết chủ đề (?tab=topics&topic={id}, mở từ "Xem N hook đã tạo" trên thẻ): tên, ghi chú, sửa / tạm tắt / xoá và
+ * toàn bộ hook đã viết theo chủ đề (bài đăng + bài kế hoạch chờ duyệt, mới trước, tối đa HOOKS_MAX hook gần nhất).
+ */
+function TopicDetail({ topic, sampleName, onBack, actions }) {
+  const hooks = topic.hooks ?? [];
+  return (
+    <div className="space-y-4">
+      <button type="button" onClick={onBack} className="flex items-center gap-1 text-xs font-bold text-primary hover:underline">
+        <Icon name="arrow_back" className="text-base" />
+        Tất cả chủ đề
+      </button>
+      <section className="space-y-3 rounded-2xl border border-outline-variant/40 p-4">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <TopicTitle topic={topic} large />
+          </div>
+          <div className="flex shrink-0 gap-1">{actions}</div>
+        </div>
+        <div>
+          <p className="mb-0.5 text-[11px] font-semibold text-on-surface-variant">Ghi chú cho AI lập kế hoạch</p>
+          {topic.note ? (
+            <p className="whitespace-pre-line text-sm text-on-surface">{topic.note}</p>
+          ) : (
+            <p className="text-xs italic text-outline">Chưa có ghi chú, AI tự do sáng tạo</p>
+          )}
+        </div>
+      </section>
+      <section className="space-y-3 rounded-2xl border border-outline-variant/40 p-4">
+        <div>
+          <h2 className="text-base font-bold text-on-surface">Hook đã tạo ({hooks.length})</h2>
+          <p className="text-xs text-on-surface-variant">
+            Hook của bài đăng và bài kế hoạch chờ duyệt theo chủ đề này, mới trước
+            {hooks.length >= HOOKS_MAX ? ` (hiện ${HOOKS_MAX} hook gần nhất)` : ''}.
+          </p>
+        </div>
+        {!hooks.length ? (
+          <EmptyState icon="short_text" message="Chưa có hook nào theo chủ đề này." />
+        ) : (
+          <ul className="divide-y divide-outline-variant/30">
+            {hooks.map((h, i) => (
+              <li key={`${h.at}-${i}`} className="py-2">
+                <p className="text-sm font-semibold text-on-surface">{h.hook}</p>
+                <p className="text-[11px] text-on-surface-variant">
+                  {[sampleName(h.sample_key), h.at && formatDateTime(h.at), HOOK_STATUS[h.kind === 'draft' ? 'draft' : h.status] ?? h.status]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
@@ -209,7 +289,7 @@ function JobStatus({ job }) {
  * Tab Chủ đề: chủ đề của kênh, dùng chung mọi loại bài (cùng chủ đề + cùng loại bài không lặp trong 14 ngày). Chủ đề có
  * từ "Xây dựng tự động" (worker lập chủ đề) hoặc "Xây dựng thủ công"; lệnh lập kế hoạch chỉ chọn chủ đề có sẵn.
  * Chủ shop sửa tên / tag, tạm tắt, xoá (kể cả chủ đề đã có bài: các bài đó thành chủ đề "Không xác định").
- * Sau này thống kê view theo chủ đề.
+ * "Xem N hook đã tạo" mở trang chi tiết chủ đề (?topic={id}, TopicDetail). Sau này thống kê view theo chủ đề.
  */
 export default function TopicsTab({ channel }) {
   const queryClient = useQueryClient();
@@ -217,6 +297,11 @@ export default function TopicsTab({ channel }) {
   // null | { topic } (sửa) | { topic: null } (thêm thủ công)
   const [editing, setEditing] = useState(null);
   const [autoOpen, setAutoOpen] = useState(false);
+  // ?topic={id}: đang xem trang chi tiết chủ đề
+  const [params, setParams] = useSearchParams();
+  const topicId = params.get('topic');
+  const openTopic = (id) => setParams({ tab: 'topics', topic: String(id) });
+  const closeTopic = () => setParams({ tab: 'topics' });
   const { data, error, refetch } = useQuery({
     queryKey: CHANNEL_KEYS.topics(channel.id),
     queryFn: () => getTopics(channel.id),
@@ -232,7 +317,11 @@ export default function TopicsTab({ channel }) {
   const remove = useMutation({
     mutationFn: (t) => deleteTopic(channel.id, t.id),
     // Bài kế hoạch / lịch đăng của chủ đề đổi sang "Không xác định": tải lại mọi dữ liệu của kênh
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.detail(channel.id) }),
+    onSuccess: (_, t) => {
+      queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.detail(channel.id) });
+      // Xoá ở trang chi tiết thì về danh sách
+      if (topicId === String(t.id)) closeTopic();
+    },
     onError: (err) => alert(err?.message || 'Không xoá được chủ đề, vui lòng thử lại.'),
   });
   const askRemove = async (t) => {
@@ -244,6 +333,44 @@ export default function TopicsTab({ channel }) {
   };
   const topics = data?.topics;
   const running = isTopicJobRunning(data?.job);
+  const actionsFor = (t) => (
+    <TopicActions
+      topic={t}
+      onEdit={() => setEditing({ topic: t })}
+      onToggle={() => toggle.mutate(t)}
+      onRemove={() => askRemove(t)}
+      toggling={toggle.isPending}
+      removing={remove.isPending && remove.variables?.id === t.id}
+    />
+  );
+  const dialogs = (
+    <>
+      {editing && <TopicDialog channelId={channel.id} topic={editing.topic} onClose={() => setEditing(null)} />}
+      {autoOpen && <AutoBuildDialog channelId={channel.id} limits={data?.count} onClose={() => setAutoOpen(false)} />}
+    </>
+  );
+
+  if (topicId) {
+    const current = topics?.find((t) => String(t.id) === topicId);
+    return (
+      <>
+        {error ? (
+          <ErrorState error={error} onRetry={refetch} />
+        ) : !topics ? (
+          <Skeleton className="h-40 w-full" />
+        ) : current ? (
+          <TopicDetail topic={current} sampleName={sampleName} onBack={closeTopic} actions={actionsFor(current)} />
+        ) : (
+          <EmptyState icon="tag" message="Chủ đề không còn (đã bị xoá).">
+            <button type="button" onClick={closeTopic} className="text-sm font-bold text-primary hover:underline">
+              Về danh sách chủ đề
+            </button>
+          </EmptyState>
+        )}
+        {dialogs}
+      </>
+    );
+  }
 
   const actions = data && (
     <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
@@ -292,53 +419,32 @@ export default function TopicsTab({ channel }) {
             {topics.map((t) => {
               const paused = t.status !== TOPIC_STATUS.ACTIVE;
               return (
-                <li key={t.id} className={`rounded-xl border border-outline-variant/40 p-3 ${paused ? 'bg-surface-container-low' : ''}`}>
-                  <div className="flex items-start gap-2">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-on-surface">
-                        <span className={paused ? 'text-on-surface-variant line-through' : ''}>{t.name}</span>
-                        <span className="rounded bg-surface-container px-1.5 py-0.5 text-[10px] font-bold text-on-surface-variant">
-                          {t.source === 'ai' ? 'AI tạo' : 'Shop tạo / sửa'}
-                        </span>
-                        {paused && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">Tạm tắt</span>}
-                      </p>
-                      {t.note ? (
-                        <p className="line-clamp-3 whitespace-pre-line text-xs text-on-surface" title={t.note}>{t.note}</p>
-                      ) : (
-                        <p className="text-[11px] italic text-outline">Chưa có ghi chú, AI tự do sáng tạo</p>
-                      )}
-                      <TopicHooks hooks={t.hooks} sampleName={sampleName} />
-                    </div>
-                    <div className="flex shrink-0 gap-1">
+                <li
+                  key={t.id}
+                  className={`flex flex-col rounded-xl border border-outline-variant/40 p-3 ${paused ? 'bg-surface-container-low' : ''}`}
+                >
+                  <TopicTitle topic={t} />
+                  {/* Ghi chú + hook rộng hết thẻ */}
+                  <div className="mb-2 mt-1 flex-1 space-y-1">
+                    {t.note ? (
+                      <p className="line-clamp-3 whitespace-pre-line text-xs text-on-surface" title={t.note}>{t.note}</p>
+                    ) : (
+                      <p className="text-[11px] italic text-outline">Chưa có ghi chú, AI tự do sáng tạo</p>
+                    )}
+                    {t.hooks?.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => setEditing({ topic: t })}
-                        aria-label={`Sửa chủ đề ${t.name}`}
-                        className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
+                        onClick={() => openTopic(t.id)}
+                        className="flex items-center gap-0.5 text-[11px] font-bold text-primary hover:underline"
                       >
-                        <Icon name="edit" className="text-lg" />
+                        Xem {t.hooks.length} hook đã tạo
+                        <Icon name="chevron_right" className="text-base" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => toggle.mutate(t)}
-                        disabled={toggle.isPending}
-                        aria-label={paused ? `Bật lại chủ đề ${t.name}` : `Tạm tắt chủ đề ${t.name}`}
-                        title={paused ? 'Bật lại' : 'Tạm tắt'}
-                        className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container disabled:opacity-50"
-                      >
-                        <Icon name={paused ? 'play_circle' : 'pause_circle'} className="text-lg" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => askRemove(t)}
-                        disabled={remove.isPending}
-                        aria-label={`Xoá chủ đề ${t.name}`}
-                        title="Xoá"
-                        className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40 disabled:opacity-50"
-                      >
-                        <Icon name={remove.isPending && remove.variables?.id === t.id ? 'progress_activity' : 'delete'} className={`text-lg ${remove.isPending && remove.variables?.id === t.id ? 'animate-spin' : ''}`} />
-                      </button>
-                    </div>
+                    )}
+                  </div>
+                  {/* Thanh công cụ ở đáy thẻ (phần nội dung flex-1: thẻ cùng hàng cao bằng nhau nên các thanh thẳng hàng) */}
+                  <div className="flex justify-end gap-1 border-t border-outline-variant/30 pt-2">
+                    {actionsFor(t)}
                   </div>
                 </li>
               );
@@ -346,8 +452,7 @@ export default function TopicsTab({ channel }) {
           </ul>
         )}
       </Section>
-      {editing && <TopicDialog channelId={channel.id} topic={editing.topic} onClose={() => setEditing(null)} />}
-      {autoOpen && <AutoBuildDialog channelId={channel.id} limits={data?.count} onClose={() => setAutoOpen(false)} />}
+      {dialogs}
     </div>
   );
 }
