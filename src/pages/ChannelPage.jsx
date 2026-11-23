@@ -12,6 +12,7 @@ import LineupTab from '../components/channel/LineupTab';
 import PostSamplesTab from '../components/channel/PostSamplesTab';
 import TextTemplatesTab from '../components/channel/TextTemplatesTab';
 import TopicsTab from '../components/channel/TopicsTab';
+import CreativesTab from '../components/channel/CreativesTab';
 import PersonaTab from '../components/channel/PersonaTab';
 import SettingsTab from '../components/channel/SettingsTab';
 
@@ -20,6 +21,7 @@ const TABS = [
   { key: 'plans', label: 'Kế hoạch', icon: 'event_note' },
   { key: 'lineup', label: 'Tuyến nội dung', icon: 'view_list' },
   { key: 'topics', label: 'Chủ đề', icon: 'tag' },
+  { key: 'creatives', label: 'Creative', icon: 'auto_awesome' },
   // Tab Bài viết mẫu: tạm ẩn (người dùng yêu cầu 2026-11-20), bỏ comment dòng dưới để hiện lại
   // { key: 'samples', label: 'Bài viết mẫu', icon: 'library_books' },
   { key: 'templates', label: 'Template chữ', icon: 'text_fields' },
@@ -131,6 +133,7 @@ function ChannelView({ id }) {
             {tab === 'plans' && <PlansTab channel={channel} />}
             {tab === 'lineup' && <LineupTab channel={channel} />}
             {tab === 'topics' && <TopicsTab channel={channel} />}
+            {tab === 'creatives' && <CreativesTab channel={channel} />}
             {tab === 'samples' && <PostSamplesTab channel={channel} />}
             {tab === 'templates' && <TextTemplatesTab channel={channel} />}
             {tab === 'persona' && <PersonaTab channel={channel} />}

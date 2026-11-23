@@ -83,7 +83,13 @@ Ghi chủ đề:
   trước / sau slot (TOPIC_REPEATED). Bài bị xoá / làm lại không tính.
 
 Frontend (Kênh TikTok -> kênh): tab / khối "Chủ đề": danh sách chủ đề, số bài theo loại bài, lần dùng gần nhất; sửa
-tên / tags, tạm tắt. Bài trong lịch hiện tên chủ đề.
+tên / tags, tạm tắt, xoá. Bài trong lịch hiện tên chủ đề.
+Xoá chủ đề (2026-11-23, DELETE /creator/channels/{id}/topics/{t} -> 204): xoá được cả chủ đề đã có bài. Bài đăng / bài
+kế hoạch của chủ đề giữ nguyên, topic_id = null (FK nullOnDelete) = chủ đề "Không xác định" (nhãn xám trên lịch / kế
+hoạch). Không chặn worker lập chủ đề tạo lại chủ đề cùng tên; kiểm tra lặp 14 ngày không tính các bài đã mất chủ đề.
+Chủ shop sửa bài kế hoạch chưa duyệt đã mất chủ đề mà không chọn chủ đề -> giữ "không xác định"
+(ChannelTopicService::NO_TOPIC). Lệnh /lap-ke-hoach gửi bài mới / làm lại vẫn bắt buộc chủ đề có sẵn.
+Test: ProductTagTopicTest::test_delete_topic_with_posts_leaves_posts_without_topic.
 
 5. API CHO /lap-ke-hoach (prefix v1/channel-plan, token channel-plan)
 ----------------------------------------
@@ -171,7 +177,7 @@ BACKEND ĐÃ LÀM (2026-11-21):
 FRONTEND ĐÃ LÀM (2026-11-21):
 - Sản phẩm (/seller/items): thẻ sản phẩm có khối Tag (nhãn + chip), nút "Sửa tag" (chủ sản phẩm) -> ProductTagsDialog
   (components/product), chỉ gửi trường đã đổi; nhãn "AI" / "Shop sửa" từng trường. api/productTags.js (enum + nhãn).
-- Kênh: tab "Chủ đề" (components/channel/TopicsTab.jsx): danh sách, số bài theo loại bài, sửa tên + tag lọc, tạm tắt / bật.
+- Kênh: tab "Chủ đề" (components/channel/TopicsTab.jsx): danh sách, số bài theo loại bài, sửa tên + tag lọc, tạm tắt / bật, xoá (hỏi xác nhận, báo số bài sẽ thành "Không xác định").
 - Lịch đăng, kế hoạch: nhãn chủ đề (TopicBadge) trên bài.
 
 10. CÂU HỎI CÒN MỞ

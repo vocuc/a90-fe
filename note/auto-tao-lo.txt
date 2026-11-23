@@ -230,17 +230,33 @@ NHÓM CREATIVE
 CreativeGroup:
 {
   "id": 5, "name": "Bộ ảnh nền trắng",
+  "channel": null,   // { id, name } = nhóm riêng của kênh; null = dùng chung mọi kênh
   "creatives": [ { "id": 7, "slug": "...", "title": "...", "cover_url": "...", "price_per_image": 2000,
                    "status": "published" }, ... ],
   "created_at": "..."
 }
 
 GET    /creator/creative-groups                 cũ nhất trước (đúng thứ tự dùng ở câu 17), không phân trang
-POST   /creator/creative-groups                 { name, creative_ids: [] } -> 201 { data: CreativeGroup }
-PUT    /creator/creative-groups/{id}            { name, creative_ids: [] } -> 200
+POST   /creator/creative-groups                 { name, channel_id?, creative_ids: [] } -> 201 { data: CreativeGroup }
+PUT    /creator/creative-groups/{id}            { name, channel_id?, creative_ids: [] } -> 200
+GET    /creator/creative-groups?channel_id=     chỉ nhóm dùng được cho kênh (dùng chung + riêng của kênh)
 DELETE /creator/creative-groups/{id}            -> 204
 Kiểm tra: name bắt buộc; creative phải của chính người dùng (mọi trạng thái, lúc chạy chỉ dùng Đang bán);
 creative đã ở nhóm khác -> 422 errors["creative_ids.2"] (kèm tên nhóm đang chứa).
+
+NHÓM CREATIVE THEO KÊNH (2026-11-23)
+- channel_id null / không gửi = nhóm DÙNG CHUNG mọi kênh; có channel_id = nhóm chỉ dùng cho kênh đó. Kênh phải của
+  chính người dùng (422 errors["channel_id"]). Xoá kênh thì nhóm riêng của kênh thành dùng chung (nullOnDelete).
+- Một creative vẫn chỉ ở một nhóm (giữ unique), kể cả giữa nhóm dùng chung và nhóm riêng.
+- Tạo lô tự động (preview / tạo, chế độ Creative) nhận channel_id: có kênh -> nhóm dùng chung + nhóm riêng của kênh đó;
+  không gửi -> chỉ nhóm dùng chung. Trang /batches/auto có ô "Tạo cho kênh" (chỉ hiện khi shop có kênh).
+- Kế hoạch kênh (bài unboxing, product_batch): kiểm tra ghép được và tạo lô đều theo kênh của kế hoạch.
+- Backend: migration 2026_11_23_100000_add_channel_id_to_creative_groups, CreativeGroup::scopeForChannel,
+  CreativeGroupController, AutoBatchService ($channelId), ImageBatchController (channel_id), ChannelPlanService.
+  Test: AutoBatchTest::test_channel_groups_only_used_for_their_channel / test_group_channel_must_be_own_and_channel_delete_makes_group_shared,
+  ChannelPlanTest::test_unboxing_creates_auto_batch_on_approve.
+- Frontend: GroupFormDialog (ô Kênh), CreativeGroupsPage (nhãn Dùng chung / Kênh X), BatchAutoPage (ô Tạo cho kênh),
+  api/autoBatch.js.
 
 TẠO TỰ ĐỘNG
 -----------

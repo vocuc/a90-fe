@@ -35,6 +35,8 @@ import client from './client';
  *          Topic: { id, name, note (ghi chú cho lệnh lập kế hoạch, có thể null), source: ai|owner, status: active|paused,
  *                   posts: { sample_key: số bài }, last_used: { sample_key: 'YYYY-MM-DD' } }
  * PUT    /creator/channels/{id}/topics/{t} { name?, note?, status? } -> { data: Topic } (sửa tên / ghi chú -> nguồn owner)
+ * DELETE /creator/channels/{id}/topics/{t} -> 204 (xoá cả chủ đề đã có bài: bài đăng / bài kế hoạch giữ nguyên, topic = null
+ *          = "không xác định")
  *          Chủ đề: note/xay-kenh-tiktok/chu-de-va-tag-san-pham.txt mục 4. AI tự tạo khi lập kế hoạch; tạm tắt -> AI không dùng.
  * Soạn nội dung (chân dung, tuyến, template, kỳ) do lệnh /lap-ke-hoach của đội A51 làm, không có API ở đây.
  */
@@ -235,3 +237,5 @@ export const isTopicJobRunning = (job) => job?.status === 'queued' || job?.statu
 
 export const updateTopic = (id, topicId, values) =>
   client.put(`/creator/channels/${id}/topics/${topicId}`, values).then(({ data }) => data);
+
+export const deleteTopic = (id, topicId) => client.delete(`/creator/channels/${id}/topics/${topicId}`);

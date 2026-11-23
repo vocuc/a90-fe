@@ -16,11 +16,14 @@ import { mapBatch } from './batches';
  * DELETE /creator/products/{id}                   -> 204
  * PUT    /creator/products/{id}/active            { is_active } -> { data: Product }; sản phẩm tắt không được tạo tự động
  * PUT    /creator/products/{id}/tags              tag sản phẩm (api/productTags.js)
- * GET    /creator/creative-groups                 -> { data: CreativeGroup[] } (cũ nhất trước = thứ tự tạo lô)
- * POST   /creator/creative-groups                 { name, creative_ids } -> 201 ; PUT /creator/creative-groups/{id}
+ * GET    /creator/creative-groups?channel_id=     -> { data: CreativeGroup[] } (cũ nhất trước = thứ tự tạo lô)
+ * POST   /creator/creative-groups                 { name, channel_id?, creative_ids } -> 201 ; PUT /creator/creative-groups/{id}
+ *          channel_id: null = dùng chung mọi kênh; có = chỉ dùng cho kênh đó (xoá kênh thì thành dùng chung)
+ *          CreativeGroup.channel: { id, name } | null
  * DELETE /creator/creative-groups/{id}            -> 204
- * GET    /image-batches/auto/preview?count=&seed=&product_ids[]= -> { data: { seed, batches: AutoPlan[] } }
- * POST   /image-batches/auto                      { count, insert_logo, idempotency_key, seed?, worker_id, product_ids? }
+ * GET    /image-batches/auto/preview?count=&seed=&product_ids[]=&channel_id= -> { data: { seed, batches: AutoPlan[] } }
+ * POST   /image-batches/auto                      { count, insert_logo, idempotency_key, seed?, worker_id, product_ids?, channel_id? }
+ *          channel_id: tạo cho kênh -> nhóm dùng chung + nhóm riêng của kênh; bỏ trống = chỉ nhóm dùng chung
  *          product_ids: chỉ ghép lô từ các sản phẩm người dùng chọn thủ công; bỏ trống = mọi sản phẩm
  *          worker_id: worker tạo ảnh cho mọi lô (note/chon-worker-tao-anh.txt), sai -> 422 errors["worker_id"]
  *          -> 201 { data: { batches: ImageBatch[], requested, stopped: null|no_valid_pair } }
@@ -77,6 +80,8 @@ export const mapProduct = (p) => ({
 const mapGroup = (g) => ({
   id: g.id,
   name: g.name,
+  // null = dùng chung mọi kênh
+  channel: g.channel ?? null,
   creatives: g.creatives.map((c) => ({
     id: c.id,
     slug: c.slug,
@@ -155,29 +160,36 @@ export async function getProductImageFile(productId, image) {
   return new File([blob], `${image.fieldKey || `product_${image.id}`}.${IMAGE_EXT[type] ?? 'jpg'}`, { type, lastModified: Date.now() });
 }
 
-export const listGroups = () => client.get('/creator/creative-groups').then(({ data }) => data.map(mapGroup));
+/** channelId: chỉ nhóm dùng được cho kênh (dùng chung + riêng của kênh); bỏ trống = mọi nhóm. */
+export const listGroups = (channelId) =>
+  client.get('/creator/creative-groups', { params: { channel_id: channelId || undefined } }).then(({ data }) => data.map(mapGroup));
 
-export function saveGroup({ id, name, creativeIds }) {
-  const body = { name, creative_ids: creativeIds };
+/** channelId: rỗng / null = dùng chung mọi kênh. */
+export function saveGroup({ id, name, channelId, creativeIds }) {
+  const body = { name, channel_id: channelId ? Number(channelId) : null, creative_ids: creativeIds };
   const req = id ? client.put(`/creator/creative-groups/${id}`, body) : client.post('/creator/creative-groups', body);
   return req.then(({ data }) => mapGroup(data));
 }
 
 export const deleteGroup = (id) => client.delete(`/creator/creative-groups/${id}`);
 
-/** productIds: sản phẩm chọn thủ công, rỗng = mọi sản phẩm. */
-export const previewAuto = (count, productIds = []) =>
-  client.get('/image-batches/auto/preview', { params: { count, product_ids: productIds.length ? productIds : undefined } }).then(({ data }) => ({
-    seed: data.seed,
-    batches: data.batches.map((b) => ({
-      product: { id: b.product.id, name: b.product.name, coverUrl: b.product.cover_url },
-      group: b.group,
-      creatives: b.creatives.map((c) => ({ id: c.id, title: c.title })),
-    })),
-  }));
+/** productIds: sản phẩm chọn thủ công, rỗng = mọi sản phẩm. channelId: rỗng = chỉ nhóm dùng chung. */
+export const previewAuto = (count, productIds = [], channelId = '') =>
+  client
+    .get('/image-batches/auto/preview', {
+      params: { count, product_ids: productIds.length ? productIds : undefined, channel_id: channelId || undefined },
+    })
+    .then(({ data }) => ({
+      seed: data.seed,
+      batches: data.batches.map((b) => ({
+        product: { id: b.product.id, name: b.product.name, coverUrl: b.product.cover_url },
+        group: b.group,
+        creatives: b.creatives.map((c) => ({ id: c.id, title: c.title })),
+      })),
+    }));
 
 /** seed: của lần xem trước (tạo đúng các lô đã xem); bỏ trống thì hệ thống tự chọn ngẫu nhiên. */
-export const createAuto = ({ count, insertLogo, seed, workerId, productIds = [] }, idempotencyKey) =>
+export const createAuto = ({ count, insertLogo, seed, workerId, productIds = [], channelId = '' }, idempotencyKey) =>
   client
     .post('/image-batches/auto', {
       count,
@@ -186,6 +198,7 @@ export const createAuto = ({ count, insertLogo, seed, workerId, productIds = [] 
       seed,
       worker_id: workerId,
       product_ids: productIds.length ? productIds : undefined,
+      channel_id: channelId ? Number(channelId) : undefined,
     })
     .then(({ data }) => ({
       batches: data.batches.map(mapBatch),

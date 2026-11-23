@@ -9,6 +9,7 @@ import {
   CHANNEL_KEYS,
   TOPIC_STATUS,
   createTopic,
+  deleteTopic,
   getTopics,
   isTopicJobRunning,
   listPostSamples,
@@ -209,11 +210,12 @@ function JobStatus({ job }) {
 /**
  * Tab Chủ đề: chủ đề của kênh, dùng chung mọi loại bài (cùng chủ đề + cùng loại bài không lặp trong 14 ngày). Chủ đề có
  * từ "Xây dựng tự động" (worker lập chủ đề) hoặc "Xây dựng thủ công"; lệnh lập kế hoạch chỉ chọn chủ đề có sẵn.
- * Chủ shop sửa tên / tag, tạm tắt. Sau này thống kê view theo chủ đề.
+ * Chủ shop sửa tên / tag, tạm tắt, xoá (kể cả chủ đề đã có bài: các bài đó thành chủ đề "Không xác định").
+ * Sau này thống kê view theo chủ đề.
  */
 export default function TopicsTab({ channel }) {
   const queryClient = useQueryClient();
-  const { alert } = useConfirm();
+  const { alert, confirm } = useConfirm();
   // null | { topic } (sửa) | { topic: null } (thêm thủ công)
   const [editing, setEditing] = useState(null);
   const [autoOpen, setAutoOpen] = useState(false);
@@ -229,6 +231,19 @@ export default function TopicsTab({ channel }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.topics(channel.id) }),
     onError: (err) => alert(err?.message || 'Không đổi được trạng thái chủ đề, vui lòng thử lại.'),
   });
+  const remove = useMutation({
+    mutationFn: (t) => deleteTopic(channel.id, t.id),
+    // Bài kế hoạch / lịch đăng của chủ đề đổi sang "Không xác định": tải lại mọi dữ liệu của kênh
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.detail(channel.id) }),
+    onError: (err) => alert(err?.message || 'Không xoá được chủ đề, vui lòng thử lại.'),
+  });
+  const askRemove = async (t) => {
+    const count = Object.values(t.posts ?? {}).reduce((sum, n) => sum + n, 0);
+    const message = count
+      ? `Xoá chủ đề "${t.name}"? ${count} bài đã dùng chủ đề này vẫn giữ nguyên nhưng chủ đề sẽ thành "Không xác định".`
+      : `Xoá chủ đề "${t.name}"?`;
+    if (await confirm(message, { confirmLabel: 'Xoá', danger: true })) remove.mutate(t);
+  };
   const topics = data?.topics;
   const running = isTopicJobRunning(data?.job);
 
@@ -259,7 +274,7 @@ export default function TopicsTab({ channel }) {
     <div className="space-y-4">
       <Section
         title="Chủ đề"
-        subtitle="Kế hoạch đăng bài chỉ chọn trong các chủ đề ở đây (hook viết theo chủ đề; cùng chủ đề và cùng loại bài không lặp trong 14 ngày). Xây dựng tự động bằng AI hoặc thêm thủ công; tạm tắt chủ đề để không dùng nữa."
+        subtitle="Kế hoạch đăng bài chỉ chọn trong các chủ đề ở đây (hook viết theo chủ đề; cùng chủ đề và cùng loại bài không lặp trong 14 ngày). Xây dựng tự động bằng AI hoặc thêm thủ công; tạm tắt hoặc xoá chủ đề để không dùng nữa."
         action={actions}
       >
         {data && !data.topic_worker && (
@@ -320,6 +335,16 @@ export default function TopicsTab({ channel }) {
                         className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container disabled:opacity-50"
                       >
                         <Icon name={paused ? 'play_circle' : 'pause_circle'} className="text-lg" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => askRemove(t)}
+                        disabled={remove.isPending}
+                        aria-label={`Xoá chủ đề ${t.name}`}
+                        title="Xoá"
+                        className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40 disabled:opacity-50"
+                      >
+                        <Icon name={remove.isPending && remove.variables?.id === t.id ? 'progress_activity' : 'delete'} className={`text-lg ${remove.isPending && remove.variables?.id === t.id ? 'animate-spin' : ''}`} />
                       </button>
                     </div>
                   </div>

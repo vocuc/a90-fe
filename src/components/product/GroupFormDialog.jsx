@@ -1,19 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Dialog from '../common/Dialog';
 import CoverImage from '../common/CoverImage';
 import Icon from '../common/Icon';
-import { TextField } from '../common/Form';
+import { SelectField, TextField } from '../common/Form';
 import { ErrorState, Skeleton } from '../common/Feedback';
 import { STATUS_BADGE } from '../creative/creativeStatus';
 import { useCreatorCreatives } from '../../hooks/creatorQueries';
 import { saveGroup } from '../../api/autoBatch';
+import { CHANNEL_KEYS, listChannels } from '../../api/channels';
 
 /**
  * Tạo / sửa nhóm creative (note/auto-tao-lo.txt): tên + creative Đang bán của chính mình (tạo lô chỉ dùng
  * creative Đang bán). Một creative chỉ ở một nhóm: creative đã ở nhóm khác hiện tên nhóm, không chọn được.
+ * Kênh: không chọn = dùng chung mọi kênh; chọn kênh = nhóm chỉ dùng cho kênh đó.
  */
 export default function GroupFormDialog({ group, onSaved, onClose }) {
   const [name, setName] = useState(group?.name ?? '');
+  // '' = dùng chung mọi kênh
+  const [channelId, setChannelId] = useState(group?.channel ? String(group.channel.id) : '');
+  const { data: channelData } = useQuery({ queryKey: CHANNEL_KEYS.all, queryFn: listChannels });
+  const channels = channelData?.items ?? [];
   const [selected, setSelected] = useState(() => group?.creatives.map((c) => c.id) ?? []);
   const [q, setQ] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -50,10 +57,10 @@ export default function GroupFormDialog({ group, onSaved, onClose }) {
     }
     setSaving(true);
     try {
-      onSaved(await saveGroup({ id: group?.id, name: name.trim(), creativeIds: selected }));
+      onSaved(await saveGroup({ id: group?.id, name: name.trim(), channelId, creativeIds: selected }));
     } catch (err) {
-      // errors["creative_ids.2"]: creative thứ 3 đã ở nhóm khác / không phải của mình
-      const first = Object.entries(err?.errors ?? {}).find(([k]) => k.startsWith('creative_ids'));
+      // errors["creative_ids.2"]: creative thứ 3 đã ở nhóm khác / không phải của mình; errors.channel_id: kênh không còn
+      const first = Object.entries(err?.errors ?? {}).find(([k]) => k.startsWith('creative_ids') || k === 'channel_id');
       setError(first?.[1] ?? err?.message ?? 'Không lưu được nhóm, vui lòng thử lại.');
       setSaving(false);
     }
@@ -86,6 +93,24 @@ export default function GroupFormDialog({ group, onSaved, onClose }) {
       }
     >
       <TextField label="Tên nhóm" icon="workspaces" value={name} maxLength={255} error={nameError} onChange={(e) => setName(e.target.value)} />
+
+      <SelectField
+        label="Kênh"
+        value={channelId}
+        onChange={(e) => setChannelId(e.target.value)}
+        hint={channelId ? 'Nhóm chỉ dùng khi tạo lô cho kênh này.' : 'Nhóm dùng được cho mọi kênh và khi tạo lô không theo kênh.'}
+      >
+        <option value="">Dùng chung mọi kênh</option>
+        {channels.map((c) => (
+          <option key={c.id} value={String(c.id)}>
+            Chỉ kênh {c.name}
+          </option>
+        ))}
+        {/* Kênh của nhóm chưa có trong danh sách (đang tải) vẫn hiện đúng tên */}
+        {group?.channel && !channels.some((c) => c.id === group.channel.id) && (
+          <option value={String(group.channel.id)}>Chỉ kênh {group.channel.name}</option>
+        )}
+      </SelectField>
 
       <div>
         <p className="mb-1.5 text-xs font-semibold text-on-surface">Creative trong nhóm</p>

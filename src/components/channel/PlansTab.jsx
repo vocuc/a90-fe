@@ -231,7 +231,7 @@ function PlanItem({ channelId, planId, item, canCancel }) {
               ? `Tạo lô ảnh "${item.product_batch.product_name ?? `sản phẩm #${item.product_batch.product_id}`}" khi duyệt`
               : `${item.images.length} ảnh`}
         </p>
-        {item.topic && <TopicBadge name={item.topic} />}
+        <TopicBadge name={item.topic} />
         <p className="line-clamp-2 text-sm font-semibold text-on-surface">{item.hook}</p>
         {item.title && <p className="truncate text-xs text-on-surface-variant">{item.title}</p>}
         {item.outfit?.tags?.length > 0 && (

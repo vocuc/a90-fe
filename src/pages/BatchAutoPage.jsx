@@ -10,6 +10,7 @@ import LogoCard, { batchLogoUrl } from '../components/batch/LogoCard';
 import ProductPickerDialog from '../components/batch/ProductPickerDialog';
 import ImageWorkerSelect, { useImageWorker } from '../components/common/ImageWorkerSelect';
 import { Switch } from '../components/template/inputs';
+import { SelectField } from '../components/common/Form';
 import { useMe } from '../hooks/queries';
 import useIdempotencyKey from '../hooks/useIdempotencyKey';
 import {
@@ -22,6 +23,7 @@ import {
   previewAuto,
   previewOutfit,
 } from '../api/autoBatch';
+import { CHANNEL_KEYS, listChannels } from '../api/channels';
 
 // creative: lô = sản phẩm x nhóm creative | outfit: lô phối đồ (1 đôi giày - nhiều cách phối, worker phối đồ)
 const MODES = [
@@ -57,6 +59,8 @@ const readUseProduct = () => {
  * Chế độ "Phối đồ": mỗi lô = 1 sản phẩm (ít lô phối đồ nhất trước) x N ảnh (ảnh 1 bìa + N-1 ảnh outfit), giao worker
  * phối đồ (bắt buộc), không dùng nhóm creative. Công tắc "Dùng ảnh sản phẩm" (mặc định tắt): tắt thì lô không gắn sản phẩm,
  * tạo đúng số lô nhập; worker vẽ outfit theo ảnh gốc outfit + người mẫu, ảnh bìa dựng từ ảnh outfit của lô.
+ * Chế độ Creative có ô "Tạo cho kênh": không theo kênh = chỉ nhóm dùng chung; chọn kênh = nhóm dùng chung + nhóm riêng
+ * của kênh đó (gửi channel_id).
  */
 export default function BatchAutoPage() {
   useSeo({ title: 'Tạo lô tự động', noindex: true });
@@ -106,6 +110,12 @@ export default function BatchAutoPage() {
   // Chế độ Creative luôn dùng sản phẩm; Phối đồ theo công tắc
   const useProduct = !outfit || useProductState;
   const productIds = useProduct ? products.map((p) => p.id) : [];
+  // Kênh tạo lô (chế độ Creative): '' = không theo kênh, chỉ dùng nhóm creative dùng chung
+  const { data: channelData } = useQuery({ queryKey: CHANNEL_KEYS.all, queryFn: listChannels });
+  const channels = channelData?.items ?? [];
+  const [channelPick, setChannelPick] = useState('');
+  // Kênh đã chọn không còn thì về "không theo kênh"
+  const channelId = channels.some((c) => String(c.id) === channelPick) ? channelPick : '';
 
   // Vào từ danh sách lô thì quay lại đúng trang đó (không để trang này lại trong lịch sử)
   const fromList = !!location.state?.fromList && window.history.state?.idx > 0;
@@ -127,8 +137,8 @@ export default function BatchAutoPage() {
   const preview = useQuery({
     queryKey: outfit
       ? ['auto-preview', 'outfit', useProduct, count, images, productIds.join(',')]
-      : ['auto-preview', count, productIds.join(',')],
-    queryFn: () => (outfit ? previewOutfit(count, images, productIds, useProduct) : previewAuto(count, productIds)),
+      : ['auto-preview', count, productIds.join(','), channelId],
+    queryFn: () => (outfit ? previewOutfit(count, images, productIds, useProduct) : previewAuto(count, productIds, channelId)),
     placeholderData: (prev) => prev,
     gcTime: 0,
   });
@@ -173,6 +183,7 @@ export default function BatchAutoPage() {
               insertLogo: !!logoUrl && insertLogo,
               seed: planReady ? plan.seed : undefined,
               productIds,
+              channelId,
               workerId: worker.workerId,
             },
             idem.key.current,
@@ -300,6 +311,31 @@ export default function BatchAutoPage() {
           <ImageWorkerSelect worker={worker} error={workerError} onChange={() => setWorkerError(null)} />
         </div>
 
+        {!outfit && channels.length > 0 && (
+          <div className="rounded-2xl border border-outline-variant/40 p-4">
+            <SelectField
+              label="Tạo cho kênh"
+              value={channelId}
+              onChange={(e) => {
+                setChannelPick(e.target.value);
+                setError(null);
+              }}
+              hint={
+                channelId
+                  ? 'Dùng nhóm creative dùng chung + nhóm riêng của kênh này.'
+                  : 'Chỉ dùng nhóm creative dùng chung (nhóm riêng của kênh bị bỏ qua).'
+              }
+            >
+              <option value="">Không theo kênh</option>
+              {channels.map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  {c.name}
+                </option>
+              ))}
+            </SelectField>
+          </div>
+        )}
+
         {outfit && (
           <div className="rounded-2xl border border-outline-variant/40 p-3">
             <Switch
@@ -381,7 +417,8 @@ export default function BatchAutoPage() {
                 <Link to="/seller/creative-groups" className="font-bold text-primary hover:underline">
                   nhóm creative
                 </Link>{' '}
-                có creative Đang bán chứa trường ảnh trùng key với ảnh sản phẩm.
+                có creative Đang bán chứa trường ảnh trùng key với ảnh sản phẩm
+                {channelId ? ' (nhóm dùng chung hoặc nhóm riêng của kênh đã chọn)' : ' (nhóm dùng chung, hoặc chọn kênh để dùng nhóm riêng của kênh)'}.
               </p>
             </div>
           ) : (
