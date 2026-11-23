@@ -24,48 +24,50 @@ function LineupRows({ items, editing, onChange, samples, groups }) {
   const total = items.reduce((s, i) => s + Number(i.percent || 0), 0);
   // Chỉ bài viết mẫu ĐÃ LÀM XONG (enabled) mới thêm được vào tuyến
   const unused = samples.filter((s) => s.enabled && !items.some((i) => i.sample_key === s.key));
-  // Lúc sửa hiện cả nhóm chưa có bài (để thấy nhóm 0%); lúc xem chỉ hiện nhóm có bài
-  const rowGroups = groupRows(items, samples, groups).filter((g) => g.rows.length || (editing && g.key !== '_other'));
+  // Mỗi nhóm 1 cột, luôn hiện đủ các nhóm (kể cả 0%) để cột không nhảy; "Khác" chỉ hiện khi có bài
+  const rowGroups = groupRows(items, samples, groups).filter((g) => g.rows.length || g.key !== '_other');
   return (
     <div className="space-y-3">
       {!items.length && !editing && <p className="text-xs text-on-surface-variant">Tuyến chưa có dạng nội dung nào đang bật.</p>}
-      {rowGroups.map((g) => (
-        <div key={g.key} className="space-y-2">
-          <div className="flex items-center gap-2 border-b border-outline-variant/30 pb-1">
-            <h3 className="flex-1 text-xs font-bold uppercase tracking-wide text-on-surface-variant">{g.label}</h3>
-            <span className="text-xs font-bold tabular-nums text-on-surface">{g.percent}%</span>
-          </div>
-          {!g.rows.length && <p className="text-[11px] text-outline">Chưa có bài nào trong nhóm.</p>}
-          {g.rows.map(({ item, idx }) => (
-            <div key={item.sample_key} className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-on-surface">{item.name ?? item.sample_key}</p>
-                {item.reason && <p className="truncate text-[11px] text-on-surface-variant">{item.reason}</p>}
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-container">
-                  <div className="h-full rounded-full bg-primary-container" style={{ width: `${Math.min(100, item.percent)}%` }} />
-                </div>
-              </div>
-              {editing ? (
-                <>
-                  <input
-                    inputMode="numeric"
-                    value={item.percent}
-                    onChange={(e) => onChange(items.map((x, j) => (j === idx ? { ...x, percent: e.target.value.replace(/\D/g, '').slice(0, 3) } : x)))}
-                    aria-label={`Tỉ lệ ${item.name}`}
-                    className="w-16 rounded-lg border-outline-variant/40 bg-surface-container-low text-right text-sm"
-                  />
-                  <button type="button" aria-label={`Bỏ ${item.name}`} onClick={() => onChange(items.filter((_, j) => j !== idx))}
-                    className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40">
-                    <Icon name="close" className="text-lg" />
-                  </button>
-                </>
-              ) : (
-                <span className="w-12 text-right text-sm font-bold tabular-nums text-on-surface">{item.percent}%</span>
-              )}
+      <div className={`grid items-start gap-4 ${rowGroups.length > 3 ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-3'}`}>
+        {rowGroups.map((g) => (
+          <div key={g.key} className="space-y-2 rounded-xl bg-surface-container-low/60 p-3">
+            <div className="flex items-center gap-2 border-b border-outline-variant/30 pb-1">
+              <h3 className="flex-1 text-xs font-bold uppercase tracking-wide text-on-surface-variant">{g.label}</h3>
+              <span className="text-xs font-bold tabular-nums text-on-surface">{g.percent}%</span>
             </div>
-          ))}
-        </div>
-      ))}
+            {!g.rows.length && <p className="text-[11px] text-outline">Chưa có bài nào trong nhóm.</p>}
+            {g.rows.map(({ item, idx }) => (
+              <div key={item.sample_key} className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-on-surface">{item.name ?? item.sample_key}</p>
+                  {item.reason && <p className="truncate text-[11px] text-on-surface-variant">{item.reason}</p>}
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-container">
+                    <div className="h-full rounded-full bg-primary-container" style={{ width: `${Math.min(100, item.percent)}%` }} />
+                  </div>
+                </div>
+                {editing ? (
+                  <>
+                    <input
+                      inputMode="numeric"
+                      value={item.percent}
+                      onChange={(e) => onChange(items.map((x, j) => (j === idx ? { ...x, percent: e.target.value.replace(/\D/g, '').slice(0, 3) } : x)))}
+                      aria-label={`Tỉ lệ ${item.name}`}
+                      className="w-16 rounded-lg border-outline-variant/40 bg-surface-container-low text-right text-sm"
+                    />
+                    <button type="button" aria-label={`Bỏ ${item.name}`} onClick={() => onChange(items.filter((_, j) => j !== idx))}
+                      className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40">
+                      <Icon name="close" className="text-lg" />
+                    </button>
+                  </>
+                ) : (
+                  <span className="w-12 text-right text-sm font-bold tabular-nums text-on-surface">{item.percent}%</span>
+                )}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
       {editing && (
         <div className="flex items-center gap-2">
           <select
@@ -161,7 +163,7 @@ export default function LineupTab({ channel }) {
   if (!data || !samples) return <Skeleton className="h-40 w-full" />;
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-2">
+    <div className="space-y-4">
       {data.pending.map((l) => (
         <Section key={l.id} title="Đề xuất chờ duyệt" subtitle="Duyệt thì kế hoạch sau dùng tuyến này.">
           <LineupCard channelId={channel.id} lineup={l} pending samples={samples.items} groups={samples.groups} />
