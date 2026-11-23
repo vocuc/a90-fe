@@ -25,8 +25,6 @@ const NOTE_MAX = 500;
 // Lượt tự động đang chạy: tải lại mỗi 10 giây để thấy kết quả
 const POLL_MS = 10_000;
 
-const formatDate = (ymd) => (ymd ? new Date(`${ymd}T00:00:00`).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '');
-
 const footerButtons = (onClose, onSubmit, pending, disabled, label) => (
   <>
     <button type="button" onClick={onClose} className="flex h-11 items-center rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container">
@@ -293,7 +291,6 @@ export default function TopicsTab({ channel }) {
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {topics.map((t) => {
               const paused = t.status !== TOPIC_STATUS.ACTIVE;
-              const used = Object.entries(t.posts ?? {});
               return (
                 <li key={t.id} className={`rounded-xl border border-outline-variant/40 p-3 ${paused ? 'bg-surface-container-low' : ''}`}>
                   <div className="flex items-start gap-2">
@@ -310,11 +307,6 @@ export default function TopicsTab({ channel }) {
                       ) : (
                         <p className="text-[11px] italic text-outline">Chưa có ghi chú, AI tự do sáng tạo</p>
                       )}
-                      <p className="text-[11px] text-on-surface-variant">
-                        {used.length
-                          ? used.map(([key, n]) => `${sampleName(key)}: ${n} bài (gần nhất ${formatDate(t.last_used?.[key])})`).join(' · ')
-                          : 'Chưa có bài'}
-                      </p>
                       <TopicHooks hooks={t.hooks} sampleName={sampleName} />
                     </div>
                     <div className="flex shrink-0 gap-1">

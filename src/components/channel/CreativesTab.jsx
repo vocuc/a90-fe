@@ -11,7 +11,7 @@ const GROUPS_PAGE = '/seller/creative-groups';
 function GroupList({ groups, empty }) {
   if (!groups.length) return <EmptyState icon="workspaces" message={empty} />;
   return (
-    <ul className="grid gap-3 lg:grid-cols-2">
+    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {groups.map((g) => (
         <li key={g.id}>
           <GroupCard group={g} editTo={`${GROUPS_PAGE}?edit=${g.id}`} />
