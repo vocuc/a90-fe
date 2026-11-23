@@ -12,39 +12,58 @@ const enabledOnly = (items, samples) => {
   return items.filter((i) => enabled.has(i.sample_key));
 };
 
-function LineupRows({ items, editing, onChange, samples }) {
+/** Gom dòng tuyến theo nhóm bài viết mẫu (Phối đồ / Ảnh sản phẩm / Video, backend PostSamples::GROUPS), giữ idx gốc để sửa. */
+function groupRows(items, samples, groups) {
+  const groupOf = Object.fromEntries(samples.map((s) => [s.key, s.group]));
+  const list = [...Object.entries(groups).map(([key, label]) => ({ key, label })), { key: '_other', label: 'Khác' }]
+    .map((g) => ({ ...g, rows: items.map((item, idx) => ({ item, idx })).filter(({ item }) => (groups[groupOf[item.sample_key]] ? groupOf[item.sample_key] : '_other') === g.key) }));
+  return list.map((g) => ({ ...g, percent: g.rows.reduce((s, r) => s + Number(r.item.percent || 0), 0) }));
+}
+
+function LineupRows({ items, editing, onChange, samples, groups }) {
   const total = items.reduce((s, i) => s + Number(i.percent || 0), 0);
   // Chỉ bài viết mẫu ĐÃ LÀM XONG (enabled) mới thêm được vào tuyến
   const unused = samples.filter((s) => s.enabled && !items.some((i) => i.sample_key === s.key));
+  // Lúc sửa hiện cả nhóm chưa có bài (để thấy nhóm 0%); lúc xem chỉ hiện nhóm có bài
+  const rowGroups = groupRows(items, samples, groups).filter((g) => g.rows.length || (editing && g.key !== '_other'));
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {!items.length && !editing && <p className="text-xs text-on-surface-variant">Tuyến chưa có dạng nội dung nào đang bật.</p>}
-      {items.map((item, idx) => (
-        <div key={item.sample_key} className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-on-surface">{item.name ?? item.sample_key}</p>
-            {item.reason && <p className="truncate text-[11px] text-on-surface-variant">{item.reason}</p>}
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-container">
-              <div className="h-full rounded-full bg-primary-container" style={{ width: `${Math.min(100, item.percent)}%` }} />
-            </div>
+      {rowGroups.map((g) => (
+        <div key={g.key} className="space-y-2">
+          <div className="flex items-center gap-2 border-b border-outline-variant/30 pb-1">
+            <h3 className="flex-1 text-xs font-bold uppercase tracking-wide text-on-surface-variant">{g.label}</h3>
+            <span className="text-xs font-bold tabular-nums text-on-surface">{g.percent}%</span>
           </div>
-          {editing ? (
-            <>
-              <input
-                inputMode="numeric"
-                value={item.percent}
-                onChange={(e) => onChange(items.map((x, j) => (j === idx ? { ...x, percent: e.target.value.replace(/\D/g, '').slice(0, 3) } : x)))}
-                aria-label={`Tỉ lệ ${item.name}`}
-                className="w-16 rounded-lg border-outline-variant/40 bg-surface-container-low text-right text-sm"
-              />
-              <button type="button" aria-label={`Bỏ ${item.name}`} onClick={() => onChange(items.filter((_, j) => j !== idx))}
-                className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40">
-                <Icon name="close" className="text-lg" />
-              </button>
-            </>
-          ) : (
-            <span className="w-12 text-right text-sm font-bold tabular-nums text-on-surface">{item.percent}%</span>
-          )}
+          {!g.rows.length && <p className="text-[11px] text-outline">Chưa có bài nào trong nhóm.</p>}
+          {g.rows.map(({ item, idx }) => (
+            <div key={item.sample_key} className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-on-surface">{item.name ?? item.sample_key}</p>
+                {item.reason && <p className="truncate text-[11px] text-on-surface-variant">{item.reason}</p>}
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-container">
+                  <div className="h-full rounded-full bg-primary-container" style={{ width: `${Math.min(100, item.percent)}%` }} />
+                </div>
+              </div>
+              {editing ? (
+                <>
+                  <input
+                    inputMode="numeric"
+                    value={item.percent}
+                    onChange={(e) => onChange(items.map((x, j) => (j === idx ? { ...x, percent: e.target.value.replace(/\D/g, '').slice(0, 3) } : x)))}
+                    aria-label={`Tỉ lệ ${item.name}`}
+                    className="w-16 rounded-lg border-outline-variant/40 bg-surface-container-low text-right text-sm"
+                  />
+                  <button type="button" aria-label={`Bỏ ${item.name}`} onClick={() => onChange(items.filter((_, j) => j !== idx))}
+                    className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40">
+                    <Icon name="close" className="text-lg" />
+                  </button>
+                </>
+              ) : (
+                <span className="w-12 text-right text-sm font-bold tabular-nums text-on-surface">{item.percent}%</span>
+              )}
+            </div>
+          ))}
         </div>
       ))}
       {editing && (
@@ -59,11 +78,18 @@ function LineupRows({ items, editing, onChange, samples }) {
             aria-label="Thêm bài viết mẫu"
           >
             <option value="">+ Thêm bài viết mẫu</option>
-            {unused.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.name}
-              </option>
-            ))}
+            {Object.entries(groups).map(([key, label]) => {
+              const opts = unused.filter((s) => s.group === key);
+              return opts.length ? (
+                <optgroup key={key} label={label}>
+                  {opts.map((s) => (
+                    <option key={s.key} value={s.key}>
+                      {s.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null;
+            })}
           </select>
           <span className={`text-xs font-semibold ${total === 100 ? 'text-emerald-700' : 'text-amber-700'}`}>Tổng {total}%</span>
         </div>
@@ -72,7 +98,7 @@ function LineupRows({ items, editing, onChange, samples }) {
   );
 }
 
-function LineupCard({ channelId, lineup, pending, samples }) {
+function LineupCard({ channelId, lineup, pending, samples, groups }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const shown = enabledOnly(lineup.items, samples);
@@ -94,7 +120,7 @@ function LineupCard({ channelId, lineup, pending, samples }) {
 
   return (
     <div className="space-y-3">
-      <LineupRows items={editing ? items : shown} editing={editing} onChange={setItems} samples={samples} />
+      <LineupRows items={editing ? items : shown} editing={editing} onChange={setItems} samples={samples} groups={groups} />
       {error && <FormAlert>{error.message}</FormAlert>}
       <div className="flex flex-wrap gap-2">
         {editing ? (
@@ -138,12 +164,12 @@ export default function LineupTab({ channel }) {
     <div className="grid items-start gap-4 lg:grid-cols-2">
       {data.pending.map((l) => (
         <Section key={l.id} title="Đề xuất chờ duyệt" subtitle="Duyệt thì kế hoạch sau dùng tuyến này.">
-          <LineupCard channelId={channel.id} lineup={l} pending samples={samples.items} />
+          <LineupCard channelId={channel.id} lineup={l} pending samples={samples.items} groups={samples.groups} />
         </Section>
       ))}
       <Section title="Tuyến đang dùng" subtitle="Kế hoạch chọn bài viết mẫu theo tỉ lệ này.">
         {data.current ? (
-          <LineupCard key={data.current.id} channelId={channel.id} lineup={data.current} samples={samples.items} />
+          <LineupCard key={data.current.id} channelId={channel.id} lineup={data.current} samples={samples.items} groups={samples.groups} />
         ) : (
           <EmptyState icon="view_list" message="Chưa có tuyến nội dung. Đội A51 sẽ đề xuất khi lập kế hoạch lần đầu." />
         )}
