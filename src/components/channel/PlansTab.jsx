@@ -23,6 +23,7 @@ import {
   updatePlanItem,
 } from '../../api/channels';
 import Section, { TopicBadge, formatDateTime } from './Section';
+import { PostStatusBadge } from '../social/PostStatus';
 
 const PLAN_STATUS = {
   draft: { label: 'Chờ duyệt', className: 'bg-amber-50 text-amber-700' },
@@ -331,9 +332,15 @@ function PlanItem({ channelId, planId, item, canCancel, canEdit }) {
         )}
         {item.hashtags.length > 0 && <p className="truncate text-[11px] text-primary">{item.hashtags.map((h) => `#${h}`).join(' ')}</p>}
       </div>
-      {!cancelled && (canCancel || canEdit) && (
+      {/* Bài worker đã nhận đăng / đã đăng: không xoá được (backend 409) -> ẩn X, hiện trạng thái đăng */}
+      {!cancelled && item.post_status && !EDITABLE_POST.includes(item.post_status) && (
+        <div className="shrink-0">
+          <PostStatusBadge status={item.post_status} />
+        </div>
+      )}
+      {!cancelled && ((canCancel && canMove(item)) || canEdit) && (
         <div className="flex shrink-0 flex-col gap-0.5">
-          {canCancel && (
+          {canCancel && canMove(item) && (
             <button
               type="button"
               onClick={async () => {
