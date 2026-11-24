@@ -20,7 +20,7 @@ Không dùng khi: channel.outfit_worker = false, sản phẩm chưa gắn tag ki
 ----------------------------------------
 - Slide 1: Ảnh bìa lô phối đồ (như lô có sản phẩm hiện nay: nền = 1 ảnh lịch sử tạo ảnh của sản phẩm, chưa có thì
   ChatGPT vẽ), worker in ĐÚNG hook của bài theo template chữ.
-- Slide 2..N: Ảnh outfit Flow vẽ: người mẫu mặc outfit OOTD, mang ĐÚNG đôi giày sản phẩm, đã in sẵn "Outfit N".
+- Slide 2..N: Ảnh outfit Flow vẽ: người mẫu mặc outfit OOTD, mang ĐÚNG đôi giày sản phẩm, KHÔNG chữ (bỏ "Outfit N" 2026-11-24).
 
 3. HOOK
 ----------------------------------------
@@ -31,7 +31,7 @@ Ví dụ:
 
 4. CHỮ TRÊN ẢNH
 ----------------------------------------
-Lệnh KHÔNG gửi chữ trên ảnh (bìa = hook, ảnh outfit = "Outfit N" do Flow vẽ theo prompt).
+Lệnh KHÔNG gửi chữ trên ảnh (bìa = hook, ảnh outfit không chữ).
 
 5. CAPTION
 ----------------------------------------
@@ -41,7 +41,7 @@ Kết bằng 'Bạn thích kiểu số mấy?'.
 ----------------------------------------
 1. Kiểm tra channel.outfit_worker.
 2. Chọn 1 sản phẩm có tags.kieu (kehoach.py products, ít dùng trước). Chưa có -> nhắc chủ shop chạy /gan-tag-san-pham.
-3. kehoach.py ootd-count <tags.kieu> >= outfit.count - 1; không đủ thì giảm count / đổi sản phẩm.
+3. kehoach.py ootd-giay <tags.kieu>: nhom_tong >= outfit.count - 1 (ưu tiên dung đủ); không đủ thì giảm count / đổi sản phẩm.
 4. outfit.tags: 1-5 hashtag chủ đề OOTD (phong cách / mùa), như lookbook.
 5. Gửi {sample_key:'one_shoe_many_looks', hook, outfit:{count, tags, product_id}, text_template_id?, title, hashtags}.
 
@@ -70,17 +70,25 @@ bootcongan, bootcaosu, bootcaoboi, bootcombat, bootbiker, giayclog, giaysuc, guo
     -> số hashtag chủ đề trùng -> đúng mùa -> lâu chưa dùng -> ngẫu nhiên. Prompt bỏ dòng "Giày"
     của outfit.
   * Vẽ (worker.py draw_flow + v2/flow.py): ảnh anh_san_pham của sản phẩm + ảnh gốc outfit OOTD (data URI) + prompt
-    prompt/san-pham.txt -> chạy image-worker/flow_once.py (đúng các bước Flow của worker ảnh: dán request vào tool,
+    prompt/san-pham/*.txt (chọn ngẫu nhiên 1 file / ảnh, mỗi file 1 tư thế) -> chạy image-worker/flow_once.py (đúng các bước Flow của worker ảnh: dán request vào tool,
     bấm tạo, tải 2K) bằng profile / link Flow của worker ảnh FLOW_WORKER (.env worker phối đồ) -> tăng / chuẩn cỡ
     1440x2560 -> logo -> gửi A51. Worker phối đồ đang giữ khoá lượt Chrome nên không chạy song song worker ảnh.
-  * Prompt lưu ở file của worker phối đồ (prompt/san-pham.txt), KHÔNG lưu trên A51 (người dùng chốt 2026-11-24).
-  * Ảnh bìa: như lô có sản phẩm hiện nay (không đổi).
+  * Prompt lưu ở file của worker phối đồ (prompt/san-pham/*.txt (chọn ngẫu nhiên 1 file / ảnh, mỗi file 1 tư thế)), KHÔNG lưu trên A51 (người dùng chốt 2026-11-24).
+  * Ảnh bìa (sửa 2026-11-24, người dùng chốt): lô KHÔNG có ảnh bìa, KHÔNG dùng ChatGPT. Ảnh outfit xong -> A51 giao
+    CONTENT-WORKER (sample cover_collage): nguyên liệu = ảnh outfit + cover {style: magazine, background: 1 ảnh lịch sử
+    tạo ảnh của sản phẩm (ngẫu nhiên trong 10 ảnh mới nhất, không có thì ảnh outfit đầu), text_template của lô}.
+    content-worker/dang/one_shoe_many_looks.py theo MẪU BÌA OOTD "05 · Tạp chí" (người dùng chọn 2026-11-24): nền cắt vừa
+    cỡ ảnh outfit (9:16, không 3:4 vì mọi slide cùng cỡ), lớp tối ~42% từ trên, nhãn hồng "LOOK CỦA TUẦN", hook chữ có chân
+    Cambria Bold căn trái (từ khoá *...* hoặc cụm "N kiểu" tô hồng), dòng phụ "N cách phối • kéo sang xem →"; gửi bìa +
+    ảnh outfit, A51 thêm bìa thành slide 1. Chưa chèn logo (job content chưa có logo).
+    Hook: lời khen chung chung, KHÔNG nêu màu / kiểu / tên giày, vd "Đôi này mix *4 kiểu* đều xinh".
+    Lập kế hoạch: shop phải có content-worker.
 
 9. CẦN LÀM / CHỜ
 ----------------------------------------
 - Đặt FLOW_WORKER (tên file image-worker/workers/<tên>.env có profile Flow) trong .env worker phối đồ.
 - Chạy migration 2026_11_24_110000 (đổi kieu cũ cao_got -> giaycaogot..., xoá tags.ootd).
-- Chạy thử 1 lô thật, xem Flow giữ giày có đúng không, chỉnh prompt/san-pham.txt.
+- Chạy thử 1 lô thật, xem Flow giữ giày có đúng không, chỉnh prompt/san-pham/*.txt (chọn ngẫu nhiên 1 file / ảnh, mỗi file 1 tư thế).
 - Tool Flow nhận productImage + outfitImage (như worker ảnh). Chưa gửi ảnh người mẫu (nguoi-mau/) cho Flow.
 
 10. CÂU HỎI ĐÃ CHỐT
