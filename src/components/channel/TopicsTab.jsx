@@ -50,19 +50,25 @@ const ErrorBox = ({ children }) =>
     </p>
   ) : null;
 
-/** Thêm (topic = null, xây dựng thủ công) hoặc sửa chủ đề: tên + ghi chú (không bắt buộc). Sửa -> nguồn "Shop sửa". */
-function TopicDialog({ channelId, topic, onClose }) {
+/**
+ * Thêm (topic = null, xây dựng thủ công) hoặc sửa chủ đề: tên + nhóm + ghi chú (không bắt buộc). Sửa -> nguồn "Shop sửa".
+ * Thêm mới để nhóm "Tự đoán": backend đoán nhóm theo tên ("Tết" -> Sự kiện).
+ */
+function TopicDialog({ channelId, topic, categories, onClose }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(topic?.name ?? '');
+  const [category, setCategory] = useState(topic?.category ?? '');
   const [note, setNote] = useState(topic?.note ?? '');
+  const values = () => ({ name: name.trim(), note, ...(category ? { category } : {}) });
   const mutation = useMutation({
-    mutationFn: () => (topic ? updateTopic(channelId, topic.id, { name: name.trim(), note }) : createTopic(channelId, { name: name.trim(), note })),
+    mutationFn: () => (topic ? updateTopic(channelId, topic.id, values()) : createTopic(channelId, values())),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.topics(channelId) });
       onClose();
     },
   });
-  const error = mutation.error && (mutation.error.errors?.name || mutation.error.errors?.note || mutation.error.message);
+  const error =
+    mutation.error && (mutation.error.errors?.name || mutation.error.errors?.category || mutation.error.errors?.note || mutation.error.message);
 
   return (
     <Dialog
@@ -78,6 +84,26 @@ function TopicDialog({ channelId, topic, onClose }) {
         placeholder="VD: Đi chúc Tết"
         hint="Chủ đề cụ thể (dịp + tình huống). Mọi loại bài đều dùng chung chủ đề này."
       />
+      <div>
+        <p className="mb-1.5 text-xs font-semibold text-on-surface">Nhóm</p>
+        <div className="flex flex-wrap gap-1.5">
+          {[...(topic ? [] : [{ key: '', label: 'Tự đoán' }]), ...(categories ?? [])].map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              aria-pressed={category === c.key}
+              onClick={() => setCategory(c.key)}
+              className={`h-8 rounded-full border px-3 text-xs font-semibold ${
+                category === c.key
+                  ? 'border-primary-container bg-primary-container text-on-primary'
+                  : 'border-outline-variant/60 text-on-surface-variant hover:border-primary-container hover:text-primary'
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <TextArea
         label="Ghi chú (không bắt buộc)"
         value={note}
@@ -153,6 +179,14 @@ const HOOK_STATUS = {
 
 // Backend trả tối đa ChannelTopicService::HOOKS_PER_TOPIC hook gần nhất mỗi chủ đề
 const HOOKS_MAX = 50;
+
+/** Chủ đề -> [{ key, label, topics }] theo thứ tự nhóm backend trả; nhóm lạ / thiếu gộp vào "Khác". */
+const groupTopics = (topics, categories = []) => {
+  const known = new Set(categories.map((c) => c.key));
+  return categories
+    .map((c) => ({ ...c, topics: topics.filter((t) => (known.has(t.category) ? t.category : 'khac') === c.key) }))
+    .filter((g) => g.topics.length);
+};
 
 const iconButton = 'flex size-8 items-center justify-center rounded-lg hover:bg-surface-container disabled:opacity-50';
 
@@ -345,7 +379,7 @@ export default function TopicsTab({ channel }) {
   );
   const dialogs = (
     <>
-      {editing && <TopicDialog channelId={channel.id} topic={editing.topic} onClose={() => setEditing(null)} />}
+      {editing && <TopicDialog channelId={channel.id} topic={editing.topic} categories={data?.categories} onClose={() => setEditing(null)} />}
       {autoOpen && <AutoBuildDialog channelId={channel.id} limits={data?.count} onClose={() => setAutoOpen(false)} />}
     </>
   );
@@ -415,41 +449,52 @@ export default function TopicsTab({ channel }) {
         ) : !topics.length ? (
           <EmptyState icon="tag" message="Chưa có chủ đề. Bấm Tự động để AI xây dựng, hoặc Thủ công để tự thêm." />
         ) : (
-          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {topics.map((t) => {
-              const paused = t.status !== TOPIC_STATUS.ACTIVE;
-              return (
-                <li
-                  key={t.id}
-                  className={`flex flex-col rounded-xl border border-outline-variant/40 p-3 ${paused ? 'bg-surface-container-low' : ''}`}
-                >
-                  <TopicTitle topic={t} />
-                  {/* Ghi chú + hook rộng hết thẻ */}
-                  <div className="mb-2 mt-1 flex-1 space-y-1">
-                    {t.note ? (
-                      <p className="line-clamp-3 whitespace-pre-line text-xs text-on-surface" title={t.note}>{t.note}</p>
-                    ) : (
-                      <p className="text-[11px] italic text-outline">Chưa có ghi chú, AI tự do sáng tạo</p>
-                    )}
-                    {t.hooks?.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => openTopic(t.id)}
-                        className="flex items-center gap-0.5 text-[11px] font-bold text-primary hover:underline"
-                      >
-                        Xem {t.hooks.length} hook đã tạo
-                        <Icon name="chevron_right" className="text-base" />
-                      </button>
-                    )}
-                  </div>
-                  {/* Thanh công cụ ở đáy thẻ (phần nội dung flex-1: thẻ cùng hàng cao bằng nhau nên các thanh thẳng hàng) */}
-                  <div className="flex justify-end gap-1 border-t border-outline-variant/30 pt-2">
-                    {actionsFor(t)}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          // Chủ đề theo nhóm (Sự kiện, Đi làm, Du lịch...; backend xếp theo thứ tự nhóm), nhóm rỗng không hiện
+          <div className="space-y-4">
+            {groupTopics(topics, data.categories).map((group) => (
+              <section key={group.key}>
+                <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-on-surface">
+                  {group.label}
+                  <span className="text-xs font-normal text-on-surface-variant">({group.topics.length})</span>
+                </h3>
+              <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                {group.topics.map((t) => {
+                  const paused = t.status !== TOPIC_STATUS.ACTIVE;
+                  return (
+                    <li
+                      key={t.id}
+                      className={`flex flex-col rounded-xl border border-outline-variant/40 p-3 ${paused ? 'bg-surface-container-low' : ''}`}
+                    >
+                      <TopicTitle topic={t} />
+                      {/* Ghi chú + hook rộng hết thẻ */}
+                      <div className="mb-2 mt-1 flex-1 space-y-1">
+                        {t.note ? (
+                          <p className="line-clamp-3 whitespace-pre-line text-xs text-on-surface" title={t.note}>{t.note}</p>
+                        ) : (
+                          <p className="text-[11px] italic text-outline">Chưa có ghi chú, AI tự do sáng tạo</p>
+                        )}
+                        {t.hooks?.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => openTopic(t.id)}
+                            className="flex items-center gap-0.5 text-[11px] font-bold text-primary hover:underline"
+                          >
+                            Xem {t.hooks.length} hook đã tạo
+                            <Icon name="chevron_right" className="text-base" />
+                          </button>
+                        )}
+                      </div>
+                      {/* Thanh công cụ ở đáy thẻ (phần nội dung flex-1: thẻ cùng hàng cao bằng nhau nên các thanh thẳng hàng) */}
+                      <div className="flex justify-end gap-1 border-t border-outline-variant/30 pt-2">
+                        {actionsFor(t)}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              </section>
+            ))}
+          </div>
         )}
       </Section>
       {dialogs}

@@ -26,15 +26,16 @@ import client from './client';
  * GET    /creator/channels/{id}/calendar?from=&to=    -> { data: CalendarPost[] }
  * PUT    /creator/channel-posts/{post}/overlays { overlays: [{ image_id, text, text_template_id }] }
  * POST   /creator/channel-posts/{post}/redo | DELETE  đánh dấu / bỏ đánh dấu làm lại
- * GET    /creator/channels/{id}/topics                -> { data: { topics: Topic[], topic_worker, job, count } }
+ * GET    /creator/channels/{id}/topics                -> { data: { topics: Topic[], categories: [{key, label}], topic_worker, job, count } }
+ *        Topic.category = nhóm chủ đề (Sự kiện, Đi làm, Du lịch, Hằng ngày, Khác; 2026-11-24), tab Chủ đề hiện theo nhóm
  *          topic_worker: shop có worker lập chủ đề; job: lượt xây dựng tự động gần nhất { id, status: queued|processing|
  *          completed|failed, count, note, result: { created, skipped, errors }, error_message, created_at, finished_at }
- * POST   /creator/channels/{id}/topics { name, note? } -> 201 { data: Topic }  (xây dựng chủ đề thủ công)
+ * POST   /creator/channels/{id}/topics { name, category?, note? } -> 201 { data: Topic }  (xây dựng chủ đề thủ công; không gửi nhóm = đoán theo tên)
  * POST   /creator/channels/{id}/topic-jobs { count, note? } -> 201 { data: job } (tự động: việc cho worker lập chủ đề)
  *          409 TOPIC_WORKER_REQUIRED | TOPIC_JOB_RUNNING. note/xay-kenh-tiktok/worker-lap-chu-de.txt
  *          Topic: { id, name, note (ghi chú cho lệnh lập kế hoạch, có thể null), source: ai|owner, status: active|paused,
  *                   posts: { sample_key: số bài }, last_used: { sample_key: 'YYYY-MM-DD' } }
- * PUT    /creator/channels/{id}/topics/{t} { name?, note?, status? } -> { data: Topic } (sửa tên / ghi chú -> nguồn owner)
+ * PUT    /creator/channels/{id}/topics/{t} { name?, category?, note?, status? } -> { data: Topic } (sửa tên / nhóm / ghi chú -> nguồn owner)
  * DELETE /creator/channels/{id}/topics/{t} -> 204 (xoá cả chủ đề đã có bài: bài đăng / bài kế hoạch giữ nguyên, topic = null
  *          = "không xác định")
  *          Chủ đề: note/xay-kenh-tiktok/chu-de-va-tag-san-pham.txt mục 4. AI tự tạo khi lập kế hoạch; tạm tắt -> AI không dùng.

@@ -5,6 +5,12 @@ Ngày: 2026-11-21. Trạng thái: ĐÃ DUYỆT. Backend, frontend, skill /gan-ta
 Liên quan: dac-ta-giai-doan-1.txt (mục 5.7, 6.2), bai-viet-mau/top_n.txt, skill D:\FlowKit\.claude\skills\lap-ke-hoach.
 Backend: D:\OSPanel\home\a90.local. Frontend: D:\a90-fe.
 
+CẬP NHẬT 2026-11-24: NHÓM CHỦ ĐỀ (người dùng chốt, cách A): chủ đề vẫn cụ thể ("Đi chúc Tết", "Tiệc cuối năm") nhưng
+có thêm channel_topics.category = 1 nhóm cố định (ChannelTopic::CATEGORIES): su_kien Sự kiện, di_lam Đi làm, du_lich Du
+lịch, hang_ngay Hằng ngày, khac Khác. Tab Chủ đề hiện theo nhóm; chủ shop chọn nhóm khi thêm / sửa (thêm mới "Tự đoán");
+worker lập chủ đề (/lap-chu-de) trả category, thiếu / sai thì A51 đoán theo tên (ChannelTopic::guessCategory, cũng dùng
+cho chủ đề cũ ở migration 2026_11_24_120000). Lập kế hoạch vẫn chọn từng chủ đề (context topics có category).
+
 CẬP NHẬT 2026-11-22: CHỦ ĐỀ = TÊN + GHI CHÚ, BỎ BỘ LỌC TAG (người dùng chốt)
 ----------------------------------------
 - Chủ đề chỉ còn: tên + ghi chú (note, không bắt buộc, <= 1000 ký tự) + lịch sử hook đã viết (đã có, để tránh trùng).
