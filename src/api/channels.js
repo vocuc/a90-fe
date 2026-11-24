@@ -26,16 +26,21 @@ import client from './client';
  * GET    /creator/channels/{id}/calendar?from=&to=    -> { data: CalendarPost[] }
  * PUT    /creator/channel-posts/{post}/overlays { overlays: [{ image_id, text, text_template_id }] }
  * POST   /creator/channel-posts/{post}/redo | DELETE  đánh dấu / bỏ đánh dấu làm lại
- * GET    /creator/channels/{id}/topics                -> { data: { topics: Topic[], categories: [{key, label}], topic_worker, job, count } }
- *        Topic.category = nhóm chủ đề (Sự kiện, Đi làm, Du lịch, Hằng ngày, Khác; 2026-11-24), tab Chủ đề hiện theo nhóm
+ * GET    /creator/channels/{id}/topics                -> { data: { topics: Topic[], categories: Category[], topic_worker, job, count } }
+ *        Nhóm chủ đề do chủ shop quản lý (2026-11-24): Category { id, name, position, topics (số chủ đề) } theo thứ tự; kênh
+ *        chưa có nhóm thì có sẵn Sự kiện / Đi làm / Du lịch / Hằng ngày. Topic { category_id (null = "Khác"), category (tên) }
+ * POST   /creator/channels/{id}/topic-categories { name } -> 201 { data: Category }
+ * PUT    /creator/channels/{id}/topic-categories/{c} { name } -> { data: Category }
+ * PUT    /creator/channels/{id}/topic-categories/order { ids } -> { data: Category[] } (đủ mọi nhóm, thứ tự mới)
+ * DELETE /creator/channels/{id}/topic-categories/{c} -> 204 (chủ đề của nhóm về "Khác")
  *          topic_worker: shop có worker lập chủ đề; job: lượt xây dựng tự động gần nhất { id, status: queued|processing|
  *          completed|failed, count, note, result: { created, skipped, errors }, error_message, created_at, finished_at }
- * POST   /creator/channels/{id}/topics { name, category?, note? } -> 201 { data: Topic }  (xây dựng chủ đề thủ công; không gửi nhóm = đoán theo tên)
+ * POST   /creator/channels/{id}/topics { name, category_id?, note? } -> 201 { data: Topic }  (xây dựng chủ đề thủ công; không gửi nhóm = đoán theo tên)
  * POST   /creator/channels/{id}/topic-jobs { count, note? } -> 201 { data: job } (tự động: việc cho worker lập chủ đề)
  *          409 TOPIC_WORKER_REQUIRED | TOPIC_JOB_RUNNING. note/xay-kenh-tiktok/worker-lap-chu-de.txt
  *          Topic: { id, name, note (ghi chú cho lệnh lập kế hoạch, có thể null), source: ai|owner, status: active|paused,
  *                   posts: { sample_key: số bài }, last_used: { sample_key: 'YYYY-MM-DD' } }
- * PUT    /creator/channels/{id}/topics/{t} { name?, category?, note?, status? } -> { data: Topic } (sửa tên / nhóm / ghi chú -> nguồn owner)
+ * PUT    /creator/channels/{id}/topics/{t} { name?, category_id? (null = Khác), note?, status? } -> { data: Topic } (sửa tên / nhóm / ghi chú -> nguồn owner)
  * DELETE /creator/channels/{id}/topics/{t} -> 204 (xoá cả chủ đề đã có bài: bài đăng / bài kế hoạch giữ nguyên, topic = null
  *          = "không xác định")
  *          Chủ đề: note/xay-kenh-tiktok/chu-de-va-tag-san-pham.txt mục 4. AI tự tạo khi lập kế hoạch; tạm tắt -> AI không dùng.
@@ -240,3 +245,19 @@ export const updateTopic = (id, topicId, values) =>
   client.put(`/creator/channels/${id}/topics/${topicId}`, values).then(({ data }) => data);
 
 export const deleteTopic = (id, topicId) => client.delete(`/creator/channels/${id}/topics/${topicId}`);
+
+// ---- Nhóm chủ đề (chủ shop quản lý) ----
+
+/** Tên nhóm sẵn cho chủ đề chưa xếp nhóm (category_id null), không tạo / sửa được. */
+export const OTHER_TOPIC_CATEGORY = 'Khác';
+
+export const createTopicCategory = (id, name) =>
+  client.post(`/creator/channels/${id}/topic-categories`, { name }).then(({ data }) => data);
+
+export const updateTopicCategory = (id, categoryId, name) =>
+  client.put(`/creator/channels/${id}/topic-categories/${categoryId}`, { name }).then(({ data }) => data);
+
+export const orderTopicCategories = (id, ids) =>
+  client.put(`/creator/channels/${id}/topic-categories/order`, { ids }).then(({ data }) => data);
+
+export const deleteTopicCategory = (id, categoryId) => client.delete(`/creator/channels/${id}/topic-categories/${categoryId}`);

@@ -8,14 +8,19 @@ import { TextArea, TextField } from '../common/Form';
 import { useConfirm } from '../common/ConfirmDialog';
 import {
   CHANNEL_KEYS,
+  OTHER_TOPIC_CATEGORY,
   TOPIC_STATUS,
   createTopic,
+  createTopicCategory,
   deleteTopic,
+  deleteTopicCategory,
   getTopics,
   isTopicJobRunning,
   listPostSamples,
+  orderTopicCategories,
   startTopicJob,
   updateTopic,
+  updateTopicCategory,
 } from '../../api/channels';
 import Section, { formatDateTime } from './Section';
 
@@ -57,9 +62,10 @@ const ErrorBox = ({ children }) =>
 function TopicDialog({ channelId, topic, categories, onClose }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(topic?.name ?? '');
-  const [category, setCategory] = useState(topic?.category ?? '');
+  // '' = tự đoán (chỉ khi thêm), null = "Khác", số = id nhóm
+  const [category, setCategory] = useState(topic ? topic.category_id ?? null : '');
   const [note, setNote] = useState(topic?.note ?? '');
-  const values = () => ({ name: name.trim(), note, ...(category ? { category } : {}) });
+  const values = () => ({ name: name.trim(), note, ...(category !== '' ? { category_id: category } : {}) });
   const mutation = useMutation({
     mutationFn: () => (topic ? updateTopic(channelId, topic.id, values()) : createTopic(channelId, values())),
     onSuccess: () => {
@@ -68,7 +74,7 @@ function TopicDialog({ channelId, topic, categories, onClose }) {
     },
   });
   const error =
-    mutation.error && (mutation.error.errors?.name || mutation.error.errors?.category || mutation.error.errors?.note || mutation.error.message);
+    mutation.error && (mutation.error.errors?.name || mutation.error.errors?.category_id || mutation.error.errors?.note || mutation.error.message);
 
   return (
     <Dialog
@@ -87,19 +93,23 @@ function TopicDialog({ channelId, topic, categories, onClose }) {
       <div>
         <p className="mb-1.5 text-xs font-semibold text-on-surface">Nhóm</p>
         <div className="flex flex-wrap gap-1.5">
-          {[...(topic ? [] : [{ key: '', label: 'Tự đoán' }]), ...(categories ?? [])].map((c) => (
+          {[
+            ...(topic ? [] : [{ id: '', name: 'Tự đoán' }]),
+            ...(categories ?? []),
+            { id: null, name: OTHER_TOPIC_CATEGORY },
+          ].map((c) => (
             <button
-              key={c.key}
+              key={c.id ?? 'other'}
               type="button"
-              aria-pressed={category === c.key}
-              onClick={() => setCategory(c.key)}
+              aria-pressed={category === c.id}
+              onClick={() => setCategory(c.id)}
               className={`h-8 rounded-full border px-3 text-xs font-semibold ${
-                category === c.key
+                category === c.id
                   ? 'border-primary-container bg-primary-container text-on-primary'
                   : 'border-outline-variant/60 text-on-surface-variant hover:border-primary-container hover:text-primary'
               }`}
             >
-              {c.label}
+              {c.name}
             </button>
           ))}
         </div>
@@ -180,13 +190,119 @@ const HOOK_STATUS = {
 // Backend trả tối đa ChannelTopicService::HOOKS_PER_TOPIC hook gần nhất mỗi chủ đề
 const HOOKS_MAX = 50;
 
-/** Chủ đề -> [{ key, label, topics }] theo thứ tự nhóm backend trả; nhóm lạ / thiếu gộp vào "Khác". */
+/** Chủ đề -> [{ key, name, topics }] theo thứ tự nhóm của kênh, cuối là "Khác" (chưa xếp nhóm); nhóm rỗng không hiện. */
 const groupTopics = (topics, categories = []) => {
-  const known = new Set(categories.map((c) => c.key));
-  return categories
-    .map((c) => ({ ...c, topics: topics.filter((t) => (known.has(t.category) ? t.category : 'khac') === c.key) }))
-    .filter((g) => g.topics.length);
+  const known = new Set(categories.map((c) => c.id));
+  return [
+    ...categories.map((c) => ({ key: c.id, name: c.name, topics: topics.filter((t) => t.category_id === c.id) })),
+    { key: 'other', name: OTHER_TOPIC_CATEGORY, topics: topics.filter((t) => !known.has(t.category_id)) },
+  ].filter((g) => g.topics.length);
 };
+
+/**
+ * Quản lý nhóm chủ đề của kênh: thêm, đổi tên (Enter / rời ô), lên / xuống, xoá (chủ đề của nhóm về "Khác").
+ * "Khác" là nhóm sẵn cho chủ đề chưa xếp nhóm, không sửa được.
+ */
+function CategoryDialog({ channelId, categories, onClose }) {
+  const queryClient = useQueryClient();
+  const { confirm } = useConfirm();
+  const [names, setNames] = useState(() => Object.fromEntries(categories.map((c) => [c.id, c.name])));
+  const [adding, setAdding] = useState('');
+  const refresh = () => queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.topics(channelId) });
+  const add = useMutation({ mutationFn: () => createTopicCategory(channelId, adding.trim()), onSuccess: () => { setAdding(''); refresh(); } });
+  const rename = useMutation({ mutationFn: ({ id, name }) => updateTopicCategory(channelId, id, name), onSuccess: refresh });
+  const order = useMutation({ mutationFn: (ids) => orderTopicCategories(channelId, ids), onSuccess: refresh });
+  const remove = useMutation({ mutationFn: (id) => deleteTopicCategory(channelId, id), onSuccess: refresh });
+  const move = (i, step) => {
+    const ids = categories.map((c) => c.id);
+    [ids[i], ids[i + step]] = [ids[i + step], ids[i]];
+    order.mutate(ids);
+  };
+  const saveName = (c) => {
+    const name = (names[c.id] ?? '').trim();
+    if (name && name !== c.name) rename.mutate({ id: c.id, name });
+    else setNames((n) => ({ ...n, [c.id]: c.name }));
+  };
+  const askRemove = async (c) => {
+    const message = c.topics
+      ? `Xoá nhóm "${c.name}"? ${c.topics} chủ đề trong nhóm chuyển về "${OTHER_TOPIC_CATEGORY}".`
+      : `Xoá nhóm "${c.name}"?`;
+    if (await confirm(message, { confirmLabel: 'Xoá', danger: true })) remove.mutate(c.id);
+  };
+  const error = [add, rename, order, remove].map((m) => m.error).find(Boolean);
+  const busy = add.isPending || rename.isPending || order.isPending || remove.isPending;
+
+  return (
+    <Dialog
+      title="Nhóm chủ đề"
+      onClose={onClose}
+      footer={
+        <button type="button" onClick={onClose} className="flex h-11 flex-1 items-center justify-center rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary">
+          Xong
+        </button>
+      }
+    >
+      <p className="text-xs text-on-surface-variant">
+        Tab Chủ đề hiện chủ đề theo nhóm, theo thứ tự dưới đây. Chủ đề chưa xếp nhóm nằm ở "{OTHER_TOPIC_CATEGORY}".
+      </p>
+      <ul className="space-y-1.5">
+        {categories.map((c, i) => (
+          <li key={c.id} className="flex items-center gap-1">
+            <input
+              value={names[c.id] ?? c.name}
+              maxLength={40}
+              aria-label={`Tên nhóm ${c.name}`}
+              onChange={(e) => setNames((n) => ({ ...n, [c.id]: e.target.value }))}
+              onBlur={() => saveName(c)}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              className="h-9 min-w-0 flex-1 rounded-lg border border-outline-variant/60 bg-surface-container-low px-3 text-sm text-on-surface focus:border-primary-container focus:outline-none"
+            />
+            <span className="w-14 shrink-0 text-right text-[11px] text-on-surface-variant">{c.topics} chủ đề</span>
+            <button type="button" onClick={() => move(i, -1)} disabled={busy || i === 0} aria-label={`Đưa nhóm ${c.name} lên`} className={`${iconButton} text-on-surface-variant`}>
+              <Icon name="arrow_upward" className="text-lg" />
+            </button>
+            <button
+              type="button"
+              onClick={() => move(i, 1)}
+              disabled={busy || i === categories.length - 1}
+              aria-label={`Đưa nhóm ${c.name} xuống`}
+              className={`${iconButton} text-on-surface-variant`}
+            >
+              <Icon name="arrow_downward" className="text-lg" />
+            </button>
+            <button type="button" onClick={() => askRemove(c)} disabled={busy} aria-label={`Xoá nhóm ${c.name}`} className={`${iconButton} text-error hover:bg-error-container/40`}>
+              <Icon name="delete" className="text-lg" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <form
+        className="flex gap-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (adding.trim()) add.mutate();
+        }}
+      >
+        <input
+          value={adding}
+          maxLength={40}
+          onChange={(e) => setAdding(e.target.value)}
+          placeholder="Tên nhóm mới, VD: Mùa hè"
+          className="h-9 min-w-0 flex-1 rounded-lg border border-outline-variant/60 bg-surface-container-low px-3 text-sm text-on-surface focus:border-primary-container focus:outline-none"
+        />
+        <button
+          type="submit"
+          disabled={!adding.trim() || busy}
+          className="flex h-9 items-center gap-1 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+        >
+          <Icon name="add" className="text-base" />
+          Thêm nhóm
+        </button>
+      </form>
+      <ErrorBox>{error && (error.errors?.name || error.errors?.ids || error.message)}</ErrorBox>
+    </Dialog>
+  );
+}
 
 const iconButton = 'flex size-8 items-center justify-center rounded-lg hover:bg-surface-container disabled:opacity-50';
 
@@ -331,6 +447,7 @@ export default function TopicsTab({ channel }) {
   // null | { topic } (sửa) | { topic: null } (thêm thủ công)
   const [editing, setEditing] = useState(null);
   const [autoOpen, setAutoOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   // ?topic={id}: đang xem trang chi tiết chủ đề
   const [params, setParams] = useSearchParams();
   const topicId = params.get('topic');
@@ -381,6 +498,9 @@ export default function TopicsTab({ channel }) {
     <>
       {editing && <TopicDialog channelId={channel.id} topic={editing.topic} categories={data?.categories} onClose={() => setEditing(null)} />}
       {autoOpen && <AutoBuildDialog channelId={channel.id} limits={data?.count} onClose={() => setAutoOpen(false)} />}
+      {categoriesOpen && data && (
+        <CategoryDialog channelId={channel.id} categories={data.categories ?? []} onClose={() => setCategoriesOpen(false)} />
+      )}
     </>
   );
 
@@ -408,6 +528,14 @@ export default function TopicsTab({ channel }) {
 
   const actions = data && (
     <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+      <button
+        type="button"
+        onClick={() => setCategoriesOpen(true)}
+        className="flex h-8 items-center gap-1 rounded-lg border border-outline-variant/60 px-3 text-xs font-bold text-on-surface hover:border-primary-container hover:text-primary"
+      >
+        <Icon name="folder" className="text-base" />
+        Nhóm
+      </button>
       <button
         type="button"
         onClick={() => setEditing({ topic: null })}
@@ -454,7 +582,7 @@ export default function TopicsTab({ channel }) {
             {groupTopics(topics, data.categories).map((group) => (
               <section key={group.key}>
                 <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-on-surface">
-                  {group.label}
+                  {group.name}
                   <span className="text-xs font-normal text-on-surface-variant">({group.topics.length})</span>
                 </h3>
               <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
