@@ -13,8 +13,8 @@ OOTD cùng loại giày + vẽ bằng Google Flow, giày ĐÚNG theo ảnh sản
 Nhóm: Phối đồ   Mục tiêu: Lưu bài   Định dạng: Ảnh   Số slide: 3-6 (gồm 1 bìa)
 Nguồn ảnh: Tạo LÔ PHỐI ĐỒ mới khi duyệt kỳ (như lookbook), lệnh KHÔNG chọn ảnh.
 Cùng 1 sản phẩm: BẮT BUỘC (outfit.product_id).
-Dùng khi: Shop có worker phối đồ + sản phẩm đã có tag ootd + OOTD đủ outfit cùng loại giày.
-Không dùng khi: channel.outfit_worker = false, sản phẩm chưa gắn tag ootd, không đủ outfit cùng loại giày.
+Dùng khi: Shop có worker phối đồ + sản phẩm đã có tag kieu (loại giày) + OOTD đủ outfit cùng loại giày.
+Không dùng khi: channel.outfit_worker = false, sản phẩm chưa gắn tag kieu, không đủ outfit cùng loại giày.
 
 2. CẤU TRÚC SLIDE
 ----------------------------------------
@@ -40,29 +40,33 @@ Kết bằng 'Bạn thích kiểu số mấy?'.
 6. CÁC BƯỚC LỆNH LÀM
 ----------------------------------------
 1. Kiểm tra channel.outfit_worker.
-2. Chọn 1 sản phẩm có tags.ootd (kehoach.py products, ít dùng trước). Chưa có -> nhắc chủ shop chạy /gan-tag-san-pham.
-3. kehoach.py ootd-count <loại giày trong tags.ootd> >= outfit.count - 1; không đủ thì giảm count / đổi sản phẩm.
+2. Chọn 1 sản phẩm có tags.kieu (kehoach.py products, ít dùng trước). Chưa có -> nhắc chủ shop chạy /gan-tag-san-pham.
+3. kehoach.py ootd-count <tags.kieu> >= outfit.count - 1; không đủ thì giảm count / đổi sản phẩm.
 4. outfit.tags: 1-5 hashtag chủ đề OOTD (phong cách / mùa), như lookbook.
 5. Gửi {sample_key:'one_shoe_many_looks', hook, outfit:{count, tags, product_id}, text_template_id?, title, hashtags}.
 
 7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
 ----------------------------------------
 - Như lookbook (slot ảnh, count 3-6, tags 1-5, shop có worker phối đồ, template chữ gắn loại bài).
-- outfit.product_id bắt buộc, là sản phẩm đang hoạt động có ảnh của shop, có tags.ootd chứa >= 1 hashtag LOẠI giày.
+- outfit.product_id bắt buộc, là sản phẩm đang hoạt động có ảnh của shop, có tags.kieu (hashtag loại giày).
 
 8. LUỒNG ĐÃ LÀM (2026-11-24, người dùng chốt)
 ----------------------------------------
-Chọn outfit đi kèm giày: dùng CHUNG từ vựng hashtag giày OOTD (nhóm Giày của skill /tao-outfit) cho cả 2 bên.
-- Sản phẩm: tags.ootd (A51 products.tags, trường mới) = 2-10 hashtag giày OOTD, >= 1 hashtag LOẠI giày
-  (ProductTags::OOTD_SHOE_TYPES: giaycaogot, giaysneaker, giaybupbe, giaysandal, bootcaoco, slingback, guocgo...) +
-  thiết kế (muinhon, gotnhon, dedday, dabong...) + màu (giayden, giaytrang...). Skill /gan-tag-san-pham gắn (bắt buộc
-  khi AI gắn); sản phẩm gắn tag trước 2026-11-24 chưa có ootd -> tính "chưa gắn tag", cần gắn lại. Chủ shop sửa được
-  ở trang Sản phẩm (ô "Hashtag giày (OOTD)"), không dùng để lọc sản phẩm / chủ đề.
+Chọn outfit đi kèm giày (sửa 2026-11-24, người dùng chốt): 1 DANH SÁCH HASHTAG LOẠI GIÀY dùng chung A51 + OOTD, LƯU
+TRÊN A51 (app/Support/ProductTags.php SHOE_TYPES: tag, tên, nhóm, cùng nghĩa), chỉ quy định loại giày, KHÔNG quy định màu.
+Hashtag lấy đúng theo hashtag OOTD đang dùng: giaycaogot, giayslingback, giaymule, giaysandal, giaybet, giaybupbe,
+giaymaryjane, giayloafer, giaythethao (cùng nghĩa sneaker), giayboot, bootcaoco, bootlong, bootdui, bootdituyet, giaydep,
+depquai, depkep, deplong.
+- Sản phẩm: tags.kieu = 1 hashtag trong danh sách (thay 8 kiểu cũ cao_got / sneaker...). BỎ tag ootd + ô "Hashtag giày
+  (OOTD)" trên A51. Migration 2026_11_24_110000 đổi kieu cũ sang hashtag.
+- API công khai GET /api/v1/shoe-types -> [{tag, ten, nhom, cung_nghia}]: skill /tao-outfit đọc (scripts/loai_giay.py)
+  để gắn hashtag loại giày cho outfit OOTD; /gan-tag-san-pham gắn kieu theo danh sách này.
+- Job worker phối đồ: product.shoe_type = {tag, ten, nhom, cung_tag, cung_nhom}.
 - A51: image_batches.outfit_mode = 'product' (migration 2026_11_24_100000). Duyệt kỳ -> OutfitBatchService::create như
   lô có sản phẩm + outfit_mode. Job worker phối đồ thêm batch.outfit_mode, product.ai_label, product.tags.
 - Worker phối đồ (D:\FlowKit\tao-anh\phoi-do), lô outfit_mode = product:
-  * Chọn outfit (v2/outfits.py pick): BẮT BUỘC chung >= 1 hashtag loại giày với sản phẩm; xếp theo số hashtag giày khác
-    trùng (thiết kế, màu) -> số hashtag chủ đề trùng -> đúng mùa -> lâu chưa dùng -> ngẫu nhiên. Prompt bỏ dòng "Giày"
+  * Chọn outfit (v2/outfits.py pick): BẮT BUỘC cùng nhóm loại giày (cung_nhom); xếp cùng đúng hashtag (cung_tag) trước
+    -> số hashtag chủ đề trùng -> đúng mùa -> lâu chưa dùng -> ngẫu nhiên. Prompt bỏ dòng "Giày"
     của outfit.
   * Vẽ (worker.py draw_flow + v2/flow.py): ảnh anh_san_pham của sản phẩm + ảnh gốc outfit OOTD (data URI) + prompt
     prompt/san-pham.txt -> chạy image-worker/flow_once.py (đúng các bước Flow của worker ảnh: dán request vào tool,
@@ -74,7 +78,7 @@ Chọn outfit đi kèm giày: dùng CHUNG từ vựng hashtag giày OOTD (nhóm 
 9. CẦN LÀM / CHỜ
 ----------------------------------------
 - Đặt FLOW_WORKER (tên file image-worker/workers/<tên>.env có profile Flow) trong .env worker phối đồ.
-- Chạy /gan-tag-san-pham lại cho các shop để sản phẩm có tags.ootd.
+- Chạy migration 2026_11_24_110000 (đổi kieu cũ cao_got -> giaycaogot..., xoá tags.ootd).
 - Chạy thử 1 lô thật, xem Flow giữ giày có đúng không, chỉnh prompt/san-pham.txt.
 - Tool Flow nhận productImage + outfitImage (như worker ảnh). Chưa gửi ảnh người mẫu (nguoi-mau/) cho Flow.
 
@@ -89,5 +93,5 @@ Chọn outfit đi kèm giày: dùng CHUNG từ vựng hashtag giày OOTD (nhóm 
    TRẢ LỜI (2026-11-24): A51 tạo lô phối đồ kèm sản phẩm; worker phối đồ nhận job, lấy outfit trên OOTD theo hashtag,
    mở Google Flow tạo ảnh, tải 2K như worker ảnh. Prompt ở thư mục prompt của worker phối đồ, không lưu trên A51.
 3. Ghép outfit với giày thế nào?
-   TRẢ LỜI (2026-11-24): skill /gan-tag-san-pham gắn thêm tags.ootd (hashtag giày từ vựng OOTD); outfit bắt buộc cùng
-   loại giày, ưu tiên trùng thiết kế / màu.
+   TRẢ LỜI (2026-11-24, sửa lần 2): 1 danh sách hashtag loại giày lưu trên A51, dùng chung cho tag kieu sản phẩm và
+   hashtag giày outfit OOTD (skill /tao-outfit đọc qua API). Bỏ tag ootd. Outfit bắt buộc cùng nhóm, ưu tiên cùng hashtag.

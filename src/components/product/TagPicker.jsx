@@ -23,7 +23,7 @@ const chipClass = (on) =>
       : 'border-outline-variant/60 text-on-surface-variant hover:border-primary-container hover:text-primary'
   }`;
 
-/** Ô nhập chữ tự do (màu, hashtag giày OOTD): Enter / dấu phẩy / dấu cách (hashtag) để thêm (lưu dạng không dấu). */
+/** Ô nhập chữ tự do (màu): Enter / dấu phẩy để thêm (lưu dạng không dấu). */
 function FreeInput({ field, values, max, onChange }) {
   const [text, setText] = useState('');
   const slugOf = field.slug ?? colorSlug;

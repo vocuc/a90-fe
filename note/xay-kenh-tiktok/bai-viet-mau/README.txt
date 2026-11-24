@@ -38,7 +38,7 @@ lai ảnh sản phẩm) -> Phối đồ; còn lại -> Ảnh sản phẩm. Mục
 Phối đồ (outfit):
   lookbook               Phối đồ                      ĐÃ LÀM: chủ đề + hashtag -> lô phối đồ có sẵn hook, tìm outfit theo hashtag
   outfit_by_day          Outfit theo ngày / dịp       ĐÃ LÀM: lô phối đồ mới, worker in nhãn ngày thay 'Outfit N'
-  one_shoe_many_looks    Outfit - theo sản phẩm       ĐÃ LÀM 2026-11-24: lô phối đồ gắn sản phẩm có tags.ootd, outfit cùng loại giày, Flow vẽ đúng giày
+  one_shoe_many_looks    Outfit - theo sản phẩm       ĐÃ LÀM 2026-11-24: lô phối đồ gắn sản phẩm có tags.kieu (hashtag loại giày chung OOTD), outfit cùng loại giày, Flow vẽ đúng giày
   box_to_feet            Từ hộp lên chân              LÀM ĐƯỢC NẾU CÓ ẢNH KHỚP (rất khó)
   before_after           Trước / sau                  THIẾU ẢNH 'TRƯỚC'
 Ảnh sản phẩm (product):
