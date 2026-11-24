@@ -23,7 +23,7 @@ QUY TẮC CHUNG (mọi loại)
 CHỈ BÀI ĐÃ LÀM XONG MỚI BẬT (người dùng chốt 2026-11-21)
 ----------------------------------------
 - PostSamples::READY (D:\OSPanel\home\a90.local\app\Support\PostSamples.php) = danh sách bài bật, hiện: top_n, lookbook,
-  outfit_by_day, one_shoe_many_looks, shoe_by_outfit, unboxing, video_type_01. Làm xong bài nào thì thêm key vào READY + đổi trạng thái trong mục lục thành "ĐÃ LÀM".
+  outfit_by_day, one_shoe_many_looks, unboxing, video_type_01. Làm xong bài nào thì thêm key vào READY + đổi trạng thái trong mục lục thành "ĐÃ LÀM".
 - Bài chưa bật: không thêm được vào tuyến (SAMPLE_NOT_READY), không lập kế hoạch được, không gắn template chữ được;
   tuyến cũ có bài chưa bật thì bài đó bị bỏ qua; tuyến không còn bài bật nào = kênh thiếu tuyến.
 - Frontend: tab Bài viết mẫu hiện "Chưa làm xong", tab Tuyến nội dung chỉ thêm được bài bật.
@@ -44,7 +44,7 @@ Phối đồ (outfit):
 Ảnh sản phẩm (product):
   unboxing               Đập hộp                      ĐÃ LÀM: kiểu bài ảnh chủ shop hay đăng, duyệt kỳ tạo lô tự động, không chữ
   top_n                  Top N                        ĐÃ LÀM: content-worker dựng bìa ghép + chữ #1..#N
-  shoe_by_outfit         Chọn giày theo trang phục    ĐÃ LÀM 2026-11-24: ảnh giày + chữ "<trang phục>: <giày>", bìa mẫu 05 Tạp chí
+  shoe_by_outfit         Chọn giày theo trang phục    ĐÃ BỎ 2026-11-24 (làm xong rồi bỏ, gỡ khỏi A51 + content-worker)
   closeup                Soi cận cảnh                 LÀM ĐƯỢC MỘT PHẦN (chưa cắt cận được)
   color_options          1 mẫu nhiều màu              LÀM ĐƯỢC NẾU CÓ ẢNH (hệ thống chưa biết màu)
   this_or_that           A hay B                      LÀM ĐƯỢC (chưa có slide ghép 2 ảnh)
