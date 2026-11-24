@@ -26,6 +26,8 @@ Dùng khi: Có >= 3 mẫu hợp 1 tiêu chí (dịp, kiểu, tầm giá).
 Ví dụ:
   - Top 5 đôi giày đi chúc Tết
   - Top 4 đôi bệt đi làm cả ngày không đau
+  Hook phải trọn ý, không bỏ chữ cho ngắn (2026-11-25): sai "Top 5 đôi làm phù dâu đứng cả ngày" -> đúng "Top 5 đôi giày
+  cho phù dâu đứng cả ngày không đau chân".
 
 4. CHỮ TRÊN ẢNH
 ----------------------------------------

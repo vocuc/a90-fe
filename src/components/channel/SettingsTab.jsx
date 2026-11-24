@@ -21,8 +21,6 @@ const toForm = (c) => ({
   autoApproveLineup: c.autoApproveLineup,
   autoApproveTemplates: c.autoApproveTemplates,
   autoApprovePlan: c.autoApprovePlan,
-  titleMax: String(c.titleMax),
-  contentMax: String(c.contentMax),
   requirements: c.requirements,
   hashtags: c.hashtags,
 });
@@ -69,8 +67,6 @@ export default function SettingsTab({ channel }) {
       autoApproveLineup: form.autoApproveLineup,
       autoApproveTemplates: form.autoApproveTemplates,
       autoApprovePlan: form.autoApprovePlan,
-      titleMax: Number(form.titleMax),
-      contentMax: Number(form.contentMax),
       requirements: form.requirements,
       hashtags: form.hashtags,
     });
@@ -148,12 +144,7 @@ export default function SettingsTab({ channel }) {
       </Section>
 
       <Section title="AI viết nội dung" subtitle="Dùng khi lập kế hoạch và khi bạn bật AI viết nội dung lúc tạo bài tay.">
-        <div className="grid grid-cols-2 gap-3">
-          <TextField label="Tiêu đề tối đa" inputMode="numeric" value={form.titleMax} onChange={(e) => change({ titleMax: digits(e.target.value) })}
-            error={errors.title_max} hint={`${limits.title_max.min}-${limits.title_max.max} ký tự`} />
-          <TextField label="Nội dung tối đa" inputMode="numeric" value={form.contentMax} onChange={(e) => change({ contentMax: digits(e.target.value) })}
-            error={errors.content_max} hint={`${limits.content_max.min}-${limits.content_max.max} ký tự`} />
-        </div>
+        {/* Bỏ ô "Tiêu đề tối đa" / "Nội dung tối đa" (2026-11-25): độ dài viết vào Yêu cầu */}
         <TextArea label="Yêu cầu" value={form.requirements} maxLength={limits.requirements} onChange={(e) => change({ requirements: e.target.value })}
           error={errors.requirements} placeholder={'Viết luôn giọng văn, cách xưng hô vào đây. Ví dụ:\n- Luôn gọi người xem là các nàng\n- Không dùng icon cuối tiêu đề'}
           hint="AI luôn làm theo trong mọi bài." />

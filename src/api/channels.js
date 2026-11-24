@@ -106,8 +106,6 @@ const mapChannel = (c) => ({
   autoApproveLineup: !!c.auto_approve_lineup,
   autoApproveTemplates: !!c.auto_approve_templates,
   autoApprovePlan: !!c.auto_approve_plan,
-  titleMax: c.title_max,
-  contentMax: c.content_max,
   requirements: c.requirements ?? '',
   hashtags: c.hashtags ?? [],
   productHashtags: c.product_hashtags ?? [],
@@ -134,8 +132,6 @@ export const updateChannel = (id, values) => {
     autoApproveTemplates: 'auto_approve_templates',
     autoApprovePlan: 'auto_approve_plan',
     persona: 'persona',
-    titleMax: 'title_max',
-    contentMax: 'content_max',
     requirements: 'requirements',
     hashtags: 'hashtags',
   };
