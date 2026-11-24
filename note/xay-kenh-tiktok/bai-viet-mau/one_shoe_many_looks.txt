@@ -10,7 +10,7 @@ OOTD cùng loại giày + vẽ bằng Google Flow, giày ĐÚNG theo ảnh sản
 
 1. THÔNG TIN
 ----------------------------------------
-Nhóm: Phối đồ   Mục tiêu: Lưu bài   Định dạng: Ảnh   Số slide: 3-6 (gồm 1 bìa)
+Nhóm: Phối đồ   Mục tiêu: Lưu bài   Định dạng: Ảnh   Số slide: 4-6 (1 bìa + 3-5 ảnh outfit)
 Nguồn ảnh: Tạo LÔ PHỐI ĐỒ mới khi duyệt kỳ (như lookbook), lệnh KHÔNG chọn ảnh.
 Cùng 1 sản phẩm: BẮT BUỘC (outfit.product_id).
 Dùng khi: Shop có worker phối đồ + sản phẩm đã có tag kieu (loại giày) + OOTD đủ outfit cùng loại giày.
@@ -47,7 +47,7 @@ Kết bằng 'Bạn thích kiểu số mấy?'.
 
 7. BACKEND KIỂM TRA (bài sai bị trả về rejected)
 ----------------------------------------
-- Như lookbook (slot ảnh, count 3-6, tags 1-5, shop có worker phối đồ, template chữ gắn loại bài).
+- Như lookbook (slot ảnh, count 4-6 = bìa + 3-5 ảnh outfit (chốt 2026-11-24), tags 1-5, shop có worker phối đồ, template chữ gắn loại bài).
 - outfit.product_id bắt buộc, là sản phẩm đang hoạt động có ảnh của shop, có tags.kieu (hashtag loại giày).
 
 8. LUỒNG ĐÃ LÀM (2026-11-24, người dùng chốt)
