@@ -55,8 +55,9 @@ Kết bằng 'Bạn thích kiểu số mấy?'.
 Chọn outfit đi kèm giày (sửa 2026-11-24, người dùng chốt): 1 DANH SÁCH HASHTAG LOẠI GIÀY dùng chung A51 + OOTD, LƯU
 TRÊN A51 (app/Support/ProductTags.php SHOE_TYPES: tag, tên, nhóm, cùng nghĩa), chỉ quy định loại giày, KHÔNG quy định màu.
 Hashtag lấy đúng theo hashtag OOTD đang dùng: giaycaogot, giayslingback, giaymule, giaysandal, giaybet, giaybupbe,
-giaymaryjane, giayloafer, giaythethao (cùng nghĩa sneaker), giayboot, bootcaoco, bootlong, bootdui, bootdituyet, giaydep,
-depquai, depkep, deplong.
+giaymaryjane, giayloafer, giaytabi, giaythethao (cùng nghĩa sneaker), giayboot, bootcaoco, bootlong, bootdui, bootdituyet,
+bootcongan, bootcaosu, bootcaoboi, bootcombat, bootbiker, giayclog, giaysuc, guocgo, giaydep, depquai, depkep, deplong
+(9 loại sau thêm 2026-11-24 theo dữ liệu OOTD thật).
 - Sản phẩm: tags.kieu = 1 hashtag trong danh sách (thay 8 kiểu cũ cao_got / sneaker...). BỎ tag ootd + ô "Hashtag giày
   (OOTD)" trên A51. Migration 2026_11_24_110000 đổi kieu cũ sang hashtag.
 - API công khai GET /api/v1/shoe-types -> [{tag, ten, nhom, cung_nghia}]: skill /tao-outfit đọc (scripts/loai_giay.py)

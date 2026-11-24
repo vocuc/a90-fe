@@ -30,8 +30,10 @@ export const TAG_FIELDS = [
     // Hashtag loại giày dùng chung A51 + OOTD (ProductTags::SHOE_TYPES, GET /shoe-types, 2026-11-24)
     options: {
       giaycaogot: 'Cao gót', giayslingback: 'Slingback', giaymule: 'Mule', giaysandal: 'Sandal', giaybet: 'Giày bệt',
-      giaybupbe: 'Búp bê', giaymaryjane: 'Mary Jane', giayloafer: 'Loafer', giaythethao: 'Sneaker / thể thao',
+      giaybupbe: 'Búp bê', giaymaryjane: 'Mary Jane', giayloafer: 'Loafer', giaytabi: 'Tabi', giaythethao: 'Sneaker / thể thao',
       giayboot: 'Boot', bootcaoco: 'Boot cao cổ', bootlong: 'Boot cổ dài', bootdui: 'Boot đùi', bootdituyet: 'Boot đi tuyết',
+      bootcongan: 'Boot cổ ngắn', bootcaosu: 'Boot cao su', bootcaoboi: 'Boot cao bồi', bootcombat: 'Boot combat',
+      bootbiker: 'Boot biker', giayclog: 'Clog', giaysuc: 'Giày sục', guocgo: 'Guốc gỗ',
       giaydep: 'Dép', depquai: 'Dép quai', depkep: 'Dép kẹp', deplong: 'Dép lông',
     },
   },
