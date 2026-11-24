@@ -438,7 +438,7 @@ function JobStatus({ job }) {
 /**
  * Tab Chủ đề: chủ đề của kênh, dùng chung mọi loại bài (cùng chủ đề + cùng loại bài không lặp trong 14 ngày). Chủ đề có
  * từ "Xây dựng tự động" (worker lập chủ đề) hoặc "Xây dựng thủ công"; lệnh lập kế hoạch chỉ chọn chủ đề có sẵn.
- * Chủ shop sửa tên / tag, tạm tắt, xoá (kể cả chủ đề đã có bài: các bài đó thành chủ đề "Không xác định").
+ * Chủ shop sửa tên / tag, tạm tắt, xoá (kể cả chủ đề đã có bài: các bài đó thành "Không chủ đề").
  * "Xem N hook đã tạo" mở trang chi tiết chủ đề (?topic={id}, TopicDetail). Sau này thống kê view theo chủ đề.
  */
 export default function TopicsTab({ channel }) {
@@ -467,7 +467,7 @@ export default function TopicsTab({ channel }) {
   });
   const remove = useMutation({
     mutationFn: (t) => deleteTopic(channel.id, t.id),
-    // Bài kế hoạch / lịch đăng của chủ đề đổi sang "Không xác định": tải lại mọi dữ liệu của kênh
+    // Bài kế hoạch / lịch đăng của chủ đề đổi sang "Không chủ đề": tải lại mọi dữ liệu của kênh
     onSuccess: (_, t) => {
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.detail(channel.id) });
       // Xoá ở trang chi tiết thì về danh sách
@@ -478,7 +478,7 @@ export default function TopicsTab({ channel }) {
   const askRemove = async (t) => {
     const count = Object.values(t.posts ?? {}).reduce((sum, n) => sum + n, 0);
     const message = count
-      ? `Xoá chủ đề "${t.name}"? ${count} bài đã dùng chủ đề này vẫn giữ nguyên nhưng chủ đề sẽ thành "Không xác định".`
+      ? `Xoá chủ đề "${t.name}"? ${count} bài đã dùng chủ đề này vẫn giữ nguyên nhưng sẽ thành "Không chủ đề".`
       : `Xoá chủ đề "${t.name}"?`;
     if (await confirm(message, { confirmLabel: 'Xoá', danger: true })) remove.mutate(t);
   };

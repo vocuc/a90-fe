@@ -32,13 +32,13 @@ export function Switch({ checked, onChange, label, hint, disabled }) {
 }
 
 /** Nhãn chủ đề của bài (chủ đề kênh, note/xay-kenh-tiktok/chu-de-va-tag-san-pham.txt mục 4). */
-/** name rỗng: chủ đề đã bị xoá -> "Không xác định". */
+/** name rỗng: bài không chủ đề (chủ đề tuỳ chọn, 2026-11-24) hoặc chủ đề đã bị xoá -> "Không chủ đề". */
 export function TopicBadge({ name }) {
   if (!name) {
     return (
       <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-semibold text-on-surface-variant">
         <span aria-hidden="true">#</span>
-        <span className="truncate">Không xác định</span>
+        <span className="truncate">Không chủ đề</span>
       </span>
     );
   }

@@ -105,3 +105,13 @@ bootcongan, bootcaosu, bootcaoboi, bootcombat, bootbiker, giayclog, giaysuc, guo
 3. Ghép outfit với giày thế nào?
    TRẢ LỜI (2026-11-24, sửa lần 2): 1 danh sách hashtag loại giày lưu trên A51, dùng chung cho tag kieu sản phẩm và
    hashtag giày outfit OOTD (skill /tao-outfit đọc qua API). Bỏ tag ootd. Outfit bắt buộc cùng nhóm, ưu tiên cùng hashtag.
+
+== SỬA LẠI 2026-11-24 (người dùng chốt; thay phần "1 đôi giày - nhiều cách phối" ở trên) ==
+- Mỗi bài 4-6 SẢN PHẨM khác nhau (outfit.product_ids theo thứ tự slide, mỗi sản phẩm có tags.kieu), outfit.count = số
+  sản phẩm + 1 (bìa). Lô phối đồ: mỗi ảnh outfit gắn 1 sản phẩm (generation.product_id) -> worker phối đồ chọn 1 outfit
+  OOTD cùng loại giày với sản phẩm đó, Flow vẽ người mẫu đi đúng đôi giày.
+- Content-worker ghép mỗi slide 2 cột: trái ~2/3 = ảnh người mẫu, phải = 3 ảnh lịch sử tạo ảnh MỚI NHẤT của sản phẩm xếp
+  dọc (thiếu ảnh -> ô trống xám nhạt) + mã "#1", "#2"... (đánh số theo thứ tự trong bài; sản phẩm chưa có trường mã).
+  A51 gửi images[k].product_images (<= 3 link) + images[k].code.
+- Bìa: mẫu "05 · Tạp chí" từ 1 ảnh lịch sử tạo ảnh của SẢN PHẨM ĐẦU; dòng phụ "N mẫu giày • kéo sang xem →".
+- Hook THEO CHỦ ĐỀ (dịp / tình huống), không nêu đôi cụ thể. Caption "Bạn chốt mã số mấy?".
