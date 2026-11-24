@@ -217,6 +217,12 @@ export const updatePlanItem = (id, planId, itemId, body) =>
  * Nút "Làm lại" bài chưa duyệt: on = đánh dấu (worker điều phối chạy /lap-ke-hoach --lam-lai soạn lại bài), off = bỏ đánh
  * dấu -> { data: item + { redo_queued } } (redo_queued false: shop chưa gắn worker điều phối).
  */
+/** Nút "AI viết lại cả kỳ" (kỳ chờ duyệt): on = đánh dấu mọi bài, off = bỏ -> { items, redo_queued }. 409 PLAN_NOT_DRAFT. */
+export const setPlanRedo = (id, planId, on) => {
+  const url = `/creator/channels/${id}/plans/${planId}/redo`;
+  return (on ? client.post(url) : client.delete(url)).then(({ data }) => data);
+};
+
 export const setPlanItemRedo = (id, planId, itemId, on) => {
   const url = `/creator/channels/${id}/plans/${planId}/items/${itemId}/redo`;
   return (on ? client.post(url) : client.delete(url)).then(({ data }) => data);

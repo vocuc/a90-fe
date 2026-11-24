@@ -18,6 +18,7 @@ import {
   reschedulePlan,
   resetPlanTimes,
   setPlanItemRedo,
+  setPlanRedo,
   startPlanJob,
   updatePlanItem,
 } from '../../api/channels';
@@ -382,9 +383,17 @@ function PlanItem({ channelId, planId, item, canCancel, canEdit }) {
 
 function PlanDetail({ channelId, planId }) {
   const queryClient = useQueryClient();
-  const { confirm } = useConfirm();
+  const { confirm, alert } = useConfirm();
   const [moving, setMoving] = useState(false);
   const [resetNote, setResetNote] = useState('');
+  // Nút "AI viết lại cả kỳ": đánh dấu mọi bài chưa duyệt (giữ giờ đăng); bấm lần nữa khi đang chờ = bỏ yêu cầu
+  const redoAll = useMutation({
+    mutationFn: (on) => setPlanRedo(channelId, planId, on),
+    onSuccess: (data, on) => {
+      invalidatePlan(queryClient, channelId, planId);
+      if (on && !data.redo_queued) alert('Đã đánh dấu viết lại cả kỳ. Shop chưa được gắn worker điều phối nên các bài sẽ được viết lại ở lượt lập kế hoạch sau.');
+    },
+  });
   const { data: plan, error, refetch } = useQuery({
     queryKey: CHANNEL_KEYS.plan(channelId, planId),
     queryFn: () => getPlan(channelId, planId),
@@ -417,6 +426,8 @@ function PlanDetail({ channelId, planId }) {
   if (error) return <ErrorState error={error} onRetry={refetch} />;
   if (!plan) return <Skeleton className="h-32 w-full" />;
   const open = plan.status === 'draft' || plan.status === 'approved';
+  const draftItems = plan.items.filter((i) => i.status === 'draft');
+  const allRedoing = draftItems.length > 0 && draftItems.every((i) => i.redo_requested_at);
 
   return (
     <div className="space-y-3">
@@ -433,12 +444,32 @@ function PlanDetail({ channelId, planId }) {
       </ul>
       {decide.error && <FormAlert>{decide.error.message}</FormAlert>}
       {resetTimes.error && <FormAlert>{resetTimes.error.message}</FormAlert>}
+      {redoAll.error && <FormAlert>{redoAll.error.message}</FormAlert>}
       {resetNote && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800">{resetNote}</p>}
       <div className="flex flex-wrap gap-2">
         {plan.status === 'draft' && (
           <button type="button" onClick={() => decide.mutate(true)} disabled={decide.isPending}
             className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">
             Duyệt kỳ, đưa vào lịch đăng
+          </button>
+        )}
+        {plan.status === 'draft' && draftItems.length > 0 && (
+          <button
+            type="button"
+            disabled={redoAll.isPending}
+            onClick={async () => {
+              if (allRedoing) return redoAll.mutate(false);
+              if (
+                await confirm(`Nhờ AI lập kế hoạch viết lại cả ${draftItems.length} bài của kỳ? Giữ giờ đăng, nội dung (chủ đề, hook, sản phẩm, caption) được soạn mới.`, {
+                  confirmLabel: 'Viết lại cả kỳ',
+                })
+              )
+                redoAll.mutate(true);
+            }}
+            className="flex items-center gap-1 rounded-lg border border-outline-variant/60 px-4 py-2 text-xs font-bold text-on-surface hover:border-primary-container hover:text-primary disabled:opacity-50"
+          >
+            <Icon name={redoAll.isPending ? 'progress_activity' : 'autorenew'} className={`text-base ${redoAll.isPending ? 'animate-spin' : ''}`} />
+            {allRedoing ? 'Bỏ yêu cầu viết lại cả kỳ' : 'AI viết lại cả kỳ'}
           </button>
         )}
         {open && (
