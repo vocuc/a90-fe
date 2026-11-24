@@ -81,7 +81,8 @@ bootcongan, bootcaosu, bootcaoboi, bootcombat, bootbiker, giayclog, giaysuc, guo
     cỡ ảnh outfit (9:16, không 3:4 vì mọi slide cùng cỡ), lớp tối ~42% từ trên, nhãn hồng "LOOK CỦA TUẦN", hook chữ có chân
     Cambria Bold căn trái (từ khoá *...* hoặc cụm "N kiểu" tô hồng), dòng phụ "N cách phối • kéo sang xem →"; gửi bìa +
     ảnh outfit, A51 thêm bìa thành slide 1. Chưa chèn logo (job content chưa có logo).
-    Hook: lời khen chung chung, KHÔNG nêu màu / kiểu / tên giày, vd "Đôi này mix *4 kiểu* đều xinh".
+    Hook (chốt 2026-11-24): HƯỚNG DẪN PHỐI ĐỒ THEO LOẠI GIÀY, nêu loại giày (cao gót, sneaker, dép quai...), không nêu
+    màu / tên / hãng đôi cụ thể; vd "Cao gót mặc gì cho sang?", "Sneaker phối đồ sao cho xinh?"; *...* tô hồng (tuỳ chọn).
     Lập kế hoạch: shop phải có content-worker.
 
 9. CẦN LÀM / CHỜ
