@@ -17,7 +17,9 @@ import {
   listPlans,
   reschedulePlan,
   resetPlanTimes,
+  setPlanItemRedo,
   startPlanJob,
+  updatePlanItem,
 } from '../../api/channels';
 import Section, { TopicBadge, formatDateTime } from './Section';
 
@@ -184,9 +186,87 @@ function RescheduleDialog({ channelId, plan, onClose }) {
   );
 }
 
-function PlanItem({ channelId, planId, item, canCancel }) {
+const invalidatePlan = (queryClient, channelId, planId) => {
+  queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.plans(channelId) });
+  queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.plan(channelId, planId) });
+};
+
+/**
+ * Nút bút chì: sửa hook / tiêu đề / caption của bài chưa duyệt (2026-11-24). Chỉ gửi phần đổi, ảnh + chữ trên ảnh + chủ đề +
+ * hashtag giữ nguyên. Bài không chữ (unboxing, video từ ảnh sản phẩm): hook = tiêu đề nên chỉ sửa tiêu đề.
+ */
+function EditItemDialog({ channelId, planId, item, onClose }) {
+  const queryClient = useQueryClient();
+  const [hook, setHook] = useState(item.hook ?? '');
+  const [title, setTitle] = useState(item.title ?? '');
+  const [content, setContent] = useState(item.content ?? '');
+  const body = {
+    ...(!item.hook_from_title && hook.trim() !== (item.hook ?? '') ? { hook: hook.trim() } : {}),
+    ...(title.trim() !== (item.title ?? '') ? { title: title.trim() } : {}),
+    ...(content.trim() !== (item.content ?? '').trim() ? { content: content.trim() } : {}),
+  };
+  const changed = Object.keys(body).length > 0;
+  const invalid = item.hook_from_title ? !title.trim() : !hook.trim();
+  const save = useMutation({
+    mutationFn: () => updatePlanItem(channelId, planId, item.id, body),
+    onSuccess: () => {
+      invalidatePlan(queryClient, channelId, planId);
+      onClose();
+    },
+  });
+
+  return (
+    <Dialog
+      title="Sửa bài"
+      subtitle={`${formatDateTime(item.scheduled_at)} · ${item.sample_name}`}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="flex h-11 items-center rounded-xl px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container">
+            Huỷ
+          </button>
+          <button
+            type="button"
+            onClick={() => save.mutate()}
+            disabled={!changed || invalid || save.isPending}
+            className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-container text-sm font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+          >
+            <Icon name={save.isPending ? 'progress_activity' : 'save'} className={`text-lg ${save.isPending ? 'animate-spin' : ''}`} />
+            Lưu
+          </button>
+        </>
+      }
+    >
+      {!item.hook_from_title && (
+        <TextArea label="Hook (chữ trên ảnh bìa / ý chính của bài)" maxLength={200} value={hook} onChange={(e) => setHook(e.target.value)} rows={2} />
+      )}
+      <TextField
+        label={item.hook_from_title ? 'Tiêu đề (bài này dùng tiêu đề làm hook)' : 'Tiêu đề'}
+        icon="title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+      />
+      <TextArea label="Caption" value={content} onChange={(e) => setContent(e.target.value)} rows={4} />
+      <p className="text-[11px] text-on-surface-variant">Ảnh, chữ trên từng ảnh, chủ đề và hashtag giữ nguyên.</p>
+      {save.error && <FormAlert>{save.error.errors?.item || save.error.message}</FormAlert>}
+    </Dialog>
+  );
+}
+
+function PlanItem({ channelId, planId, item, canCancel, canEdit }) {
   const queryClient = useQueryClient();
   const { confirm, alert } = useConfirm();
+  const [editing, setEditing] = useState(false);
+  const redoing = Boolean(item.redo_requested_at);
+  // Nút vòng tròn: AI lập kế hoạch viết lại bài này (giữ giờ đăng + định dạng); bấm lần nữa = bỏ yêu cầu
+  const redo = useMutation({
+    mutationFn: (on) => setPlanItemRedo(channelId, planId, item.id, on),
+    onError: (err) => alert(err?.message || 'Không gửi được yêu cầu làm lại, vui lòng thử lại.'),
+    onSuccess: (data, on) => {
+      invalidatePlan(queryClient, channelId, planId);
+      if (on && !data.redo_queued) alert('Đã đánh dấu làm lại. Shop chưa được gắn worker điều phối nên bài sẽ được viết lại ở lượt lập kế hoạch sau.');
+    },
+  });
   // Nút X: xoá hẳn bài khỏi kỳ (kèm bài đăng chưa được worker nhận); giờ đăng đó thành thiếu bài -> "Tạo bổ sung"
   const cancel = useMutation({
     mutationFn: () => cancelPlanItem(channelId, planId, item.id),
@@ -231,7 +311,15 @@ function PlanItem({ channelId, planId, item, canCancel }) {
               ? `Tạo lô ảnh "${item.product_batch.product_name ?? `sản phẩm #${item.product_batch.product_id}`}" khi duyệt`
               : `${item.images.length} ảnh`}
         </p>
-        <TopicBadge name={item.topic} />
+        <div className="flex flex-wrap items-center gap-1">
+          <TopicBadge name={item.topic} />
+          {redoing && !cancelled && (
+            <span className="inline-flex items-center gap-0.5 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+              <Icon name="autorenew" className="animate-spin text-xs" />
+              Chờ AI viết lại
+            </span>
+          )}
+        </div>
         <p className="line-clamp-2 text-sm font-semibold text-on-surface">{item.hook}</p>
         {item.title && <p className="truncate text-xs text-on-surface-variant">{item.title}</p>}
         {item.outfit?.tags?.length > 0 && (
@@ -242,18 +330,52 @@ function PlanItem({ channelId, planId, item, canCancel }) {
         )}
         {item.hashtags.length > 0 && <p className="truncate text-[11px] text-primary">{item.hashtags.map((h) => `#${h}`).join(' ')}</p>}
       </div>
-      {canCancel && !cancelled && (
-        <button
-          type="button"
-          onClick={async () => {
-            if (await confirm('Xoá bài này khỏi kỳ? Bài đăng của bài (nếu có) cũng bị xoá.', { confirmLabel: 'Xoá bài', danger: true })) cancel.mutate();
-          }}
-          disabled={cancel.isPending}
-          aria-label="Xoá bài này"
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-error hover:bg-error-container/40">
-          <Icon name="close" className="text-lg" />
-        </button>
+      {!cancelled && (canCancel || canEdit) && (
+        <div className="flex shrink-0 flex-col gap-0.5">
+          {canCancel && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (await confirm('Xoá bài này khỏi kỳ? Bài đăng của bài (nếu có) cũng bị xoá.', { confirmLabel: 'Xoá bài', danger: true })) cancel.mutate();
+              }}
+              disabled={cancel.isPending}
+              aria-label="Xoá bài này"
+              title="Xoá bài"
+              className="flex size-8 items-center justify-center rounded-lg text-error hover:bg-error-container/40">
+              <Icon name="close" className="text-lg" />
+            </button>
+          )}
+          {canEdit && item.status === 'draft' && (
+            <>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                disabled={redoing}
+                aria-label="Sửa bài này"
+                title={redoing ? 'Đang chờ AI viết lại' : 'Sửa hook / tiêu đề'}
+                className="flex size-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-primary disabled:opacity-40">
+                <Icon name="edit" className="text-lg" />
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (redoing) return redo.mutate(false);
+                  if (await confirm('Nhờ AI lập kế hoạch viết lại bài này? Giữ giờ đăng, nội dung (hook, ảnh, caption) sẽ được soạn mới.', { confirmLabel: 'Viết lại' }))
+                    redo.mutate(true);
+                }}
+                disabled={redo.isPending}
+                aria-label={redoing ? 'Bỏ yêu cầu viết lại' : 'Nhờ AI viết lại bài này'}
+                title={redoing ? 'Bỏ yêu cầu viết lại' : 'AI viết lại bài này'}
+                className={`flex size-8 items-center justify-center rounded-lg hover:bg-surface-container disabled:opacity-40 ${
+                  redoing ? 'text-sky-700' : 'text-on-surface-variant hover:text-primary'
+                }`}>
+                <Icon name={redo.isPending ? 'progress_activity' : 'autorenew'} className={`text-lg ${redo.isPending ? 'animate-spin' : ''}`} />
+              </button>
+            </>
+          )}
+        </div>
       )}
+      {editing && <EditItemDialog channelId={channelId} planId={planId} item={item} onClose={() => setEditing(false)} />}
     </li>
   );
 }
@@ -263,7 +385,12 @@ function PlanDetail({ channelId, planId }) {
   const { confirm } = useConfirm();
   const [moving, setMoving] = useState(false);
   const [resetNote, setResetNote] = useState('');
-  const { data: plan, error, refetch } = useQuery({ queryKey: CHANNEL_KEYS.plan(channelId, planId), queryFn: () => getPlan(channelId, planId) });
+  const { data: plan, error, refetch } = useQuery({
+    queryKey: CHANNEL_KEYS.plan(channelId, planId),
+    queryFn: () => getPlan(channelId, planId),
+    // Có bài đang chờ AI viết lại: tải lại định kỳ để thấy bài mới
+    refetchInterval: (query) => (query.state.data?.items?.some((i) => i.redo_requested_at && i.status === 'draft') ? POLL_MS : false),
+  });
   const decide = useMutation({
     mutationFn: (approve) => decidePlan(channelId, planId, approve),
     onSuccess: () => {
@@ -301,7 +428,7 @@ function PlanDetail({ channelId, planId }) {
       <ul className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
         {/* Kỳ chưa huỷ: bài đã huỷ (nút X bản cũ) coi như đã xoá, không hiện */}
         {plan.items.filter((item) => !open || item.status !== 'cancelled').map((item) => (
-          <PlanItem key={item.id} channelId={channelId} planId={planId} item={item} canCancel={open} />
+          <PlanItem key={item.id} channelId={channelId} planId={planId} item={item} canCancel={open} canEdit={plan.status === 'draft'} />
         ))}
       </ul>
       {decide.error && <FormAlert>{decide.error.message}</FormAlert>}

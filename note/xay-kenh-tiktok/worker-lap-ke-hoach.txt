@@ -63,3 +63,21 @@ Trước: bấm "Làm lại" chỉ đánh dấu bài, chờ lượt lập kế h
 Nay: đánh dấu xong A51 tạo việc plan payload {redo: true} (PlanJobService::queueRedo); kênh đã có việc plan đang chờ (chưa
 worker nhận) thì dùng chung việc đó; shop chưa gắn worker điều phối thì chỉ đánh dấu như cũ.
 Worker chạy /lap-ke-hoach <id kênh> --lam-lai: context ?redo_only=1 (plan null, không giữ slot kỳ mới), chỉ làm bước 3.
+
+7. SỬA / LÀM LẠI BÀI TRONG KỲ CHƯA DUYỆT (tab Kế hoạch, người dùng yêu cầu 2026-11-24)
+----------------------------------------
+"những bài viết trong kỳ chưa được duyệt tao muốn sửa tiêu đề hook" + "thêm nút sửa và nút làm lại icon hình tròn bấm vào
+icon đó thằng lập kế hoạch sẽ viết lại bài đó".
+- Mỗi bài của kỳ chờ duyệt có 3 nút dọc: X (xoá), bút chì (sửa), vòng tròn autorenew (AI viết lại).
+- Sửa: hộp sửa hook / tiêu đề / caption. PUT .../plans/{p}/items/{i} giờ chỉ cần gửi phần đổi (sample_key không bắt buộc),
+  phần không gửi lấy theo bài hiện tại (ảnh + chữ trên ảnh, outfit kể cả product_ids, product_batch, template, chủ đề,
+  hashtag). Bài hook_from_title (unboxing, video_type_01) chỉ sửa tiêu đề. Item trả thêm hook_from_title, redo_requested_at.
+- Làm lại: POST | DELETE .../plans/{p}/items/{i}/redo -> content_plan_items.redo_requested_at (migration
+  2026_11_24_160000) + PlanJobService::queueRedo (cùng việc plan {redo: true} như nút Làm lại ở Lịch đăng). Trả redo_queued
+  false khi shop chưa gắn worker điều phối (chỉ đánh dấu). Bài đang chờ: badge "Chờ AI viết lại", nút sửa tắt, chi tiết kỳ
+  tải lại mỗi 15 giây; bấm vòng tròn lần nữa = bỏ yêu cầu.
+- Context có item_redo_requests [{item_id, plan_id, scheduled_at, format, sample_key, topic, hook, title, images, outfit,
+  product_batch}] (bài draft của kỳ draft đang đánh dấu). Skill gửi kehoach.py redo-item <item_id> FILE ->
+  POST /api/v1/channel-plan/plan-items/{item}/redo: kiểm tra như bài kỳ, thay nội dung, xoá cờ; không gửi topic_id = không
+  chủ đề; kỳ đã duyệt / huỷ -> 409 ITEM_NOT_DRAFT.
+- Test: ChannelPlanTest::test_owner_edits_hook_only_and_redoes_draft_item.

@@ -22,7 +22,7 @@ import client from './client';
  * POST   /creator/channels/{id}/plan-jobs { note? }   -> 201 { data: job } (việc cho worker điều phối chạy /lap-ke-hoach)
  * POST   /creator/channels/{id}/plans/{p}/approve | /cancel
  * DELETE /creator/channels/{id}/plans/{p}            -> xoá hẳn kỳ ĐÃ HUỶ
- * PUT    /creator/channels/{id}/plans/{p}/items/{i}   ; POST .../items/{i}/cancel
+ * PUT    /creator/channels/{id}/plans/{p}/items/{i}   ; POST .../items/{i}/cancel ; POST | DELETE .../items/{i}/redo
  * GET    /creator/channels/{id}/calendar?from=&to=    -> { data: CalendarPost[] }
  * PUT    /creator/channel-posts/{post}/overlays { overlays: [{ image_id, text, text_template_id }] }
  * POST   /creator/channel-posts/{post}/redo | DELETE  đánh dấu / bỏ đánh dấu làm lại
@@ -213,8 +213,18 @@ export const resetPlanTimes = (id, planId) => client.post(`/creator/channels/${i
 export const cancelPlanItem = (id, planId, itemId) =>
   client.post(`/creator/channels/${id}/plans/${planId}/items/${itemId}/cancel`).then(({ data }) => data);
 
+/** Sửa bài chưa duyệt: chỉ cần gửi phần muốn đổi ({ hook?, title?, content? }), phần khác giữ nguyên. 409 ITEM_NOT_DRAFT. */
 export const updatePlanItem = (id, planId, itemId, body) =>
   client.put(`/creator/channels/${id}/plans/${planId}/items/${itemId}`, body).then(({ data }) => data);
+
+/**
+ * Nút "Làm lại" bài chưa duyệt: on = đánh dấu (worker điều phối chạy /lap-ke-hoach --lam-lai soạn lại bài), off = bỏ đánh
+ * dấu -> { data: item + { redo_queued } } (redo_queued false: shop chưa gắn worker điều phối).
+ */
+export const setPlanItemRedo = (id, planId, itemId, on) => {
+  const url = `/creator/channels/${id}/plans/${planId}/items/${itemId}/redo`;
+  return (on ? client.post(url) : client.delete(url)).then(({ data }) => data);
+};
 
 // ---- Lịch đăng ----
 
