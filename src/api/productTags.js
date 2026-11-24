@@ -4,7 +4,7 @@ import client from './client';
  * ---- Tag sản phẩm + bộ lọc tag của chủ đề kênh (note/xay-kenh-tiktok/chu-de-va-tag-san-pham.txt mục 2, 4) ----
  * AI gắn tag bằng lệnh /gan-tag-san-pham của đội A51; chủ shop sửa được. Trường chủ shop đã sửa (nguồn "owner") AI không
  * ghi đè; xoá giá trị = trả lại cho AI gắn.
- * PUT /creator/products/{id}/tags { ai_label?: string|null, tags?: { kieu?, got?, mau?, phong_cach?, dip? } } -> { data: Product }
+ * PUT /creator/products/{id}/tags { ai_label?: string|null, tags?: { kieu?, got?, mau?, phong_cach?, dip?, ootd? } } -> { data: Product }
  *     Chỉ gửi trường muốn sửa (trường gửi lên thành nguồn owner). Sai giá trị -> 422 errors.tags.
  * Giá trị khớp App\Support\ProductTags ở backend.
  *
@@ -48,6 +48,22 @@ export const TAG_FIELDS = [
     max: 4,
     options: { di_lam: 'Đi làm', di_tiec: 'Đi tiệc', tet: 'Tết', hen_ho: 'Hẹn hò', di_choi: 'Đi chơi', cafe: 'Cafe' },
   },
+  // Hashtag giày theo từ vựng OOTD (2026-11-24, note/xay-kenh-tiktok/bai-viet-mau/one_shoe_many_looks.txt): worker phối đồ
+  // chọn outfit OOTD cùng loại giày cho bài "Outfit - theo sản phẩm". Bắt buộc >= 1 hashtag loại giày (backend kiểm tra).
+  // Không dùng để lọc chủ đề (filter: false), không hiện chip trên thẻ sản phẩm (chip: false).
+  {
+    key: 'ootd',
+    label: 'Hashtag giày (OOTD)',
+    multi: true,
+    max: 10,
+    options: null,
+    filter: false,
+    chip: false,
+    slug: (text) => colorSlug(text.replace(/^#/, '')).replace(/_/g, ''),
+    format: (v) => `#${v}`,
+    placeholder: 'VD: giaycaogot rồi Enter',
+    hint: 'Cần ít nhất 1 loại giày: giaycaogot, giaysneaker, giaybupbe, giaysandal, bootcaoco...',
+  },
 ];
 
 /** Màu dạng lưu (không dấu, gạch dưới) như backend: "Đỏ đô" -> "do_do". */
@@ -63,12 +79,13 @@ export const colorSlug = (text) =>
 /** Nhãn hiển thị 1 giá trị tag. */
 export const tagValueLabel = (field, value) => {
   const def = TAG_FIELDS.find((f) => f.key === field);
+  if (def?.format) return def.format(value);
   return def?.options?.[value] ?? String(value).replace(/_/g, ' ');
 };
 
-/** Tag -> danh sách chip [{ field, value, label }] theo thứ tự trường. */
+/** Tag -> danh sách chip [{ field, value, label }] theo thứ tự trường (bỏ trường chip: false). */
 export const tagChips = (tags) =>
-  TAG_FIELDS.flatMap((f) =>
+  TAG_FIELDS.filter((f) => f.chip !== false).flatMap((f) =>
     [].concat(tags?.[f.key] ?? []).map((value) => ({ field: f.key, value, label: tagValueLabel(f.key, value) })),
   );
 

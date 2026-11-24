@@ -23,7 +23,7 @@ QUY TẮC CHUNG (mọi loại)
 CHỈ BÀI ĐÃ LÀM XONG MỚI BẬT (người dùng chốt 2026-11-21)
 ----------------------------------------
 - PostSamples::READY (D:\OSPanel\home\a90.local\app\Support\PostSamples.php) = danh sách bài bật, hiện: top_n, lookbook,
-  outfit_by_day, unboxing, video_type_01. Làm xong bài nào thì thêm key vào READY + đổi trạng thái trong mục lục thành "ĐÃ LÀM".
+  outfit_by_day, one_shoe_many_looks, unboxing, video_type_01. Làm xong bài nào thì thêm key vào READY + đổi trạng thái trong mục lục thành "ĐÃ LÀM".
 - Bài chưa bật: không thêm được vào tuyến (SAMPLE_NOT_READY), không lập kế hoạch được, không gắn template chữ được;
   tuyến cũ có bài chưa bật thì bài đó bị bỏ qua; tuyến không còn bài bật nào = kênh thiếu tuyến.
 - Frontend: tab Bài viết mẫu hiện "Chưa làm xong", tab Tuyến nội dung chỉ thêm được bài bật.
@@ -38,7 +38,7 @@ lai ảnh sản phẩm) -> Phối đồ; còn lại -> Ảnh sản phẩm. Mục
 Phối đồ (outfit):
   lookbook               Phối đồ                      ĐÃ LÀM: chủ đề + hashtag -> lô phối đồ có sẵn hook, tìm outfit theo hashtag
   outfit_by_day          Outfit theo ngày / dịp       ĐÃ LÀM: lô phối đồ mới, worker in nhãn ngày thay 'Outfit N'
-  one_shoe_many_looks    1 đôi N cách phối            LÀM ĐƯỢC NẾU CÓ ẢNH KHỚP (khó) - tạm gác 2026-11-21
+  one_shoe_many_looks    Outfit - theo sản phẩm       ĐÃ LÀM 2026-11-24: lô phối đồ gắn sản phẩm có tags.ootd, outfit cùng loại giày, Flow vẽ đúng giày
   box_to_feet            Từ hộp lên chân              LÀM ĐƯỢC NẾU CÓ ẢNH KHỚP (rất khó)
   before_after           Trước / sau                  THIẾU ẢNH 'TRƯỚC'
 Ảnh sản phẩm (product):
@@ -66,7 +66,7 @@ TỔNG HỢP CHỖ CẦN QUYẾT (chi tiết trong từng file)
 ----------------------------------------
 - Ghép ảnh (collage) cho A hay B, Top N.
 - Cắt cận 1 ảnh thành nhiều slide (Soi cận cảnh).
-- Ảnh phối đồ mang đúng giày sản phẩm (1 đôi N cách phối, Từ hộp lên chân).
+- Ảnh phối đồ mang đúng giày sản phẩm: ĐÃ LÀM cho Outfit - theo sản phẩm (Flow, 2026-11-24); Từ hộp lên chân chưa.
 - Hook cố định cho lô phối đồ (Lookbook) + chọn outfit theo gì.
 - Dữ liệu shop còn thiếu: giá sản phẩm, màu / biến thể, chính sách ship-đổi trả, bảng size, ưu đãi đang chạy.
 - Bỏ hay giữ: Trước / sau (thiếu ảnh 'trước'), Theo mức giá (thiếu giá).

@@ -23,20 +23,26 @@ const chipClass = (on) =>
       : 'border-outline-variant/60 text-on-surface-variant hover:border-primary-container hover:text-primary'
   }`;
 
-/** Ô nhập màu tự do: Enter / dấu phẩy để thêm (lưu dạng không dấu). */
-function ColorInput({ values, max, onChange }) {
+/** Ô nhập chữ tự do (màu, hashtag giày OOTD): Enter / dấu phẩy / dấu cách (hashtag) để thêm (lưu dạng không dấu). */
+function FreeInput({ field, values, max, onChange }) {
   const [text, setText] = useState('');
+  const slugOf = field.slug ?? colorSlug;
   const add = () => {
-    const slug = colorSlug(text);
-    if (slug && !values.includes(slug) && (!max || values.length < max)) onChange([...values, slug]);
+    const next = [...values];
+    // Hashtag dán nhiều cái một lúc ("giaycaogot muinhon") -> tách theo dấu cách / phẩy
+    for (const part of field.slug ? text.split(/[\s,]+/) : [text]) {
+      const slug = slugOf(part);
+      if (slug && !next.includes(slug) && (!max || next.length < max)) next.push(slug);
+    }
+    if (next.length !== values.length) onChange(next);
     setText('');
   };
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {values.map((v) => (
         <span key={v} className={chipClass(true)}>
-          {tagValueLabel('mau', v)}
-          <button type="button" aria-label={`Bỏ màu ${v}`} onClick={() => onChange(values.filter((x) => x !== v))}>
+          {tagValueLabel(field.key, v)}
+          <button type="button" aria-label={`Bỏ ${v}`} onClick={() => onChange(values.filter((x) => x !== v))}>
             <Icon name="close" className="text-sm" />
           </button>
         </span>
@@ -52,7 +58,7 @@ function ColorInput({ values, max, onChange }) {
             }
           }}
           onBlur={add}
-          placeholder="VD: đỏ, kem rồi Enter"
+          placeholder={field.placeholder ?? 'VD: đỏ, kem rồi Enter'}
           className="h-8 w-40 rounded-full border border-outline-variant/60 bg-surface-container-low px-3 text-xs text-on-surface focus:border-primary-container focus:outline-none"
         />
       )}
@@ -77,7 +83,7 @@ export default function TagPicker({ value, onChange, filter = false, sources = {
 
   return (
     <div className="space-y-3">
-      {TAG_FIELDS.map((field) => {
+      {TAG_FIELDS.filter((field) => !filter || field.filter !== false).map((field) => {
         const selected = listOf(field.key);
         const multi = field.multi || filter;
         const max = filter ? null : field.max;
@@ -111,8 +117,9 @@ export default function TagPicker({ value, onChange, filter = false, sources = {
                 })}
               </div>
             ) : (
-              <ColorInput values={selected} max={max} onChange={(list) => set(field, list)} />
+              <FreeInput field={field} values={selected} max={max} onChange={(list) => set(field, list)} />
             )}
+            {field.hint && <p className="mt-1 text-[11px] text-on-surface-variant">{field.hint}</p>}
           </div>
         );
       })}
