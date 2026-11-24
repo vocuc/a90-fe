@@ -78,7 +78,7 @@ bootcongan, bootcaosu, bootcaoboi, bootcombat, bootbiker, giayclog, giaysuc, guo
     CONTENT-WORKER (sample cover_collage): nguyên liệu = ảnh outfit + cover {style: magazine, background: 1 ảnh lịch sử
     tạo ảnh của sản phẩm (ngẫu nhiên trong 10 ảnh mới nhất, không có thì ảnh outfit đầu), text_template của lô}.
     content-worker/dang/one_shoe_many_looks.py theo MẪU BÌA OOTD "05 · Tạp chí" (người dùng chọn 2026-11-24): nền cắt vừa
-    cỡ ảnh outfit (9:16, không 3:4 vì mọi slide cùng cỡ), lớp tối ~42% từ trên, nhãn hồng "LOOK CỦA TUẦN", hook chữ có chân
+    cỡ ảnh outfit (3:4 = 1440x1920, người dùng chốt 2026-11-24: ảnh outfit Flow FLOW_ASPECT=3:4, mọi slide cùng cỡ), lớp tối ~42% từ trên, nhãn hồng "LOOK CỦA TUẦN", hook chữ có chân
     Cambria Bold căn trái (từ khoá *...* hoặc cụm "N kiểu" tô hồng), dòng phụ "N cách phối • kéo sang xem →"; gửi bìa +
     ảnh outfit, A51 thêm bìa thành slide 1. Chưa chèn logo (job content chưa có logo).
     Hook (chốt 2026-11-24): HƯỚNG DẪN PHỐI ĐỒ THEO LOẠI GIÀY, nêu loại giày (cao gót, sneaker, dép quai...), không nêu
