@@ -478,7 +478,7 @@ export default function BatchesPage() {
               </p>
             ) : (
               <p className="flex-1">
-                Đã xoá {notice.deleted} lô.{notice.skipped > 0 && ` ${notice.skipped} lô đang tạo ảnh nên chưa xoá.`} Ảnh vẫn còn trong{' '}
+                Đã xoá {notice.deleted} lô.{notice.skipped > 0 && ` ${notice.skipped} lô đang tạo ảnh hoặc còn bài chưa đăng nên chưa xoá.`} Ảnh vẫn còn trong{' '}
                 <Link to="/account/history" className="font-bold underline">
                   Lịch sử tạo ảnh
                 </Link>
