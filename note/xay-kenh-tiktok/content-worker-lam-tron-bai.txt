@@ -1,0 +1,184 @@
+CONTENT-WORKER LÀM TRỌN BÀI (TỰ VẼ ẢNH BẰNG GOOGLE FLOW / CHATGPT)
+=====================================================================
+
+Ngày: 2026-11-25. Trạng thái: ĐỀ XUẤT, chưa code. Trả lời câu hỏi ở mục 6 ngay dưới dòng "TRẢ LỜI:".
+
+NGƯỜI DÙNG CHỐT (2026-11-25):
+- Content-worker làm HOÀN CHỈNH 1 bài: tự vẽ ảnh (Google Flow / ChatGPT), ghép layout, chữ, bìa, logo, rồi gửi kết quả.
+- A51 chỉ lưu NGUYÊN LIỆU, DẠNG BÀI và KẾT QUẢ (không dựng ảnh, không tạo lô phối đồ cho các bài này).
+- Công cụ vẽ là module Python RIÊNG của content-worker, viết mới (không gọi code / profile của worker tạo ảnh).
+- Tài khoản Google Flow + ChatGPT cấu hình trong content-worker, cho dùng NHIỀU tài khoản (như worker tạo ảnh).
+- Xử lý sự cố Flow làm GIỐNG HỆT worker tạo ảnh (ImageGenerate.py).
+- KHÔNG sửa worker tạo ảnh (tao-anh/image-worker): vẫn chạy như bây giờ.
+- Chuyển cả 2 dạng: "Outfit - theo sản phẩm" (one_shoe_many_looks) và "Phối đồ" (lookbook).
+- Sửa lại được TỪNG ẢNH của bài.
+
+
+1. HIỆN TRẠNG (đọc code 2026-11-25)
+----------------------------------------
+Bài lookbook / one_shoe_many_looks đi qua 3 worker:
+  1. /lap-ke-hoach gửi bài: {sample_key, hook, outfit: {count, tags, product_id? | product_ids?, texts?}, text_template_id}.
+  2. Duyệt kỳ -> ChannelPlanService::createOutfitBatch -> OutfitBatchService::create: lô phối đồ (image_batches), mỗi
+     ảnh 1 job outfit / outfit_cover cho worker phối đồ v2 (tao-anh/phoi-do).
+  3. Worker phối đồ: chọn outfit OOTD (v2/outfits.pick, đã lọc luật cấm ?rules=1) -> vẽ (lookbook: ChatGPT
+     prompt/outfit.txt + ảnh người mẫu nguoi-mau/; theo sản phẩm: Flow qua image-worker/flow_once.py, prompt ngẫu nhiên
+     prompt/san-pham/*.txt) -> tăng nét (v2/upscale) -> chữ ảnh + logo (v2/cover) -> gửi từng ảnh. Bìa lookbook: ảnh
+     lịch sử sản phẩm hoặc ChatGPT vẽ outfit khác (prompt/bia.txt) + hook.
+  4. Lô xong -> ContentJobService::queueForPost -> content-worker (qua worker điều phối, handle.py, giới hạn 900 giây):
+     one_shoe_many_looks ghép slide 2 cột + bìa "Tạp chí"; lookbook không cần dựng (ảnh đã hoàn chỉnh từ worker phối đồ).
+Sửa từng ảnh hiện nay: "Tạo lại" ảnh trong lô (OutfitBatchService::requeue), "Cắt ảnh", sửa chữ (overlays -> dựng lại).
+Worker tạo ảnh: Selenium, C:\selenium-profile, cổng 9222, khoá lượt chung tao-anh/.chrome-turn.lock với worker phối đồ.
+
+
+2. THIẾT KẾ
+----------------------------------------
+2.1 Ranh giới
+  - A51: lưu nguyên liệu (planner gửi) + dạng bài + kết quả (ảnh hoàn chỉnh và lớp ảnh vẽ gốc từng slide, mục 2.4).
+    Tạo job content khi duyệt kỳ / làm lại bài / sửa 1 slide. Không tạo lô phối đồ, không giao worker phối đồ.
+  - Content-worker: nhận job, chọn outfit trên OOTD, vẽ, tăng nét, ghép layout / chữ / bìa / logo, gửi kết quả.
+  - OOTD: kho outfit + luật cấm phối (content-worker gọi /api/outfits?rules=1[&shoe=], token OOTD trong .env content-worker).
+  - Worker tạo ảnh + worker phối đồ: KHÔNG sửa. Worker phối đồ hết việc từ kế hoạch kênh (xem câu hỏi 6.3 về lô tay).
+
+2.2 Module vẽ (content-worker/ve/, viết mới)
+  Giao diện chung, mọi dạng bài dùng:
+      ve.flow.generate(images: list[Path], prompt: str, aspect: str, out: Path) -> Path
+      ve.chatgpt.generate(images: list[Path], prompt: str, out: Path) -> Path
+      lỗi -> StepError(code, message), mã như worker tạo ảnh / worker phối đồ.
+  ve/flow.py (Selenium, viết lại theo ImageGenerate.py, chỉ phần vẽ 1 ảnh, không gọi A51):
+    - Nhiều tài khoản: FLOW_URLS + FLOW_PROFILES (ghép theo thứ tự như AI90_FLOW_URL / AI90_CHROME_PROFILE_DIRECTORY),
+      user-data-dir RIÊNG (mặc định C:\content-worker-profile\flow), cổng debug riêng (mặc định 9232). Mỗi ảnh chọn
+      ngẫu nhiên 1 cặp (pick_account).
+    - Request gửi tool Flow: ảnh đầu vào nhúng data URI (khoá camelCase theo tên ảnh, vd productImage / outfitImage),
+      prompt, aspectRatio, modelDisplayName.
+    - Xử lý sự cố GIỐNG HỆT ImageGenerate.py:
+        * chưa đăng nhập (không tới /project/) -> chờ đăng nhập tay tối đa LOGIN_TIMEOUT, hết giờ FLOW_LOGIN_REQUIRED;
+        * "hoạt động bất thường" khi tạo -> xoá dữ liệu trình duyệt (cookie, cache, storage flow.google.com /
+          google.com) rồi tạo lại 1 lần; lần 2 vẫn bị -> FLOW_UNUSUAL_ACTIVITY;
+        * "Không tăng được độ phân giải" khi tải 2K -> xoá dữ liệu rồi thử lại 2K 1 lần -> FLOW_UPSCALE_BLOCKED;
+        * tải 2K chậm -> thử lại DOWNLOAD_RETRIES lần; DOWNLOAD_TIMEOUT -> đóng Chrome, lần sau mở lại;
+        * quá GENERATE_TIMEOUT -> GENERATION_TIMEOUT; Chrome bị tắt / crash -> mở lại.
+      Các mốc thời gian, số lần thử lấy đúng giá trị mặc định của ImageGenerate.py, đổi được trong .env.
+    - Mở Chrome khi cần vẽ, đóng sau mỗi job; nghỉ ngẫu nhiên giữa các ảnh (FLOW_REST_MIN/MAX_SECONDS) để đỡ bị gắn cờ.
+  ve/chatgpt.py (Playwright, viết lại từ tao-anh/phoi-do/v2/chatgpt.py):
+    - Nhiều tài khoản: CHATGPT_PROFILES = các thư mục profile (mặc định C:\content-worker-profile\chatgpt-1,...), mỗi
+      profile đăng nhập 1 tài khoản (python worker.py --login chatgpt <số>).
+    - Hết lượt (CHATGPT_LIMIT) -> tạm khoá tài khoản đó CHATGPT_LIMIT_PAUSE_MINUTES, chuyển tài khoản khác; mọi tài
+      khoản đều hết lượt -> lỗi CHATGPT_LIMIT. Chưa đăng nhập -> NOT_LOGGED_IN (bỏ tài khoản đó, thử tài khoản khác).
+  ve/upscale.py: chép v2/upscale.py (tăng nét về 1440x1920 cho 3:4, 1440x2560 cho 9:16).
+  Khoá Chrome: xem câu hỏi 6.1.
+
+2.3 Nguyên liệu job content (A51 -> content-worker), thêm cho 2 dạng vẽ
+  GET /api/v1/worker-jobs (types=content) như hiện tại, request thêm:
+    sample_key, post_id, hook, text_template, logo: {url} | null,
+    draw: {
+      count,                         # tổng ảnh (gồm bìa), như outfit.count planner gửi
+      outfit_tags: [...],            # hashtag OOTD chủ đề
+      texts: [...] | null,           # chữ từng ảnh outfit (outfit.texts)
+      products: [ {id, name, image_url (ảnh khung anh_san_pham), shoe_type: {tag, ten, nhom, cung_tag, cung_nhom},
+                   history_urls: [<= 3 ảnh lịch sử tạo ảnh mới nhất]} ]   # one_shoe_many_looks: theo thứ tự slide
+      product_id | null,             # lookbook gắn 1 sản phẩm (bìa dùng ảnh lịch sử)
+      recent_outfit_ids: [...]       # outfit đã dùng ở bài của shop N ngày gần đây (xoay vòng, lấy từ kết quả cũ)
+    },
+    redo: null | {position, mode: new_outfit | same_outfit | text | crop, crop?: {x, y, w, h}},
+    previous: [ {position, raw_url, final_url, meta} ]   # kết quả hiện có của bài (khi redo)
+
+2.4 Kết quả (content-worker -> A51)
+  POST /api/v1/content-jobs/{id} multipart:
+    files[]      = ảnh HOÀN CHỈNH theo thứ tự slide (như hiện nay, mọi ảnh cùng cỡ);
+    raws[]       = ảnh VẼ GỐC từng slide (đã tăng nét, chưa chữ / layout / logo), cùng thứ tự; "" = slide không vẽ;
+    meta         = JSON [{position, outfit_id, engine: flow|chatgpt, prompt, account?, product_id?}];
+    failed       = JSON [{position, code, message}] (slide vẽ lỗi hẳn, mục 2.6).
+  A51 lưu ở social_post_images: image_path / overlay_path (ảnh hoàn chỉnh) + raw_path + draw_meta (json) + draw_error.
+  Khi redo 1 slide: content-worker gửi lại ĐỦ bài (slide khác giữ ảnh cũ tải từ previous), A51 thay toàn bộ.
+
+2.5 Các bước content-worker theo dạng bài
+  one_shoe_many_looks (N sản phẩm -> N + 1 ảnh):
+    1. Mỗi sản phẩm: outfit OOTD cùng nhóm loại giày (shoe=<cung_tag>, rules=1), ưu tiên hashtag chủ đề, không trùng
+       trong bài, tránh recent_outfit_ids (chép logic v2/outfits.pick).
+    2. ve.flow.generate([ảnh khung anh_san_pham, ảnh gốc outfit], prompt ngẫu nhiên prompt/san-pham/*.txt, "3:4").
+    3. Tăng nét -> ghép slide 2 cột + mã MS<k> (dang/one_shoe_many_looks.py hiện có) -> bìa "Tạp chí".
+  lookbook (count ảnh: 1 bìa + count - 1 outfit):
+    1. count - 1 outfit theo outfit_tags (rules=1), không trùng.
+    2. ve.chatgpt.generate([ảnh gốc outfit, ảnh người mẫu], prompt/outfit.txt) -> tăng nét 9:16.
+    3. Chữ ảnh (texts) theo template chữ, luôn phía trên; logo.
+    4. Bìa: có product_id + ảnh lịch sử -> nền ảnh lịch sử; không thì ChatGPT vẽ 1 outfit KHÁC (prompt/bia.txt).
+       Hook giữa ảnh, tối đa 6 từ / dòng (như v2/worker.py do_cover).
+  Prompt, ảnh người mẫu, font chuyển sang content-worker/prompt, content-worker/nguoi-mau (chép từ tao-anh/phoi-do).
+
+2.6 Lưu tiến độ + lỗi giữa chừng
+  - Thư mục việc theo BÀI: job/bai<post_id>/slide-<k>/ (raw.png, meta.json). Job lặp lại của cùng bài (worker chết,
+    job hết hạn giao lại) dùng lại slide đã vẽ, chỉ vẽ slide còn thiếu.
+  - Lỗi tạm (FLOW_UNUSUAL_ACTIVITY, CHATGPT_LIMIT hết mọi tài khoản, GENERATION_TIMEOUT...): thử tài khoản khác; vẫn
+    lỗi -> slide đó vào failed, bài vẫn gửi phần đã xong (xem câu hỏi 6.2), chủ shop bấm "Vẽ lại" slide đó.
+  - Gia hạn job: worker điều phối đã tự gọi /worker-jobs/{id}/extend; tăng giới hạn thời gian job content
+    (DEFAULT_TIMEOUT["content"] 900 -> theo số ảnh cần vẽ, vd 600 giây / ảnh, A51 gửi kèm timeout_hint).
+
+2.7 Sửa từng ảnh (A51 + FE, nút trên từng slide ở trang Kế hoạch / Lịch đăng)
+  | Nút                     | redo.mode    | Content-worker                                         |
+  | Vẽ lại (outfit khác)    | new_outfit   | chọn outfit khác, vẽ lại slide, dựng lại slide (+ bìa nếu là nền bìa) |
+  | Vẽ lại (giữ outfit)     | same_outfit  | cùng outfit (meta.outfit_id), prompt / tư thế khác     |
+  | Sửa chữ                 | text         | dựng lại từ raw, không vẽ                               |
+  | Cắt ảnh                 | crop         | cắt raw theo khung chủ shop chọn, dựng lại, không vẽ    |
+  Bìa: "Vẽ lại" bìa = nền mới (ảnh lịch sử khác / ChatGPT vẽ lại); "Sửa chữ" bìa = sửa hook.
+  Bài đang có job chạy -> nút khoá (như "Dựng lại" hiện nay).
+
+2.8 Lập kế hoạch: KHÔNG đổi dữ liệu gửi (vẫn outfit.count / tags / product_ids / texts). Đổi điều kiện dùng dạng bài:
+  context channel.outfit_worker -> channel.content_worker có khả năng vẽ (xem câu hỏi 6.4).
+
+
+3. CẤU HÌNH content-worker/.env (thêm)
+----------------------------------------
+  OUTFIT_API_URL, OUTFIT_API_TOKEN          # OOTD
+  FLOW_URLS=link1,link2                     # link project Flow có tool vẽ
+  FLOW_PROFILES=Profile1,Profile2           # profile con trong FLOW_USER_DATA_DIR, ghép theo thứ tự
+  FLOW_USER_DATA_DIR=C:\content-worker-profile\flow   FLOW_DEBUG_PORT=9232
+  FLOW_MODEL=🍌 Nano Banana Pro   FLOW_REST_MIN_SECONDS / FLOW_REST_MAX_SECONDS
+  CHATGPT_PROFILES=C:\content-worker-profile\chatgpt-1,C:\content-worker-profile\chatgpt-2
+  CHATGPT_DEBUG_PORT=9334   CHATGPT_LIMIT_PAUSE_MINUTES=60
+  (giới hạn thời gian / số lần thử: mặc định như ImageGenerate.py, ghi đè được)
+
+
+4. THỨ TỰ LÀM
+----------------------------------------
+1. content-worker/ve: flow.py, chatgpt.py, upscale.py + lệnh thử (python -m ve.flow --images a.jpg b.jpg --prompt ...),
+   đăng nhập tài khoản, chạy thử vẽ 1 ảnh mỗi bên. Chưa đụng A51.
+2. content-worker/dang: one_shoe_many_looks vẽ + dựng (dùng outfit OOTD), lookbook; lưu tiến độ theo bài.
+3. A51: request draw / redo / previous, nhận raws + meta + failed, cột social_post_images (raw_path, draw_meta,
+   draw_error), duyệt kỳ tạo job content thay lô phối đồ cho 2 dạng, timeout_hint. Test.
+4. Worker điều phối: giới hạn thời gian job content theo timeout_hint.
+5. FE: nút Vẽ lại / Sửa chữ / Cắt ảnh trên từng slide.
+6. Chạy thử 1 bài mỗi dạng trên kênh thật -> tắt nhận lô kế hoạch ở worker phối đồ.
+
+
+5. FILE DỰ KIẾN SỬA
+----------------------------------------
+FlowKit: content-worker/ve/* (mới), content-worker/dang/one_shoe_many_looks.py, dang/lookbook.py (mới),
+  content-worker/cw/ootd.py (mới, chọn outfit), cw/api.py (gửi raws/meta/failed), worker.py + handle.py (thư mục theo
+  bài, redo), prompt/, nguoi-mau/, .env.example; dieu-phoi/dieu_phoi.py (timeout).
+A51: ChannelPlanService (duyệt kỳ 2 dạng -> job content), ContentJobService (request / complete / redo),
+  WorkerContentJobController, migration social_post_images, ChannelContentController (API redo slide), test.
+FE: trang Kế hoạch / Lịch đăng (nút từng slide).
+KHÔNG SỬA: tao-anh/image-worker, tao-anh/phoi-do.
+
+
+6. CÂU HỎI CẦN CHỐT
+----------------------------------------
+1. Khoá Chrome: content-worker dùng profile + cổng riêng nên CHẠY SONG SONG được với worker tạo ảnh / phối đồ (chỉ
+   tự khoá trong chính nó: vẽ lần lượt từng ảnh). Hay vẫn xếp hàng chung tao-anh/.chrome-turn.lock (máy yếu, tránh
+   mở nhiều Chrome cùng lúc)?
+   Claude đề xuất: chạy song song, khoá riêng trong content-worker (worker tạo ảnh không sửa nên không biết khoá mới).
+   TRẢ LỜI:
+2. Slide vẽ lỗi hẳn: gửi bài với slide lỗi (bài "Chờ duyệt", chủ shop bấm Vẽ lại slide đó) hay báo lỗi cả bài?
+   Claude đề xuất: gửi phần đã xong, bài pending_review CONTENT_PARTIAL, slide lỗi hiện nút Vẽ lại.
+   TRẢ LỜI:
+3. Lô phối đồ chủ shop tự tạo trên A51 (không qua kế hoạch) vẫn để worker phối đồ làm như cũ?
+   Claude đề xuất: giữ nguyên (không sửa worker phối đồ), chỉ bài từ kế hoạch chuyển sang content-worker.
+   TRẢ LỜI:
+4. Điều kiện dùng 2 dạng bài trong lập kế hoạch: shop có content-worker là đủ (content-worker máy nào cũng có công cụ
+   vẽ), hay admin bật riêng "content-worker vẽ được" cho từng worker?
+   Claude đề xuất: shop có content-worker là đủ; content-worker chưa cấu hình tài khoản vẽ thì báo lỗi job
+   DRAW_NOT_CONFIGURED.
+   TRẢ LỜI:
+5. Tài khoản ChatGPT / Flow của content-worker: dùng tài khoản mới hoàn toàn, hay tài khoản đang dùng ở worker tạo ảnh /
+   phối đồ (đăng nhập lại trong profile riêng)? Dùng chung tài khoản mà chạy song song dễ bị Google gắn cờ.
+   TRẢ LỜI:
