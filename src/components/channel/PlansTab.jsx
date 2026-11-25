@@ -576,7 +576,7 @@ function NewPlanDialog({ channelId, noteMax, fillPlan = null, onClose }) {
       }
     >
       <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-        <Icon name="info" className="text-base" />
+        <Icon name="info" className="shrink-0 text-base" />
         {fillPlan ? (
           <span>
             AI xem lại từng ngày của kỳ, giờ đăng nào chưa có bài (chưa lập, bài đã huỷ hoặc bài đăng đã bị xoá) thì soạn bài bổ

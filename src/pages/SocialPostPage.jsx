@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
-import { useMe } from '../hooks/queries';
 import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import ImageViewer from '../components/common/ImageViewer';
@@ -14,6 +13,7 @@ import { readHashtagHistory, recordHashtags, suggestHashtags } from '../utils/ha
 import A51ImagePicker from '../components/social/A51ImagePicker';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
 import { ChannelPostHeader, OverlayField, OverlaySaveBar, useChannelPost } from '../components/channel/ChannelPostPanel';
+import { setRedo } from '../api/channels';
 import {
   HASHTAG_MAX,
   IMAGE_STATUS,
@@ -31,7 +31,6 @@ import {
   listVideoPostTemplates,
   publishPost,
   retryPost,
-  rewritePostContent,
 } from '../api/social';
 import { useConfirm } from '../components/common/ConfirmDialog';
 import { POSTS_KEY, formatSchedule, fromLocalInput, toLocalInput, useShopWorkers, workerLabel } from '../components/social/VideoPostDialogs';
@@ -525,7 +524,7 @@ function PlatformPicker({ value, onChange, done, limitError, error }) {
  * yêu cầu thêm ảnh, thừa thì bỏ bớt. Chọn nền tảng, giờ đăng (mặc định bây giờ) rồi bấm Đăng bài: bài sang "Chờ đăng",
  * tới giờ worker nhận và đăng. Chuyển tab Ảnh / Video không mất chỉnh sửa.
  */
-function PostEditor({ post, type, worker, channel }) {
+function PostEditor({ post, type, worker, channel, onChanged }) {
   const { workerId } = worker;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -546,8 +545,6 @@ function PostEditor({ post, type, worker, channel }) {
   const [formError, setFormError] = useState(null);
   const [busy, setBusy] = useState(null); // 'publish' | 'delete' | 'ai'
   const [adding, setAdding] = useState(false);
-  const { data: me } = useMe();
-  const ai = me?.socialAi;
   const { confirm } = useConfirm();
   // Hashtag đã nhập ở các bài trước (cookie), gợi ý dưới ô hashtag
   const [hashtagHistory, setHashtagHistory] = useState(readHashtagHistory);
@@ -595,14 +592,29 @@ function PostEditor({ post, type, worker, channel }) {
     });
   };
 
-  // "Viết lại bằng AI": điền nội dung AI viết vào form (chưa lưu), người dùng xem lại rồi tự đăng
+  // "Viết lại bằng AI" (2026-11-25): tạo việc cho lệnh lập kế hoạch (worker điều phối) viết lại hook / tiêu đề / caption /
+  // hashtag theo kênh, giữ ảnh; xong tự lưu vào bài. Bài tạo tay chưa thuộc kênh: gắn worker đang chọn (= kênh của worker)
+  const rewriting = channel?.redoMode === 'content';
   const rewrite = async () => {
-    const hasContent = form.title.trim() || form.content.trim() || form.hashtags.length;
-    if (hasContent && !(await confirm('AI sẽ viết lại và thay tiêu đề, nội dung, hashtag hiện tại.', { confirmLabel: 'Viết lại' }))) return;
+    if (rewriting) {
+      run('ai', async () => {
+        await setRedo(post.id, false);
+        onChanged?.();
+      });
+      return;
+    }
+    if (!post.channel && !workerId) {
+      setErrors((e) => ({ ...e, worker: 'Chọn worker (kênh) để AI viết theo kênh đó.' }));
+      return;
+    }
+    const ok = await confirm(
+      'Lệnh lập kế hoạch sẽ viết lại hook, tiêu đề, caption, hashtag theo kênh (vài phút), ảnh giữ nguyên. Bài tạm dừng tới khi viết xong; thay đổi chưa lưu trên form sẽ mất.',
+      { confirmLabel: 'Viết lại' },
+    );
+    if (!ok) return;
     run('ai', async () => {
-      const next = await rewritePostContent(post.id);
-      setForm((f) => ({ ...f, title: next.title, content: next.content, hashtags: next.hashtags }));
-      setErrors((e) => ({ ...e, title: undefined, content: undefined, hashtags: undefined }));
+      await setRedo(post.id, true, { mode: 'content', workerId: post.channel ? undefined : workerId });
+      onChanged?.();
     });
   };
 
@@ -712,7 +724,7 @@ function PostEditor({ post, type, worker, channel }) {
         {video && template && missing > 0 && (
           <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 sm:flex-row sm:items-center">
             <p className="flex flex-1 items-start gap-2">
-              <Icon name="add_photo_alternate" className="text-base" />
+              <Icon name="add_photo_alternate" className="shrink-0 text-base" />
               <span>
                 Template <b>{template.name}</b> cần <b>{required} ảnh</b>, bài mới có {form.images.length}. Thêm <b>{missing} ảnh</b> nữa để
                 tạo video.
@@ -730,7 +742,7 @@ function PostEditor({ post, type, worker, channel }) {
         )}
         {video && template && extra > 0 && (
           <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
-            <Icon name="info" className="text-base" />
+            <Icon name="info" className="shrink-0 text-base" />
             <span>
               Template chỉ cần <b>{required} ảnh</b>: bấm biểu tượng thùng rác ở {extra} ảnh không muốn dùng. Thứ tự ảnh là thứ tự trong video.
             </span>
@@ -752,7 +764,7 @@ function PostEditor({ post, type, worker, channel }) {
         {/* Bài kế hoạch lấy ảnh từ lô (unboxing / lô phối đồ): ảnh theo lô, sửa / tạo lại ở trang Lô ảnh */}
         {post.source === 'plan' && post.imageBatchId && (
           <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-            <Icon name="photo_library" className="text-base" />
+            <Icon name="photo_library" className="shrink-0 text-base" />
             <span>
               Ảnh của bài lấy từ một lô ảnh. Tạo lại / sửa / xoá ảnh ở{' '}
               <Link to={`/batches/${post.imageBatchId}`} className="font-bold text-primary hover:underline">trang lô</Link>: bài tự về chờ,
@@ -762,7 +774,7 @@ function PostEditor({ post, type, worker, channel }) {
         )}
         {post.lastError && !formError && (
           <p className="flex items-start gap-2 rounded-xl bg-error-container/60 px-3 py-2 text-xs text-on-error-container">
-            <Icon name="error" className="text-base" />
+            <Icon name="error" className="shrink-0 text-base" />
             <span>
               {post.lastError.code !== 'BATCH_IMAGES_FAILED' && <b>Đăng lần trước không thành công. </b>}
               {post.lastError.message}
@@ -771,7 +783,7 @@ function PostEditor({ post, type, worker, channel }) {
         )}
         {queued && (
           <p className="flex items-start gap-2 rounded-xl bg-primary-fixed/40 px-3 py-2 text-xs text-primary">
-            <Icon name="schedule" className="text-base" />
+            <Icon name="schedule" className="shrink-0 text-base" />
             <span>
               Bài đang chờ tới giờ đăng (<b>{formatSchedule(post.scheduledAt)}</b>)
               {post.worker ? (
@@ -790,16 +802,20 @@ function PostEditor({ post, type, worker, channel }) {
               <h2 className="text-sm font-bold text-on-surface">Nội dung</h2>
               <p className="mt-0.5 text-xs text-on-surface-variant">Không bắt buộc.</p>
             </div>
-            {ai?.enabled && (
+            {/* Đang chờ "Làm lại bài này" (cả bài): không viết lại chữ riêng */}
+            {channel?.redoMode !== 'full' && (
               <button
                 type="button"
                 onClick={rewrite}
                 disabled={!!busy}
-                title="AI viết lại tiêu đề, nội dung, hashtag"
+                title="Lệnh lập kế hoạch viết lại hook, tiêu đề, caption, hashtag theo kênh (giữ ảnh)"
                 className="flex h-9 shrink-0 items-center gap-1 rounded-xl border border-primary-container/50 px-3 text-xs font-bold text-primary hover:bg-primary-fixed/40 disabled:opacity-60"
               >
-                <Icon name={busy === 'ai' ? 'progress_activity' : 'auto_awesome'} className={`text-base ${busy === 'ai' ? 'animate-spin' : ''}`} />
-                {busy === 'ai' ? 'AI đang viết...' : 'Viết lại bằng AI'}
+                <Icon
+                  name={busy === 'ai' || rewriting ? 'progress_activity' : 'auto_awesome'}
+                  className={`text-base ${busy === 'ai' || rewriting ? 'animate-spin' : ''}`}
+                />
+                {rewriting ? 'AI đang viết lại · Huỷ' : 'Viết lại bằng AI'}
               </button>
             )}
           </div>
@@ -919,7 +935,7 @@ function PostEditor({ post, type, worker, channel }) {
         />
 
         <p className="flex items-start gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs leading-relaxed text-on-surface-variant">
-          <Icon name="info" className="text-base" />
+          <Icon name="info" className="shrink-0 text-base" />
           <span>
             Bấm <b>{submitLabel}</b> để giao bài cho worker đã chọn. Tới giờ đăng, worker
             {video ? ' dựng video theo template rồi' : ''} đăng lên các nền tảng đã chọn bằng tài khoản trên máy worker. Worker nhận bài
@@ -1067,6 +1083,7 @@ export default function SocialPostPage() {
           type={type}
           worker={worker}
           channel={channel}
+          onChanged={load}
         />
       ) : (
         <PostPreview post={post} onChanged={setPost} channel={channel} />

@@ -532,7 +532,7 @@ function Builder({ creative: loaded }) {
                 <ul className="mt-2 space-y-1.5">
                   {serverErrors.map((message) => (
                     <li key={message} className="flex items-start gap-2 rounded-lg bg-error-container/50 px-3 py-2 text-xs text-on-error-container">
-                      <Icon name="error" className="text-base" />
+                      <Icon name="error" className="shrink-0 text-base" />
                       <span className="flex-1">{message}</span>
                     </li>
                   ))}

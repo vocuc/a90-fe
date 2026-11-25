@@ -267,7 +267,7 @@ export default function WorkersPage() {
         ) : (
           <>
             <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-              <Icon name="info" className="text-base" />
+              <Icon name="info" className="shrink-0 text-base" />
               Worker do admin cấp. Bấm bút để đổi tên, bấm mũi tên xoay để tạo lại token (token cũ hết hiệu lực ngay). Online: worker kết nối trong 5 phút gần đây. Giữ bí mật token, ai có token đều chạy được worker.
             </p>
             <ul className="grid gap-3 lg:grid-cols-2">

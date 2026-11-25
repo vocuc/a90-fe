@@ -467,7 +467,7 @@ export default function BatchesPage() {
       <section className="space-y-3 p-4 lg:py-6">
         {notice && (
           <div role="status" className="flex items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-            <Icon name={notice.type === 'schedule' ? 'schedule_send' : 'delete'} className="text-base" />
+            <Icon name={notice.type === 'schedule' ? 'schedule_send' : 'delete'} className="shrink-0 text-base" />
             {notice.type === 'schedule' ? (
               <p className="flex-1">
                 Đã đưa {notice.queued} lô vào hàng đợi lập lịch. Hệ thống tạo bài dần ở nền, bài sẽ hiện ở{' '}

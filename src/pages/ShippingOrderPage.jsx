@@ -414,7 +414,7 @@ export default function ShippingOrderPage() {
               <>
                 {order.status === ORDER_STATUS.FAILED && order.errorMessage && (
                   <p className="flex items-start gap-2 rounded-xl bg-error-container/60 px-3 py-2.5 text-xs text-on-error-container">
-                    <Icon name="error" className="text-base" />
+                    <Icon name="error" className="shrink-0 text-base" />
                     <span>
                       <b>GHN từ chối:</b> {order.errorMessage}. Sửa lại thông tin rồi bấm tạo đơn lần nữa.
                     </span>

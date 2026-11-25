@@ -137,7 +137,7 @@ export default function ScheduleBatchesDialog({ batches, onClose, onQueued }) {
       </div>
       <AiContentSwitch toggle={ai} />
       <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-        <Icon name="info" className="text-base" />
+        <Icon name="info" className="shrink-0 text-base" />
         Mỗi lô thành một bài gồm các ảnh đã tạo xong (tối đa {PHOTO_MAX_COUNT} ảnh). Bài đầu đăng lúc bắt đầu, bài cuối lúc kết thúc, các bài
         còn lại cách đều nhau. Hệ thống tạo bài dần ở nền, bạn không cần chờ.
       </p>

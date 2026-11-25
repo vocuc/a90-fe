@@ -393,7 +393,7 @@ export default function ProductsPage() {
         ) : (
           <>
             <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-              <Icon name="info" className="text-base" />
+              <Icon name="info" className="shrink-0 text-base" />
               <span>
                 Bấm "Tạo tự động" ở{' '}
                 <Link to="/batches" className="font-bold text-primary hover:underline">

@@ -167,7 +167,7 @@ export default function ProductShareDialog({ onSaved, onClose }) {
       </div>
 
       <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-        <Icon name="info" className="text-base" />
+        <Icon name="info" className="shrink-0 text-base" />
         <span>
           {action === 'share'
             ? 'Người nhận sẽ thấy các sản phẩm đã chọn trong Quản lý sản phẩm và dùng được để tạo ảnh, tạo lô, nhưng không sửa hay xoá được.'
@@ -300,13 +300,13 @@ export default function ProductShareDialog({ onSaved, onClose }) {
 
       {error && (
         <p role="alert" className="flex items-start gap-2 rounded-lg bg-error-container/50 px-3 py-2 text-xs text-on-error-container">
-          <Icon name="error" className="text-base" />
+          <Icon name="error" className="shrink-0 text-base" />
           <span className="flex-1">{error}</span>
         </p>
       )}
       {done && (
         <p role="status" className="flex items-start gap-2 rounded-lg bg-primary-fixed/50 px-3 py-2 text-xs text-on-surface">
-          <Icon name="check_circle" className="text-base text-primary" />
+          <Icon name="check_circle" className="shrink-0 text-base text-primary" />
           <span className="flex-1">{done}</span>
         </p>
       )}

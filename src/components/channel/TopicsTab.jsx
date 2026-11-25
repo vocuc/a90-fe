@@ -150,7 +150,7 @@ function AutoBuildDialog({ channelId, limits, onClose }) {
       footer={footerButtons(onClose, () => mutation.mutate(), mutation.isPending, !valid, 'Bắt đầu')}
     >
       <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-        <Icon name="info" className="text-base" />
+        <Icon name="info" className="shrink-0 text-base" />
         <span>
           Worker lập chủ đề dùng AI đọc chân dung khách hàng, ngày lễ sắp tới, sản phẩm đã gắn tag và chủ đề đang có để đề xuất
           chủ đề mới. Chủ đề trùng tên được bỏ qua. Thường mất vài phút.

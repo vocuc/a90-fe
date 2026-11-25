@@ -239,8 +239,16 @@ export const getChannelPost = (postId) => client.get(`/creator/channel-posts/${p
 export const updateOverlays = (postId, overlays) =>
   client.put(`/creator/channel-posts/${postId}/overlays`, { overlays }).then(({ data }) => data);
 
-export const setRedo = (postId, on) =>
-  (on ? client.post(`/creator/channel-posts/${postId}/redo`) : client.delete(`/creator/channel-posts/${postId}/redo`)).then(({ data }) => data);
+/**
+ * Bật / tắt yêu cầu làm lại bài. mode: 'full' = "Làm lại bài này" (cả bài, có thể tạo lô ảnh mới); 'content' = "Viết lại bằng
+ * AI" (lệnh lập kế hoạch chỉ viết lại hook / tiêu đề / caption / hashtag, giữ ảnh). workerId: bài tạo tay chưa thuộc kênh ->
+ * gắn worker đang chọn để bài thuộc kênh của worker.
+ */
+export const setRedo = (postId, on, { mode, workerId } = {}) =>
+  (on
+    ? client.post(`/creator/channel-posts/${postId}/redo`, { mode: mode || undefined, worker_id: workerId ? Number(workerId) : undefined })
+    : client.delete(`/creator/channel-posts/${postId}/redo`)
+  ).then(({ data }) => data);
 
 // ---- Chủ đề ----
 

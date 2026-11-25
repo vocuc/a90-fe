@@ -15,7 +15,6 @@ import client from './client';
  * POST   /social/posts/{id}/publish { worker_id, type, video_template_id?, product_id?, platforms, scheduled_at, images,
  *        title, content, hashtags }                       -> { data: SocialPost }   (bài sang queued)
  * POST   /social/posts/{id}/retry                        -> { data: SocialPost }   "Đăng lại" (lỗi) / "Tạo lại" (đang đăng)
- * POST   /social/posts/{id}/ai-content                   -> { data: { title, content, hashtags } }
  *        "Viết lại bằng AI": không lưu vào bài (note/ai-viet-noi-dung-bai-dang.txt)
  * Cài đặt AI viết nội dung nay theo từng kênh: src/api/channels.js (trang /channels/:id, tab Cấu hình)
  * DELETE /social/posts/{id}                              -> 204
@@ -198,16 +197,6 @@ export const createPostFromImages = (images, idempotencyKey, batchId = null, aiC
 
 // AI đọc ảnh rồi viết: không dùng timeout 15s mặc định
 const AI_TIMEOUT = 90_000;
-
-/**
- * "Viết lại bằng AI": nội dung mới để điền vào form (không lưu vào bài). AI lỗi 503 AI_CONTENT_FAILED.
- */
-export const rewritePostContent = (id) =>
-  client.post(`/social/posts/${id}/ai-content`, null, { timeout: AI_TIMEOUT }).then(({ data }) => ({
-    title: data.title ?? '',
-    content: data.content ?? '',
-    hashtags: data.hashtags ?? [],
-  }));
 
 // Nhớ lựa chọn công tắc "AI viết nội dung" lần trước (mặc định bật)
 const AI_CONTENT_PREF_KEY = 'a51.social.aiContent';

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import Icon from '../common/Icon';
@@ -23,10 +23,21 @@ export function useChannelPost(post, onChanged) {
     queryKey: channelPostKey(postId),
     queryFn: () => getChannelPost(postId),
     enabled: !!postId,
-    // Đang chờ ảnh / chèn chữ: tự tải lại để thấy ảnh xong
+    // Đang chờ ảnh / chèn chữ / AI làm lại: tự tải lại để thấy kết quả
     refetchInterval: (q) =>
-      q.state.data?.status === 'generating' || q.state.data?.images.some((i) => i.overlay_status === 'pending') ? 10000 : false,
+      q.state.data?.status === 'generating' ||
+      q.state.data?.redo_requested_at ||
+      q.state.data?.images.some((i) => i.overlay_status === 'pending')
+        ? 10000
+        : false,
   });
+  // AI làm lại xong (cờ làm lại vừa được xoá): tải lại cả trang để form có nội dung mới
+  const waitingRef = useRef(false);
+  useEffect(() => {
+    const waiting = !!data?.redo_requested_at;
+    if (waitingRef.current && !waiting) onChanged?.();
+    waitingRef.current = waiting;
+  }, [data?.redo_requested_at]); // eslint-disable-line react-hooks/exhaustive-deps
   const [texts, setTexts] = useState({});
   useEffect(() => {
     if (data) setTexts(Object.fromEntries(data.images.map((i) => [i.id, i.overlay_text ?? ''])));
@@ -41,7 +52,7 @@ export function useChannelPost(post, onChanged) {
       updateOverlays(data.id, data.images.map((i) => ({ image_id: i.id, text: texts[i.id] || null, text_template_id: i.text_template_id }))),
     onSuccess: refresh,
   });
-  const redo = useMutation({ mutationFn: (on) => setRedo(data.id, on), onSuccess: refresh });
+  const redo = useMutation({ mutationFn: (on) => setRedo(data.id, on, { mode: 'full' }), onSuccess: refresh });
 
   if (!postId) return null;
   const editable = !!data && EDITABLE.includes(data.status);
@@ -57,6 +68,9 @@ export function useChannelPost(post, onChanged) {
     setText: (imageId, value) => setTexts((t) => ({ ...t, [imageId]: value })),
     changed: !!data && data.images.some((i) => (texts[i.id] ?? '') !== (i.overlay_text ?? '')),
     canRebuild: REBUILD_CODES.includes(data?.last_error?.code),
+    // 'full' | 'content' | null: đang chờ lệnh lập kế hoạch làm lại cả bài / viết lại chữ
+    redoMode: data?.redo_requested_at ? data.redo_mode || 'full' : null,
+    refresh,
     saveText,
     redo,
   };
@@ -67,7 +81,8 @@ export function ChannelPostHeader({ channel }) {
   const { data, error, editable, redo } = channel;
   if (error) return <FormAlert>{error.message}</FormAlert>;
   if (!data) return <div className="h-20 animate-pulse rounded-2xl bg-surface-container" />;
-  const waiting = !!data.redo_requested_at;
+  const waiting = channel.redoMode === 'full';
+  const rewriting = channel.redoMode === 'content';
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-outline-variant/40 bg-surface-container-lowest p-3 sm:flex-row sm:items-start">
@@ -80,11 +95,12 @@ export function ChannelPostHeader({ channel }) {
           {data.sample_name && <span>· {data.sample_name}</span>}
           <TopicBadge name={data.topic} />
           {waiting && <span className="rounded bg-sky-50 px-1.5 py-0.5 font-semibold text-sky-700">Chờ AI làm lại</span>}
+          {rewriting && <span className="rounded bg-sky-50 px-1.5 py-0.5 font-semibold text-sky-700">Chờ AI viết lại nội dung</span>}
         </p>
         {data.hook && <p className="text-sm font-bold text-on-surface">{data.hook}</p>}
         {redo.error && <p className="text-xs text-error">{redo.error.message}</p>}
       </div>
-      {editable && (
+      {editable && !rewriting && (
         <div className="flex shrink-0 flex-col items-stretch gap-1 sm:items-end">
           <button
             type="button"

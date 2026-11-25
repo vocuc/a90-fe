@@ -84,7 +84,7 @@ export default function CreativeGroupsPage() {
         ) : (
           <>
             <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-              <Icon name="info" className="text-base" />
+              <Icon name="info" className="shrink-0 text-base" />
               Mỗi lô tự động = 1 sản phẩm x các creative Đang bán của 1 nhóm, mỗi creative 1 ảnh. Nhóm tạo trước chạy trước.
               Một creative chỉ ở một nhóm. Nhóm "Dùng chung" dùng cho mọi kênh, nhóm chọn kênh chỉ dùng cho kênh đó.
             </p>

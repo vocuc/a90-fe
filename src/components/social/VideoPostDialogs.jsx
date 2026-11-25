@@ -233,7 +233,7 @@ function AutoCreateForm({ onClose, onCreated, saving, setSaving }) {
         />
       </div>
       <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-        <Icon name="info" className="text-base" />
+        <Icon name="info" className="shrink-0 text-base" />
         Mỗi bài: template ngẫu nhiên, sản phẩm ngẫu nhiên đủ ảnh, ảnh ngẫu nhiên đúng số ảnh template cần. Bài sau đăng cách bài
         trước một số phút ngẫu nhiên trong khoảng trên.
       </p>
@@ -367,7 +367,7 @@ function ManualCreateForm({ onClose, onCreated, saving, setSaving }) {
         error={errors.scheduled_at}
       />
       <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-        <Icon name="info" className="text-base" />
+        <Icon name="info" className="shrink-0 text-base" />
         AI viết tiêu đề, nội dung, hashtag từ ảnh đã chọn (trừ một lần phí). Tạo xong bấm vào bài để sửa nếu cần.
       </p>
       {formError && <FormAlert>{formError}</FormAlert>}

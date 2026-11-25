@@ -183,7 +183,7 @@ function Editor({ loaded }) {
           <ul role="alert" className="mx-auto max-w-6xl space-y-1 px-3 pb-2">
             {errors.map((message) => (
               <li key={message} className="flex items-start gap-2 rounded-lg bg-error-container/60 px-3 py-2 text-xs text-on-error-container">
-                <Icon name="error" className="text-base" />
+                <Icon name="error" className="shrink-0 text-base" />
                 <span className="flex-1">{message}</span>
               </li>
             ))}

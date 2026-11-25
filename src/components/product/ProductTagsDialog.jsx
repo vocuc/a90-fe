@@ -62,7 +62,7 @@ export default function ProductTagsDialog({ product, onSaved, onClose }) {
       }
     >
       <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-        <Icon name="info" className="text-base" />
+        <Icon name="info" className="shrink-0 text-base" />
         <span>
           Tag giúp kế hoạch kênh TikTok chọn đúng sản phẩm theo chủ đề (VD bài "Top 5 đôi đi chúc Tết"). Trường bạn sửa sẽ
           được giữ nguyên, AI không ghi đè. Bỏ trống một trường để AI gắn lại.

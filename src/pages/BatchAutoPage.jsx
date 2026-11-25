@@ -370,7 +370,7 @@ export default function BatchAutoPage() {
           </div>
           {useProduct && products.length > 0 && (
             <div className="mb-2 flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs">
-              <Icon name="shopping_bag" className="text-base text-primary" />
+              <Icon name="shopping_bag" className="shrink-0 text-base text-primary" />
               <p className="min-w-0 flex-1 text-on-surface-variant">
                 Chỉ tạo từ <b className="text-on-surface">{products.length}</b> sản phẩm đã chọn:{' '}
                 {products.map((p) => p.name || `#${p.id}`).join(', ')}
@@ -456,7 +456,7 @@ export default function BatchAutoPage() {
               </ol>
               {planReady && plan.batches.length < count && (
                 <p className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  <Icon name="info" className="text-base" />
+                  <Icon name="info" className="shrink-0 text-base" />
                   <span>
                     {outfit
                       ? `Mỗi sản phẩm 1 lô mỗi lượt tạo nên chỉ tạo được ${plan.batches.length} lô. Thêm sản phẩm để tạo nhiều lô hơn.`

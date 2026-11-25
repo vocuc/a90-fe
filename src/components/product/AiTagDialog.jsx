@@ -51,7 +51,7 @@ export default function AiTagDialog({ max = 100, fieldKey = 'anh_san_pham', onSt
       }
     >
       <p className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-        <Icon name="info" className="text-base" />
+        <Icon name="info" className="shrink-0 text-base" />
         <span>
           AI xem ảnh trường <b className="font-mono">{fieldKey}</b> của sản phẩm để gắn nhãn ngắn + kiểu, gót, màu, phong cách,
           dịp. Trường bạn đã sửa tay được giữ nguyên. Tối đa {max} sản phẩm mỗi lần, thường mất vài phút.
