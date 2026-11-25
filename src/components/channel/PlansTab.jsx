@@ -280,25 +280,33 @@ function PlanItem({ channelId, planId, item, canCancel, canEdit }) {
     },
   });
   const cancelled = item.status === 'cancelled';
+  // Ảnh thật của bài đăng (đã duyệt, tạo xong ảnh / đã chèn chữ): thay ô "Lô phối đồ" / "Lô ảnh" và ảnh chọn lúc lập kỳ
+  const postImages = item.post_images ?? [];
+  const hasPostImages = postImages.length > 0;
 
   return (
     <li className={`flex gap-3 rounded-xl border border-outline-variant/40 p-2 ${cancelled ? 'opacity-50' : ''}`}>
       <div className="flex shrink-0 gap-1">
+        {postImages.slice(0, 3).map((img) => (
+          <div key={img.id} className="relative h-16 w-12 overflow-hidden rounded-lg bg-surface-container">
+            {img.thumb_url && <img src={img.thumb_url} alt="" className="size-full object-cover" loading="lazy" />}
+          </div>
+        ))}
         {/* Bài lô phối đồ (vd lookbook): chưa có ảnh, duyệt kỳ mới tạo lô */}
-        {item.outfit && (
+        {!hasPostImages && item.outfit && (
           <div className="flex h-16 w-12 flex-col items-center justify-center rounded-lg bg-surface-container text-center text-[9px] font-semibold text-on-surface-variant">
             <Icon name="checkroom" className="text-lg text-primary" />
             Lô phối đồ
           </div>
         )}
         {/* Bài lô ảnh sản phẩm (unboxing): chưa có ảnh, duyệt kỳ mới tạo lô tự động cho sản phẩm */}
-        {item.product_batch && (
+        {!hasPostImages && item.product_batch && (
           <div className="flex h-16 w-12 flex-col items-center justify-center rounded-lg bg-surface-container text-center text-[9px] font-semibold text-on-surface-variant">
             <Icon name="photo_library" className="text-lg text-primary" />
             Lô ảnh
           </div>
         )}
-        {item.images.slice(0, 3).map((img) => (
+        {!hasPostImages && item.images.slice(0, 3).map((img) => (
           <div key={img.ref} className="relative h-16 w-12 overflow-hidden rounded-lg bg-surface-container">
             {img.thumb_url && <img src={img.thumb_url} alt="" className="size-full object-cover" loading="lazy" />}
             {img.text && <Icon name="text_fields" className="absolute right-0.5 top-0.5 rounded bg-black/50 text-xs text-white" />}
@@ -307,7 +315,9 @@ function PlanItem({ channelId, planId, item, canCancel, canEdit }) {
       </div>
       <div className="min-w-0 flex-1 space-y-0.5">
         <p className="text-[11px] text-on-surface-variant">
-          {formatDateTime(item.scheduled_at)} · {item.sample_name} · {item.format === 'video' ? 'Video' : item.outfit
+          {formatDateTime(item.scheduled_at)} · {item.sample_name} · {item.format === 'video' ? 'Video' : hasPostImages
+            ? `${postImages.length} ảnh`
+            : item.outfit
             ? `Tạo lô phối đồ ${item.outfit.count} ảnh khi duyệt`
             : item.product_batch
               ? `Tạo lô ảnh "${item.product_batch.product_name ?? `sản phẩm #${item.product_batch.product_id}`}" khi duyệt`
