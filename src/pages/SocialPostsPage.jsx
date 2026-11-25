@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import useSeo from '../hooks/useSeo';
 import CoverImage from '../components/common/CoverImage';
 import Icon from '../components/common/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback';
-import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
+import { POST_STATUS_INFO, PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
+import { SelectField, TextField } from '../components/common/Form';
+import { CHANNEL_KEYS, listChannels } from '../api/channels';
 import { POST_STATUS, isPostLocked, isVideoPost, listPosts } from '../api/social';
 import { useMe } from '../hooks/queries';
 import { CreateVideoDialog, POSTS_KEY, createdMessage, formatSchedule, useShopWorkers } from '../components/social/VideoPostDialogs';
@@ -31,9 +33,15 @@ const actionLabel = (post) =>
 
 /** Nhãn bài video + giờ đăng + worker (bài đã giao cho worker). */
 function VideoInfo({ post }) {
-  if (!isVideoPost(post) && !post.worker) return null;
+  if (!isVideoPost(post) && !post.worker && !post.channel) return null;
   return (
     <p className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-on-surface-variant">
+      {post.channel && (
+        <span className="inline-flex items-center gap-0.5 rounded bg-surface-container px-1 font-semibold text-on-surface">
+          <Icon name="smart_display" className="text-xs" />
+          {post.channel.name}
+        </span>
+      )}
       {isVideoPost(post) && (
         <span className="inline-flex items-center gap-0.5 rounded bg-primary-fixed/40 px-1 font-bold text-primary">
           <Icon name="movie" className="text-xs" />
@@ -215,6 +223,44 @@ function WorkerFilter({ workers, value, onChange }) {
   );
 }
 
+/** Lọc theo kênh / trạng thái / ngày đăng (tab Lịch đăng của kênh gộp vào /posts, 2026-11-25). Giá trị nằm trên URL. */
+function PostFilters({ channels, channelId, status, date, onChange, onClear }) {
+  const active = channelId || status || date;
+  return (
+    <div className="grid grid-cols-2 items-end gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+      {channels?.length > 0 && (
+        <SelectField label="Kênh" value={channelId} onChange={(e) => onChange('channel', e.target.value)}>
+          <option value="">Tất cả kênh</option>
+          {channels.map((c) => (
+            <option key={c.id} value={String(c.id)}>
+              {c.name}
+            </option>
+          ))}
+        </SelectField>
+      )}
+      <SelectField label="Trạng thái" value={status} onChange={(e) => onChange('status', e.target.value)}>
+        <option value="">Tất cả trạng thái</option>
+        {Object.values(POST_STATUS).map((s) => (
+          <option key={s} value={s}>
+            {POST_STATUS_INFO[s]?.label ?? s}
+          </option>
+        ))}
+      </SelectField>
+      <TextField label="Ngày đăng" type="date" value={date} onChange={(e) => onChange('date', e.target.value)} />
+      {active && (
+        <button
+          type="button"
+          onClick={() => onClear()}
+          className="flex h-10 items-center justify-center gap-1 rounded-xl px-3 text-xs font-bold text-primary hover:bg-surface-container"
+        >
+          <Icon name="filter_alt_off" className="text-base" />
+          Bỏ lọc
+        </button>
+      )}
+    </div>
+  );
+}
+
 const PAGE_SIZE = 20;
 const POLL_INTERVAL = 5000;
 // Bài chờ tới giờ (có thể vài ngày): chỉ theo dõi khi đã tới giờ, worker sắp nhận
@@ -237,24 +283,30 @@ export default function SocialPostsPage() {
   // Worker đang lọc nằm trên URL (?worker=id): giữ khi tải lại / quay lại trang
   const [searchParams, setSearchParams] = useSearchParams();
   const workerId = searchParams.get('worker') ?? '';
-  const setParam = (key, value) =>
+  // Đổi nhiều tham số trong 1 lần (gọi setSearchParams liên tiếp sẽ ghi đè nhau)
+  const setParams = (values) =>
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        if (value) next.set(key, value);
-        else next.delete(key);
+        Object.entries(values).forEach(([key, value]) => (value ? next.set(key, value) : next.delete(key)));
         return next;
       },
       { replace: true },
     );
+  const setParam = (key, value) => setParams({ [key]: value });
   const setWorkerId = (id) => setParam('worker', id);
+  const channelId = searchParams.get('channel') ?? '';
+  const status = searchParams.get('status') ?? '';
+  const date = searchParams.get('date') ?? '';
+  const filtered = !!(workerId || channelId || status || date);
   // Worker chỉ có khi đã có hồ sơ người bán (API trả 403 khi chưa có shop)
   const { data: workers } = useShopWorkers({ enabled: !!me?.creatorProfile });
   const filterWorker = workers?.find((w) => String(w.id) === workerId);
+  const { data: channelList } = useQuery({ queryKey: CHANNEL_KEYS.all, queryFn: listChannels, enabled: !!me?.creatorProfile });
 
   const { data, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: [...POSTS_KEY, { workerId }],
-    queryFn: ({ pageParam }) => listPosts({ page: pageParam, limit: PAGE_SIZE, workerId }),
+    queryKey: [...POSTS_KEY, { workerId, channelId, status, date }],
+    queryFn: ({ pageParam }) => listPosts({ page: pageParam, limit: PAGE_SIZE, workerId, channelId, status, date }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
     // Còn bài đang chuẩn bị / chờ đăng / đang đăng thì tự cập nhật trạng thái mỗi 5 giây
@@ -302,6 +354,14 @@ export default function SocialPostsPage() {
           value={workerId}
           onChange={setWorkerId}
         />
+        <PostFilters
+          channels={channelList?.items}
+          channelId={channelId}
+          status={status}
+          date={date}
+          onChange={setParam}
+          onClear={() => setParams({ channel: '', status: '', date: '' })}
+        />
         {notice && (
           <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
             <Icon name="check_circle" className="text-base" />
@@ -325,14 +385,16 @@ export default function SocialPostsPage() {
               <Skeleton key={i} className="h-28" />
             ))}
           </div>
-        ) : !posts.length && workerId ? (
+        ) : !posts.length && filtered ? (
           <EmptyState
             icon="filter_list_off"
-            message={`${filterWorker ? `Worker "${filterWorker.name}"` : 'Worker này'} chưa có bài nào.`}
+            message={workerId && !channelId && !status && !date
+              ? `${filterWorker ? `Worker "${filterWorker.name}"` : 'Worker này'} chưa có bài nào.`
+              : 'Không có bài nào khớp bộ lọc.'}
           >
             <button
               type="button"
-              onClick={() => setWorkerId('')}
+              onClick={() => setParams({ worker: '', channel: '', status: '', date: '' })}
               className="mt-2 flex h-10 items-center gap-1 rounded-xl px-4 text-sm font-bold text-primary hover:bg-surface-container"
             >
               Xem tất cả bài đăng

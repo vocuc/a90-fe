@@ -13,6 +13,7 @@ import { hashtagSlug } from '../utils/hashtag';
 import { readHashtagHistory, recordHashtags, suggestHashtags } from '../utils/hashtagHistory';
 import A51ImagePicker from '../components/social/A51ImagePicker';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
+import ChannelPostPanel from '../components/channel/ChannelPostPanel';
 import {
   HASHTAG_MAX,
   IMAGE_STATUS,
@@ -1020,6 +1021,13 @@ export default function SocialPostPage() {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Bài của kênh: dạng bài, hook, chữ trên ảnh, "Làm lại bài này" (tab Lịch đăng gộp vào đây, 2026-11-25) */}
+      {post?.channel && (
+        <div className="px-4 pt-4 lg:mx-auto lg:w-full lg:max-w-[1000px]">
+          <ChannelPostPanel postId={post.id} onChanged={load} />
         </div>
       )}
 

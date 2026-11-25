@@ -145,6 +145,8 @@ const mapPost = (p) => ({
   // Worker được giao, giờ đăng, nền tảng đã chọn (note/gop-luong-dang-bai.txt)
   worker: p.worker ? { id: p.worker.id, name: p.worker.name } : null,
   scheduledAt: p.scheduled_at ?? null,
+  // Bài của kênh (lệnh lập kế hoạch tạo): { id, name } | null
+  channel: p.channel ?? null,
   selectedPlatforms: p.selected_platforms ?? [],
   status: p.status,
   source: p.source,
@@ -163,9 +165,13 @@ const mapPost = (p) => ({
 });
 
 /** Mới nhất trước, có phân trang. */
-export const listPosts = ({ page = 1, limit = 20, status, type, workerId, source } = {}) =>
+export const listPosts = ({ page = 1, limit = 20, status, type, workerId, source, channelId, date } = {}) =>
   client.get('/social/posts', {
-    params: { page, per_page: limit, status, type, worker_id: workerId || undefined, source: source || undefined },
+    params: {
+      page, per_page: limit, status: status || undefined, type, worker_id: workerId || undefined, source: source || undefined,
+      // Lọc theo kênh + ngày đăng (YYYY-MM-DD): tab Lịch đăng của kênh gộp vào /posts (2026-11-25)
+      channel_id: channelId || undefined, date: date || undefined,
+    },
   }).then(({ data, meta }) => ({
     items: data.map(mapPost),
     page: meta.current_page,

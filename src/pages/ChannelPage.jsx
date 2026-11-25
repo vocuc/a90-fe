@@ -6,7 +6,6 @@ import { EmptyState, ErrorState, Skeleton } from '../components/common/Feedback'
 import { useCreatorProfile } from '../hooks/creatorQueries';
 import { CHANNEL_KEYS, MISSING_LABELS, getChannel, listChannels } from '../api/channels';
 import CreateChannelForm from '../components/channel/CreateChannelForm';
-import CalendarTab from '../components/channel/CalendarTab';
 import PlansTab from '../components/channel/PlansTab';
 import LineupTab from '../components/channel/LineupTab';
 import PostSamplesTab from '../components/channel/PostSamplesTab';
@@ -17,7 +16,6 @@ import PersonaTab from '../components/channel/PersonaTab';
 import SettingsTab from '../components/channel/SettingsTab';
 
 const TABS = [
-  { key: 'calendar', label: 'Lịch đăng', icon: 'calendar_month' },
   { key: 'plans', label: 'Kế hoạch', icon: 'event_note' },
   { key: 'lineup', label: 'Tuyến nội dung', icon: 'view_list' },
   { key: 'topics', label: 'Chủ đề', icon: 'tag' },
@@ -77,7 +75,7 @@ const BackLink = () => (
 
 function ChannelView({ id }) {
   const [params, setParams] = useSearchParams();
-  const tab = TABS.some((t) => t.key === params.get('tab')) ? params.get('tab') : 'calendar';
+  const tab = TABS.some((t) => t.key === params.get('tab')) ? params.get('tab') : 'plans';
   const { data: channel, error, refetch } = useQuery({ queryKey: CHANNEL_KEYS.detail(id), queryFn: () => getChannel(id) });
   useSeo({ title: channel ? `Kênh ${channel.name}` : 'Kênh TikTok', noindex: true });
 
@@ -93,6 +91,16 @@ function ChannelView({ id }) {
             </h1>
             {channel && <p className="truncate text-[11px] text-on-surface-variant">{channel.worker ? `Worker: ${channel.worker.name}` : 'Chưa có worker'}</p>}
           </div>
+          {/* Tab Lịch đăng đã gộp vào /posts (2026-11-25): xem / sửa / làm lại bài của kênh ở đó, lọc sẵn theo kênh */}
+          {channel && (
+            <Link
+              to={`/posts?channel=${channel.id}`}
+              className="mr-2 flex h-8 shrink-0 items-center gap-1 rounded-lg border border-primary px-3 text-xs font-bold text-primary hover:bg-primary-fixed/30"
+            >
+              <Icon name="calendar_month" className="text-base" />
+              Bài đăng
+            </Link>
+          )}
         </div>
         <nav className="flex gap-1 overflow-x-auto px-2 pb-2" aria-label="Các mục của kênh">
           {TABS.map((t) => (
@@ -129,7 +137,6 @@ function ChannelView({ id }) {
                 </ul>
               </div>
             )}
-            {tab === 'calendar' && <CalendarTab channel={channel} />}
             {tab === 'plans' && <PlansTab channel={channel} />}
             {tab === 'lineup' && <LineupTab channel={channel} />}
             {tab === 'topics' && <TopicsTab channel={channel} />}

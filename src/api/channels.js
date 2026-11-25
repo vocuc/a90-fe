@@ -233,6 +233,9 @@ export const setPlanItemRedo = (id, planId, itemId, on) => {
 export const getCalendar = (id, from, to) =>
   client.get(`/creator/channels/${id}/calendar`, { params: { from, to } }).then(({ data }) => data);
 
+/** 1 bài của kênh (hook, chủ đề, chữ trên ảnh...): khối "Nội dung kênh" ở trang /posts/:id. */
+export const getChannelPost = (postId) => client.get(`/creator/channel-posts/${postId}`).then(({ data }) => data);
+
 export const updateOverlays = (postId, overlays) =>
   client.put(`/creator/channel-posts/${postId}/overlays`, { overlays }).then(({ data }) => data);
 
