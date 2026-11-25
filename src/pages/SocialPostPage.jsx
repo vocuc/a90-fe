@@ -13,7 +13,7 @@ import { hashtagSlug } from '../utils/hashtag';
 import { readHashtagHistory, recordHashtags, suggestHashtags } from '../utils/hashtagHistory';
 import A51ImagePicker from '../components/social/A51ImagePicker';
 import { PlatformStatusList, PostStatusBadge } from '../components/social/PostStatus';
-import ChannelPostPanel from '../components/channel/ChannelPostPanel';
+import { ChannelPostHeader, OverlayField, OverlaySaveBar, useChannelPost } from '../components/channel/ChannelPostPanel';
 import {
   HASHTAG_MAX,
   IMAGE_STATUS,
@@ -115,7 +115,8 @@ const STRIP_BTN =
  * Ảnh của bài: ảnh đầu là ảnh bìa. editable: cho xoá ảnh, thêm ảnh từ A51 và đổi thứ tự
  * (nút trái / phải / đặt làm bìa, máy tính kéo thả được). onMove(from, to): chuyển ảnh ở vị trí from sang to.
  */
-function ImageStrip({ images, editable, onRemove, onAdd, onMove }) {
+// channel: bài của kênh (useChannelPost) -> ảnh hiện bản đã chèn chữ, dưới mỗi ảnh có ô "Chữ trên ảnh"
+function ImageStrip({ images, editable, onRemove, onAdd, onMove, channel }) {
   const [viewing, setViewing] = useState(null);
   // Vị trí đang kéo tới, null = không kéo
   const [dropIndex, setDropIndex] = useState(null);
@@ -160,6 +161,7 @@ function ImageStrip({ images, editable, onRemove, onAdd, onMove }) {
         {images.map((img, i) => {
           const busy = isImageBusy(img);
           const failed = img.status === IMAGE_STATUS.FAILED;
+          const overlayUrl = img.id ? channel?.overlay(img.id)?.overlay_url : null;
           return (
             <li key={img.key} className="space-y-1.5" {...dragProps(i)}>
               <div
@@ -170,11 +172,11 @@ function ImageStrip({ images, editable, onRemove, onAdd, onMove }) {
                 {img.url ? (
                   <button
                     type="button"
-                    onClick={() => setViewing(img.url)}
+                    onClick={() => setViewing(overlayUrl || img.url)}
                     aria-label={`Xem ảnh ${i + 1}`}
                     className="size-full cursor-zoom-in"
                   >
-                    <CoverImage src={img.thumbUrl ?? img.url} alt="" className="size-full" />
+                    <CoverImage src={overlayUrl || img.thumbUrl || img.url} alt="" className="size-full" />
                   </button>
                 ) : (
                   failed &&
@@ -195,6 +197,7 @@ function ImageStrip({ images, editable, onRemove, onAdd, onMove }) {
                   </span>
                 )}
               </div>
+              {img.id && <OverlayField channel={channel} imageId={img.id} />}
               {sortable && (
                 <div className="flex gap-1">
                   <button
@@ -254,6 +257,7 @@ function ImageStrip({ images, editable, onRemove, onAdd, onMove }) {
           </li>
         )}
       </ul>
+      <OverlaySaveBar channel={channel} />
     </section>
   );
 }
@@ -318,6 +322,8 @@ function AddImagesDialog({ exclude, max, onAdd, onClose }) {
 
 /** Đang chuẩn bị: ảnh đã có, AI đang viết sẵn tiêu đề / nội dung / hashtag (chỉ khi bật AI viết nội dung lúc tạo bài). */
 function GeneratingPanel({ post }) {
+  // Bài kênh: đang chờ lô ảnh / content-worker dựng bài, không phải AI viết nội dung
+  const fromChannel = !!post.channel;
   return (
     <section className="space-y-5 p-4 lg:mx-auto lg:w-full lg:max-w-[640px] lg:py-10">
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-6 text-center">
@@ -325,9 +331,17 @@ function GeneratingPanel({ post }) {
           <Icon name="auto_awesome" className="animate-pulse text-3xl" />
         </span>
         <div>
-          <h2 className="text-base font-bold text-on-surface">AI đang viết tiêu đề, nội dung, hashtag</h2>
+          <h2 className="text-base font-bold text-on-surface">
+            {fromChannel ? 'Đang tạo ảnh / dựng bài' : 'AI đang viết tiêu đề, nội dung, hashtag'}
+          </h2>
           <p className="mt-1 text-xs text-on-surface-variant">
-            Bạn có thể rời trang này. Xong, bài chuyển sang <b>Chờ gửi</b> để bạn xem lại và đăng bài.
+            {fromChannel ? (
+              <>Bạn có thể rời trang này. Ảnh xong, bài tự vào hàng chờ đăng đúng giờ đã lên kế hoạch.</>
+            ) : (
+              <>
+                Bạn có thể rời trang này. Xong, bài chuyển sang <b>Chờ gửi</b> để bạn xem lại và đăng bài.
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -373,7 +387,7 @@ function TemplateInfo({ template }) {
  * Đang đăng / Đã đăng: chỉ xem, không sửa, không xoá. Đang đăng mà worker im lặng: "Tạo lại" (có thể đăng trùng).
  * onChanged(post): sau khi tạo lại.
  */
-function PostPreview({ post, onChanged }) {
+function PostPreview({ post, onChanged, channel }) {
   const queryClient = useQueryClient();
   const { confirm, alert } = useConfirm();
   const [busy, setBusy] = useState(false);
@@ -397,7 +411,7 @@ function PostPreview({ post, onChanged }) {
 
   return (
     <div className="flex flex-col gap-6 p-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8 lg:py-6">
-      <ImageStrip images={post.images} />
+      <ImageStrip images={post.images} channel={channel} />
       <section className="space-y-4">
         {post.status === POST_STATUS.PUBLISHING ? (
           <div className="space-y-2 rounded-xl bg-primary-fixed/40 px-3 py-2 text-xs text-primary">
@@ -511,7 +525,7 @@ function PlatformPicker({ value, onChange, done, limitError, error }) {
  * yêu cầu thêm ảnh, thừa thì bỏ bớt. Chọn nền tảng, giờ đăng (mặc định bây giờ) rồi bấm Đăng bài: bài sang "Chờ đăng",
  * tới giờ worker nhận và đăng. Chuyển tab Ảnh / Video không mất chỉnh sửa.
  */
-function PostEditor({ post, type, worker }) {
+function PostEditor({ post, type, worker, channel }) {
   const { workerId } = worker;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -728,6 +742,7 @@ function PostEditor({ post, type, worker }) {
           onRemove={(key) => set('images')(form.images.filter((i) => i.key !== key))}
           onAdd={() => setAdding(true)}
           onMove={moveImage}
+          channel={channel}
         />
         {errors.images && <p className="text-xs text-error">{errors.images}</p>}
       </div>
@@ -967,6 +982,8 @@ export default function SocialPostPage() {
     getPost(id).then(setPost, setError);
   }, [id]);
   useEffect(load, [load]);
+  // Bài của kênh (lệnh lập kế hoạch tạo): null với bài tạo tay
+  const channel = useChannelPost(post, load);
 
   // Đang chuẩn bị / đang đăng / chờ đăng đã tới giờ: tự cập nhật tới khi đổi trạng thái
   const polling = needsPolling(post);
@@ -1001,7 +1018,8 @@ export default function SocialPostPage() {
         )}
       </header>
 
-      {editable && (
+      {/* Bài của kênh: dạng bài do kế hoạch quyết định -> không đổi Ảnh / Video ở đây */}
+      {editable && !post.channel && (
         // Desktop: cùng lưới 2 cột với nội dung bên dưới, tab Ảnh / Video chỉ rộng bằng cột trái (ảnh)
         <div className="px-4 pt-4 lg:mx-auto lg:grid lg:w-full lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8">
           <div role="tablist" aria-label="Loại bài đăng" className="grid grid-cols-2 gap-1 rounded-xl bg-surface-container p-1">
@@ -1024,10 +1042,10 @@ export default function SocialPostPage() {
         </div>
       )}
 
-      {/* Bài của kênh: dạng bài, hook, chữ trên ảnh, "Làm lại bài này" (tab Lịch đăng gộp vào đây, 2026-11-25) */}
-      {post?.channel && (
+      {/* Bài của kênh: kênh, dạng bài, chủ đề, hook, "Làm lại bài này" (tab Lịch đăng gộp vào đây, 2026-11-25) */}
+      {channel && (
         <div className="px-4 pt-4 lg:mx-auto lg:w-full lg:max-w-[1000px]">
-          <ChannelPostPanel postId={post.id} onChanged={load} />
+          <ChannelPostHeader channel={channel} />
         </div>
       )}
 
@@ -1048,9 +1066,10 @@ export default function SocialPostPage() {
           post={post}
           type={type}
           worker={worker}
+          channel={channel}
         />
       ) : (
-        <PostPreview post={post} onChanged={setPost} />
+        <PostPreview post={post} onChanged={setPost} channel={channel} />
       )}
     </>
   );

@@ -1,45 +1,36 @@
-import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import Icon from "../common/Icon";
-import { Skeleton } from "../common/Feedback";
-import { FormAlert, TextField } from "../common/Form";
-import { getChannelPost, setRedo, updateOverlays } from "../../api/channels";
-import { TopicBadge } from "./Section";
-
-const EDITABLE = ["generating", "pending_review", "queued"];
-const REBUILD_CODES = [
-  "CONTENT_FAILED",
-  "CONTENT_WORKER_REQUIRED",
-  "OVERLAY_FAILED",
-];
-export const channelPostKey = (id) => ["creator", "channel-posts", String(id)];
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import Icon from '../common/Icon';
+import { FormAlert } from '../common/Form';
+import { getChannelPost, setRedo, updateOverlays } from '../../api/channels';
+import { TopicBadge } from './Section';
 
 /**
- * Khối "Nội dung kênh" ở trang /posts/:id cho bài do lệnh lập kế hoạch tạo (tab Lịch đăng của kênh gộp vào /posts,
- * 2026-11-25): dạng bài, chủ đề, hook, sửa chữ trên ảnh (worker dựng lại), "Làm lại bài này".
+ * Bài do lệnh lập kế hoạch tạo, ở trang /posts/:id (tab Lịch đăng của kênh gộp vào /posts, 2026-11-25):
+ * - useChannelPost: dữ liệu kênh của bài (dạng bài, chủ đề, hook, chữ trên ảnh, cờ làm lại) + sửa chữ / làm lại.
+ * - ChannelPostHeader: thẻ gọn đầu trang (kênh, dạng bài, chủ đề, hook, "Làm lại bài này").
+ * - OverlayField: ô "Chữ trên ảnh" dưới từng ảnh trong lưới ảnh của trang; OverlaySaveBar: nút lưu chữ.
  */
-export default function ChannelPostPanel({ postId, onChanged }) {
+const EDITABLE = ['generating', 'pending_review', 'queued'];
+const REBUILD_CODES = ['CONTENT_FAILED', 'CONTENT_WORKER_REQUIRED', 'OVERLAY_FAILED'];
+export const channelPostKey = (id) => ['creator', 'channel-posts', String(id)];
+
+export function useChannelPost(post, onChanged) {
   const queryClient = useQueryClient();
-  const { data: post, error } = useQuery({
+  const postId = post?.channel ? post.id : null;
+  const { data, error } = useQuery({
     queryKey: channelPostKey(postId),
     queryFn: () => getChannelPost(postId),
-    // Đang chèn chữ / chờ ảnh: tự tải lại để thấy ảnh xong
+    enabled: !!postId,
+    // Đang chờ ảnh / chèn chữ: tự tải lại để thấy ảnh xong
     refetchInterval: (q) =>
-      q.state.data?.status === "generating" ||
-      q.state.data?.images.some((i) => i.overlay_status === "pending")
-        ? 10000
-        : false,
+      q.state.data?.status === 'generating' || q.state.data?.images.some((i) => i.overlay_status === 'pending') ? 10000 : false,
   });
   const [texts, setTexts] = useState({});
   useEffect(() => {
-    if (post)
-      setTexts(
-        Object.fromEntries(
-          post.images.map((i) => [i.id, i.overlay_text ?? ""]),
-        ),
-      );
-  }, [post]);
+    if (data) setTexts(Object.fromEntries(data.images.map((i) => [i.id, i.overlay_text ?? ''])));
+  }, [data]);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: channelPostKey(postId) });
@@ -47,127 +38,118 @@ export default function ChannelPostPanel({ postId, onChanged }) {
   };
   const saveText = useMutation({
     mutationFn: () =>
-      updateOverlays(
-        post.id,
-        post.images.map((i) => ({
-          image_id: i.id,
-          text: texts[i.id] || null,
-          text_template_id: i.text_template_id,
-        })),
-      ),
+      updateOverlays(data.id, data.images.map((i) => ({ image_id: i.id, text: texts[i.id] || null, text_template_id: i.text_template_id }))),
     onSuccess: refresh,
   });
-  const redo = useMutation({
-    mutationFn: (on) => setRedo(post.id, on),
-    onSuccess: refresh,
-  });
+  const redo = useMutation({ mutationFn: (on) => setRedo(data.id, on), onSuccess: refresh });
 
+  if (!postId) return null;
+  const editable = !!data && EDITABLE.includes(data.status);
+  const byId = Object.fromEntries((data?.images ?? []).map((i) => [i.id, i]));
+  return {
+    data,
+    error,
+    editable,
+    // Chữ trên ảnh chỉ có ở bài ảnh
+    textEditable: editable && data.type === 'photo',
+    overlay: (imageId) => byId[imageId] ?? null,
+    text: (imageId) => texts[imageId] ?? '',
+    setText: (imageId, value) => setTexts((t) => ({ ...t, [imageId]: value })),
+    changed: !!data && data.images.some((i) => (texts[i.id] ?? '') !== (i.overlay_text ?? '')),
+    canRebuild: REBUILD_CODES.includes(data?.last_error?.code),
+    saveText,
+    redo,
+  };
+}
+
+/** Thẻ đầu trang của bài kênh: kênh, dạng bài, chủ đề, hook + "Làm lại bài này". */
+export function ChannelPostHeader({ channel }) {
+  const { data, error, editable, redo } = channel;
   if (error) return <FormAlert>{error.message}</FormAlert>;
-  if (!post) return <Skeleton className="h-40 w-full" />;
-
-  const editable = EDITABLE.includes(post.status);
-  const changed = post.images.some(
-    (i) => (texts[i.id] ?? "") !== (i.overlay_text ?? ""),
-  );
-  const actionError = saveText.error || redo.error;
+  if (!data) return <div className="h-20 animate-pulse rounded-2xl bg-surface-container" />;
+  const waiting = !!data.redo_requested_at;
 
   return (
-    <section className="space-y-4 rounded-2xl border border-outline-variant/40 p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="flex-1 text-sm font-bold text-on-surface">
-          Nội dung kênh{" "}
-          <Link
-            to={`/channels/${post.channel.id}?tab=plans`}
-            className="text-primary hover:underline"
-          >
-            {post.channel.name}
+    <section className="flex flex-col gap-3 rounded-2xl border border-outline-variant/40 bg-surface-container-lowest p-3 sm:flex-row sm:items-start">
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-on-surface-variant">
+          <Icon name="smart_display" className="text-sm text-primary" />
+          <Link to={`/channels/${data.channel.id}?tab=plans`} className="font-bold text-primary hover:underline">
+            {data.channel.name}
           </Link>
-        </h2>
-        {post.redo_requested_at && (
-          <span className="rounded bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700">
-            Chờ AI làm lại
-          </span>
-        )}
-      </div>
-      <div className="space-y-3">
-        <p className="text-[11px] text-on-surface-variant">
-          {post.sample_name ?? "Bài đăng"}
+          {data.sample_name && <span>· {data.sample_name}</span>}
+          <TopicBadge name={data.topic} />
+          {waiting && <span className="rounded bg-sky-50 px-1.5 py-0.5 font-semibold text-sky-700">Chờ AI làm lại</span>}
         </p>
-        {(post.topic || post.sample_key) && <TopicBadge name={post.topic} />}
-        {post.hook && (
-          <p className="text-sm font-semibold text-on-surface">
-            Hook: {post.hook}
-          </p>
-        )}
-
-        <ul className="space-y-3">
-          {post.images.map((img, idx) => (
-            <li key={img.id} className="flex gap-3">
-              <img
-                src={img.overlay_url || img.thumb_url}
-                alt={`Ảnh ${idx + 1}`}
-                className="h-28 w-20 shrink-0 rounded-lg bg-surface-container object-cover"
-              />
-              <div className="min-w-0 flex-1 space-y-1">
-                <p className="text-[11px] text-on-surface-variant">
-                  Ảnh {idx + 1}
-                  {img.overlay_status === "pending" && " · đang chèn chữ"}
-                  {img.overlay_status === "failed" && " · chèn chữ lỗi"}
-                </p>
-                {post.type === "photo" && editable ? (
-                  <TextField
-                    label="Chữ trên ảnh"
-                    value={texts[img.id] ?? ""}
-                    maxLength={150}
-                    onChange={(e) =>
-                      setTexts((t) => ({ ...t, [img.id]: e.target.value }))
-                    }
-                  />
-                ) : (
-                  img.overlay_text && (
-                    <p className="text-xs text-on-surface">
-                      {img.overlay_text}
-                    </p>
-                  )
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        {actionError && <FormAlert>{actionError.message}</FormAlert>}
-        {editable && (
-          <div className="flex flex-wrap gap-2">
-            {(changed || REBUILD_CODES.includes(post.last_error?.code)) && (
-              <button
-                type="button"
-                onClick={() => saveText.mutate()}
-                disabled={saveText.isPending}
-                className="rounded-lg bg-primary-container px-3 py-2 text-xs font-bold text-on-primary disabled:opacity-50"
-              >
-                {changed ? "Lưu chữ, dựng lại ảnh" : "Dựng lại"}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => redo.mutate(!post.redo_requested_at)}
-              disabled={redo.isPending}
-              className="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-2 text-xs font-bold text-on-surface disabled:opacity-50"
-            >
-              <Icon name="autorenew" className="text-sm" />
-              {post.redo_requested_at
-                ? "Bỏ yêu cầu làm lại"
-                : "Làm lại bài này"}
-            </button>
-          </div>
-        )}
-        {editable && !post.redo_requested_at && (
-          <p className="text-[11px] text-on-surface-variant">
-            "Làm lại": bài tạm dừng, AI làm lại nội dung ngay (worker điều phối
-            nhận việc trong ít phút), giữ giờ đăng.
-          </p>
-        )}
+        {data.hook && <p className="text-sm font-bold text-on-surface">{data.hook}</p>}
+        {redo.error && <p className="text-xs text-error">{redo.error.message}</p>}
       </div>
+      {editable && (
+        <div className="flex shrink-0 flex-col items-stretch gap-1 sm:items-end">
+          <button
+            type="button"
+            onClick={() => redo.mutate(!waiting)}
+            disabled={redo.isPending}
+            className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-primary-container/50 px-3 text-xs font-bold text-primary hover:bg-primary-fixed/40 disabled:opacity-50"
+          >
+            <Icon name={redo.isPending ? 'progress_activity' : 'autorenew'} className={`text-base ${redo.isPending ? 'animate-spin' : ''}`} />
+            {waiting ? 'Bỏ yêu cầu làm lại' : 'Làm lại bài này'}
+          </button>
+          {!waiting && <p className="max-w-[260px] text-[10px] text-on-surface-variant sm:text-right">AI làm lại nội dung + ảnh, giữ giờ đăng.</p>}
+        </div>
+      )}
     </section>
+  );
+}
+
+/** Dưới từng ảnh: chữ trên ảnh (sửa được khi bài chưa được worker nhận) + trạng thái chèn chữ. */
+export function OverlayField({ channel, imageId }) {
+  const overlay = channel?.overlay(imageId);
+  if (!overlay) return null;
+  const failed = overlay.overlay_status === 'failed';
+  const status = overlay.overlay_status === 'pending' ? 'Đang chèn chữ...' : failed ? 'Chèn chữ lỗi' : null;
+  if (!channel.textEditable) {
+    return overlay.overlay_text || status ? (
+      <p className="text-[11px] text-on-surface-variant">
+        {overlay.overlay_text}
+        {status && <span className={failed ? ' text-error' : ''}> {status}</span>}
+      </p>
+    ) : null;
+  }
+  return (
+    <div className="space-y-0.5">
+      <textarea
+        value={channel.text(imageId)}
+        onChange={(e) => channel.setText(imageId, e.target.value)}
+        maxLength={150}
+        rows={2}
+        placeholder="Chữ trên ảnh"
+        aria-label="Chữ trên ảnh"
+        className="w-full resize-none rounded-lg border-outline-variant/40 bg-surface-container-low px-2 py-1 text-[11px] text-on-surface focus:border-primary-container focus:ring-primary-container/20"
+      />
+      {status && <p className={`text-[10px] ${failed ? 'text-error' : 'text-on-surface-variant'}`}>{status}</p>}
+    </div>
+  );
+}
+
+/** Nút lưu chữ trên ảnh (worker dựng lại ảnh có chữ): hiện khi đã sửa chữ hoặc lần chèn chữ trước lỗi. */
+export function OverlaySaveBar({ channel }) {
+  if (!channel?.textEditable || (!channel.changed && !channel.canRebuild)) return null;
+  const { saveText } = channel;
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl bg-primary-fixed/30 px-3 py-2">
+      <span className="flex-1 text-xs text-on-surface">
+        {channel.changed ? 'Đã sửa chữ trên ảnh.' : 'Chèn chữ lần trước bị lỗi.'} Worker sẽ dựng lại ảnh có chữ.
+      </span>
+      {saveText.error && <span className="w-full text-xs text-error">{saveText.error.message}</span>}
+      <button
+        type="button"
+        onClick={() => saveText.mutate()}
+        disabled={saveText.isPending}
+        className="h-8 rounded-lg bg-primary-container px-3 text-xs font-bold text-on-primary hover:bg-primary disabled:opacity-50"
+      >
+        {saveText.isPending ? 'Đang lưu...' : channel.changed ? 'Lưu chữ, dựng lại ảnh' : 'Dựng lại'}
+      </button>
+    </div>
   );
 }
