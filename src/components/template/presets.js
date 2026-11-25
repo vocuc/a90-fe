@@ -70,7 +70,7 @@ export const PRESETS = [
     build: () => ({
       name: 'Ảnh sản phẩm giày',
       template_key: 'single-shoe-product',
-      fields: [imageField('product_image', 'Ảnh sản phẩm giày', 'primary_product', 'Tải ảnh đôi giày cần quảng cáo')],
+      fields: [imageField('anh_san_pham', 'Ảnh sản phẩm giày', 'primary_product', 'Tải ảnh đôi giày cần quảng cáo')],
       prompt_text: SHOE_PROMPT,
     }),
   },
@@ -83,7 +83,7 @@ export const PRESETS = [
       name: 'Đầu vào tạo ảnh giày thời trang',
       template_key: 'shoe-fashion-input',
       fields: [
-        imageField('product_image', 'Ảnh sản phẩm giày', 'primary_product', 'Tải ảnh đôi giày cần quảng cáo'),
+        imageField('anh_san_pham', 'Ảnh sản phẩm giày', 'primary_product', 'Tải ảnh đôi giày cần quảng cáo'),
         imageField('outfit_image', 'Ảnh outfit', 'outfit_reference', 'Ảnh trang phục người mẫu sẽ mặc'),
         {
           ...createField('textarea'),

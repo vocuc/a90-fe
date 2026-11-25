@@ -257,7 +257,7 @@ function FieldCard({ field, index, total, errors, selected, onSelect, onChange, 
               onChange={(e) => onChange({ ...field, key: typedKey(e.target.value), _autoKey: false })}
               readOnly={fixedKey}
               title={fixedKey ? 'Tên trường tỉ lệ khung hình cố định, không sửa được' : undefined}
-              placeholder="vi_du_product_image"
+              placeholder="vi_du_anh_san_pham"
               className={`${inputCls} ${borderCls(err('key'))} font-mono text-xs ${fixedKey ? 'cursor-not-allowed bg-surface-container text-on-surface-variant' : ''}`}
             />
             {err('key') && <p className="mt-1 text-xs text-error">{err('key')}</p>}

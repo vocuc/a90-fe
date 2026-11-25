@@ -62,7 +62,7 @@ export default function BatchNewPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  // Lỗi theo trường do máy chủ trả về: { [slug]: { [key]: msg } } (errors["items.1.inputs.product_image"])
+  // Lỗi theo trường do máy chủ trả về: { [slug]: { [key]: msg } } (errors["items.1.inputs.anh_san_pham"])
   const [serverErrors, setServerErrors] = useState({});
   // Logo shop = ảnh đại diện shop; có logo thì mặc định chèn
   const { data: me } = useMe();

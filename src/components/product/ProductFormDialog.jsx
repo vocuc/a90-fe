@@ -6,7 +6,9 @@ import HashtagInput from '../template/HashtagInput';
 import { PROMPT_NOTE_MAX, saveProduct } from '../../api/autoBatch';
 
 const KEY_PATTERN = /^[A-Za-z0-9_]+$/;
-const DEFAULT_KEY = 'product_image';
+// Khung "Ảnh sản phẩm" cố định (2026-11-25): bắt buộc, không xoá / đổi key. Gắn tag AI, worker phối đồ, tạo lô dùng ảnh này.
+export const MAIN_KEY = 'anh_san_pham';
+const OTHER_KEY_PLACEHOLDER = 'phu_kien';
 
 let rowSeq = 0;
 const newRow = (img) => ({ rid: ++rowSeq, ...img });
@@ -19,6 +21,7 @@ const validateRows = (rows) => {
     const key = r.fieldKey.trim();
     if (!key) errors[r.rid] = 'Vui lòng nhập key trường nguyên liệu.';
     else if (!KEY_PATTERN.test(key)) errors[r.rid] = 'Key chỉ gồm chữ không dấu, số và dấu gạch dưới.';
+    else if (key === MAIN_KEY) errors[r.rid] = `Key ${MAIN_KEY} dành cho khung Ảnh sản phẩm.`;
     else if (seen.has(key)) errors[r.rid] = 'Mỗi key chỉ dùng cho một ảnh.';
     seen.add(key);
   });
@@ -26,8 +29,8 @@ const validateRows = (rows) => {
 };
 
 /**
- * Thêm / sửa sản phẩm (note/auto-tao-lo.txt): tên (không bắt buộc) + các ảnh, mỗi ảnh gắn key một trường ảnh trong
- * Creative của mình. Tạo lô tự động điền ảnh vào trường có key trùng, creative không có trường nào trùng thì bỏ qua.
+ * Thêm / sửa sản phẩm (note/auto-tao-lo.txt): tên (không bắt buộc) + khung "Ảnh sản phẩm" cố định (key anh_san_pham,
+ * bắt buộc, chỉ đổi được ảnh) + ảnh khác tuỳ chọn, mỗi ảnh gắn key một trường ảnh trong Creative của mình. Tạo lô tự động điền ảnh vào trường có key trùng, creative không có trường nào trùng thì bỏ qua.
  * Hashtag: chỉ lưu, tạo lô tự động không xét (mọi sản phẩm ghép với mọi nhóm).
  * Yêu cầu (prompt_note): backend nối vào cuối prompt của mọi Creative khi tạo ảnh cho sản phẩm.
  */
@@ -35,7 +38,13 @@ export default function ProductFormDialog({ product, onSaved, onClose }) {
   const [name, setName] = useState(product?.name ?? '');
   const [promptNote, setPromptNote] = useState(product?.promptNote ?? '');
   const [hashtags, setHashtags] = useState(product?.hashtags ?? []);
-  const [rows, setRows] = useState(() => (product?.images ?? []).map((i) => newRow({ id: i.id, url: i.thumbUrl, fieldKey: i.fieldKey })));
+  const [main, setMain] = useState(() => {
+    const img = (product?.images ?? []).find((i) => i.fieldKey === MAIN_KEY);
+    return img ? { id: img.id, url: img.thumbUrl } : null;
+  });
+  const [rows, setRows] = useState(() =>
+    (product?.images ?? []).filter((i) => i.fieldKey !== MAIN_KEY).map((i) => newRow({ id: i.id, url: i.thumbUrl, fieldKey: i.fieldKey })),
+  );
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -45,33 +54,27 @@ export default function ProductFormDialog({ product, onSaved, onClose }) {
   const objectUrls = useRef([]);
   useEffect(() => () => objectUrls.current.forEach((url) => URL.revokeObjectURL(url)), []);
 
-  const addFiles = (files) => {
-    setRows((prev) => {
-      const used = new Set(prev.map((r) => r.fieldKey));
-      const added = [...files].map((file, i) => {
-        const fieldKey = !used.has(DEFAULT_KEY) && i === 0 ? DEFAULT_KEY : '';
-        if (fieldKey) used.add(fieldKey);
-        const url = URL.createObjectURL(file);
-        objectUrls.current.push(url);
-        return newRow({ file, url, fieldKey });
-      });
-      return [...prev, ...added];
-    });
+  const previewUrl = (file) => {
+    const url = URL.createObjectURL(file);
+    objectUrls.current.push(url);
+    return url;
   };
+  const pickMain = (file) => file && setMain({ file, url: previewUrl(file) });
+  const addFiles = (files) => setRows((prev) => [...prev, ...[...files].map((file) => newRow({ file, url: previewUrl(file), fieldKey: '' }))]);
   const update = (rid, patch) => setRows((prev) => prev.map((r) => (r.rid === rid ? { ...r, ...patch } : r)));
   const remove = (rid) => setRows((prev) => prev.filter((r) => r.rid !== rid));
 
   const rowErrors = submitted ? validateRows(rows) : {};
-  const rowError = (r, i) => rowErrors[r.rid] ?? serverErrors[`images.${i}.field_key`] ?? serverErrors[`images.${i}.file`];
+  // Ảnh gửi lên: khung Ảnh sản phẩm luôn ở vị trí 0, ảnh khác từ vị trí 1
+  const rowError = (r, i) => rowErrors[r.rid] ?? serverErrors[`images.${i + 1}.field_key`] ?? serverErrors[`images.${i + 1}.file`];
+  const firstError = (v) => (v ? [].concat(v)[0] : null);
+  const mainError =
+    (submitted && !main ? 'Vui lòng chọn ảnh sản phẩm.' : null) ?? firstError(serverErrors['images.0.file']) ?? firstError(serverErrors.images);
 
   const submit = async () => {
     setSubmitted(true);
     setError(null);
-    if (!rows.length) {
-      setError('Vui lòng thêm ít nhất 1 ảnh.');
-      return;
-    }
-    if (Object.keys(validateRows(rows)).length) return;
+    if (!main || Object.keys(validateRows(rows)).length) return;
     setSaving(true);
     setServerErrors({});
     try {
@@ -80,7 +83,10 @@ export default function ProductFormDialog({ product, onSaved, onClose }) {
         name: name.trim(),
         promptNote: promptNote.trim(),
         hashtags,
-        images: rows.map((r) => ({ id: r.id, file: r.file, fieldKey: r.fieldKey.trim() })),
+        images: [
+          { id: main.id, file: main.file, fieldKey: MAIN_KEY },
+          ...rows.map((r) => ({ id: r.id, file: r.file, fieldKey: r.fieldKey.trim() })),
+        ],
       });
       onSaved(saved);
     } catch (err) {
@@ -142,9 +148,49 @@ export default function ProductFormDialog({ product, onSaved, onClose }) {
       />
 
       <div>
-        <p className="text-xs font-semibold text-on-surface">Ảnh sản phẩm</p>
+        <p className="text-xs font-semibold text-on-surface">
+          Ảnh sản phẩm <span className="text-error">*</span>
+        </p>
         <p className="mb-2 text-[11px] text-on-surface-variant">
-          Mỗi ảnh nhập key của trường ảnh trong Creative (VD: product_image). Ảnh được điền vào trường có key trùng.
+          Ảnh chụp rõ sản phẩm. Khung cố định, key <span className="font-mono">{MAIN_KEY}</span>: được điền vào trường cùng key
+          trong Creative, dùng để AI gắn tag và phối đồ.
+        </p>
+        <div className={`flex items-center gap-3 rounded-xl border p-2 ${mainError ? 'border-error' : 'border-outline-variant/40'}`}>
+          {main ? (
+            <img src={main.url} alt="" className="size-16 shrink-0 rounded-lg bg-surface-container object-cover" />
+          ) : (
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-surface-container text-on-surface-variant">
+              <Icon name="image" className="text-2xl" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold text-on-surface-variant">Key trường nguyên liệu</p>
+            <p className="mt-1 flex h-9 items-center gap-1 rounded-lg bg-surface-container px-2.5 font-mono text-sm text-on-surface-variant">
+              <Icon name="lock" className="text-base" />
+              {MAIN_KEY}
+            </p>
+            {mainError && <p className="mt-1 text-xs text-error">{mainError}</p>}
+          </div>
+          <label className="flex h-9 shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-sm font-bold text-primary hover:bg-surface-container-low">
+            <Icon name={main ? 'sync' : 'add_photo_alternate'} className="text-lg" />
+            {main ? 'Đổi ảnh' : 'Chọn ảnh'}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              onChange={(e) => {
+                pickMain(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold text-on-surface">Ảnh khác (không bắt buộc)</p>
+        <p className="mb-2 text-[11px] text-on-surface-variant">
+          Mỗi ảnh nhập key của trường ảnh trong Creative (VD: {OTHER_KEY_PLACEHOLDER}). Ảnh được điền vào trường có key trùng.
         </p>
         <ul className="space-y-2">
           {rows.map((r, i) => {
@@ -160,7 +206,7 @@ export default function ProductFormDialog({ product, onSaved, onClose }) {
                     id={`key-${r.rid}`}
                     value={r.fieldKey}
                     onChange={(e) => update(r.rid, { fieldKey: e.target.value })}
-                    placeholder={DEFAULT_KEY}
+                    placeholder={OTHER_KEY_PLACEHOLDER}
                     autoCapitalize="off"
                     spellCheck={false}
                     className="mt-1 h-9 w-full rounded-lg border border-outline-variant/40 bg-surface-container-low px-2.5 font-mono text-sm text-on-surface focus:border-primary-container focus:outline-none"
@@ -179,9 +225,9 @@ export default function ProductFormDialog({ product, onSaved, onClose }) {
             );
           })}
         </ul>
-        <label className="mt-2 flex h-10 cursor-pointer items-center justify-center gap-1 rounded-xl border border-dashed border-outline-variant text-sm font-bold text-primary hover:bg-surface-container-low">
+        <label className={`${rows.length ? 'mt-2' : ''} flex h-10 cursor-pointer items-center justify-center gap-1 rounded-xl border border-dashed border-outline-variant text-sm font-bold text-primary hover:bg-surface-container-low`}>
           <Icon name="add_photo_alternate" className="text-lg" />
-          Thêm ảnh
+          Thêm ảnh khác
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"
