@@ -9,9 +9,12 @@ import {
   MAX_BLOCKS,
   MAX_BLOCK_TITLE,
   MAX_TEMPLATE_TITLE,
+  MAX_OPTIONS,
+  MAX_OPTION_LENGTH,
   mergePrompt,
   templateParts,
   createBlock,
+  createOption,
   fromTemplate,
   toTemplateBody,
 } from '../components/template/promptTemplate';
@@ -107,6 +110,56 @@ function BlockCard({ block, index, count, onChange, onRemove, onMove, onTogglePi
         aria-label={`Nội dung block ${index + 1}`}
         className={`${inputCls} ${borderCls()} resize-none overflow-hidden font-mono text-[13px] leading-relaxed`}
       />
+      <BlockOptions block={block} index={index} onChange={onChange} />
+    </div>
+  );
+}
+
+// Biến thể nội dung: mỗi lần tạo ảnh backend lấy ngẫu nhiên 1 option nối sau nội dung chính của block
+function BlockOptions({ block, index, onChange }) {
+  const options = block.options ?? [];
+  const setOptions = (next) => onChange({ ...block, options: next });
+
+  return (
+    <div className="space-y-1.5">
+      {options.length > 0 && (
+        <p className="flex items-center gap-1 text-[11px] text-on-surface-variant">
+          <Icon name="shuffle" className="text-sm text-primary" />
+          Mỗi lần tạo ảnh lấy ngẫu nhiên 1 option, nối sau nội dung block
+        </p>
+      )}
+      {options.map((option, i) => (
+        <div key={option._id} className="flex items-start gap-1">
+          <span className="mt-2 w-5 shrink-0 text-center text-[11px] font-bold text-outline">{i + 1}</span>
+          <textarea
+            value={option.text}
+            maxLength={MAX_OPTION_LENGTH}
+            onChange={(e) => setOptions(options.map((o) => (o._id === option._id ? { ...o, text: e.target.value } : o)))}
+            rows={2}
+            spellCheck={false}
+            placeholder="Nội dung option..."
+            aria-label={`Option ${i + 1} của block ${index + 1}`}
+            className={`${inputCls} ${borderCls()} flex-1 resize-y font-mono text-[12px] leading-relaxed`}
+          />
+          <button
+            type="button"
+            onClick={() => setOptions(options.filter((o) => o._id !== option._id))}
+            aria-label={`Xoá option ${i + 1}`}
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-outline hover:bg-error-container/50 hover:text-error"
+          >
+            <Icon name="close" className="text-lg" />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => setOptions([...options, createOption()])}
+        disabled={options.length >= MAX_OPTIONS}
+        className="flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-bold text-primary hover:bg-primary-fixed/40 disabled:opacity-50"
+      >
+        <Icon name="add" className="text-base" />
+        Thêm option ngẫu nhiên
+      </button>
     </div>
   );
 }
@@ -229,7 +282,8 @@ function Editor({ loaded }) {
           <div>
             <h2 className="text-sm font-bold text-on-surface">Prompt hoàn chỉnh</h2>
             <p className="text-[11px] text-on-surface-variant">
-              Các block ghép theo thứ tự, prompt riêng của Creative nối sau. Block ghim (nếu có) luôn ở cuối cùng.
+              Các block ghép theo thứ tự, prompt riêng của Creative nối sau. Block ghim (nếu có) luôn ở cuối cùng. Block có option:
+              xem trước dùng option dài nhất, khi tạo ảnh lấy ngẫu nhiên.
             </p>
           </div>
           <pre className="max-h-[70vh] min-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-inverse-surface p-3 font-mono text-[12px] leading-relaxed text-inverse-on-surface">
