@@ -15,10 +15,10 @@ import { CHANNEL_KEYS, listChannels } from '../../api/channels';
  * creative Đang bán). Một creative chỉ ở một nhóm: creative đã ở nhóm khác hiện tên nhóm, không chọn được.
  * Kênh: không chọn = dùng chung mọi kênh; chọn kênh = nhóm chỉ dùng cho kênh đó.
  */
-export default function GroupFormDialog({ group, onSaved, onClose }) {
+export default function GroupFormDialog({ group, defaultChannelId = '', onSaved, onClose }) {
   const [name, setName] = useState(group?.name ?? '');
-  // '' = dùng chung mọi kênh
-  const [channelId, setChannelId] = useState(group?.channel ? String(group.channel.id) : '');
+  // '' = dùng chung mọi kênh; tạo mới thì chọn sẵn kênh đang lọc (defaultChannelId)
+  const [channelId, setChannelId] = useState(group ? (group.channel ? String(group.channel.id) : '') : defaultChannelId);
   const { data: channelData } = useQuery({ queryKey: CHANNEL_KEYS.all, queryFn: listChannels });
   const channels = channelData?.items ?? [];
   const [selected, setSelected] = useState(() => group?.creatives.map((c) => c.id) ?? []);

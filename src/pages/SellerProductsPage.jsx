@@ -10,6 +10,7 @@ import useHorizontalScroll from '../hooks/useHorizontalScroll';
 import { formatCount } from '../utils/format';
 import { hashtagSlug } from '../utils/hashtag';
 import { useConfirm } from '../components/common/ConfirmDialog';
+import ChannelFilter, { readChannelFilter } from '../components/channel/ChannelFilter';
 
 // Khớp tham số status của GET /creator/creatives ('all' = tất cả, không gửi status)
 const TABS = [
@@ -98,9 +99,12 @@ function ProductCard({ creative }) {
           <h3 className="mb-1 line-clamp-2 text-xs font-bold text-on-surface">{title}</h3>
           <div className="flex items-center gap-2 text-[11px] text-on-surface-variant">
             {group && (
-              <p className="flex min-w-0 items-center gap-0.5">
+              <p className="flex min-w-0 items-center gap-0.5" title={group.channel ? `Kênh ${group.channel.name}` : 'Dùng chung mọi kênh'}>
                 <Icon name="workspaces" className="shrink-0 text-[12px]" />
-                <span className="truncate">{group.name}</span>
+                <span className="truncate">
+                  {group.name}
+                  {group.channel && <span className="text-outline"> · {group.channel.name}</span>}
+                </span>
               </p>
             )}
             <p className="ml-auto shrink-0">{formatCount(usage_count)} lượt tải về</p>
@@ -168,7 +172,14 @@ export default function SellerProductsPage() {
   const tab = TAB_VALUES.includes(params.get('status')) ? params.get('status') : DEFAULT_TAB;
   const status = tab === 'all' ? '' : tab;
   const hashtag = params.get('hashtag') ?? '';
+  const channel = readChannelFilter(params);
   const tabScrollRef = useHorizontalScroll();
+  const setChannel = (value) => {
+    const next = new URLSearchParams(params);
+    if (value) next.set('channel', value);
+    else next.delete('channel');
+    setParams(next, { replace: true });
+  };
 
   // Ô tìm kiếm lọc theo hashtag ("Chân dung", "#chandung" -> chandung), gõ xong 400ms mới lọc
   const [input, setInput] = useState(hashtag);
@@ -187,7 +198,10 @@ export default function SellerProductsPage() {
   // GET /creator/creatives cần profile người bán (403 khi chưa có)
   const { hasProfile, meLoaded } = useCreatorProfile();
   const { data, isLoading, isFetching, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useCreatorCreatives({ status: status || undefined, hashtag: hashtag || undefined, sort: 'group', limit: PAGE_SIZE }, hasProfile);
+    useCreatorCreatives(
+      { status: status || undefined, hashtag: hashtag || undefined, channel: channel || undefined, sort: 'group', limit: PAGE_SIZE },
+      hasProfile,
+    );
   const pageItems = data?.pages.flatMap((p) => p.items) ?? [];
   // Lọc thêm ở client phòng khi backend chưa hỗ trợ tham số hashtag
   const items = hashtag ? pageItems.filter((c) => c.hashtags?.some((h) => h.slug === hashtag)) : pageItems;
@@ -267,6 +281,7 @@ export default function SellerProductsPage() {
             ))}
           </div>
         )}
+        {hasProfile && <ChannelFilter value={channel} onChange={setChannel} withNone className="px-4 pb-3" />}
         {hasProfile && (
           <div className="px-4 pb-3">
             <div className="flex h-10 items-center rounded-xl bg-surface-container-low px-3 focus-within:ring-2 focus-within:ring-primary-container/30">
@@ -320,12 +335,14 @@ export default function SellerProductsPage() {
             message={
               hashtag
                 ? `Không có AI Creative nào gắn #${input.replace(/^#+/, '').trim() || hashtag}.`
-                : status
-                  ? 'Không có AI Creative nào ở trạng thái này.'
-                  : 'Bạn chưa tạo AI Creative nào.'
+                : channel
+                  ? 'Không có AI Creative nào khớp bộ lọc kênh này.'
+                  : status
+                    ? 'Không có AI Creative nào ở trạng thái này.'
+                    : 'Bạn chưa tạo AI Creative nào.'
             }
           >
-            {!status && !hashtag && (
+            {!status && !hashtag && !channel && (
               <Link
                 to="/seller/creatives/new"
                 className="mt-2 flex h-10 items-center gap-1 rounded-xl bg-primary-container px-4 text-sm font-bold text-on-primary hover:bg-primary"

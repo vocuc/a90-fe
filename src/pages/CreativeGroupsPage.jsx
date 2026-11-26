@@ -8,10 +8,16 @@ import GroupCard from '../components/product/GroupCard';
 import GroupFormDialog from '../components/product/GroupFormDialog';
 import { CREATOR_KEYS, useCreatorProfile } from '../hooks/creatorQueries';
 import { AUTO_KEYS, listGroups } from '../api/autoBatch';
+import ChannelFilter, { CHANNEL_FILTER, readChannelFilter } from '../components/channel/ChannelFilter';
+
+/** Lọc nhóm theo kênh ở client: '' = tất cả, 'shared' = dùng chung, id = chỉ nhóm riêng của kênh đó. */
+const matchChannel = (group, channel) =>
+  !channel || (channel === CHANNEL_FILTER.SHARED ? !group.channel : String(group.channel?.id ?? '') === channel);
 
 /**
  * /seller/creative-groups: nhóm creative cho tạo lô tự động (note/auto-tao-lo.txt). Nhóm tạo trước chạy trước.
  * ?edit={id}: mở sẵn form sửa nhóm đó (nút sửa ở tab Creative của trang kênh).
+ * ?channel=: lọc theo kênh (id | shared); đang lọc 1 kênh thì "Tạo nhóm" chọn sẵn kênh đó.
  */
 export default function CreativeGroupsPage() {
   useSeo({ title: 'Nhóm creative', noindex: true });
@@ -20,6 +26,13 @@ export default function CreativeGroupsPage() {
   // null: đóng, {}: tạo mới, { group }: sửa
   const [editing, setEditingState] = useState(null);
   const [params, setParams] = useSearchParams();
+  const channel = readChannelFilter(params);
+  const setChannel = (value) => {
+    const next = new URLSearchParams(params);
+    if (value) next.set('channel', value);
+    else next.delete('channel');
+    setParams(next, { replace: true });
+  };
 
   const { data: groups, error, refetch } = useQuery({ queryKey: AUTO_KEYS.groups, queryFn: () => listGroups(), enabled: hasProfile });
 
@@ -29,8 +42,13 @@ export default function CreativeGroupsPage() {
   if (linked) setEditingState({ group: linked });
   const setEditing = (value) => {
     setEditingState(value);
-    if (!value && editId) setParams({}, { replace: true });
+    if (!value && editId) {
+      const next = new URLSearchParams(params);
+      next.delete('edit');
+      setParams(next, { replace: true });
+    }
   };
+  const shown = groups?.filter((g) => matchChannel(g, channel)) ?? [];
 
   // Nhóm đổi -> tải lại nhóm và danh sách creative (thẻ creative hiện tên nhóm)
   const reload = () =>
@@ -88,13 +106,14 @@ export default function CreativeGroupsPage() {
               Mỗi lô tự động = 1 sản phẩm x các creative Đang bán của 1 nhóm, mỗi creative 1 ảnh. Nhóm tạo trước chạy trước.
               Một creative chỉ ở một nhóm. Nhóm "Dùng chung" dùng cho mọi kênh, nhóm chọn kênh chỉ dùng cho kênh đó.
             </p>
-            {!groups.length ? (
-              <EmptyState icon="workspaces" message="Chưa có nhóm creative nào.">
+            <ChannelFilter value={channel === CHANNEL_FILTER.NONE ? '' : channel} onChange={setChannel} />
+            {!shown.length ? (
+              <EmptyState icon="workspaces" message={groups.length ? 'Không có nhóm nào khớp bộ lọc kênh này.' : 'Chưa có nhóm creative nào.'}>
                 {hasProfile && <div className="mt-2">{addButton}</div>}
               </EmptyState>
             ) : (
               <ul className="grid gap-3 lg:grid-cols-2">
-                {groups.map((g, i) => (
+                {shown.map((g, i) => (
                   <li key={g.id}>
                     <GroupCard group={g} index={i} onEdit={() => setEditing({ group: g })} onDeleted={reload} />
                   </li>
@@ -108,6 +127,7 @@ export default function CreativeGroupsPage() {
       {editing && (
         <GroupFormDialog
           group={editing.group}
+          defaultChannelId={/^\d+$/.test(channel) ? channel : ''}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
