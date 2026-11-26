@@ -109,7 +109,7 @@ export default function App() {
           <Route path="profile" element={<Navigate to="/account" replace />} />
           {/* Lịch sử tạo ảnh: lưới thẻ ảnh như Khám phá, trải rộng trên desktop */}
           <Route path="account/history" element={<PurchaseHistoryPage />} />
-          {/* Kênh TikTok + kế hoạch nội dung (note/xay-kenh-tiktok/dac-ta-giai-doan-1.txt): ở Công cụ > Quản lý, giao diện 1 kênh / tài khoản */}
+          {/* Kênh TikTok + kế hoạch nội dung (note/xay-kenh-tiktok/dac-ta-giai-doan-1.txt): ở Công cụ > Quản lý, nhiều kênh / tài khoản (danh sách ở /seller/channel) */}
           <Route path="seller/channel" element={<ChannelPage />} />
           <Route path="channels" element={<Navigate to="/seller/channel" replace />} />
           <Route path="channels/:id" element={<ChannelPage />} />

@@ -1,4 +1,4 @@
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import useSeo from '../hooks/useSeo';
 import Icon from '../components/common/Icon';
@@ -28,23 +28,37 @@ const TABS = [
 ];
 
 /**
- * /seller/channel (Công cụ > Quản lý > Kênh TikTok). Giao diện hiện cho mỗi tài khoản 1 kênh: mở thẳng kênh đầu tiên,
- * chưa có kênh thì hiện form thiết lập. API / dữ liệu vẫn theo danh sách kênh (số kênh tối đa: Channel::MAX_PER_SHOP ở
- * backend) để sau này mở nhiều kênh chỉ cần thêm ô chọn kênh. /channels/:id vẫn mở đúng kênh theo id.
+ * /seller/channel (Công cụ > Quản lý > Kênh TikTok): danh sách kênh của tài khoản + ô "Tạo kênh mới" (tối đa meta.max =
+ * Channel::MAX_PER_SHOP ở backend; mỗi kênh cần 1 worker đăng bài riêng). Chưa có kênh / ?new=1 -> form tạo kênh.
+ * /channels/:id mở 1 kênh, đầu trang có ô chuyển nhanh sang kênh khác. Link cũ /seller/channel?tab=... khi shop chỉ có
+ * 1 kênh thì mở thẳng kênh đó ở tab tương ứng.
  */
 export default function ChannelPage() {
   const { id } = useParams();
+  const [params] = useSearchParams();
   useSeo({ title: 'Kênh TikTok', noindex: true });
   const { hasProfile, meLoaded } = useCreatorProfile();
   const { data, error, refetch } = useQuery({ queryKey: CHANNEL_KEYS.all, queryFn: listChannels, enabled: hasProfile && !id });
-  const channelId = id ?? data?.items[0]?.id;
 
-  if (channelId) return <ChannelView id={channelId} />;
+  if (id) return <ChannelView id={id} />;
+  const tab = params.get('tab');
+  if (tab && data?.items.length === 1) return <Navigate to={`/channels/${data.items[0].id}?tab=${tab}`} replace />;
+
+  const items = data?.items ?? [];
+  const canCreate = !!data && items.length < data.max;
+  const creating = !!data && (items.length === 0 || (params.get('new') === '1' && canCreate));
+  const subPage = creating && items.length > 0;
+
   return (
     <>
       <header className="sticky top-[60px] z-30 flex items-center gap-2 border-b border-surface-container bg-surface-container-lowest/90 px-2 py-2 backdrop-blur-md">
-        <BackLink />
-        <h1 className="flex-1 text-base font-bold text-on-surface">Kênh TikTok</h1>
+        {subPage ? <BackLink to="/seller/channel" label="Quay lại danh sách kênh" /> : <BackLink />}
+        <h1 className="flex-1 text-base font-bold text-on-surface">{subPage ? 'Tạo kênh mới' : 'Kênh TikTok'}</h1>
+        {data && !creating && (
+          <span className="mr-2 text-xs text-on-surface-variant">
+            {items.length}/{data.max} kênh
+          </span>
+        )}
       </header>
       <section className="p-4 lg:py-6">
         {!meLoaded ? (
@@ -59,19 +73,89 @@ export default function ChannelPage() {
           <ErrorState error={error} onRetry={refetch} />
         ) : !data ? (
           <Skeleton className="h-40 w-full" />
+        ) : creating ? (
+          <CreateChannelForm cancelTo={items.length ? '/seller/channel' : null} />
         ) : (
-          <CreateChannelForm />
+          <ChannelList items={items} canCreate={canCreate} max={data.max} />
         )}
       </section>
     </>
   );
 }
 
-const BackLink = () => (
-  <Link to="/tools" aria-label="Quay lại Công cụ" className="flex size-9 items-center justify-center rounded-full hover:bg-surface-container">
+const BackLink = ({ to = '/tools', label = 'Quay lại Công cụ' }) => (
+  <Link to={to} aria-label={label} className="flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-surface-container">
     <Icon name="arrow_back" />
   </Link>
 );
+
+function ChannelList({ items, canCreate, max }) {
+  return (
+    <div className="mx-auto max-w-3xl space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {items.map((c) => (
+          <Link
+            key={c.id}
+            to={`/channels/${c.id}`}
+            className="flex flex-col gap-2 rounded-2xl border border-outline-variant/40 bg-surface-container-lowest p-4 transition hover:border-primary hover:shadow-sm"
+          >
+            <div className="flex items-center gap-2">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-fixed/40 text-primary">
+                <Icon name="smart_display" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-on-surface">{c.name}</p>
+                <p className="truncate text-[11px] text-on-surface-variant">{c.worker ? `Worker: ${c.worker.name}` : 'Chưa có worker'}</p>
+              </div>
+              <Icon name="chevron_right" className="text-on-surface-variant" />
+            </div>
+            <div className="flex flex-wrap gap-1.5 text-[11px] font-semibold">
+              <span className="rounded bg-surface-container px-1.5 py-0.5 text-on-surface-variant">ID: {c.id}</span>
+              <span className="rounded bg-surface-container px-1.5 py-0.5 text-on-surface-variant">{c.upcomingPosts} bài sắp đăng</span>
+              {!c.isActive && <span className="rounded bg-surface-container-high px-1.5 py-0.5 text-on-surface-variant">Đang tắt</span>}
+              {c.missing.length > 0 ? (
+                <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-900">Thiếu {c.missing.length} mục thiết lập</span>
+              ) : (
+                <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-800">Sẵn sàng</span>
+              )}
+            </div>
+          </Link>
+        ))}
+        {canCreate && (
+          <Link
+            to="/seller/channel?new=1"
+            className="flex min-h-[104px] flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-outline-variant/60 p-4 text-sm font-bold text-primary hover:border-primary hover:bg-primary-fixed/20"
+          >
+            <Icon name="add_circle" className="text-2xl" />
+            Tạo kênh mới
+          </Link>
+        )}
+      </div>
+      {!canCreate && <p className="text-center text-xs text-on-surface-variant">Đã đạt tối đa {max} kênh cho mỗi tài khoản.</p>}
+    </div>
+  );
+}
+
+/** Ô chuyển nhanh sang kênh khác (chỉ hiện khi có từ 2 kênh), giữ tab đang xem. */
+function ChannelSwitcher({ id, tab }) {
+  const navigate = useNavigate();
+  const { data } = useQuery({ queryKey: CHANNEL_KEYS.all, queryFn: listChannels });
+  if (!data || data.items.length < 2) return null;
+  return (
+    <select
+      aria-label="Chuyển kênh"
+      value={String(id)}
+      onChange={(e) => navigate(`/channels/${e.target.value}?tab=${tab}`)}
+      className="h-8 max-w-[40vw] shrink-0 rounded-lg border border-outline-variant bg-surface-container-lowest px-2 text-xs font-semibold text-on-surface"
+    >
+      {data.items.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.name}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 function ChannelView({ id }) {
   const [params, setParams] = useSearchParams();
@@ -83,7 +167,7 @@ function ChannelView({ id }) {
     <div className="min-w-0">
       <header className="border-b border-surface-container bg-surface-container-lowest">
         <div className="flex items-center gap-2 px-2 py-2">
-          <BackLink />
+          <BackLink to="/seller/channel" label="Danh sách kênh" />
           <div className="min-w-0 flex-1">
             <h1 className="flex items-center gap-1.5 text-base font-bold text-on-surface">
               <span className="truncate">{channel?.name ?? 'Kênh TikTok'}</span>
@@ -91,6 +175,7 @@ function ChannelView({ id }) {
             </h1>
             {channel && <p className="truncate text-[11px] text-on-surface-variant">{channel.worker ? `Worker: ${channel.worker.name}` : 'Chưa có worker'}</p>}
           </div>
+          <ChannelSwitcher id={id} tab={tab} />
           {/* Tab Lịch đăng đã gộp vào /posts (2026-11-25): xem / sửa / làm lại bài của kênh ở đó, lọc sẵn theo kênh */}
           {channel && (
             <Link

@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from '../common/Feedback';
 import { FormAlert, SelectField, SubmitButton, TextField } from '../common/Form';
 import { CHANNEL_KEYS, createChannel, listChannelWorkers } from '../../api/channels';
 
-/** Thiết lập kênh TikTok của tài khoản (mỗi tài khoản A51 có đúng 1 kênh): tên kênh + worker đăng bài. */
-export default function CreateChannelForm() {
+/** Tạo 1 kênh TikTok (tài khoản có thể có nhiều kênh, mỗi kênh 1 worker đăng bài riêng). cancelTo: link nút Huỷ (null = ẩn). */
+export default function CreateChannelForm({ cancelTo = null }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: workers, isLoading } = useQuery({ queryKey: CHANNEL_KEYS.workers, queryFn: listChannelWorkers });
@@ -15,10 +15,10 @@ export default function CreateChannelForm() {
   const [workerId, setWorkerId] = useState('');
   const mutation = useMutation({
     mutationFn: createChannel,
-    onSuccess: async () => {
+    onSuccess: async (channel) => {
       await queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.all });
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEYS.workers });
-      navigate('/seller/channel?tab=settings', { replace: true });
+      navigate(`/channels/${channel.id}?tab=settings`, { replace: true });
     },
   });
   const errors = mutation.error?.errors ?? {};
@@ -32,10 +32,10 @@ export default function CreateChannelForm() {
       }}
     >
       <div>
-        <h2 className="text-sm font-bold text-on-surface">Thiết lập kênh TikTok</h2>
+        <h2 className="text-sm font-bold text-on-surface">Tạo kênh TikTok</h2>
         <p className="mt-1 text-xs text-on-surface-variant">
-          Mỗi tài khoản A51 ứng với 1 kênh TikTok, đăng bài qua 1 worker. Kênh có chân dung khách hàng, kế hoạch nội dung và cài đặt AI viết
-          nội dung riêng; kế hoạch do đội A51 lập, bạn xem và duyệt tại đây.
+          Mỗi kênh TikTok đăng bài qua 1 worker riêng. Kênh có chân dung khách hàng, kế hoạch nội dung và cài đặt AI viết nội dung riêng; kế
+          hoạch do đội A51 lập, bạn xem và duyệt tại đây.
         </p>
       </div>
       <TextField label="Tên kênh" icon="badge" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} error={errors.name} placeholder="vd: Giày nữ Gen Z" />
@@ -57,6 +57,11 @@ export default function CreateChannelForm() {
       <SubmitButton loading={mutation.isPending} loadingText="Đang tạo..." disabled={!name.trim() || !workerId}>
         Tạo kênh
       </SubmitButton>
+      {cancelTo && (
+        <Link to={cancelTo} className="block text-center text-xs font-semibold text-on-surface-variant hover:underline">
+          Huỷ
+        </Link>
+      )}
     </form>
   );
 }
