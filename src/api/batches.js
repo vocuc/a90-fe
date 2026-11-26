@@ -98,8 +98,9 @@ const splitInputs = (schema, values) => {
  * workerId: worker tạo ảnh cho cả lô (note/chon-worker-tao-anh.txt), sai -> 422 errors["worker_id"].
  * productId: sản phẩm của các ảnh (backend lưu vào generations.product_id, không gắn vào lô); null -> 0.
  *   Không phải sản phẩm của mình -> 422 errors["product_id"].
+ * channelId: kênh lô tạo cho (image_batches / generations.channel_id, lọc Lịch sử tạo ảnh theo kênh); null = không theo kênh.
  */
-export function createBatch(items, idempotencyKey, insertLogo = false, workerId = null, productId = null) {
+export function createBatch(items, idempotencyKey, insertLogo = false, workerId = null, productId = null, channelId = null) {
   const form = new FormData();
   items.forEach(({ creativeId, schema, values, quantity }, i) => {
     form.append(`items[${i}][creative_id]`, creativeId);
@@ -109,6 +110,7 @@ export function createBatch(items, idempotencyKey, insertLogo = false, workerId 
   form.append('insert_logo', insertLogo ? '1' : '0');
   if (workerId) form.append('worker_id', workerId);
   if (productId) form.append('product_id', productId);
+  if (channelId) form.append('channel_id', channelId);
   form.append('idempotency_key', idempotencyKey);
   return client.post('/image-batches', form, { timeout: UPLOAD_TIMEOUT }).then(({ data }) => mapBatch(data));
 }

@@ -12,6 +12,7 @@ import CreativeInputCard from '../components/batch/CreativeInputCard';
 import LogoCard, { batchLogoUrl } from '../components/batch/LogoCard';
 import ImageWorkerSelect, { useImageWorker } from '../components/common/ImageWorkerSelect';
 import ImageSelectField from '../components/common/ImageSelectField';
+import { ChannelSelect } from '../components/channel/ChannelFilter';
 import { useMe } from '../hooks/queries';
 import { creativeApi } from '../api/services';
 import { createBatch } from '../api/batches';
@@ -53,6 +54,8 @@ export default function BatchNewPage() {
   // Chọn ở bước nhập thông tin (dưới ô worker); vào từ nút "Tạo ảnh" của thẻ sản phẩm (/seller/items) thì chọn sẵn.
   // Giữ trong state vì đổi ?step làm mất location.state. null: không theo sản phẩm, người dùng tự nhập, product_id = 0
   const [product, setProduct] = useState(() => location.state?.product ?? null);
+  // Kênh lô tạo cho ('' = không theo kênh): lưu vào ảnh để lọc Lịch sử tạo ảnh theo kênh
+  const [channelId, setChannelId] = useState('');
   const [picked, setPicked] = useState([]);
   // Giá trị người dùng đã sửa theo mẫu: { [id]: { [key]: value } }; trường chưa sửa lấy mặc định của form + ảnh sản phẩm
   const [inputs, setInputs] = useState({});
@@ -192,6 +195,7 @@ export default function BatchNewPage() {
         !!logoUrl && insertLogo,
         worker.workerId,
         product?.id ?? null,
+        channelId || null,
       );
       idem.renew();
       queryClient.invalidateQueries({ queryKey: ['batches'] });
@@ -327,6 +331,7 @@ export default function BatchNewPage() {
         <div id="batch-worker" className="rounded-2xl border border-outline-variant/40 p-4">
           <ImageWorkerSelect worker={worker} error={workerError} onChange={() => setWorkerError(null)} />
         </div>
+        <ChannelSelect value={channelId} onChange={setChannelId} className="rounded-2xl border border-outline-variant/40 p-4" />
         {(!products.isError || product) && (
           <div id="batch-product" className="space-y-3 rounded-2xl border border-outline-variant/40 p-4">
             <ImageSelectField

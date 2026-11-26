@@ -360,8 +360,9 @@ export const generationApi = {
     return client.post('/generations', form, { timeout: GENERATION_UPLOAD_TIMEOUT }).then(({ data }) => data);
   }),
   // tab: active (ảnh creative) | outfit (ảnh lô phối đồ) | failed | disabled (không truyền: mọi đơn, kèm ảnh chưa tắt)
-  list: requireRealBackend(({ page, limit, tab, creativeId, productId } = {}) =>
-    client.get('/generations', { params: { page, per_page: limit, tab, creative_id: creativeId, product_id: productId } }).then(({ data, meta }) => ({
+  // channel: id kênh | 'none' (ảnh không rõ kênh)
+  list: requireRealBackend(({ page, limit, tab, creativeId, productId, channel } = {}) =>
+    client.get('/generations', { params: { page, per_page: limit, tab, creative_id: creativeId, product_id: productId, channel } }).then(({ data, meta }) => ({
       items: data,
       page: meta.current_page,
       lastPage: meta.last_page,

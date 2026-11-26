@@ -15,6 +15,7 @@ import {
   useGenerationHistory,
   useRetryFromHistory,
 } from '../hooks/generationQueries';
+import ChannelFilter, { CHANNEL_FILTER, readChannelFilter } from '../components/channel/ChannelFilter';
 
 // Khớp GenerationStatus của backend
 const STATUS = {
@@ -181,6 +182,12 @@ function HistoryCard({ kind, order, output, onView }) {
             ) : (
               order.creative.id
             )}
+          </p>
+        )}
+        {order.channel && (
+          <p className="flex min-w-0 items-center gap-0.5 text-[11px] text-outline" title="Kênh ảnh này tạo cho">
+            <Icon name="smart_display" className="shrink-0 text-[12px]" />
+            <span className="truncate">{order.channel.name}</span>
           </p>
         )}
         {(order.creative?.cover_url || product?.cover_url) && (
@@ -427,17 +434,21 @@ export default function PurchaseHistoryPage() {
   const tab = TABS.find((t) => t.value === searchParams.get('tab')) ?? TABS[0];
   const creativeId = searchParams.get('creative') || undefined;
   const productId = searchParams.get('product') || undefined;
-  const filtered = !!(creativeId || productId);
+  // Kênh: id | none (không rõ kênh); lịch sử không có "Dùng chung" như nhóm creative
+  const channelParam = readChannelFilter(searchParams);
+  const channel = channelParam === CHANNEL_FILTER.SHARED ? '' : channelParam;
+  const filtered = !!(creativeId || productId || channel);
   const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useGenerationHistory(10, tab.value, {
     creativeId,
     productId,
+    channel: channel || undefined,
   });
   // key = null: bỏ mọi bộ lọc; value rỗng: bỏ bộ lọc đó
   const setParam = (key, value) =>
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        if (key === null) ['creative', 'product'].forEach((k) => next.delete(k));
+        if (key === null) ['creative', 'product', 'channel'].forEach((k) => next.delete(k));
         else if (value) next.set(key, value);
         else next.delete(key);
         return next;
@@ -491,6 +502,14 @@ export default function PurchaseHistoryPage() {
           ))}
         </div>
         <HistoryFilters creativeId={creativeId} productId={productId} onChange={setParam} />
+        <ChannelFilter
+          value={channel}
+          onChange={(v) => setParam('channel', v)}
+          withShared={false}
+          withNone
+          noneLabel="Không rõ kênh"
+          className="mt-2"
+        />
       </header>
 
       <ImageViewer src={viewing?.src} alt={viewing?.alt} onClose={() => setViewing(null)} />

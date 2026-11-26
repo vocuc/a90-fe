@@ -244,7 +244,8 @@ export const previewOutfit = (count, imagesPerBatch, productIds = [], useProduct
       })),
     }));
 
-export const createOutfit = ({ count, imagesPerBatch, insertLogo, workerId, productIds = [], useProduct = true }, idempotencyKey) =>
+/** channelId: kênh lô tạo cho (chỉ ghi vào lô / ảnh để lọc Lịch sử tạo ảnh), rỗng = không theo kênh. */
+export const createOutfit = ({ count, imagesPerBatch, insertLogo, workerId, productIds = [], useProduct = true, channelId = '' }, idempotencyKey) =>
   client
     .post('/image-batches/auto', {
       mode: 'outfit',
@@ -255,6 +256,7 @@ export const createOutfit = ({ count, imagesPerBatch, insertLogo, workerId, prod
       worker_id: workerId,
       use_product: useProduct,
       product_ids: useProduct && productIds.length ? productIds : undefined,
+      channel_id: channelId ? Number(channelId) : undefined,
     })
     .then(({ data }) => ({
       batches: data.batches.map(mapBatch),

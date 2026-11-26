@@ -173,6 +173,7 @@ export default function BatchAutoPage() {
               insertLogo: !!logoUrl && insertLogo,
               productIds,
               useProduct,
+              channelId,
               workerId: worker.workerId,
             },
             idem.key.current,
@@ -311,7 +312,7 @@ export default function BatchAutoPage() {
           <ImageWorkerSelect worker={worker} error={workerError} onChange={() => setWorkerError(null)} />
         </div>
 
-        {!outfit && channels.length > 0 && (
+        {channels.length > 0 && (
           <div className="rounded-2xl border border-outline-variant/40 p-4">
             <SelectField
               label="Tạo cho kênh"
@@ -321,9 +322,11 @@ export default function BatchAutoPage() {
                 setError(null);
               }}
               hint={
-                channelId
-                  ? 'Dùng nhóm creative dùng chung + nhóm riêng của kênh này.'
-                  : 'Chỉ dùng nhóm creative dùng chung (nhóm riêng của kênh bị bỏ qua).'
+                outfit
+                  ? 'Ảnh của lô được ghi là của kênh này, lọc được ở Lịch sử tạo ảnh.'
+                  : channelId
+                    ? 'Dùng nhóm creative dùng chung + nhóm riêng của kênh này. Ảnh được ghi là của kênh này.'
+                    : 'Chỉ dùng nhóm creative dùng chung (nhóm riêng của kênh bị bỏ qua).'
               }
             >
               <option value="">Không theo kênh</option>

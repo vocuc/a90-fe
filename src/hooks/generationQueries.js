@@ -30,10 +30,10 @@ export const useGenerationStatus = (id) =>
   });
 
 /** Lịch sử tạo ảnh (mua hàng) của tài khoản, tải thêm theo trang. filters: { creativeId, productId } (bỏ trống = tất cả). */
-export const useGenerationHistory = (limit = 10, tab, { creativeId, productId } = {}) =>
+export const useGenerationHistory = (limit = 10, tab, { creativeId, productId, channel } = {}) =>
   useInfiniteQuery({
-    queryKey: ['generations', 'history', limit, tab ?? 'all', creativeId ?? null, productId ?? null],
-    queryFn: ({ pageParam }) => generationApi.list({ page: pageParam, limit, tab, creativeId, productId }),
+    queryKey: ['generations', 'history', limit, tab ?? 'all', creativeId ?? null, productId ?? null, channel ?? null],
+    queryFn: ({ pageParam }) => generationApi.list({ page: pageParam, limit, tab, creativeId, productId, channel }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.lastPage ? last.page + 1 : undefined),
   });
